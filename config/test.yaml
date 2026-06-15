@@ -1,0 +1,16 @@
+run:
+  class: "TRestRun"
+  name: "Developing"
+  params:
+    description: "Test"
+    runNumber: "auto"
+    parentRunNumber: 0000
+    runType: "Test"
+    runUser: "${ENV:USER}"
+    runTag: "Dummy"
+    runDescription: ""
+    experimentName: "None"
+    inputFileName: "Null"
+    outputFileName: "R${run.params.runNumber}_${run.params.parentRunNumber}_${run.params.runType}_${run.params.runTag}.root"
+    entriesSaved: 0
+

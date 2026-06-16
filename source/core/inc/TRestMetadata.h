@@ -18,6 +18,7 @@
 // ============================================================
 class TRestMetadata {
    protected:
+    std::string fName           = "";
     std::string fConfigFileName = "";
     std::string fSectionName    = "";
     YAML::Node  fNode;
@@ -26,13 +27,15 @@ class TRestMetadata {
 
    public:
     virtual std::string GetClassName() const = 0;
+     std::string GetName() const { return fName; }
 
-    explicit TRestMetadata(const std::string& sectionName, const YAML::Node& node);
+    explicit TRestMetadata(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node);
     explicit TRestMetadata(const std::string& fileName,    const std::string& sectionName);
 
+    void SetName(const std::string& name)        { fName           = name; }
     void SetConfigFileName(const std::string& f) { fConfigFileName = f; }
     void SetSectionName(const std::string& s)    { fSectionName    = s; }
-    void SetYAMLNode(const YAML::Node& node)      { fNode           = node; }
+    void SetYAMLNode(const YAML::Node& node)     { fNode           = node; }
 
     virtual ~TRestMetadata() = default;
 
@@ -46,7 +49,7 @@ class TRestMetadata {
 class MetadataRegistry {
    public:
     using Creator = std::function<
-        std::unique_ptr<TRestMetadata>(const std::string&, const YAML::Node&)>;
+        std::unique_ptr<TRestMetadata>(const std::string&, const std::string&, const YAML::Node&)>;
 
     static MetadataRegistry& Instance() {
         static MetadataRegistry inst;
@@ -61,12 +64,13 @@ class MetadataRegistry {
     }
 
     std::unique_ptr<TRestMetadata> Create(const std::string& type,
-                                          const std::string& name,
+                                          const std::string& instanceName,
+                                          const std::string& sectionName,
                                           const YAML::Node&  params) const {
         auto it = creators.find(type);
         if (it == creators.end())
             throw std::runtime_error("MetadataRegistry: unknown type '" + type + "'");
-        return it->second(name, params);
+        return it->second(instanceName, sectionName, params);
     }
 
     bool Contains(const std::string& type) const { return creators.count(type) != 0; }

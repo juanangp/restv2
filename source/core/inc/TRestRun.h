@@ -16,7 +16,6 @@
 //  Data is stored using the AOD pattern:
 //    - One TTree ("EventTree") with one branch per event type.
 //    - Branches hold plain C++ objects – no schema evolution,
-//      no RNTuple experimental API.
 // ============================================================
 class TRestRun : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestRun)
@@ -36,13 +35,21 @@ class TRestRun : public TRestMetadata {
     double      fEndTime        = 0;
     int         fEntriesSaved   = 0;
 
-    // --- AOD I/O ---
+    std::unique_ptr<TFile> fInputFile;
     std::unique_ptr<TFile> fOutputFile;
-    TTree*                 fEventTree = nullptr;  // owned by fOutputFile
 
-   public:
-    TRestRun(const std::string& sectionName, const YAML::Node& node);
+    TTree* fInputEventTree  = nullptr;
+    TTree* fOutputEventTree = nullptr;
+    TTree* fAnalysisTree    = nullptr;
+
+    std::map<std::string, TRestEvent*> fInputEvents;
+    std::map<std::string, TRestEvent*> fOutputEvents;
+
+  public:
+    TRestRun(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node);
     TRestRun(const std::string& fileName,    const std::string& sectionName);
+
+    ~TRestRun() override;
 
     std::string GetClassName() const override { return "TRestRun"; }
 
@@ -56,28 +63,58 @@ class TRestRun : public TRestMetadata {
     std::string GetInputFileName()   const { return fInputFileName; }
     std::string GetOutputFileName()  const { return fOutputFileName; }
 
-    // --- AOD file management ---
 
-    /// Open the output ROOT file and create the EventTree.
+    void OpenInputFile(const std::string& filename);
     void OpenOutputFile();
+    void CloseFiles();
 
-    /// Register a branch for a concrete event type T.
-    /// Must be called before the first FillEvent().
-    template <typename T>
-    void RegisterEventBranch(const std::string& branchName) {
-        static_assert(std::is_base_of_v<TRestEvent, T>,
-                      "T must derive from TRestEvent");
-        if (!fEventTree)
-            throw std::runtime_error("TRestRun: call OpenOutputFile() first");
-        auto* obj = new T();
-        fEventTree->Branch(branchName.c_str(), &obj);
+    Long64_t GetEntries() const { return fInputEventTree ? fInputEventTree->GetEntries() : 0; }
+    bool GetEntry(Long64_t entry);
+    bool HasEvent(const std::string& branchName) const;
+
+    template <typename T = TRestEvent>
+    T& GetEvent(const std::string& branchName) {
+        auto it = fInputEvents.find(branchName);
+        if (it == fInputEvents.end()) {
+            throw std::runtime_error("TRestRun: Branch '" + branchName + "' does not exist.");
+        }
+        return dynamic_cast<T&>(*(it->second));
     }
 
-    /// Fill one entry into the EventTree.
-    void FillEvent();
+    template <typename T>
+    void RegisterEventBranch(const std::string& branchName, T& eventObject) {
+      static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
+    
+      if (!fOutputFile) {
+        throw std::runtime_error("TRestRun: No output file added");
+      }
+      if (!fOutputEventTree) {
+        fOutputFile->cd();
+        fOutputEventTree = new TTree("EventTree", "REST AOD Event Tree");
+      }
 
-    /// Write and close the output file.
-    void CloseOutputFile();
+      fOutputEvents[branchName] = &eventObject;
+
+      fOutputEventTree->Branch(branchName.c_str(), &fOutputEvents[branchName]);
+    }
+
+    template <typename T>
+    void SetObservable(const std::string& name, T& variable) {
+        if (!fAnalysisTree) throw std::runtime_error("TRestRun: Output file not open");
+        fAnalysisTree->Branch(name.c_str(), &variable);
+    }
+    template <typename T>
+    void GetObservable(const std::string& name, T& variable) {
+        if (!fAnalysisTree) throw std::runtime_error("TRestRun: Input file missing");
+        
+        fAnalysisTree->SetBranchAddress(name.c_str(), &variable);
+    }
+
+    void AddMetadata(const std::string& instanceName, const std::string& className, const YAML::Node& configNode);
+    YAML::Node GetMetadata(const std::string& instanceName) const;
+
+    TRestEvent& GetInputEvent(const std::string& branchName);
+    void Fill();
 
     // TRestMetadata interface
     void LoadConfig()    override;

@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
         const auto  name      = TRestTools::ReadYAMLParam<std::string>(runNode["name"]);
         auto        params    = runNode["params"];
 
-        auto run = MetadataRegistry::Instance().Create(className, name, params);
+        auto run = MetadataRegistry::Instance().Create(className, name, "run_section", params);
         run->PrintMetadata();
 
         // --- Alternative: construct TRestRun directly from file ---
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
         // --- Build and run the full manager ---
         RESTLog << "\n--- TRestManager ---" << RESTendl;
-        TRestManager mgr(argv[1]);
+        TRestManager mgr(argv[1],"manager");
         mgr.PrintMetadata();
 
     } catch (const std::exception& ex) {

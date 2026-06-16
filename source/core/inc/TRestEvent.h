@@ -27,6 +27,7 @@ class TRestEvent {
         int timeNanoSeconds = 0;
         bool ok = true;
     } fInfo;
+    std::string fName = "";
     std::string fSubEventTag = "";
 
    public:
@@ -35,6 +36,8 @@ class TRestEvent {
     virtual TPad*       DrawEvent(const TString& option = "") const = 0;
 
     // Setters
+    void SetName(const std::string& name)   { fName = name; }
+    std::string GetName() const             { return fName; }
     void SetRunOrigin(int v)                { fInfo.runOrigin    = v; }
     void SetSubRunOrigin(int v)             { fInfo.subRunOrigin = v; }
     void SetID(int id)                      { fInfo.eventID      = id; }
@@ -97,22 +100,25 @@ class EventRegistry {
         return inst;
     }
 
-    // Non-copyable singleton
     EventRegistry(const EventRegistry&)            = delete;
     EventRegistry& operator=(const EventRegistry&) = delete;
 
-    /// Register a creator function under the given class name.
-    /// Duplicate registrations are silently ignored.
     void Register(const std::string& type, Creator creator) {
         creators.emplace(type, std::move(creator));
     }
 
-    /// Create an instance by class name; throws if unknown.
-    std::unique_ptr<TRestEvent> Create(const std::string& type) const {
+    std::unique_ptr<TRestEvent> Create(const std::string& type, const std::string& instanceName = "") const {
         auto it = creators.find(type);
         if (it == creators.end())
             throw std::runtime_error("EventRegistry: unknown type '" + type + "'");
-        return it->second();
+        
+        auto event = it->second();
+        if (!instanceName.empty()) {
+            event->SetName(instanceName);
+        } else {
+            event->SetName(type); // Fallback to class name
+        }
+        return event;
     }
 
     bool Contains(const std::string& type) const { return creators.count(type) != 0; }

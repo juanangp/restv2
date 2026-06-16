@@ -11,23 +11,16 @@
 //  Returning nullptr signals that the event should be dropped.
 // ============================================================
 class TRestEventProcess : public TRestMetadata {
-   public:
-    std::string GetClassName() const override { return "TRestEventProcess"; }
+    DECLARE_LOG_CLASS(TRestEventProcess)
 
-    /// Input event accessor – must be implemented by derived class.
-    virtual TRestEvent* GetInputEvent()  const = 0;
-    /// Output event accessor – must be implemented by derived class.
-    virtual TRestEvent* GetOutputEvent() const = 0;
+public:
+    using TRestMetadata::TRestMetadata;
+    ~TRestEventProcess() override = default;
 
-    /// Called once before the processing loop starts.
-    virtual void BeginOfEventProcess(TRestEvent* inputEvent = nullptr) = 0;
-    /// Process one event; return nullptr to drop it.
-    virtual TRestEvent* ProcessEvent(TRestEvent* inputEvent) = 0;
-    /// Called once after the processing loop ends.
-    virtual void EndOfEventProcess(TRestEvent* inputEvent = nullptr) = 0;
+    virtual void InitProcess() = 0;
+    virtual void ProcessEvent(const TRestEvent& input, TRestEvent& output) = 0;
+    virtual void EndProcess() {}
 
-    // Default no-op implementations of TRestMetadata virtuals
-    void LoadConfig()    override {}
-    void Initialize()    override {}
-    void PrintMetadata() override {}
+    void LoadConfig() override {}
+    void Initialize() override { InitProcess(); }
 };

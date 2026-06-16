@@ -34,7 +34,6 @@ class TRestHits {
     inline int GetGlobalIdx(int n) const { return fStartIdx + n; }
 
    public:
-    // Constructor limpio: solo un puntero al bloque de datos
     TRestHits(TRestHitsData* data, int start = 0, int n = 0) 
         : fData(data), fStartIdx(start), fNHits(n) {}
 

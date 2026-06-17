@@ -2,7 +2,8 @@
 
 #include "TRestTools.h"
 
-TRestMetadata::TRestMetadata(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node)
+TRestMetadata::TRestMetadata(const std::string& instanceName, const std::string& sectionName,
+                             const YAML::Node& node)
     : fName(instanceName), fSectionName(sectionName), fNode(node) {
     if (fNode && fNode["name"]) {
         fName = fNode["name"].as<std::string>();

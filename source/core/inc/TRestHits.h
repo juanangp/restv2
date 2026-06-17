@@ -12,16 +12,18 @@
 // TRestHitsData
 // ============================================================
 struct TRestHitsData {
-    enum REST_HitType : int { 
-        unknown = -1, X = 2, Y = 3, Z = 5, XY = 6, 
-        XZ = 10, YZ = 15, XYZ = 30
-    };
+    enum REST_HitType : int { unknown = -1, X = 2, Y = 3, Z = 5, XY = 6, XZ = 10, YZ = 15, XYZ = 30 };
 
     std::vector<float> x, y, z, time, energy;
     std::vector<REST_HitType> type;
 
     void clear() {
-        x.clear(); y.clear(); z.clear(); time.clear(); energy.clear(); type.clear();
+        x.clear();
+        y.clear();
+        z.clear();
+        time.clear();
+        energy.clear();
+        type.clear();
     }
 };
 
@@ -34,8 +36,7 @@ class TRestHits {
     inline int GetGlobalIdx(int n) const { return fStartIdx + n; }
 
    public:
-    TRestHits(TRestHitsData* data, int start = 0, int n = 0) 
-        : fData(data), fStartIdx(start), fNHits(n) {}
+    TRestHits(TRestHitsData* data, int start = 0, int n = 0) : fData(data), fStartIdx(start), fNHits(n) {}
 
     void Translate(int n, double x, double y, double z);
     void RotateIn3D(int n, double alpha, double beta, double gamma, ROOT::Math::XYZVector center);
@@ -73,7 +74,9 @@ class TRestHits {
     inline double GetZ(int n) const { return fData->z[GetGlobalIdx(n)]; }
     inline double GetTime(int n) const { return fData->time[GetGlobalIdx(n)]; }
     inline double GetEnergy(int n) const { return fData->energy[GetGlobalIdx(n)]; }
-    inline TRestHitsData::REST_HitType GetType(int n) const { return static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(n)]); }
+    inline TRestHitsData::REST_HitType GetType(int n) const {
+        return static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(n)]);
+    }
 
     ROOT::Math::XYZVector GetPosition(int n) const;
     inline ROOT::Math::XYZVector GetVector(int i, int j) { return GetPosition(i) - GetPosition(j); }

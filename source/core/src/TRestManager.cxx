@@ -14,10 +14,11 @@ const bool kRegistered = []() {
         });
     return true;
 }();
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
-TRestManager::TRestManager(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node)
+TRestManager::TRestManager(const std::string& instanceName, const std::string& sectionName,
+                           const YAML::Node& node)
     : TRestMetadata(instanceName, sectionName, node) {
     LoadConfig();
 }
@@ -25,7 +26,7 @@ TRestManager::TRestManager(const std::string& instanceName, const std::string& s
 TRestManager::TRestManager(const std::string& fileName, const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
     YAML::Node raw = YAML::LoadFile(fileName);
-    fNode          = ResolveAllRefs(raw);
+    fNode = ResolveAllRefs(raw);
     if (!sectionName.empty()) fNode = fNode[sectionName];
     LoadConfig();
 }
@@ -33,8 +34,8 @@ TRestManager::TRestManager(const std::string& fileName, const std::string& secti
 // ---------------------------------------------------------------------------
 void TRestManager::LoadConfig() {
     for (auto it = fNode.begin(); it != fNode.end(); ++it) {
-        const auto key   = it->first.as<std::string>();
-        auto       value = it->second;
+        const auto key = it->first.as<std::string>();
+        auto value = it->second;
 
         RESTInfo << "Loading YAML node: " << key << RESTendl;
 
@@ -44,25 +45,22 @@ void TRestManager::LoadConfig() {
         }
 
         const auto className = ReadYAMLParam<std::string>(value["class"]);
-        const auto name      = ReadYAMLParam<std::string>(value["name"]);
-        auto       params    = value["params"];
+        const auto name = ReadYAMLParam<std::string>(value["name"]);
+        auto params = value["params"];
 
-        RESTInfo << "Loading metadata - name: " << name
-                 << "  class: " << className << RESTendl;
+        RESTInfo << "Loading metadata - name: " << name << "  class: " << className << RESTendl;
 
-        fMetaObjects.emplace_back(
-            MetadataRegistry::Instance().Create(className, name, "manager", params));
+        fMetaObjects.emplace_back(MetadataRegistry::Instance().Create(className, name, "manager", params));
     }
 
     for (auto& meta : fMetaObjects) meta->PrintMetadata();
 }
 
-
 // ---------------------------------------------------------------------------
 void TRestManager::LoadPipeline(YAML::Node& pipeline) {
     for (auto it = pipeline.begin(); it != pipeline.end(); ++it) {
-        const auto key   = it->first.as<std::string>();
-        auto       value = it->second;
+        const auto key = it->first.as<std::string>();
+        auto value = it->second;
 
         if (key == "params") {
             fParams = value;
@@ -71,10 +69,10 @@ void TRestManager::LoadPipeline(YAML::Node& pipeline) {
         }
 
         const auto className = ReadYAMLParam<std::string>(value["class"]);
-        const auto name      = ReadYAMLParam<std::string>(value["name"]);
-        auto       params    = value["params"];
+        const auto name = ReadYAMLParam<std::string>(value["name"]);
+        auto params = value["params"];
 
-        std::string inputBranch  = ReadYAMLParamOrDefault<std::string>(value, "input", "DefaultInput");
+        std::string inputBranch = ReadYAMLParamOrDefault<std::string>(value, "input", "DefaultInput");
         std::string outputBranch = ReadYAMLParamOrDefault<std::string>(value, "output", "DefaultOutput");
 
         RESTInfo << "Loading process: " << name << " (" << className << ")" << RESTendl;
@@ -85,7 +83,7 @@ void TRestManager::LoadPipeline(YAML::Node& pipeline) {
         if (auto* proc = dynamic_cast<TRestEventProcess*>(meta.get())) {
             meta.release();
             fProcessChain.emplace_back(std::unique_ptr<TRestEventProcess>(proc));
-            
+
             fPipelineConnections.push_back({inputBranch, outputBranch});
         } else {
             RESTError << "'" << className << "' is not a TRestEventProcess - skipping" << RESTendl;
@@ -99,22 +97,23 @@ void TRestManager::Run(TRestRun& restRun) {
     }
 
     for (size_t i = 0; i < fProcessChain.size(); ++i) {
-        std::string inputName     = fPipelineConnections[i].first;
-        std::string outputName    = fPipelineConnections[i].second;
+        std::string inputName = fPipelineConnections[i].first;
+        std::string outputName = fPipelineConnections[i].second;
         std::string procClassName = fProcessChain[i]->GetClassName();
 
         try {
             restRun.GetInputEvent(inputName);
         } catch (...) {
             if (fEventPool.find(inputName) == fEventPool.end()) {
-                throw std::runtime_error("TRestManager::Run - Branch name '" + inputName + "' not found in pool.");
+                throw std::runtime_error("TRestManager::Run - Branch name '" + inputName +
+                                         "' not found in pool.");
             }
         }
 
         if (fEventPool.find(outputName) == fEventPool.end()) {
             std::string inputClassName = (fEventPool.find(inputName) != fEventPool.end())
-                ? fEventPool[inputName]->GetClassName()
-                : restRun.GetInputEvent(inputName).GetClassName();
+                                             ? fEventPool[inputName]->GetClassName()
+                                             : restRun.GetInputEvent(inputName).GetClassName();
 
             auto outEvent = EventRegistry::Instance().Create(inputClassName, outputName);
 
@@ -127,20 +126,22 @@ void TRestManager::Run(TRestRun& restRun) {
     }
 
     Long64_t totalEntries = restRun.GetEntries();
-    Long64_t entriesToRun = (fEventsToProcess > 0) ? std::min((Long64_t)fEventsToProcess, totalEntries) : totalEntries;
-    
-    RESTInfo << "TRestManager: Iniciando el bucle principal. Eventos a procesar: " << entriesToRun << RESTendl;
+    Long64_t entriesToRun =
+        (fEventsToProcess > 0) ? std::min((Long64_t)fEventsToProcess, totalEntries) : totalEntries;
+
+    RESTInfo << "TRestManager: Iniciando el bucle principal. Eventos a procesar: " << entriesToRun
+             << RESTendl;
 
     for (Long64_t entry = 0; entry < entriesToRun; ++entry) {
         restRun.GetEntry(entry);
 
         for (size_t i = 0; i < fProcessChain.size(); ++i) {
-            std::string inputName  = fPipelineConnections[i].first;
+            std::string inputName = fPipelineConnections[i].first;
             std::string outputName = fPipelineConnections[i].second;
 
             TRestEvent& inputEvent = (fEventPool.find(inputName) != fEventPool.end())
-                ? *fEventPool[inputName]
-                : restRun.GetInputEvent(inputName);
+                                         ? *fEventPool[inputName]
+                                         : restRun.GetInputEvent(inputName);
 
             TRestEvent& outputEvent = *fEventPool[outputName];
 
@@ -155,10 +156,9 @@ void TRestManager::Run(TRestRun& restRun) {
     for (auto& proc : fProcessChain) {
         proc->EndProcess();
     }
-    
+
     RESTInfo << "TRestManager: Pipeline run succeed." << RESTendl;
 }
-
 
 // ---------------------------------------------------------------------------
 void TRestManager::LoadParams() {
@@ -167,10 +167,11 @@ void TRestManager::LoadParams() {
         return;
     }
 
-    fEventsToProcess      = ReadYAMLParamOrDefault<int>(fParams,  "eventsToProcess",      fEventsToProcess);
-    fInputAnalysisStorage = ReadYAMLParamOrDefault<bool>(fParams, "inputAnalysisStorage",  fInputAnalysisStorage);
-    fInputEventStorage    = ReadYAMLParamOrDefault<bool>(fParams, "inputEventStorage",     fInputEventStorage);
-    fOutputEventStorage   = ReadYAMLParamOrDefault<bool>(fParams, "outputEventStorage",    fOutputEventStorage);
+    fEventsToProcess = ReadYAMLParamOrDefault<int>(fParams, "eventsToProcess", fEventsToProcess);
+    fInputAnalysisStorage =
+        ReadYAMLParamOrDefault<bool>(fParams, "inputAnalysisStorage", fInputAnalysisStorage);
+    fInputEventStorage = ReadYAMLParamOrDefault<bool>(fParams, "inputEventStorage", fInputEventStorage);
+    fOutputEventStorage = ReadYAMLParamOrDefault<bool>(fParams, "outputEventStorage", fOutputEventStorage);
 
     TRestMetadata::ReadYAMLVerbose(fParams);
 }

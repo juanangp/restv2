@@ -13,7 +13,7 @@
 class TRestEventProcess : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestEventProcess)
 
-public:
+   public:
     using TRestMetadata::TRestMetadata;
     ~TRestEventProcess() override = default;
 

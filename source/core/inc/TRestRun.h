@@ -21,48 +21,47 @@ class TRestRun : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestRun)
 
    protected:
-    int         fRunNumber       = 0;
-    int         fParentRunNumber = 0;
-    std::string fRunType         = "Null";
-    std::string fRunUser         = "Null";
-    std::string fRunTag          = "Null";
-    std::string fRunDescription  = "Null";
-    std::string fExperimentName  = "Null";
+    int fRunNumber = 0;
+    int fParentRunNumber = 0;
+    std::string fRunType = "Null";
+    std::string fRunUser = "Null";
+    std::string fRunTag = "Null";
+    std::string fRunDescription = "Null";
+    std::string fExperimentName = "Null";
 
-    std::string fInputFileName  = "Null";
+    std::string fInputFileName = "Null";
     std::string fOutputFileName = "rest_default.root";
-    double      fStartTime      = 0;
-    double      fEndTime        = 0;
-    int         fEntriesSaved   = 0;
+    double fStartTime = 0;
+    double fEndTime = 0;
+    int fEntriesSaved = 0;
 
     std::unique_ptr<TFile> fInputFile;
     std::unique_ptr<TFile> fOutputFile;
 
-    TTree* fInputEventTree  = nullptr;
+    TTree* fInputEventTree = nullptr;
     TTree* fOutputEventTree = nullptr;
-    TTree* fAnalysisTree    = nullptr;
+    TTree* fAnalysisTree = nullptr;
 
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
 
-  public:
+   public:
     TRestRun(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node);
-    TRestRun(const std::string& fileName,    const std::string& sectionName);
+    TRestRun(const std::string& fileName, const std::string& sectionName);
 
     ~TRestRun() override;
 
     std::string GetClassName() const override { return "TRestRun"; }
 
     // Run info getters
-    int         GetRunNumber()       const { return fRunNumber; }
-    int         GetParentRunNumber() const { return fParentRunNumber; }
-    std::string GetRunType()         const { return fRunType; }
-    std::string GetRunUser()         const { return fRunUser; }
-    std::string GetRunTag()          const { return fRunTag; }
-    std::string GetExperimentName()  const { return fExperimentName; }
-    std::string GetInputFileName()   const { return fInputFileName; }
-    std::string GetOutputFileName()  const { return fOutputFileName; }
-
+    int GetRunNumber() const { return fRunNumber; }
+    int GetParentRunNumber() const { return fParentRunNumber; }
+    std::string GetRunType() const { return fRunType; }
+    std::string GetRunUser() const { return fRunUser; }
+    std::string GetRunTag() const { return fRunTag; }
+    std::string GetExperimentName() const { return fExperimentName; }
+    std::string GetInputFileName() const { return fInputFileName; }
+    std::string GetOutputFileName() const { return fOutputFileName; }
 
     void OpenInputFile(const std::string& filename);
     void OpenOutputFile();
@@ -83,19 +82,19 @@ class TRestRun : public TRestMetadata {
 
     template <typename T>
     void RegisterEventBranch(const std::string& branchName, T& eventObject) {
-      static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
-    
-      if (!fOutputFile) {
-        throw std::runtime_error("TRestRun: No output file added");
-      }
-      if (!fOutputEventTree) {
-        fOutputFile->cd();
-        fOutputEventTree = new TTree("EventTree", "REST AOD Event Tree");
-      }
+        static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
 
-      fOutputEvents[branchName] = &eventObject;
+        if (!fOutputFile) {
+            throw std::runtime_error("TRestRun: No output file added");
+        }
+        if (!fOutputEventTree) {
+            fOutputFile->cd();
+            fOutputEventTree = new TTree("EventTree", "REST AOD Event Tree");
+        }
 
-      fOutputEventTree->Branch(branchName.c_str(), &fOutputEvents[branchName]);
+        fOutputEvents[branchName] = &eventObject;
+
+        fOutputEventTree->Branch(branchName.c_str(), &fOutputEvents[branchName]);
     }
 
     template <typename T>
@@ -106,18 +105,19 @@ class TRestRun : public TRestMetadata {
     template <typename T>
     void GetObservable(const std::string& name, T& variable) {
         if (!fAnalysisTree) throw std::runtime_error("TRestRun: Input file missing");
-        
+
         fAnalysisTree->SetBranchAddress(name.c_str(), &variable);
     }
 
-    void AddMetadata(const std::string& instanceName, const std::string& className, const YAML::Node& configNode);
+    void AddMetadata(const std::string& instanceName, const std::string& className,
+                     const YAML::Node& configNode);
     YAML::Node GetMetadata(const std::string& instanceName) const;
 
     TRestEvent& GetInputEvent(const std::string& branchName);
     void Fill();
 
     // TRestMetadata interface
-    void LoadConfig()    override;
-    void Initialize()    override {}
+    void LoadConfig() override;
+    void Initialize() override {}
     void PrintMetadata() override;
 };

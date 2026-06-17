@@ -1,6 +1,9 @@
 #include "TRestHits.h"
+
 #include <TMath.h>
+
 #include <algorithm>
+
 #include "Math/GenVector/VectorUtil.h"
 #include "TRestLogManager.h"
 
@@ -105,9 +108,7 @@ double TRestHits::GetTotalEnergy() const {
     return total;
 }
 
-double TRestHits::GetMeanHitEnergy() const { 
-    return fNHits > 0 ? GetTotalEnergy() / fNHits : 0; 
-}
+double TRestHits::GetMeanHitEnergy() const { return fNHits > 0 ? GetTotalEnergy() / fNHits : 0; }
 
 void TRestHits::MergeHits(int n, int m) {
     int idxN = GetGlobalIdx(n);
@@ -214,4 +215,3 @@ double TRestHits::GetMeanPositionZ() const {
     }
     return totalEnergy > 0 ? mean / totalEnergy : 0;
 }
-

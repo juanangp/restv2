@@ -1,6 +1,7 @@
 #include "TRestRawSignalEvent.h"
 
 #include <TPad.h>
+
 #include <iostream>
 
 // ---------------------------------------------------------------------------
@@ -8,9 +9,8 @@
 // ---------------------------------------------------------------------------
 namespace {
 const bool kRegistered = []() {
-    EventRegistry::Instance().Register(
-        "TRestRawSignalEvent",
-        []() { return std::make_unique<TRestRawSignalEvent>(); });
+    EventRegistry::Instance().Register("TRestRawSignalEvent",
+                                       []() { return std::make_unique<TRestRawSignalEvent>(); });
     return true;
 }();
 }  // namespace
@@ -27,12 +27,11 @@ void TRestRawSignalEvent::PrintEvent() const {
 
     for (int i = 0; i < GetNumberOfSignals(); ++i) {
         TRestRawSignal sig = GetSignal(i);
-        
-        RESTLog << " SignalID " << sig.GetSignalID() 
-                << " (nPoints=" << sig.GetNPoints() << "): ";
-        
+
+        RESTLog << " SignalID " << sig.GetSignalID() << " (nPoints=" << sig.GetNPoints() << "): ";
+
         for (int j = 0; j < sig.GetNPoints(); ++j) {
-          RESTLog << sig.GetPoint(j) << " ";
+            RESTLog << sig.GetPoint(j) << " ";
         }
         RESTLog << RESTendl;
     }

@@ -18,58 +18,53 @@
 // ============================================================
 class TRestMetadata {
    protected:
-    std::string fName           = "";
+    std::string fName = "";
     std::string fConfigFileName = "";
-    std::string fSectionName    = "";
-    YAML::Node  fNode;
-    TRestLogManager::REST_Verbose_Level fVerboseLevel =
-        TRestLogManager::REST_Verbose_Level::REST_Info;
+    std::string fSectionName = "";
+    YAML::Node fNode;
+    TRestLogManager::REST_Verbose_Level fVerboseLevel = TRestLogManager::REST_Verbose_Level::REST_Info;
 
    public:
     virtual std::string GetClassName() const = 0;
-     std::string GetName() const { return fName; }
+    std::string GetName() const { return fName; }
 
-    explicit TRestMetadata(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node);
-    explicit TRestMetadata(const std::string& fileName,    const std::string& sectionName);
+    explicit TRestMetadata(const std::string& instanceName, const std::string& sectionName,
+                           const YAML::Node& node);
+    explicit TRestMetadata(const std::string& fileName, const std::string& sectionName);
 
-    void SetName(const std::string& name)        { fName           = name; }
+    void SetName(const std::string& name) { fName = name; }
     void SetConfigFileName(const std::string& f) { fConfigFileName = f; }
-    void SetSectionName(const std::string& s)    { fSectionName    = s; }
-    void SetYAMLNode(const YAML::Node& node)     { fNode           = node; }
+    void SetSectionName(const std::string& s) { fSectionName = s; }
+    void SetYAMLNode(const YAML::Node& node) { fNode = node; }
 
     virtual ~TRestMetadata() = default;
 
-    virtual void LoadConfig()     = 0;
-    virtual void Initialize()     = 0;
-    virtual void PrintMetadata()  = 0;
+    virtual void LoadConfig() = 0;
+    virtual void Initialize() = 0;
+    virtual void PrintMetadata() = 0;
 
     void ReadYAMLVerbose(YAML::Node& node);
 };
 
 class MetadataRegistry {
    public:
-    using Creator = std::function<
-        std::unique_ptr<TRestMetadata>(const std::string&, const std::string&, const YAML::Node&)>;
+    using Creator = std::function<std::unique_ptr<TRestMetadata>(const std::string&, const std::string&,
+                                                                 const YAML::Node&)>;
 
     static MetadataRegistry& Instance() {
         static MetadataRegistry inst;
         return inst;
     }
 
-    MetadataRegistry(const MetadataRegistry&)            = delete;
+    MetadataRegistry(const MetadataRegistry&) = delete;
     MetadataRegistry& operator=(const MetadataRegistry&) = delete;
 
-    void Register(const std::string& type, Creator creator) {
-        creators.emplace(type, std::move(creator));
-    }
+    void Register(const std::string& type, Creator creator) { creators.emplace(type, std::move(creator)); }
 
-    std::unique_ptr<TRestMetadata> Create(const std::string& type,
-                                          const std::string& instanceName,
-                                          const std::string& sectionName,
-                                          const YAML::Node&  params) const {
+    std::unique_ptr<TRestMetadata> Create(const std::string& type, const std::string& instanceName,
+                                          const std::string& sectionName, const YAML::Node& params) const {
         auto it = creators.find(type);
-        if (it == creators.end())
-            throw std::runtime_error("MetadataRegistry: unknown type '" + type + "'");
+        if (it == creators.end()) throw std::runtime_error("MetadataRegistry: unknown type '" + type + "'");
         return it->second(instanceName, sectionName, params);
     }
 

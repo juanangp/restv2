@@ -15,11 +15,13 @@
 // ============================================================
 struct TRestRawSignalData {
     std::vector<short> allSamples;
-    std::vector<int>   signalIDs;
-    std::vector<int>   offsets;
-    
+    std::vector<int> signalIDs;
+    std::vector<int> offsets;
+
     void clear() {
-        allSamples.clear(); signalIDs.clear(); offsets.clear();
+        allSamples.clear();
+        signalIDs.clear();
+        offsets.clear();
     }
 };
 
@@ -29,32 +31,27 @@ class TRestRawSignal {
     int fSignalIdx = -1;
 
    public:
-    TRestRawSignal(TRestRawSignalData* data, int idx) 
-        : fData(data), fSignalIdx(idx) {}
+    TRestRawSignal(TRestRawSignalData* data, int idx) : fData(data), fSignalIdx(idx) {}
 
     int GetSignalID() const { return fData->signalIDs[fSignalIdx]; }
-    
+
     int GetNPoints() const {
         int start = fData->offsets[fSignalIdx];
-        int next = (fSignalIdx + 1 < (int)fData->offsets.size()) 
-                    ? fData->offsets[fSignalIdx+1] : (int)fData->allSamples.size();
+        int next = (fSignalIdx + 1 < (int)fData->offsets.size()) ? fData->offsets[fSignalIdx + 1]
+                                                                 : (int)fData->allSamples.size();
         return next - start;
     }
 
     std::vector<short> GetData() const {
-      int start = fData->offsets[fSignalIdx];
-      int nPoints = GetNPoints();
-      return std::vector<short>(fData->allSamples.begin() + start, 
-                                fData->allSamples.begin() + start + nPoints);
+        int start = fData->offsets[fSignalIdx];
+        int nPoints = GetNPoints();
+        return std::vector<short>(fData->allSamples.begin() + start,
+                                  fData->allSamples.begin() + start + nPoints);
     }
 
-    short GetPoint(int i) const {
-        return fData->allSamples[fData->offsets[fSignalIdx] + i];
-    }
+    short GetPoint(int i) const { return fData->allSamples[fData->offsets[fSignalIdx] + i]; }
 
-    void IncreaseBinBy(int bin, short delta) {
-        fData->allSamples[fData->offsets[fSignalIdx] + bin] += delta;
-    }
+    void IncreaseBinBy(int bin, short delta) { fData->allSamples[fData->offsets[fSignalIdx] + bin] += delta; }
 };
 
 // ============================================================
@@ -67,9 +64,9 @@ class TRestRawSignalEvent : public TRestEvent {
     TRestRawSignalData fSignalData;
     mutable std::vector<TRestRawSignal> fSignalsViews;
 
-  public:
+   public:
     std::string GetClassName() const override { return "TRestRawSignalEvent"; }
-    
+
     void Initialize() override {
         fSignalData.clear();
         fSignalsViews.clear();
@@ -78,14 +75,14 @@ class TRestRawSignalEvent : public TRestEvent {
     void CreateBranches(TTree* tree) override {
         TRestEvent::CreateBranches(tree);
         tree->Branch("fSigSamples", &fSignalData.allSamples);
-        tree->Branch("fSigIDs",     &fSignalData.signalIDs);
+        tree->Branch("fSigIDs", &fSignalData.signalIDs);
         tree->Branch("fSigOffsets", &fSignalData.offsets);
     }
 
     void SetBranchAddresses(TTree* tree) override {
         TRestEvent::SetBranchAddresses(tree);
         tree->SetBranchAddress("fSigSamples", &fSignalData.allSamples);
-        tree->SetBranchAddress("fSigIDs",     &fSignalData.signalIDs);
+        tree->SetBranchAddress("fSigIDs", &fSignalData.signalIDs);
         tree->SetBranchAddress("fSigOffsets", &fSignalData.offsets);
     }
 
@@ -101,8 +98,8 @@ class TRestRawSignalEvent : public TRestEvent {
         auto source = dynamic_cast<const TRestRawSignalEvent*>(other);
         if (source) {
             this->fSignalData.allSamples = source->fSignalData.allSamples;
-            this->fSignalData.signalIDs  = source->fSignalData.signalIDs;
-            this->fSignalData.offsets    = source->fSignalData.offsets;
+            this->fSignalData.signalIDs = source->fSignalData.signalIDs;
+            this->fSignalData.offsets = source->fSignalData.offsets;
             this->fSignalsViews.clear();
         }
     }
@@ -111,25 +108,26 @@ class TRestRawSignalEvent : public TRestEvent {
         fSignalData.offsets.push_back((int)fSignalData.allSamples.size());
         fSignalData.signalIDs.push_back(sID);
         fSignalData.allSamples.insert(fSignalData.allSamples.end(), samples.begin(), samples.end());
-        fSignalsViews.clear(); 
+        fSignalsViews.clear();
     }
 
     inline void RemoveSignal(int index) {
         if (index >= (int)fSignalData.signalIDs.size()) return;
 
         int start = fSignalData.offsets[index];
-        int end = (index + 1 < (int)fSignalData.offsets.size()) 
-                  ? fSignalData.offsets[index+1] : (int)fSignalData.allSamples.size();
+        int end = (index + 1 < (int)fSignalData.offsets.size()) ? fSignalData.offsets[index + 1]
+                                                                : (int)fSignalData.allSamples.size();
         int sizeToRemove = end - start;
 
-        fSignalData.allSamples.erase(fSignalData.allSamples.begin() + start, fSignalData.allSamples.begin() + end);
+        fSignalData.allSamples.erase(fSignalData.allSamples.begin() + start,
+                                     fSignalData.allSamples.begin() + end);
         fSignalData.signalIDs.erase(fSignalData.signalIDs.begin() + index);
         fSignalData.offsets.erase(fSignalData.offsets.begin() + index);
 
         for (size_t i = index; i < fSignalData.offsets.size(); ++i) {
             fSignalData.offsets[i] -= sizeToRemove;
         }
-        fSignalsViews.clear(); 
+        fSignalsViews.clear();
     }
 
     inline void RemoveSignalByID(int id) {
@@ -160,6 +158,6 @@ class TRestRawSignalEvent : public TRestEvent {
     void PrintEvent() const override;
     TPad* DrawEvent(const TString& option = "") const override;
 
-    TRestRawSignalEvent()  = default;
+    TRestRawSignalEvent() = default;
     ~TRestRawSignalEvent() = default;
 };

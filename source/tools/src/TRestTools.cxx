@@ -47,14 +47,12 @@ std::vector<std::string> TRestTools::GetFilesMatchingPattern(const std::string& 
 }
 
 std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
+    char tmpstm[20];  //"YYYY-MM-DD HH:MM:SS" + \0
+    std::time_t time = static_cast<std::time_t>(tm);
 
-  char tmpstm[20]; //"YYYY-MM-DD HH:MM:SS" + \0
-  std::time_t time = static_cast<std::time_t>(tm);
+    std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
 
-  std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d %H:%M:%S",
-                std::localtime(&time));
-
-  return std::string(tmpstm);
+    return std::string(tmpstm);
 }
 
 YAML::Node TRestTools::ResolveEnvVars(const YAML::Node& node) {

@@ -1,9 +1,9 @@
 #include "TRestRun.h"
-#include "TRestTools.h"
 
 #include <stdexcept>
 
 #include "TObjString.h"
+#include "TRestTools.h"
 
 using namespace TRestTools;
 
@@ -19,7 +19,7 @@ const bool kRegistered = []() {
         });
     return true;
 }();
-} // namespace
+}  // namespace
 
 // ---------------------------------------------------------------------------
 TRestRun::TRestRun(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node)
@@ -31,7 +31,7 @@ TRestRun::TRestRun(const std::string& fileName, const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
     YAML::Node raw = YAML::LoadFile(fileName);
     YAML::Node cfg = ResolveAllRefs(raw);
-    fNode          = cfg[sectionName]["params"];
+    fNode = cfg[sectionName]["params"];
     LoadConfig();
 }
 
@@ -59,15 +59,15 @@ void TRestRun::LoadConfig() {
         }
     }
 
-    fParentRunNumber = ReadYAMLParamOrDefault<int>(fNode,         "parentRunNumber", fParentRunNumber);
-    fRunType         = ReadYAMLParamOrDefault<std::string>(fNode, "runType",         fRunType);
-    fRunUser         = ReadYAMLParamOrDefault<std::string>(fNode, "runUser",         fRunUser);
-    fRunTag          = ReadYAMLParamOrDefault<std::string>(fNode, "runTag",          fRunTag);
-    fRunDescription  = ReadYAMLParamOrDefault<std::string>(fNode, "runDescription",  fRunDescription);
-    fExperimentName  = ReadYAMLParamOrDefault<std::string>(fNode, "experimentName",  fExperimentName);
-    fInputFileName   = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName",   fInputFileName);
-    fOutputFileName  = ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName",  fOutputFileName);
-    fEntriesSaved    = ReadYAMLParamOrDefault<int>(fNode,         "entriesSaved",    fEntriesSaved);
+    fParentRunNumber = ReadYAMLParamOrDefault<int>(fNode, "parentRunNumber", fParentRunNumber);
+    fRunType = ReadYAMLParamOrDefault<std::string>(fNode, "runType", fRunType);
+    fRunUser = ReadYAMLParamOrDefault<std::string>(fNode, "runUser", fRunUser);
+    fRunTag = ReadYAMLParamOrDefault<std::string>(fNode, "runTag", fRunTag);
+    fRunDescription = ReadYAMLParamOrDefault<std::string>(fNode, "runDescription", fRunDescription);
+    fExperimentName = ReadYAMLParamOrDefault<std::string>(fNode, "experimentName", fExperimentName);
+    fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
+    fOutputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName", fOutputFileName);
+    fEntriesSaved = ReadYAMLParamOrDefault<int>(fNode, "entriesSaved", fEntriesSaved);
 
     TRestMetadata::ReadYAMLVerbose(fNode);
 }
@@ -91,31 +91,31 @@ void TRestRun::OpenInputFile(const std::string& filename) {
         if (!branch) continue;
 
         std::string branchName = branch->GetName();
-        std::string className  = branch->GetClassName();
+        std::string className = branch->GetClassName();
         if (className.empty()) continue;
 
         TClass* cl = TClass::GetClass(className.c_str());
         if (!cl) continue;
 
         auto* obj = static_cast<TRestEvent*>(cl->New());
-        
+
         fInputEvents[branchName] = obj;
-        
+
         fInputEventTree->SetBranchAddress(branchName.c_str(), &fInputEvents[branchName]);
     }
 
     TObjArray* metadataArray = nullptr;
     fInputFile->GetObject("RESTMetadataStore", metadataArray);
 
-    YAML::Node selfConfig = GetMetadata(GetName()); 
+    YAML::Node selfConfig = GetMetadata(GetName());
     if (selfConfig && !selfConfig.IsNull()) {
         fNode = selfConfig;
         LoadConfig();
     }
-
 }
 
-void TRestRun::AddMetadata(const std::string& instanceName, const std::string& className, const YAML::Node& configNode) {
+void TRestRun::AddMetadata(const std::string& instanceName, const std::string& className,
+                           const YAML::Node& configNode) {
     if (!fOutputFile) throw std::runtime_error("TRestRun::AddMetadata - Output file not found.");
     if (!configNode || configNode.IsNull()) return;
 
@@ -129,7 +129,7 @@ void TRestRun::AddMetadata(const std::string& instanceName, const std::string& c
 
     std::string yamlDump = YAML::Dump(configNode);
     auto* namedMeta = new TNamed(instanceName.c_str(), "");
-    
+
     std::string classAndYaml = "Class: " + className + "\n---\n" + yamlDump;
     namedMeta->SetTitle(classAndYaml.c_str());
 
@@ -156,7 +156,7 @@ YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
     std::string fullText = namedMeta->GetTitle();
     size_t separator = fullText.find("---\n");
     if (separator == std::string::npos) return YAML::Load(fullText);
-    
+
     std::string yamlStr = fullText.substr(separator + 4);
     return YAML::Load(yamlStr);
 }
@@ -185,7 +185,7 @@ TRestEvent& TRestRun::GetInputEvent(const std::string& branchName) {
         fInputEvents[branchName] = event;
 
         fAnalysisTree->SetBranchAddress(branchName.c_str(), &fInputEvents[branchName]);
-        
+
         return *fInputEvents[branchName];
     }
 
@@ -215,10 +215,9 @@ void TRestRun::OpenOutputFile() {
     fAnalysisTree->SetAutoSave(0);
 }
 
-
 void TRestRun::Fill() {
     if (fOutputEventTree) fOutputEventTree->Fill();
-    if (fAnalysisTree)    fAnalysisTree->Fill();
+    if (fAnalysisTree) fAnalysisTree->Fill();
     ++fEntriesSaved;
 }
 
@@ -226,8 +225,8 @@ void TRestRun::CloseFiles() {
     if (fOutputFile) {
         fOutputFile->cd();
         if (fOutputEventTree) fOutputEventTree->Write("", TObject::kOverwrite);
-        if (fAnalysisTree)    fAnalysisTree->Write("", TObject::kOverwrite);
-        
+        if (fAnalysisTree) fAnalysisTree->Write("", TObject::kOverwrite);
+
         if (fNode && !fNode.IsNull()) {
             AddMetadata(GetName(), GetClassName(), fNode);
         }
@@ -235,7 +234,7 @@ void TRestRun::CloseFiles() {
         fOutputFile->Close();
         fOutputFile.reset();
         fOutputEventTree = nullptr;
-        fAnalysisTree    = nullptr;
+        fAnalysisTree = nullptr;
     }
     if (fInputFile) {
         fInputFile->Close();

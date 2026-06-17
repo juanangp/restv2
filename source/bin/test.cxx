@@ -1,4 +1,4 @@
-/// test.cxx – minimal smoke test for the REST framework
+/// test.cxx – Step 1 smoke test: YAML config load + TRestRun file I/O
 ///
 /// Usage:  test <config.yaml>
 
@@ -15,28 +15,25 @@ int main(int argc, char** argv) {
     }
 
     try {
-        // --- Load and resolve the YAML config ---
         YAML::Node raw = YAML::LoadFile(argv[1]);
         YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
 
-        // --- Build the run object via the registry (no hard-coded class name) ---
-        const auto& runNode   = cfg["run"];
-        const auto  className = TRestTools::ReadYAMLParam<std::string>(runNode["class"]);
-        const auto  name      = TRestTools::ReadYAMLParam<std::string>(runNode["name"]);
-        auto        params    = runNode["params"];
+        // --- TRestRun from YAML ---
+        RESTLog << "--- TRestRun ---" << RESTendl;
+        TRestRun run(argv[1], "run");
+        run.PrintMetadata();
 
-        auto run = MetadataRegistry::Instance().Create(className, name, "run_section", params);
-        run->PrintMetadata();
+        // --- Open empty output file (validates tree creation + metadata write) ---
+        run.OpenOutputFile();
+        run.CloseFiles();
+        RESTLog << "Output written to: " << run.GetOutputFileName() << RESTendl;
 
-        // --- Alternative: construct TRestRun directly from file ---
-        RESTLog << "\n--- TRestRun via direct constructor ---" << RESTendl;
-        TRestRun run2(argv[1], "run");
-        run2.PrintMetadata();
-
-        // --- Build and run the full manager ---
-        RESTLog << "\n--- TRestManager ---" << RESTendl;
-        TRestManager mgr(argv[1],"manager");
-        mgr.PrintMetadata();
+        // --- TRestManager (pipeline empty until Step 3) ---
+        if (cfg["manager"]) {
+            RESTLog << "\n--- TRestManager ---" << RESTendl;
+            TRestManager mgr(argv[1], "manager");
+            mgr.PrintMetadata();
+        }
 
     } catch (const std::exception& ex) {
         std::cerr << "[ERROR] " << ex.what() << "\n";

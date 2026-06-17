@@ -10,7 +10,7 @@ const bool kRegistered = []() {
     MetadataRegistry::Instance().Register(
         "TRestManager",
         [](const std::string& instanceName, const std::string& sectionName, const YAML::Node& params) {
-            return std::make_unique<TRestRun>(instanceName, sectionName, params);
+            return std::make_unique<TRestManager>(instanceName, sectionName, params);
         });
     return true;
 }();

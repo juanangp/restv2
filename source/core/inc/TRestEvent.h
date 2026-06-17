@@ -73,7 +73,7 @@ class TRestEvent {
         tree->SetBranchAddress("subRunOrigin", &fInfo.subRunOrigin);
         tree->SetBranchAddress("eventID", &fInfo.eventID);
         tree->SetBranchAddress("timeSeconds", &fInfo.timeSeconds);
-        tree->SetBranchAddress("timeNanoSeconds", &fInfo.timeNanoSeconds);
+        tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
         tree->SetBranchAddress("ok", &fInfo.ok);
     }
 

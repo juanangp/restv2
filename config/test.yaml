@@ -2,15 +2,20 @@ run:
   class: "TRestRun"
   name: "Developing"
   params:
-    description: "Test"
-    runNumber: "auto"
-    parentRunNumber: 0000
+    runNumber: 1
+    parentRunNumber: 0
     runType: "Test"
     runUser: "${ENV:USER}"
     runTag: "Dummy"
-    runDescription: ""
+    runDescription: "Step 1 smoke test"
     experimentName: "None"
     inputFileName: "Null"
     outputFileName: "R${run.params.runNumber}_${run.params.parentRunNumber}_${run.params.runType}_${run.params.runTag}.root"
     entriesSaved: 0
 
+# Pipeline processes are added in Step 3 (after ROOT dictionaries + dummy process).
+manager:
+  pipeline:
+    params:
+      eventsToProcess: 0
+      outputEventStorage: false

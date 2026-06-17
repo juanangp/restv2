@@ -14,7 +14,6 @@ std::string GetTimeStampFromUnixTime(const double tm);
 std::vector<std::string> Split(const std::string& s, char delim);
 YAML::Node ResolveEnvVars(const YAML::Node& node);
 
-std::vector<std::string> Split(const std::string& s, char delim);
 YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node);
 
 // Función principal: resuelve recursivamente mapas y secuencias

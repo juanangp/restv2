@@ -37,13 +37,11 @@ TRestRun::TRestRun(const std::string& fileName, const std::string& sectionName)
 
 TRestRun::~TRestRun() {
     CloseFiles();
-    
+
     for (auto& pair : fInputEvents) {
         delete pair.second;
     }
-    for (auto& pair : fOutputEvents) {
-        delete pair.second;
-    }
+    // Output event objects are owned by TRestManager (or the caller), not TRestRun.
 }
 
 // ---------------------------------------------------------------------------

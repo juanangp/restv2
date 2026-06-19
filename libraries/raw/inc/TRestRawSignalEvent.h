@@ -64,6 +64,11 @@ class TRestRawSignalEvent : public TRestEvent {
     TRestRawSignalData fSignalData;
     mutable std::vector<TRestRawSignal> fSignalsViews;
 
+    // Persisted pointers for ROOT branch addresses
+    std::vector<short>* fPtrSamples = nullptr;
+    std::vector<int>* fPtrIDs = nullptr;
+    std::vector<int>* fPtrOffsets = nullptr;
+
    public:
     std::string GetClassName() const override { return "TRestRawSignalEvent"; }
 
@@ -81,9 +86,12 @@ class TRestRawSignalEvent : public TRestEvent {
 
     void SetBranchAddresses(TTree* tree) override {
         TRestEvent::SetBranchAddresses(tree);
-        tree->SetBranchAddress("fSigSamples", &fSignalData.allSamples);
-        tree->SetBranchAddress("fSigIDs", &fSignalData.signalIDs);
-        tree->SetBranchAddress("fSigOffsets", &fSignalData.offsets);
+        fPtrSamples = &fSignalData.allSamples;
+        fPtrIDs = &fSignalData.signalIDs;
+        fPtrOffsets = &fSignalData.offsets;
+        tree->SetBranchAddress("fSigSamples", &fPtrSamples);
+        tree->SetBranchAddress("fSigIDs", &fPtrIDs);
+        tree->SetBranchAddress("fSigOffsets", &fPtrOffsets);
     }
 
     void RefreshViews() const override {

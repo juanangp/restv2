@@ -38,12 +38,13 @@ class TRestRun : public TRestMetadata {
     std::unique_ptr<TFile> fInputFile;
     std::unique_ptr<TFile> fOutputFile;
 
-    TTree* fInputEventTree = nullptr;
-    TTree* fOutputEventTree = nullptr;
+    std::map<std::string, TTree*> fInputEventTrees;
+    std::map<std::string, TTree*> fOutputEventTrees;
     TTree* fAnalysisTree = nullptr;
 
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
+    std::map<std::string, std::string> fEventBranches;
 
    public:
     TRestRun(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node);
@@ -67,34 +68,41 @@ class TRestRun : public TRestMetadata {
     void OpenOutputFile();
     void CloseFiles();
 
-    Long64_t GetEntries() const { return fInputEventTree ? fInputEventTree->GetEntries() : 0; }
+    Long64_t GetEntries() const {
+        if (!fAnalysisTree) return 0;
+        return fAnalysisTree->GetEntries();
+    }
     bool GetEntry(Long64_t entry);
     bool HasEvent(const std::string& branchName) const;
 
     template <typename T = TRestEvent>
-    T& GetEvent(const std::string& branchName) {
-        auto it = fInputEvents.find(branchName);
+    T& GetEvent(const std::string& treeName) {
+        auto it = fInputEvents.find(treeName);
         if (it == fInputEvents.end()) {
-            throw std::runtime_error("TRestRun: Branch '" + branchName + "' does not exist.");
+            throw std::runtime_error("TRestRun: Tree '" + treeName + "' does not exist.");
         }
         return dynamic_cast<T&>(*(it->second));
     }
 
     template <typename T>
-    void RegisterEventBranch(const std::string& branchName, T& eventObject) {
+    void RegisterEventBranch(const std::string& className, T& eventObject) {
         static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
 
         if (!fOutputFile) {
             throw std::runtime_error("TRestRun: No output file added");
         }
-        if (!fOutputEventTree) {
+        
+        if (fOutputEventTrees.find(className) == fOutputEventTrees.end()) {
             fOutputFile->cd();
-            fOutputEventTree = new TTree("EventTree", "REST AOD Event Tree");
+            auto* tree = new TTree(className.c_str(), (className + " AOD Event Tree").c_str());
+            tree->SetAutoSave(0);
+            fOutputEventTrees[className] = tree;
         }
 
-        fOutputEvents[branchName] = &eventObject;
+        fOutputEvents[className] = &eventObject;
+        fEventBranches[className] = className;
 
-        fOutputEventTree->Branch(branchName.c_str(), &fOutputEvents[branchName]);
+        eventObject.CreateBranches(fOutputEventTrees[className]);
     }
 
     template <typename T>

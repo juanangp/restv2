@@ -4,6 +4,8 @@
 
 #include "TObjString.h"
 #include "TRestTools.h"
+#include <TKey.h>
+#include <TList.h>
 
 using namespace TRestTools;
 
@@ -76,41 +78,57 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     fInputFileName = filename;
     fInputFile = std::make_unique<TFile>(fInputFileName.c_str(), "READ");
     if (!fInputFile || fInputFile->IsZombie()) {
-        throw std::runtime_error("TRestRun: Cannot open file" + filename);
+        throw std::runtime_error("TRestRun: Cannot open file " + filename);
     }
 
     fInputFile->GetObject("AnalysisTree", fAnalysisTree);
-    if (!fInputEventTree) return;
-
-    fInputFile->GetObject("EventTree", fInputEventTree);
-    if (!fInputEventTree) return;
-
-    TObjArray* branches = fInputEventTree->GetListOfBranches();
-    for (int i = 0; i < branches->GetEntries(); ++i) {
-        auto* branch = dynamic_cast<TBranch*>(branches->At(i));
-        if (!branch) continue;
-
-        std::string branchName = branch->GetName();
-        std::string className = branch->GetClassName();
-        if (className.empty()) continue;
-
-        TClass* cl = TClass::GetClass(className.c_str());
-        if (!cl) continue;
-
-        auto* obj = static_cast<TRestEvent*>(cl->New());
-
-        fInputEvents[branchName] = obj;
-
-        fInputEventTree->SetBranchAddress(branchName.c_str(), &fInputEvents[branchName]);
-    }
-
-    TObjArray* metadataArray = nullptr;
-    fInputFile->GetObject("RESTMetadataStore", metadataArray);
 
     YAML::Node selfConfig = GetMetadata(GetName());
     if (selfConfig && !selfConfig.IsNull()) {
         fNode = selfConfig;
         LoadConfig();
+
+        if (selfConfig["eventBranches"]) {
+            for (auto it = selfConfig["eventBranches"].begin(); it != selfConfig["eventBranches"].end(); ++it) {
+                fEventBranches[it->first.as<std::string>()] = it->second.as<std::string>();
+            }
+        }
+    }
+
+    if (fEventBranches.empty()) {
+        TList* keys = fInputFile->GetListOfKeys();
+        if (keys) {
+            for (int i = 0; i < keys->GetEntries(); ++i) {
+                TKey* key = dynamic_cast<TKey*>(keys->At(i));
+                if (!key) continue;
+                std::string keyName = key->GetName();
+                if (keyName == "AnalysisTree" || keyName == "RESTMetadataStore") continue;
+                if (keyName.size() > 4 && keyName.substr(keyName.size() - 4) == "Tree") {
+                    std::string className = keyName.substr(0, keyName.size() - 4);
+                    if (EventRegistry::Instance().Contains(className)) {
+                        fEventBranches[className] = className;
+                    }
+                }
+            }
+        }
+    }
+
+    for (const auto& [branchName, className] : fEventBranches) {
+        if (!EventRegistry::Instance().Contains(className)) {
+            throw std::runtime_error("TRestRun: EventRegistry does not contain class: " + className);
+        }
+        std::string treeName = className + "Tree";
+        TTree* tree = nullptr;
+        fInputFile->GetObject(treeName.c_str(), tree);
+        if (!tree) {
+            throw std::runtime_error("TRestRun: Tree not found: " + treeName);
+        }
+        fInputEventTrees[treeName] = tree;
+
+        auto eventObj = EventRegistry::Instance().Create(className, branchName);
+        eventObj->Initialize();
+        eventObj->SetBranchAddresses(tree);
+        fInputEvents[branchName] = eventObj.release();
     }
 }
 
@@ -123,7 +141,12 @@ void TRestRun::AddMetadata(const std::string& instanceName, const std::string& c
     TObjArray* metadataArray = nullptr;
     fOutputFile->GetObject("RESTMetadataStore", metadataArray);
     if (!metadataArray) {
+        TKey* key = fOutputFile->GetKey("RESTMetadataStore");
+        if (key) {
+            fOutputFile->Delete("RESTMetadataStore;*");
+        }
         metadataArray = new TObjArray();
+        metadataArray->SetName("RESTMetadataStore");
         metadataArray->SetOwner(kTRUE);
     }
 
@@ -134,10 +157,15 @@ void TRestRun::AddMetadata(const std::string& instanceName, const std::string& c
     namedMeta->SetTitle(classAndYaml.c_str());
 
     TObject* old = metadataArray->FindObject(instanceName.c_str());
-    if (old) metadataArray->Remove(old);
+    if (old) {
+        metadataArray->Remove(old);
+        delete old;
+    }
 
     metadataArray->Add(namedMeta);
-    metadataArray->Write("RESTMetadataStore", TObject::kOverwrite);
+    metadataArray->Write("RESTMetadataStore", TObject::kSingleKey | TObject::kOverwrite);
+    
+    delete metadataArray;
 }
 
 YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
@@ -148,53 +176,55 @@ YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
     if (!metadataArray) return YAML::Node();
 
     TObject* obj = metadataArray->FindObject(instanceName.c_str());
-    if (!obj) return YAML::Node();
+    if (!obj) {
+        delete metadataArray;
+        return YAML::Node();
+    }
 
     auto* namedMeta = dynamic_cast<TNamed*>(obj);
-    if (!namedMeta) return YAML::Node();
+    if (!namedMeta) {
+        delete metadataArray;
+        return YAML::Node();
+    }
 
     std::string fullText = namedMeta->GetTitle();
     size_t separator = fullText.find("---\n");
-    if (separator == std::string::npos) return YAML::Load(fullText);
+    YAML::Node node;
+    if (separator == std::string::npos) {
+        node = YAML::Load(fullText);
+    } else {
+        std::string yamlStr = fullText.substr(separator + 4);
+        node = YAML::Load(yamlStr);
+    }
 
-    std::string yamlStr = fullText.substr(separator + 4);
-    return YAML::Load(yamlStr);
+    delete metadataArray;
+    return node;
 }
 
 TRestEvent& TRestRun::GetInputEvent(const std::string& branchName) {
-    if (!fAnalysisTree) {
-        throw std::runtime_error("TRestRun: No input event found");
-    }
-
     auto it = fInputEvents.find(branchName);
-    if (it == fInputEvents.end()) {
-        TBranch* branch = fAnalysisTree->GetBranch(branchName.c_str());
-        if (!branch) {
-            throw std::runtime_error("TRestRun: '" + branchName + "' does not exist");
-        }
-
-        std::string className = branch->GetClassName();
-        TClass* cl = TClass::GetClass(className.c_str());
-        if (!cl) {
-            throw std::runtime_error("TRestRun: No dictionary for: " + className);
-        }
-
-        auto* event = static_cast<TRestEvent*>(cl->New());
-        event->SetName(branchName);
-
-        fInputEvents[branchName] = event;
-
-        fAnalysisTree->SetBranchAddress(branchName.c_str(), &fInputEvents[branchName]);
-
-        return *fInputEvents[branchName];
+    if (it != fInputEvents.end()) {
+        return *(it->second);
     }
-
-    return *(it->second);
+    throw std::runtime_error("TRestRun: Event branch '" + branchName + "' does not exist");
 }
 
 bool TRestRun::GetEntry(Long64_t entry) {
-    if (!fInputEventTree) return false;
-    return fInputEventTree->GetEntry(entry) > 0;
+    if (fInputEventTrees.empty()) return false;
+    bool success = false;
+    for (auto& [treeName, tree] : fInputEventTrees) {
+        if (tree) {
+            if (tree->GetEntry(entry) > 0) {
+                success = true;
+            }
+        }
+    }
+    for (auto& [branchName, eventObj] : fInputEvents) {
+        if (eventObj) {
+            eventObj->RefreshViews();
+        }
+    }
+    return success;
 }
 
 bool TRestRun::HasEvent(const std::string& branchName) const {
@@ -208,15 +238,19 @@ void TRestRun::OpenOutputFile() {
     }
 
     fOutputFile->cd();
-    fOutputEventTree = new TTree("EventTree", "REST AOD Event Tree");
-    fOutputEventTree->SetAutoSave(0);
-
     fAnalysisTree = new TTree("AnalysisTree", "REST Generic Analysis Observables");
     fAnalysisTree->SetAutoSave(0);
 }
 
 void TRestRun::Fill() {
-    if (fOutputEventTree) fOutputEventTree->Fill();
+    //for (auto& [name, eventObj] : fOutputEvents) {
+    //    if (eventObj) {
+    //        eventObj->PrepareForWriting();
+    //    }
+    //}
+    for (auto& [treeName, tree] : fOutputEventTrees) {
+        if (tree) tree->Fill();
+    }
     if (fAnalysisTree) fAnalysisTree->Fill();
     ++fEntriesSaved;
 }
@@ -224,22 +258,31 @@ void TRestRun::Fill() {
 void TRestRun::CloseFiles() {
     if (fOutputFile) {
         fOutputFile->cd();
-        if (fOutputEventTree) fOutputEventTree->Write("", TObject::kOverwrite);
+        for (auto& [treeName, tree] : fOutputEventTrees) {
+            if (tree) tree->Write("", TObject::kOverwrite);
+        }
         if (fAnalysisTree) fAnalysisTree->Write("", TObject::kOverwrite);
 
         if (fNode && !fNode.IsNull()) {
+            YAML::Node branchesNode;
+            for (const auto& [name, cls] : fEventBranches) {
+                branchesNode[name] = cls;
+            }
+            fNode["eventBranches"] = branchesNode;
+
             AddMetadata(GetName(), GetClassName(), fNode);
         }
 
         fOutputFile->Close();
         fOutputFile.reset();
-        fOutputEventTree = nullptr;
+        fOutputEventTrees.clear();
         fAnalysisTree = nullptr;
     }
     if (fInputFile) {
         fInputFile->Close();
         fInputFile.reset();
-        fInputEventTree = nullptr;
+        fInputEventTrees.clear();
+        fAnalysisTree = nullptr;
     }
 }
 

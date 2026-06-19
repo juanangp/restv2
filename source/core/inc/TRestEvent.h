@@ -3,7 +3,9 @@
 #include <TPad.h>
 #include <TString.h>
 #include <TTree.h>
+#include <iostream>
 
+#include <cstring>
 #include <functional>
 #include <map>
 #include <memory>
@@ -65,6 +67,7 @@ class TRestEvent {
         tree->Branch("runOrigin", &fInfo.runOrigin, "runOrigin/I");
         tree->Branch("subRunOrigin", &fInfo.subRunOrigin, "subRunOrigin/I");
         tree->Branch("eventID", &fInfo.eventID, "eventID/I");
+        tree->Branch("subEventID", &fInfo.subEventID, "subEventID/I");
         tree->Branch("timeSeconds", &fInfo.timeSeconds, "timeSeconds/L");
         tree->Branch("timeNanoSecs", &fInfo.timeNanoSeconds, "timeNanoSecs/I");
         tree->Branch("ok", &fInfo.ok, "ok/O");
@@ -78,6 +81,7 @@ class TRestEvent {
         tree->SetBranchAddress("timeSeconds", &fInfo.timeSeconds);
         tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
         tree->SetBranchAddress("ok", &fInfo.ok);
+        tree->SetBranchAddress("subEventTag", &fSubEventTag);
     }
 
     virtual void RefreshViews() const {}

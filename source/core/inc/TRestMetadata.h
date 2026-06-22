@@ -31,6 +31,7 @@ class TRestMetadata {
     explicit TRestMetadata(const std::string& instanceName, const std::string& sectionName,
                            const YAML::Node& node);
     explicit TRestMetadata(const std::string& fileName, const std::string& sectionName);
+    TRestMetadata() = default;
 
     void SetName(const std::string& name) { fName = name; }
     void SetConfigFileName(const std::string& f) { fConfigFileName = f; }

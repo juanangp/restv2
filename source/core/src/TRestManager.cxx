@@ -118,7 +118,7 @@ void TRestManager::Run(TRestRun& restRun) {
             auto outEvent = EventRegistry::Instance().Create(inputClassName, outputName);
 
             if (fOutputEventStorage) {
-                restRun.RegisterEventBranch<TRestEvent>(outputName, *outEvent);
+                restRun.RegisterEvent<TRestEvent>(outputName, *outEvent);
             }
 
             fEventPool[outputName] = std::move(outEvent);

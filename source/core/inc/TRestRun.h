@@ -44,9 +44,10 @@ class TRestRun : public TRestMetadata {
 
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
-    std::map<std::string, std::string> fEventBranches;
 
    public:
+    TRestRun();
+    explicit TRestRun(const std::string& inputFileName);
     TRestRun(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node);
     TRestRun(const std::string& fileName, const std::string& sectionName);
 
@@ -73,7 +74,7 @@ class TRestRun : public TRestMetadata {
         return fAnalysisTree->GetEntries();
     }
     bool GetEntry(Long64_t entry);
-    bool HasEvent(const std::string& branchName) const;
+    bool HasEvent(const std::string& treeName) const;
 
     template <typename T = TRestEvent>
     T& GetEvent(const std::string& treeName) {
@@ -85,7 +86,7 @@ class TRestRun : public TRestMetadata {
     }
 
     template <typename T>
-    void RegisterEventBranch(const std::string& className, T& eventObject) {
+    void RegisterEvent(const std::string& className, T& eventObject) {
         static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
 
         if (!fOutputFile) {
@@ -100,9 +101,12 @@ class TRestRun : public TRestMetadata {
         }
 
         fOutputEvents[className] = &eventObject;
-        fEventBranches[className] = className;
 
         eventObject.CreateBranches(fOutputEventTrees[className]);
+        
+        if (fOutputEvents.size() == 1 && fAnalysisTree) {
+            eventObject.TRestEvent::CreateBranches(fAnalysisTree);
+        }
     }
 
     template <typename T>
@@ -121,7 +125,7 @@ class TRestRun : public TRestMetadata {
                      const YAML::Node& configNode);
     YAML::Node GetMetadata(const std::string& instanceName) const;
 
-    TRestEvent& GetInputEvent(const std::string& branchName);
+    TRestEvent& GetInputEvent(const std::string& treeName);
     void Fill();
 
     // TRestMetadata interface

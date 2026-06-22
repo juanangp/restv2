@@ -19,6 +19,6 @@ void TRestEvent::SetEventInfo(const TRestEvent* eve) {
 void TRestEvent::PrintEvent() const {
     RESTLog << "\nEventID: " << fInfo.eventID << "  SubEventID: " << fInfo.subEventID << RESTendl;
     RESTLog << "  Timestamp: " << TRestTools::GetTimeStampFromUnixTime(GetTime()) << RESTendl;
-    if (!fSubEventTag.empty()) RESTLog << "  Tag: " << fSubEventTag << RESTendl;
+    if (!fSubEventTag.IsNull()) RESTLog << "  Tag: " << fSubEventTag << RESTendl;
     if (!fInfo.ok) RESTLog << "  [Status NOT OK]" << RESTendl;
 }

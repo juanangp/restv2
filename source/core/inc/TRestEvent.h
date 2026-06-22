@@ -3,15 +3,23 @@
 #include <TPad.h>
 #include <TString.h>
 #include <TTree.h>
-#include <iostream>
 
-#include <cstring>
 #include <functional>
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+struct TRestEventInfo {
+    int runOrigin = 0;
+    int subRunOrigin = 0;
+    int eventID = 0;
+    int subEventID = 0;
+    long long timeSeconds = 0;
+    int timeNanoSeconds = 0;
+    bool ok = true;
+};
 
 // ============================================================
 //  TRestEvent
@@ -20,17 +28,10 @@
 // ============================================================
 class TRestEvent {
    protected:
-    struct EventInfo {
-        int runOrigin = 0;
-        int subRunOrigin = 0;
-        int eventID = 0;
-        int subEventID = 0;
-        long long timeSeconds = 0;
-        int timeNanoSeconds = 0;
-        bool ok = true;
-    } fInfo;
+    TRestEventInfo fInfo;
     std::string fName = "";
-    std::string fSubEventTag = "";
+    TString fSubEventTag = "";
+    TString* fSubEventTagPtr = &fSubEventTag;  // persistent ptr for ROOT I/O
 
    public:
     virtual std::string GetClassName() const = 0;
@@ -44,7 +45,7 @@ class TRestEvent {
     void SetSubRunOrigin(int v) { fInfo.subRunOrigin = v; }
     void SetID(int id) { fInfo.eventID = id; }
     void SetSubID(int id) { fInfo.subEventID = id; }
-    void SetSubEventTag(const TString& tag) { fSubEventTag = tag.Data(); }
+    void SetSubEventTag(const TString& tag) { fSubEventTag = tag; }
     void SetState(bool s) { fInfo.ok = s; }
     void SetOK(bool s) { fInfo.ok = s; }
     void SetTime(double time);
@@ -57,34 +58,39 @@ class TRestEvent {
     // Getters
     int GetID() const { return fInfo.eventID; }
     int GetSubID() const { return fInfo.subEventID; }
-    std::string GetSubEventTag() const { return fSubEventTag; }
+    std::string GetSubEventTag() const { return fSubEventTag.Data(); }
     int GetRunOrigin() const { return fInfo.runOrigin; }
     int GetSubRunOrigin() const { return fInfo.subRunOrigin; }
     double GetTime() const { return fInfo.timeSeconds + fInfo.timeNanoSeconds * 1E-9; }
     bool isOk() const { return fInfo.ok; }
+    const TRestEventInfo& GetEventInfo() const { return fInfo; }
 
     virtual void CreateBranches(TTree* tree) {
-        tree->Branch("runOrigin", &fInfo.runOrigin, "runOrigin/I");
-        tree->Branch("subRunOrigin", &fInfo.subRunOrigin, "subRunOrigin/I");
-        tree->Branch("eventID", &fInfo.eventID, "eventID/I");
-        tree->Branch("subEventID", &fInfo.subEventID, "subEventID/I");
-        tree->Branch("timeSeconds", &fInfo.timeSeconds, "timeSeconds/L");
+        tree->Branch("runOrigin",    &fInfo.runOrigin,       "runOrigin/I");
+        tree->Branch("subRunOrigin", &fInfo.subRunOrigin,    "subRunOrigin/I");
+        tree->Branch("eventID",      &fInfo.eventID,         "eventID/I");
+        tree->Branch("subEventID",   &fInfo.subEventID,      "subEventID/I");
+        tree->Branch("timeSeconds",  &fInfo.timeSeconds,     "timeSeconds/L");
         tree->Branch("timeNanoSecs", &fInfo.timeNanoSeconds, "timeNanoSecs/I");
-        tree->Branch("ok", &fInfo.ok, "ok/O");
-        tree->Branch("subEventTag", &fSubEventTag);
+        tree->Branch("ok",           &fInfo.ok,              "ok/O");
+        tree->Branch("subEventTag",  &fSubEventTagPtr);  // TString* branch
     }
 
     virtual void SetBranchAddresses(TTree* tree) {
-        tree->SetBranchAddress("runOrigin", &fInfo.runOrigin);
+        tree->SetBranchAddress("runOrigin",    &fInfo.runOrigin);
         tree->SetBranchAddress("subRunOrigin", &fInfo.subRunOrigin);
-        tree->SetBranchAddress("eventID", &fInfo.eventID);
-        tree->SetBranchAddress("timeSeconds", &fInfo.timeSeconds);
+        tree->SetBranchAddress("eventID",      &fInfo.eventID);
+        tree->SetBranchAddress("subEventID",   &fInfo.subEventID);
+        tree->SetBranchAddress("timeSeconds",  &fInfo.timeSeconds);
         tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
-        tree->SetBranchAddress("ok", &fInfo.ok);
-        tree->SetBranchAddress("subEventTag", &fSubEventTag);
+        tree->SetBranchAddress("ok",           &fInfo.ok);
+        tree->SetBranchAddress("subEventTag",  &fSubEventTagPtr);
     }
 
-    virtual void RefreshViews() const {}
+    virtual void RefreshViews() const {
+        // Sync fSubEventTag from the ptr after ROOT fills it
+        const_cast<TRestEvent*>(this)->fSubEventTag = fSubEventTagPtr ? *fSubEventTagPtr : "";
+    }
 
     virtual void CopyFrom(const TRestEvent* other) { this->SetEventInfo(other); }
 

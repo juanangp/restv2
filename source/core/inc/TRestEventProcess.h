@@ -24,6 +24,7 @@ class TRestEventProcess : public TRestMetadata {
     virtual void InitProcess() = 0;
     virtual bool ProcessEvent(const TRestEvent& input, TRestEvent& output) = 0;
     virtual void EndProcess() {}
+    virtual Long64_t GetInputEventCount() const { return -1; }
 
     void LoadConfig() override {}
     void Initialize() override { InitProcess(); }

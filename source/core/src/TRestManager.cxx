@@ -100,6 +100,10 @@ void TRestManager::Run(TRestRun& restRun) {
         proc->Initialize();
     }
 
+    if (fOutputEventStorage && !restRun.HasOutputFileOpen()) {
+        restRun.OpenOutputFile();
+    }
+
     for (size_t i = 0; i < fProcessChain.size(); ++i) {
         std::string inputName = fPipelineConnections[i].first;
         std::string outputName = fPipelineConnections[i].second;
@@ -140,6 +144,16 @@ void TRestManager::Run(TRestRun& restRun) {
     }
 
     Long64_t totalEntries = restRun.GetEntries();
+    if (totalEntries <= 0) {
+        for (const auto& process : fProcessChain) {
+            const Long64_t processEntries = process->GetInputEventCount();
+            if (processEntries >= 0) {
+                totalEntries = processEntries;
+                break;
+            }
+        }
+    }
+
     Long64_t entriesToRun = fEventsToProcess > 0 ? fEventsToProcess : totalEntries;
     if (totalEntries > 0 && fEventsToProcess > 0) {
         entriesToRun = std::min((Long64_t)fEventsToProcess, totalEntries);

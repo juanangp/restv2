@@ -10,8 +10,11 @@ foreach(src ${BIN_SOURCES})
 
   add_executable(${exe_name} ${src})
 
-  target_link_libraries(${exe_name} PRIVATE RestCore
-                                            $<$<TARGET_EXISTS:RestRaw>:RestRaw>)
+  target_link_libraries(${exe_name} PRIVATE RestCore)
+
+  if(TARGET RestRaw)
+    target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" RestRaw "-Wl,--as-needed")
+  endif()
 
   install(TARGETS ${exe_name} RUNTIME DESTINATION bin)
 endforeach()

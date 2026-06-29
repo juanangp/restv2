@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 
 #include "TObjString.h"
 #include "TRestTools.h"
@@ -105,7 +106,15 @@ void TRestRun::LoadConfig() {
 
     // Read other parameters that don't have "preserve"/"auto" override logic
     fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
+    fMainDataPath = ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath);
+    fInputFormat = ReadYAMLParamOrDefault<std::string>(fNode, "inputFormat", fInputFormat);
     fEntriesSaved = ReadYAMLParamOrDefault<int>(fNode, "entriesSaved", fEntriesSaved);
+
+    if ((fInputFileName.empty() || fInputFileName == "Null") && !fInputFormat.empty()) {
+        fInputFileName = PrefixMainDataPath(ResolveFilePattern(fInputFormat));
+    } else if (!fInputFileName.empty() && fInputFileName != "Null") {
+        fInputFileName = PrefixMainDataPath(ResolveFilePattern(fInputFileName));
+    }
 
     // Update node with current outputFileName value for later retrieval
     if (!fNode["outputFileName"]) {
@@ -326,8 +335,25 @@ void TRestRun::CloseFiles() {
 
 // ---------------------------------------------------------------------------
 void TRestRun::PrintMetadata() {
+    YAML::Node metadata = fNode ? YAML::Clone(fNode) : YAML::Node(YAML::NodeType::Map);
+
+    TRestTools::SetNodeParameter(metadata, "runNumber", fRunNumber);
+    TRestTools::SetNodeParameter(metadata, "subRunNumber", fParentRunNumber);
+    TRestTools::SetNodeParameter(metadata, "runType", fRunType);
+    TRestTools::SetNodeParameter(metadata, "runUser", fRunUser);
+    TRestTools::SetNodeParameter(metadata, "runTag", fRunTag);
+    TRestTools::SetNodeParameter(metadata, "runDescription", fRunDescription);
+    TRestTools::SetNodeParameter(metadata, "experimentName", fExperimentName);
+    TRestTools::SetNodeParameter(metadata, "mainDataPath", fMainDataPath);
+    TRestTools::SetNodeParameter(metadata, "inputFormat", fInputFormat);
+    TRestTools::SetNodeParameter(metadata, "inputFileName", fInputFileName);
+    TRestTools::SetNodeParameter(metadata, "outputFileName", fOutputFileName);
+    TRestTools::SetNodeParameter(metadata, "entriesSaved", fEntriesSaved);
+    TRestTools::SetNodeParameter(metadata, "startTime", fStartTime);
+    TRestTools::SetNodeParameter(metadata, "endTime", fEndTime);
+
     RESTMetadata << "=== TRestRun ===" << RESTendl;
-    RESTMetadata << fNode << RESTendl;
+    RESTMetadata << metadata << RESTendl;
 }
 
 static int ParseRunNumberFromFileName(const std::string& filename) {
@@ -388,6 +414,50 @@ static int ParseRunNumberFromFileName(const std::string& filename) {
         } catch (...) {
         }
     }
+    return 0;
+}
+
+static int ParseParentRunNumberFromFileName(const std::string& filename) {
+    if (filename.empty() || filename == "Null") return 0;
+    size_t last_slash = filename.find_last_of("/\\");
+    std::string base = (last_slash == std::string::npos) ? filename : filename.substr(last_slash + 1);
+
+    size_t dot_pos = base.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+        base = base.substr(0, dot_pos);
+    }
+
+    std::vector<std::string> parts;
+    std::string current;
+    for (char c : base) {
+        if (c == '_') {
+            if (!current.empty()) {
+                parts.push_back(current);
+                current.clear();
+            }
+        } else {
+            current += c;
+        }
+    }
+    if (!current.empty()) parts.push_back(current);
+
+    if (!parts.empty()) {
+        const std::string& candidate = parts.back();
+        bool allDigits = !candidate.empty();
+        for (char c : candidate) {
+            if (!std::isdigit(c)) {
+                allDigits = false;
+                break;
+            }
+        }
+        if (allDigits) {
+            try {
+                return std::stoi(candidate);
+            } catch (...) {
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -464,6 +534,64 @@ std::string TRestRun::BuildAutoOutputFileName() const {
            parentRunNumberStr + ".root";
 }
 
+std::string TRestRun::ResolveFilePattern(const std::string& pattern) const {
+    std::string result = pattern;
+    size_t pos = 0;
+    while (true) {
+        size_t pos1 = result.find("[", pos);
+        if (pos1 == std::string::npos) break;
+        size_t pos2 = result.find("]", pos1 + 1);
+        if (pos2 == std::string::npos) break;
+
+        std::string token = result.substr(pos1 + 1, pos2 - pos1 - 1);
+        std::string replacement;
+        bool hasReplacement = true;
+
+        if (token == "fRunNumber" || token == "runNumber") {
+            char runNumberStr[32];
+            snprintf(runNumberStr, sizeof(runNumberStr), "%05d", fRunNumber);
+            replacement = runNumberStr;
+        } else if (token == "fParentRunNumber" || token == "parentRunNumber" ||
+                   token == "fSubRunNumber" || token == "subRunNumber") {
+            char parentRunNumberStr[32];
+            snprintf(parentRunNumberStr, sizeof(parentRunNumberStr), "%03d", fParentRunNumber);
+            replacement = parentRunNumberStr;
+        } else if (token == "fRunType" || token == "runType") {
+            replacement = CleanString(fRunType);
+        } else if (token == "fRunUser" || token == "runUser") {
+            replacement = CleanString(fRunUser);
+        } else if (token == "fRunTag" || token == "runTag") {
+            replacement = CleanString(fRunTag);
+        } else if (token == "fExperimentName" || token == "experimentName") {
+            replacement = CleanString(fExperimentName);
+        } else if (token == "fRunDescription" || token == "runDescription") {
+            replacement = CleanString(fRunDescription);
+        } else if (token == "fVersion" || token == "version") {
+            replacement = "2.0.0";
+        } else {
+            hasReplacement = false;
+        }
+
+        if (hasReplacement) {
+            result.replace(pos1, pos2 - pos1 + 1, replacement);
+            pos = pos1 + replacement.size();
+        } else {
+            pos = pos2 + 1;
+        }
+    }
+
+    return result;
+}
+
+std::string TRestRun::PrefixMainDataPath(const std::string& fileName) const {
+    if (fileName.empty() || fileName == "Null" || fileName == "/dev/null") return fileName;
+
+    std::filesystem::path path(fileName);
+    if (path.is_absolute() || fMainDataPath.empty()) return fileName;
+
+    return (std::filesystem::path(fMainDataPath) / path).lexically_normal().string();
+}
+
 void TRestRun::ResolveOutputFileName() {
     std::string filename = fOutputFileName;
 
@@ -486,6 +614,16 @@ void TRestRun::ResolveOutputFileName() {
                 fRunNumber = ParseRunNumberFromFileName(fInputFileName);
                 if (fRunNumber == 0) fRunNumber = 1;
             }
+        }
+    }
+
+    if (fConfigSubRunNumber == "preserve") {
+        if (fParentRunNumber == 0) {
+            fParentRunNumber = ParseParentRunNumberFromFileName(fInputFileName);
+        }
+    } else if (fConfigSubRunNumber == "auto") {
+        if (fParentRunNumber == 0) {
+            fParentRunNumber = ParseParentRunNumberFromFileName(fInputFileName);
         }
     }
 
@@ -538,48 +676,29 @@ void TRestRun::ResolveOutputFileName() {
         }
     }
 
-    // Legacy-compatible token replacement: resolve any [token] occurrence.
-    size_t pos = 0;
-    while (true) {
-        size_t pos1 = filename.find("[", pos);
-        if (pos1 == std::string::npos) break;
-        size_t pos2 = filename.find("]", pos1 + 1);
-        if (pos2 == std::string::npos) break;
+    filename = ResolveFilePattern(filename);
 
-        std::string token = filename.substr(pos1 + 1, pos2 - pos1 - 1);
-        std::string replacement;
-        bool hasReplacement = true;
+    // Normalize duplicated separators introduced by empty placeholder substitutions.
+    std::filesystem::path resolvedPath(filename);
+    std::string leaf = resolvedPath.filename().string();
+    std::string normalizedLeaf;
+    normalizedLeaf.reserve(leaf.size());
 
-        if (token == "fRunNumber" || token == "runNumber") {
-            char runNumberStr[32];
-            snprintf(runNumberStr, sizeof(runNumberStr), "%05d", fRunNumber);
-            replacement = runNumberStr;
-        } else if (token == "fParentRunNumber" || token == "parentRunNumber" ||
-                   token == "fSubRunNumber" || token == "subRunNumber") {
-            char parentRunNumberStr[32];
-            snprintf(parentRunNumberStr, sizeof(parentRunNumberStr), "%03d", fParentRunNumber);
-            replacement = parentRunNumberStr;
-        } else if (token == "fRunType" || token == "runType") {
-            replacement = CleanString(fRunType);
-        } else if (token == "fRunUser" || token == "runUser") {
-            replacement = CleanString(fRunUser);
-        } else if (token == "fRunTag" || token == "runTag") {
-            replacement = CleanString(fRunTag);
-        } else if (token == "fExperimentName" || token == "experimentName") {
-            replacement = CleanString(fExperimentName);
-        } else if (token == "fRunDescription" || token == "runDescription") {
-            replacement = CleanString(fRunDescription);
+    bool previousUnderscore = false;
+    for (char c : leaf) {
+        if (c == '_') {
+            if (!previousUnderscore) normalizedLeaf.push_back(c);
+            previousUnderscore = true;
         } else {
-            hasReplacement = false;
-        }
-
-        if (hasReplacement) {
-            filename.replace(pos1, pos2 - pos1 + 1, replacement);
-            pos = pos1 + replacement.size();
-        } else {
-            pos = pos2 + 1;
+            normalizedLeaf.push_back(c);
+            previousUnderscore = false;
         }
     }
 
-    fOutputFileName = filename;
+    if (normalizedLeaf != leaf) {
+        filename = resolvedPath.has_parent_path() ? (resolvedPath.parent_path() / normalizedLeaf).string()
+                                                  : normalizedLeaf;
+    }
+
+    fOutputFileName = PrefixMainDataPath(filename);
 }

@@ -5,9 +5,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
+#include "TRestTools.h"
 
 // ============================================================
 //  TRestRun
@@ -31,6 +33,8 @@ class TRestRun : public TRestMetadata {
 
     std::string fInputFileName = "Null";
     std::string fOutputFileName = "rest_default.root";
+    std::string fMainDataPath = "";
+    std::string fInputFormat = "";
     double fStartTime = 0;
     double fEndTime = 0;
     int fEntriesSaved = 0;
@@ -56,6 +60,8 @@ class TRestRun : public TRestMetadata {
     bool fIsInitializedFromConfig = false;
 
     std::string BuildAutoOutputFileName() const;
+    std::string ResolveFilePattern(const std::string& pattern) const;
+    std::string PrefixMainDataPath(const std::string& fileName) const;
     void ResolveOutputFileName();
 
    public:
@@ -77,6 +83,7 @@ class TRestRun : public TRestMetadata {
     std::string GetExperimentName() const { return fExperimentName; }
     std::string GetInputFileName() const { return fInputFileName; }
     std::string GetOutputFileName() const { return fOutputFileName; }
+    bool HasOutputFileOpen() const { return fOutputFile != nullptr; }
 
     void SetRunNumber(int v) { fRunNumber = v; }
     void SetParentRunNumber(int v) { fParentRunNumber = v; }
@@ -84,6 +91,10 @@ class TRestRun : public TRestMetadata {
     void SetRunUser(const std::string& v) { fRunUser = v; }
     void SetRunTag(const std::string& v) { fRunTag = v; }
     void SetRunDescription(const std::string& v) { fRunDescription = v; }
+    void SetInputFileName(const std::string& v) {
+        fInputFileName = v;
+        if (fNode) TRestTools::SetNodeParameter(fNode, "inputFileName", fInputFileName);
+    }
     void SetExperimentName(const std::string& v) { fExperimentName = v; }
     void SetStartTimeStamp(double v) { fStartTime = v; }
     void SetEndTimeStamp(double v) { fEndTime = v; }

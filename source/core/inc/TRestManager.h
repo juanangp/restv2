@@ -29,6 +29,7 @@ class TRestManager : public TRestMetadata {
 
     std::map<std::string, std::unique_ptr<TRestEvent>> fEventPool;
     std::vector<std::pair<std::string, std::string>> fPipelineConnections;
+    std::vector<std::string> fPipelineOutputClasses;
 
    public:
     // Constructor de 3 parámetros sincronizado con la factoría global

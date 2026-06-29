@@ -45,6 +45,19 @@ class TRestRun : public TRestMetadata {
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
 
+    std::string fConfigRunNumber = "";
+    std::string fConfigSubRunNumber = "";
+    std::string fConfigRunType = "";
+    std::string fConfigRunUser = "";
+    std::string fConfigRunTag = "";
+    std::string fConfigRunDescription = "";
+    std::string fConfigExperimentName = "";
+    std::string fConfigOutputFileName = "";
+    bool fIsInitializedFromConfig = false;
+
+    std::string BuildAutoOutputFileName() const;
+    void ResolveOutputFileName();
+
    public:
     TRestRun();
     explicit TRestRun(const std::string& inputFileName);
@@ -64,6 +77,16 @@ class TRestRun : public TRestMetadata {
     std::string GetExperimentName() const { return fExperimentName; }
     std::string GetInputFileName() const { return fInputFileName; }
     std::string GetOutputFileName() const { return fOutputFileName; }
+
+    void SetRunNumber(int v) { fRunNumber = v; }
+    void SetParentRunNumber(int v) { fParentRunNumber = v; }
+    void SetRunType(const std::string& v) { fRunType = v; }
+    void SetRunUser(const std::string& v) { fRunUser = v; }
+    void SetRunTag(const std::string& v) { fRunTag = v; }
+    void SetRunDescription(const std::string& v) { fRunDescription = v; }
+    void SetExperimentName(const std::string& v) { fExperimentName = v; }
+    void SetStartTimeStamp(double v) { fStartTime = v; }
+    void SetEndTimeStamp(double v) { fEndTime = v; }
 
     void OpenInputFile(const std::string& filename);
     void OpenOutputFile();
@@ -104,7 +127,7 @@ class TRestRun : public TRestMetadata {
 
         eventObject.CreateBranches(fOutputEventTrees[className]);
         
-        if (fOutputEvents.size() == 1 && fAnalysisTree) {
+        if (fOutputEvents.size() > 0 && fAnalysisTree) {
             eventObject.TRestEvent::CreateBranches(fAnalysisTree);
         }
     }

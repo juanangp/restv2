@@ -177,3 +177,22 @@ std::vector<std::string> TRestTools::ReadYALMObservables(const YAML::Node& node)
 
     return observables;
 }
+
+// Helper function to remove spaces and special characters from a string
+std::string TRestTools::CleanString(const std::string& str) {
+    std::string s = str;
+    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) {
+        return std::isspace(c) || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|';
+    }), s.end());
+    return s;
+}
+
+// Helper to replace all occurrences of a substring
+void TRestTools::ReplaceAll(std::string& str, const std::string& from, const std::string& to) {
+    if (from.empty()) return;
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+}

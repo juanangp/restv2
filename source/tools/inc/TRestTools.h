@@ -21,6 +21,8 @@ YAML::Node ResolveAllRefs(const YAML::Node& root);
 std::string PatternToRegex(const std::string& pattern);
 double ReadYAMLParamWithUnits(const YAML::Node& node);
 std::vector<std::string> ReadYALMObservables(const YAML::Node& node);
+std::string CleanString(const std::string& str);
+void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
 
 // ==================================================
 // Templates genéricos
@@ -66,6 +68,20 @@ T ReadYAMLParamOrDefault(YAML::Node& params, const std::string& key, const T& de
         params[key] = defaultValue;
         return defaultValue;
     }
+}
+
+template <typename T>
+inline void SetNodeParameter(YAML::Node& node, const std::string& key, const T& value) {
+    node[key] = value;
+}
+
+template <typename T>
+inline T GetNodeParameter(const YAML::Node& node, const std::string& key, const T& defaultValue) {
+    const YAML::Node valueNode = node[key];
+    if (valueNode) {
+        return ReadYAMLParam<T>(valueNode);
+    }
+    return defaultValue;
 }
 
 }  // namespace TRestTools

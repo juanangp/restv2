@@ -3,6 +3,8 @@
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
 
+class TRestRun;
+
 // ============================================================
 //  TRestEventProcess
 //  Abstract base for all event-processing steps.
@@ -17,10 +19,15 @@ class TRestEventProcess : public TRestMetadata {
     using TRestMetadata::TRestMetadata;
     ~TRestEventProcess() override = default;
 
+    TRestRun* fRunInfo = nullptr;
+
     virtual void InitProcess() = 0;
-    virtual void ProcessEvent(const TRestEvent& input, TRestEvent& output) = 0;
+    virtual bool ProcessEvent(const TRestEvent& input, TRestEvent& output) = 0;
     virtual void EndProcess() {}
 
     void LoadConfig() override {}
     void Initialize() override { InitProcess(); }
+
+    inline void SetRunInfo(TRestRun* r) { fRunInfo = r; }
+
 };

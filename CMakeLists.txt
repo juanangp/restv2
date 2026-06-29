@@ -7,8 +7,21 @@ project(
 # ---------------------------------------------------------------------------
 # C++ standard – honour whatever ROOT was compiled with (17 minimum)
 # ---------------------------------------------------------------------------
-find_package(ROOT 6.24 REQUIRED COMPONENTS Core RIO Tree Graf)
+set(ROOT_REQUIRED_LIBRARIES
+    Core
+    RIO
+    Tree
+    Graf
+    Hist
+    Physics)
+
+find_package(ROOT 6.24 REQUIRED COMPONENTS ${ROOT_REQUIRED_LIBRARIES})
 include(${ROOT_USE_FILE})
+
+set(ROOT_TARGET_LIBRARIES "")
+foreach(_root_lib IN LISTS ROOT_REQUIRED_LIBRARIES)
+  list(APPEND ROOT_TARGET_LIBRARIES ROOT::${_root_lib})
+endforeach()
 
 execute_process(
   COMMAND root-config --has-cxx20

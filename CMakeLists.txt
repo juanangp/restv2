@@ -13,7 +13,8 @@ set(ROOT_REQUIRED_LIBRARIES
     Tree
     Graf
     Hist
-    Physics)
+    Physics
+    Geom)
 
 find_package(ROOT 6.24 REQUIRED COMPONENTS ${ROOT_REQUIRED_LIBRARIES})
 include(${ROOT_USE_FILE})
@@ -92,6 +93,11 @@ if(REST_RAW)
   add_subdirectory(libraries/raw)
 endif()
 
+option(REST_DETECTOR "Build the detector library" ON)
+if(REST_DETECTOR)
+  add_subdirectory(libraries/detector)
+endif()
+
 add_subdirectory(source/bin)
 
 # Create thisREST.sh include(thisREST)
@@ -105,4 +111,5 @@ message(STATUS "  Install : ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  ROOT    : ${ROOT_VERSION}")
 message(STATUS "  REST_RAW: ${REST_RAW}")
+message(STATUS "  REST_DETECTOR: ${REST_DETECTOR}")
 message(STATUS "")

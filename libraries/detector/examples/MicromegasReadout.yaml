@@ -1,0 +1,13 @@
+rest:
+  readout:
+    type: "TRestMicromegasReadout"
+    name: "IAXO_D0_Micromegas"
+    title: "Interconnected diagonal strip-pixel matrix geometry"
+    default_decoding: "iaxo_d0_nominal.dec"
+    geometry_parameters:
+      rows: 120
+      cols: 120
+      pitch_x: 0.5
+      pitch_y: 0.5
+      position_relative: [0.0, 0.0, -10.0]
+      position_rotation: 0.0

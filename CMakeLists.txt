@@ -100,7 +100,9 @@ endif()
 
 add_subdirectory(source/bin)
 
-# Create thisREST.sh include(thisREST)
+# Create thisREST.sh
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+include(thisREST)
 
 # ---------------------------------------------------------------------------
 # Summary

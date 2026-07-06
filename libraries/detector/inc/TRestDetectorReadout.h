@@ -18,6 +18,7 @@ class TFile;
 /// Derived classes must implement `BuildGeometry` to define a concrete readout
 /// technology.
 class TRestDetectorReadout : public TRestMetadata {
+DECLARE_LOG_CLASS(TRestDetectorReadout)
 protected:
     /// ROOT geometry manager used for geometry navigation and position lookup.
     TGeoManager* fGeoManager = nullptr;
@@ -25,12 +26,17 @@ protected:
     /// Top-level logical assembly that owns all readout nodes.
     TGeoVolumeAssembly* fTopAssembly = nullptr;
 
+    /// Decoding fileName
+    std::string fDecodingFile = "";
+
     /// Decoding map from geometry physical ID to DAQ channel ID.
     std::map<int, int> fPhysicalToDAQMap;
 
 public:
     /// \brief Constructs a detector readout metadata object.
     TRestDetectorReadout();
+    TRestDetectorReadout(const std::string& instanceName, const YAML::Node& node);
+    TRestDetectorReadout(const std::string& fileName, const std::string& sectionName);
 
     /// \brief Destructor.
     virtual ~TRestDetectorReadout();
@@ -48,13 +54,16 @@ public:
     /// \brief Prints basic metadata information.
     void PrintMetadata() override;
 
-    /// \brief Initializes geometry and decoding state from a YAML readout node.
-    /// \param readoutNode YAML node with readout definition.
-    void InitFromYAML(const YAML::Node& readoutNode);
-
     /// \brief Builds the technology-specific readout geometry.
     /// \param readoutNode YAML node with geometry parameters.
-    virtual void BuildGeometry(const YAML::Node& readoutNode) = 0;
+    virtual void BuildGeometry() = 0;
+
+    void InitializeReadout();
+
+    /// \brief Opens a graphical window to visualize the readout geometry.
+    /// \param option Drawing option passed to ROOT (e.g., "ogl" for OpenGL, "" for default X11/Web).
+    void ViewReadoutGeometry(const std::string& option = "ogl") const;
+    void ViewActiveEvent(const std::vector<int>& activeChannels) const;
 
     /// \brief Loads a decoding file mapping physical IDs to DAQ channels.
     /// \param decFilename Path to decoding file.

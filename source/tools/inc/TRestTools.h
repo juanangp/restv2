@@ -75,13 +75,4 @@ inline void SetNodeParameter(YAML::Node& node, const std::string& key, const T& 
     node[key] = value;
 }
 
-template <typename T>
-inline T GetNodeParameter(const YAML::Node& node, const std::string& key, const T& defaultValue) {
-    const YAML::Node valueNode = node[key];
-    if (valueNode) {
-        return ReadYAMLParam<T>(valueNode);
-    }
-    return defaultValue;
-}
-
 }  // namespace TRestTools

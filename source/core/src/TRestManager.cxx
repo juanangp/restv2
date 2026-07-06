@@ -9,48 +9,47 @@ namespace {
 const bool kRegistered = []() {
     MetadataRegistry::Instance().Register(
         "TRestManager",
-        [](const std::string& instanceName, const std::string& sectionName, const YAML::Node& params) {
-            return std::make_unique<TRestManager>(instanceName, sectionName, params);
+        [](const std::string& instanceName, const YAML::Node& params) {
+            return std::make_unique<TRestManager>(instanceName, params);
         });
     return true;
 }();
 }  // namespace
 
 // ---------------------------------------------------------------------------
-TRestManager::TRestManager(const std::string& instanceName, const std::string& sectionName,
+TRestManager::TRestManager(const std::string& instanceName,
                            const YAML::Node& node)
-    : TRestMetadata(instanceName, sectionName, node) {
+    : TRestMetadata(instanceName, node) {
     LoadConfig();
 }
 
 TRestManager::TRestManager(const std::string& fileName, const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
-    YAML::Node raw = YAML::LoadFile(fileName);
-    fNode = ResolveAllRefs(raw);
-    if (!sectionName.empty()) fNode = fNode[sectionName];
     LoadConfig();
 }
 
 // ---------------------------------------------------------------------------
 void TRestManager::LoadConfig() {
-    for (auto it = fNode.begin(); it != fNode.end(); ++it) {
-        const auto key = it->first.as<std::string>();
-        auto value = it->second;
-
-        RESTInfo << "Loading YAML node: " << key << RESTendl;
+    for (const auto& element : fNode){ 
+        const auto key = element.first.as<std::string>();
+        auto value = element.second;
 
         if (key == "pipeline") {
             LoadPipeline(value);
             continue;
         }
 
+        if(value.IsScalar())continue;
+
+        RESTInfo << "Loading YAML node: " << key << RESTendl;
+
         const auto className = ReadYAMLParam<std::string>(value["class"]);
         const auto name = ReadYAMLParam<std::string>(value["name"]);
         auto params = value["params"];
 
-        RESTInfo << "Loading metadata - name: " << name << "  class: " << className << RESTendl;
+        RESTInfo << "Loading metadata "<< key <<" name: " << name << "  class: " << className << RESTendl;
 
-        fMetaObjects.emplace_back(MetadataRegistry::Instance().Create(className, name, "manager", params));
+        fMetaObjects.emplace_back(MetadataRegistry::Instance().Create(className, name, params));
     }
 
     for (auto& meta : fMetaObjects) meta->PrintMetadata();
@@ -80,7 +79,7 @@ void TRestManager::LoadPipeline(YAML::Node& pipeline) {
         RESTInfo << "Loading process: " << name << " (" << className << ")" << RESTendl;
         RESTInfo << "  Route: " << inputBranch << " -> " << outputBranch << RESTendl;
 
-        auto meta = MetadataRegistry::Instance().Create(className, name, "pipeline", params);
+        auto meta = MetadataRegistry::Instance().Create(className, name, params);
 
         if (auto* proc = dynamic_cast<TRestEventProcess*>(meta.get())) {
             meta.release();

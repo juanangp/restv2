@@ -1,3 +1,4 @@
+#include "TRestConstants.h"
 #include "TRestDetectorReadout.h"
 #include "TGeoNode.h"
 #include "TGeoMatrix.h"
@@ -8,23 +9,59 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <limits>
+
+using namespace TRestConstants;
 
 /// \brief Constructs a generic readout metadata object with default name.
 TRestDetectorReadout::TRestDetectorReadout() : TRestMetadata() {
-    fName = "generic_detector_readout";
+    fName = "TRestDetectorReadout";
+}
+
+TRestDetectorReadout::TRestDetectorReadout(const std::string& instanceName, const YAML::Node& node)
+    : TRestMetadata(instanceName, node) {
+    LoadConfig();
+}
+
+TRestDetectorReadout::TRestDetectorReadout(const std::string& fileName, const std::string& sectionName)
+    : TRestMetadata(fileName, sectionName) {
+    LoadConfig();
 }
 
 /// \brief Destructor.
 TRestDetectorReadout::~TRestDetectorReadout() {
-    // TGeoManager is globally owned by ROOT (gGeoManager), it unregisters automatically.
+// TGeoManager is globally owned by ROOT (gGeoManager), it unregisters automatically.
 }
 
-namespace {
+/// \brief Initializes geometry and decoding from YAML.
+void TRestDetectorReadout::LoadConfig() {
+
+    fDecodingFile = TRestTools::ReadYAMLParamOrDefault<std::string>(fNode, "decoding_name", fDecodingFile);
+
+    if (!LoadDecoding(fDecodingFile) ){
+        RESTError <<"Decoding file not found "<< RESTendl;
+    }
+
+}
+
+void TRestDetectorReadout::InitializeReadout(){
+
+// Initialize an isolated, silent TGeoManager instance
+    if (fGeoManager) delete fGeoManager;
+    fGeoManager = new TGeoManager(fName.c_str(), fName.c_str());
+    TGeoManager::SetVerboseLevel(0);
+
+    // Create a logical Assembly as Top Volume (no physical materials or vacuum setup required)
+    fTopAssembly = fGeoManager->MakeVolumeAssembly("READOUT_TOP");
+    fGeoManager->SetTopVolume(fTopAssembly);
+
+}
+
 /// \brief Parses decoding text with `physicalID readoutChannel` rows.
 /// \param text Multiline decoding text.
 /// \param decodingMap Output map receiving parsed values.
 /// \return `true` when at least one valid row is parsed.
-bool ParseDecodingText(const std::string& text, std::map<int, int>& decodingMap) {
+static bool ParseDecodingString(const std::string& text, std::map<int, int>& decodingMap) {
     std::stringstream stream(text);
     std::string line;
     int linesParsed = 0;
@@ -46,76 +83,80 @@ bool ParseDecodingText(const std::string& text, std::map<int, int>& decodingMap)
 
     return (linesParsed > 0);
 }
-}  // namespace
-
-namespace {
-/// \brief Builds an identity decoding map from existing top-assembly nodes.
-/// \param topAssembly Geometry top assembly.
-/// \param decodingMap Output map receiving `physicalID -> physicalID` values.
-void SetIdentityDecodingFromGeometry(TGeoVolumeAssembly* topAssembly, std::map<int, int>& decodingMap) {
-    decodingMap.clear();
-    if (!topAssembly) return;
-
-    const int nNodes = topAssembly->GetNdaughters();
-    for (int i = 0; i < nNodes; ++i) {
-        TGeoNode* node = topAssembly->GetNode(i);
-        if (!node) continue;
-        const int physicalID = static_cast<int>(node->GetUniqueID());
-        decodingMap[physicalID] = physicalID;
-    }
-}
-}  // namespace
-
-/// \brief Loads configuration by initializing from the internal YAML node.
-void TRestDetectorReadout::LoadConfig() {
-    InitFromYAML(fNode);
-}
 
 /// \brief Prints metadata summary for this detector readout.
 void TRestDetectorReadout::PrintMetadata() {
     RESTInfo << "Detector readout: " << fName << RESTendl;
 }
 
-/// \brief Initializes geometry and decoding from YAML.
-/// \param readoutNode YAML node with geometry and optional decoding settings.
-void TRestDetectorReadout::InitFromYAML(const YAML::Node& readoutNode) {
-    const auto nameNode = readoutNode["name"];
-    if (nameNode) fName = TRestTools::ReadYAMLParam<std::string>(nameNode);
-
-    const auto titleNode = readoutNode["title"];
-    const std::string title = titleNode ? TRestTools::ReadYAMLParam<std::string>(titleNode) : fName;
-
-    // Initialize an isolated, silent TGeoManager instance
-    if (fGeoManager) delete fGeoManager;
-    fGeoManager = new TGeoManager(fName.c_str(), title.c_str());
-    TGeoManager::SetVerboseLevel(0);
-
-    // Create a logical Assembly as Top Volume (no physical materials or vacuum setup required)
-    fTopAssembly = fGeoManager->MakeVolumeAssembly("READOUT_TOP");
-    fGeoManager->SetTopVolume(fTopAssembly);
-
-    // POLYMORPHIC CALL: Delegate geometry population to the specific derived subclass
-    BuildGeometry(readoutNode);
-
-    // Close and optimize the geometry using ROOT internal voxelization trees
-    fGeoManager->CloseGeometry();
-
-    // Optional: Load automatic default connectivity mapping if defined inside YAML
-    const auto decodingNode = readoutNode["default_decoding"];
-    if (decodingNode && !TRestTools::ReadYAMLParam<std::string>(decodingNode).empty()) {
-        LoadDecoding(TRestTools::ReadYAMLParam<std::string>(decodingNode));
-    } else {
-        SetIdentityDecodingFromGeometry(fTopAssembly, fPhysicalToDAQMap);
+/// \brief Opens a graphical window to visualize the readout geometry.
+/// \param option Drawing option passed to ROOT (e.g., "ogl" for OpenGL).
+void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const {
+    if (!fGeoManager || !fTopAssembly) {
+        RESTError << "Cannot visualize readout: Geometry is not initialized!" << RESTendl;
+        return;
     }
+
+    RESTInfo << "Opening visualizer for readout geometry: " << GetName() << RESTendl;
+
+    // Set visibility settings for the logical assembly container so it doesn't 
+    // obstruct the view of the internal sensitive channels/pixels
+    fTopAssembly->SetVisibility(kFALSE);
+    fTopAssembly->VisibleDaughters(kTRUE);
+
+    fGeoManager->SetVisLevel(10);
+    fGeoManager->SetVisOption(0);
+
+    // Tell ROOT to draw the top assembly volume containing all the physical nodes
+    // If option is "ogl", it spawns the standalone high-performance OpenGL viewer
+    fTopAssembly->Draw(option.c_str());
 }
+
+/// \brief Visualizes the geometry highlighting a specific set of active DAQ channels.
+/// \param activeChannels Vector containing the DAQ channel IDs that fired in the event.
+void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannels) const {
+    if (!fTopAssembly) return;
+
+    int nNodes = fTopAssembly->GetNdaughters();
+
+    // 2. Analizar qué canales electrónicos del evento se han disparado
+    for (int daqID : activeChannels) {
+        int targetPhysicalID = -1;
+        
+        for (const auto& [physicalID, readoutChannel] : fPhysicalToDAQMap) {
+            if (readoutChannel == daqID) {
+                targetPhysicalID = physicalID;
+                break;
+            }
+        }
+
+        if (targetPhysicalID == -1) continue;
+
+        for (int i = 0; i < nNodes; ++i) {
+            TGeoNode* node = fTopAssembly->GetNode(i);
+            int combinedID = node->GetUniqueID();
+
+            if(combinedID == targetPhysicalID) {
+                node->GetVolume()->SetLineColor(kRed);
+            }
+        }
+    }
+
+    fGeoManager->SetVisLevel(10);
+    fGeoManager->SetVisOption(0); 
+    
+    // 4. Redibujar el canvas OpenGL interactivo
+    fTopAssembly->Draw("ogl");
+}
+
 
 /// \brief Loads decoding from a text file.
 /// \param decFilename Decoding file path.
 /// \return `true` on successful decoding load.
 bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
-    if (decFilename.empty()) {
-        SetIdentityDecodingFromGeometry(fTopAssembly, fPhysicalToDAQMap);
-        return !fPhysicalToDAQMap.empty() || (fTopAssembly && fTopAssembly->GetNdaughters() == 0);
+    if (decFilename.empty()){
+        Error("TRestDetectorReadout::LoadDecoding", "Cannot open mapping file: %s", decFilename.c_str());
+        return false;
     }
 
     std::ifstream file(decFilename);
@@ -124,11 +165,13 @@ bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
         return false;
     }
 
+    std::cout<<"Loading decoding file "<<decFilename<<std::endl;
+
     std::stringstream buffer;
     buffer << file.rdbuf();
 
     std::map<int, int> decodingMap;
-    if (!ParseDecodingText(buffer.str(), decodingMap)) {
+    if (!ParseDecodingString(buffer.str(), decodingMap)) {
         return false;
     }
 
@@ -164,6 +207,9 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
     if (!geo) return false;
 
     SetGeoManager(geo);
+
+    fNode = ReadMetadata(fIn, geometryName);
+
     return true;
 }
 
@@ -186,7 +232,7 @@ bool TRestDetectorReadout::Import(TFile* fIn, const std::string& geometryName, c
     if (!decObj) return false;
 
     std::map<int, int> decodingMap;
-    if (!ParseDecodingText(decObj->GetString().Data(), decodingMap)) return false;
+    if (!ParseDecodingString(decObj->GetString().Data(), decodingMap)) return false;
 
     fPhysicalToDAQMap = std::move(decodingMap);
     return true;
@@ -211,6 +257,7 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName, 
         GetGeoManager()->Write(resolvedGeometryName.c_str(), TObject::kOverwrite);
     }
 
+    // Exportación del Decoding (Tu lógica original intacta)
     TDirectory* decDir = fOut->GetDirectory("Decodings");
     if (!decDir) decDir = fOut->mkdir("Decodings");
     if (!decDir) return false;
@@ -225,6 +272,17 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName, 
     rootDecString.Write(decodingName.c_str(), TObject::kOverwrite);
 
     fOut->cd();
+
+    try {
+        WriteMetadata(fOut, resolvedGeometryName, fNode);
+    } catch (const std::exception& e) {
+        RESTError << "Error exportando metadatos en TRestDetectorReadout: " << e.what() << RESTendl;
+        return false;
+    }
+    // =========================================================================
+
+    fOut->cd();
+
     return true;
 }
 
@@ -234,7 +292,15 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName, 
 /// \param z Z coordinate.
 /// \return DAQ channel ID, or `-1` when no channel is mapped.
 int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) const {
-    if (!fGeoManager) return -1;
+    if (!fGeoManager) {
+      RESTError << "Geometry not initialized " << RESTendl;
+      return -1;
+    }
+
+    if (fPhysicalToDAQMap.empty()){
+      RESTError << "Decoding not initialazed " << RESTendl;
+      return -1;
+    }
 
     // ROOT high-speed navigation tree lookup over RAM voxel cells
     TGeoNode* node = fGeoManager->FindNode(x, y, z);
@@ -249,9 +315,12 @@ int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) c
 
 /// \brief Returns spatial position associated with a DAQ channel.
 /// \param daqID DAQ channel identifier.
-/// \return Channel position, or `(0,0,0)` when not found.
+/// \return Channel position, or `(nan,nan,nan)` when not found.
 TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
-    if (!fTopAssembly) return TVector3(0,0,0);
+    if (!fTopAssembly) {
+      RESTError << "Geometry not initialized " << RESTendl;
+      return TVector3(REST_nan, REST_nan, REST_nan);
+    }
 
     int targetPhysicalID = -1;
     for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {
@@ -260,7 +329,10 @@ TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
             break;
         }
     }
-    if (targetPhysicalID < 0) return TVector3(0,0,0);
+    if (targetPhysicalID < 0){
+      RESTError << "DaqID " << daqID << " not found" << RESTendl;
+      return TVector3(REST_nan, REST_nan, REST_nan);
+    }
 
     // Scan top layout nodes to extract coordinates matching the mapped physical ID
     int nNodes = fTopAssembly->GetNdaughters();
@@ -268,12 +340,12 @@ TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
         TGeoNode* node = fTopAssembly->GetNode(i);
         if (static_cast<int>(node->GetUniqueID()) == targetPhysicalID) {
             const TGeoMatrix* matrix = node->GetMatrix();
-            if (!matrix) return TVector3(0, 0, 0);
+            if (!matrix) return TVector3(REST_nan, REST_nan, REST_nan);
             const double* trans = matrix->GetTranslation();
             return TVector3(trans[0], trans[1], trans[2]);
         }
     }
-    return TVector3(0,0,0);
+    return TVector3(REST_nan, REST_nan, REST_nan);
 }
 
 /// \brief Sets the geometry manager and updates top assembly pointer.

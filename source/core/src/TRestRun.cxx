@@ -19,8 +19,8 @@ namespace {
 const bool kRegistered = []() {
     MetadataRegistry::Instance().Register(
         "TRestRun",
-        [](const std::string& instanceName, const std::string& sectionName, const YAML::Node& params) {
-            return std::make_unique<TRestRun>(instanceName, sectionName, params);
+        [](const std::string& instanceName, const YAML::Node& params) {
+            return std::make_unique<TRestRun>(instanceName, params);
         });
     return true;
 }();
@@ -35,16 +35,14 @@ TRestRun::TRestRun(const std::string& inputFileName) {
     fName = "TRestRun";
     OpenInputFile(inputFileName);
 }
-TRestRun::TRestRun(const std::string& instanceName, const std::string& sectionName, const YAML::Node& node)
-    : TRestMetadata(instanceName, sectionName, node) {
+
+TRestRun::TRestRun(const std::string& instanceName, const YAML::Node& node)
+    : TRestMetadata(instanceName, node) {
     LoadConfig();
 }
 
 TRestRun::TRestRun(const std::string& fileName, const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
-    YAML::Node raw = YAML::LoadFile(fileName);
-    YAML::Node cfg = ResolveAllRefs(raw);
-    fNode = cfg[sectionName]["params"];
     LoadConfig();
 }
 
@@ -66,17 +64,17 @@ void TRestRun::LoadConfig() {
 
     // Read configuration values from YAML (only first time)
     if (!fIsInitializedFromConfig) {
-        fConfigRunNumber = GetNodeParameter<std::string>(fNode, "runNumber", fConfigRunNumber);
-        fConfigSubRunNumber = GetNodeParameter<std::string>(fNode, "subRunNumber", fConfigSubRunNumber);
-        fConfigRunType = GetNodeParameter<std::string>(fNode, "runType", fConfigRunType);
-        fConfigRunUser = GetNodeParameter<std::string>(fNode, "runUser", fConfigRunUser);
-        fConfigRunTag = GetNodeParameter<std::string>(fNode, "runTag", fConfigRunTag);
+        fConfigRunNumber = ReadYAMLParamOrDefault<std::string>(fNode, "runNumber", fConfigRunNumber);
+        fConfigSubRunNumber = ReadYAMLParamOrDefault<std::string>(fNode, "subRunNumber", fConfigSubRunNumber);
+        fConfigRunType = ReadYAMLParamOrDefault<std::string>(fNode, "runType", fConfigRunType);
+        fConfigRunUser = ReadYAMLParamOrDefault<std::string>(fNode, "runUser", fConfigRunUser);
+        fConfigRunTag = ReadYAMLParamOrDefault<std::string>(fNode, "runTag", fConfigRunTag);
         fConfigRunDescription =
-            GetNodeParameter<std::string>(fNode, "runDescription", fConfigRunDescription);
+            ReadYAMLParamOrDefault<std::string>(fNode, "runDescription", fConfigRunDescription);
         fConfigExperimentName =
-            GetNodeParameter<std::string>(fNode, "experimentName", fConfigExperimentName);
+            ReadYAMLParamOrDefault<std::string>(fNode, "experimentName", fConfigExperimentName);
         fConfigOutputFileName =
-            GetNodeParameter<std::string>(fNode, "outputFileName", fConfigOutputFileName);
+            ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName", fConfigOutputFileName);
         fIsInitializedFromConfig = true;
     }
 
@@ -135,27 +133,37 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     YAML::Node selfConfig = GetMetadata(GetName());
 
-    // If not found by GetName(), try to auto-discover the TRestRun metadata instance
     if (!selfConfig || selfConfig.IsNull()) {
-        TObjArray* metadataArray = nullptr;
-        fInputFile->GetObject("RESTMetadataStore", metadataArray);
-        if (metadataArray) {
-            for (int i = 0; i < metadataArray->GetEntries(); ++i) {
-                TNamed* namedMeta = dynamic_cast<TNamed*>(metadataArray->At(i));
-                if (namedMeta && std::string(namedMeta->GetTitle()).find("Class: TRestRun") != std::string::npos) {
-                    SetName(namedMeta->GetName()); // Adopt the name from the file
-                    selfConfig = GetMetadata(GetName());
-                    break;
+        TDirectory* metadataDir = fInputFile->GetDirectory("RESTMetadataStore");
+        if (metadataDir) {
+            TList* keysInDir = metadataDir->GetListOfKeys();
+            if (keysInDir) {
+                for (int i = 0; i < keysInDir->GetEntries(); ++i) {
+                    TKey* key = dynamic_cast<TKey*>(keysInDir->At(i));
+                    if (!key) continue;
+
+                    std::string keyName = key->GetName();
+
+                    YAML::Node testConfig = GetMetadata(keyName);
+                    
+                    if (testConfig && !testConfig.IsNull()) {
+                        if (testConfig["class"] && testConfig["class"].as<std::string>() == "TRestRun") {
+                            SetName(keyName); 
+                            selfConfig = testConfig;
+                            break;
+                        }
+                    }
                 }
             }
-            delete metadataArray;
         }
     }
+    // =========================================================================
 
     if (selfConfig && !selfConfig.IsNull()) {
         fNode = selfConfig;
         LoadConfig();
     }
+
 
     // Auto-discover: any key in the file that is registered in EventRegistry
     TList* keys = fInputFile->GetListOfKeys();
@@ -188,73 +196,15 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     }
 }
 
-void TRestRun::AddMetadata(const std::string& instanceName, const std::string& className,
+void TRestRun::AddMetadata(const std::string& instanceName,
                            const YAML::Node& configNode) {
-    if (!fOutputFile) throw std::runtime_error("TRestRun::AddMetadata - Output file not found.");
-    if (!configNode || configNode.IsNull()) return;
-
-    fOutputFile->cd();
-    TObjArray* metadataArray = nullptr;
-    fOutputFile->GetObject("RESTMetadataStore", metadataArray);
-    if (!metadataArray) {
-        TKey* key = fOutputFile->GetKey("RESTMetadataStore");
-        if (key) {
-            fOutputFile->Delete("RESTMetadataStore;*");
-        }
-        metadataArray = new TObjArray();
-        metadataArray->SetName("RESTMetadataStore");
-        metadataArray->SetOwner(kTRUE);
-    }
-
-    std::string yamlDump = YAML::Dump(configNode);
-    auto* namedMeta = new TNamed(instanceName.c_str(), "");
-
-    std::string classAndYaml = "Class: " + className + "\n---\n" + yamlDump;
-    namedMeta->SetTitle(classAndYaml.c_str());
-
-    TObject* old = metadataArray->FindObject(instanceName.c_str());
-    if (old) {
-        metadataArray->Remove(old);
-        delete old;
-    }
-
-    metadataArray->Add(namedMeta);
-    metadataArray->Write("RESTMetadataStore", TObject::kSingleKey | TObject::kOverwrite);
-    
-    delete metadataArray;
+     WriteMetadata(fOutputFile.get(), instanceName, configNode);
 }
 
 YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
     if (!fInputFile) return YAML::Node();
 
-    TObjArray* metadataArray = nullptr;
-    fInputFile->GetObject("RESTMetadataStore", metadataArray);
-    if (!metadataArray) return YAML::Node();
-
-    TObject* obj = metadataArray->FindObject(instanceName.c_str());
-    if (!obj) {
-        delete metadataArray;
-        return YAML::Node();
-    }
-
-    auto* namedMeta = dynamic_cast<TNamed*>(obj);
-    if (!namedMeta) {
-        delete metadataArray;
-        return YAML::Node();
-    }
-
-    std::string fullText = namedMeta->GetTitle();
-    size_t separator = fullText.find("---\n");
-    YAML::Node node;
-    if (separator == std::string::npos) {
-        node = YAML::Load(fullText);
-    } else {
-        std::string yamlStr = fullText.substr(separator + 4);
-        node = YAML::Load(yamlStr);
-    }
-
-    delete metadataArray;
-    return node;
+    return ReadMetadata(fInputFile.get(), instanceName);
 }
 
 TRestEvent& TRestRun::GetInputEvent(const std::string& treeName) {
@@ -317,7 +267,7 @@ void TRestRun::CloseFiles() {
         if (fAnalysisTree) fAnalysisTree->Write("", TObject::kOverwrite);
 
         if (fNode && !fNode.IsNull()) {
-            AddMetadata(GetName(), GetClassName(), fNode);
+            AddMetadata(GetName(), fNode);
         }
 
         fOutputFile->Close();

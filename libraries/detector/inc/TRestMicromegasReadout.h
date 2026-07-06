@@ -10,8 +10,11 @@
 /// physical identifier.
 class TRestMicromegasReadout : public TRestDetectorReadout {
 public:
+    using TRestDetectorReadout::TRestDetectorReadout;
+    virtual std::string GetClassName() const override { return "TRestMicromegasReadout"; }
+
     /// \brief Builds the Micromegas geometry from a YAML configuration node.
     /// \param readoutNode YAML node containing the `geometry_parameters`
     /// section used to define rows, columns, pitch, position and rotation.
-    void BuildGeometry(const YAML::Node& readoutNode) override;
+    void BuildGeometry() override;
 };

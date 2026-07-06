@@ -1,17 +1,16 @@
 run:
   class: "TRestRun"
   name: "Developing"
-  params:
-    runNumber: 1
-    subRunNumber: 0
-    runType: "Test"
-    runUser: "${ENV:USER}"
-    runTag: "Dummy"
-    runDescription: "Test1"
-    experimentName: "None"
-    inputFileName: "Null"
-    outputFileName: "R[runNumber]_[subRunNumber]_[runType]_[runTag]_[runUser].root"
-    entriesSaved: 0
+  runNumber: 1
+  subRunNumber: 0
+  runType: "Test"
+  runUser: "${ENV:USER}"
+  runTag: "Dummy"
+  runDescription: "Test1"
+  experimentName: "None"
+  inputFileName: "Null"
+  outputFileName: "R[runNumber]_[subRunNumber]_[runType]_[runTag]_[runUser].root"
+  entriesSaved: 0
 
 # Pipeline processes are added in Step 3 (after ROOT dictionaries + dummy process).
 manager:

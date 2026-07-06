@@ -8,15 +8,16 @@
 #include "Math/GenVector/DisplacementVector3D.h"
 #include "Math/Vector3Dfwd.h"
 
-// ============================================================
-// TRestHitsData
-// ============================================================
+/// \struct TRestHitsData
+/// \brief Shared storage container for hit coordinates, time and energy arrays.
 struct TRestHitsData {
+    /// Hit dimensionality/type encoding.
     enum REST_HitType : int { unknown = -1, X = 2, Y = 3, Z = 5, XY = 6, XZ = 10, YZ = 15, XYZ = 30 };
 
     std::vector<float> x, y, z, time, energy;
     std::vector<REST_HitType> type;
 
+    /// \brief Clears all hit arrays.
     void clear() {
         x.clear();
         y.clear();
@@ -27,26 +28,45 @@ struct TRestHitsData {
     }
 };
 
+/// \class TRestHits
+/// \brief Lightweight view and utility API over `TRestHitsData`.
+///
+/// The class references external storage and exposes geometric/statistical
+/// operations for subsets of hits.
 class TRestHits {
    protected:
     TRestHitsData* fData = nullptr;
     int fStartIdx = 0;
     int fNHits = 0;
 
+    /// \brief Converts local index to global storage index.
+    /// \param n Local hit index.
+    /// \return Global index into shared storage.
     inline int GetGlobalIdx(int n) const { return fStartIdx + n; }
 
    public:
+    /// \brief Constructs a hit-view over shared data.
+    /// \param data Shared hit storage.
+    /// \param start First hit index in the storage.
+    /// \param n Number of hits in the view.
     TRestHits(TRestHitsData* data, int start = 0, int n = 0) : fData(data), fStartIdx(start), fNHits(n) {}
 
+    /// \brief Translates one hit in 3D.
     void Translate(int n, double x, double y, double z);
-    void RotateIn3D(int n, double alpha, double beta, double gamma, ROOT::Math::XYZVector center);
-    // void Rotate(int n, double alpha, ROOT::Math::XYZVector vAxis, ROOT::Math::XYZVector vMean);
 
+    /// \brief Rotates one hit around a center using Euler angles.
+    void RotateIn3D(int n, double alpha, double beta, double gamma, ROOT::Math::XYZVector center);
+
+    /// \brief Removes all hits in current view from storage.
     inline void RemoveHits();
 
+    /// \brief Adds one hit.
     void AddHit(ROOT::Math::XYZVector position, double energy, double time, TRestHitsData::REST_HitType type);
+
+    /// \brief Appends hits from another view.
     void AddHits(const TRestHits& hits);
 
+    /// \brief Returns index of most energetic hit in a range.
     int GetMostEnergeticHitInRange(int n, int m) const;
 
     double GetMaximumHitDistance() const;
@@ -67,7 +87,7 @@ class TRestHits {
 
     bool isSortedByEnergy() const;
 
-    // Getters
+    /// \brief Returns number of hits in current view.
     inline size_t GetNumberOfHits() const { return (size_t)fNHits; }
     inline double GetX(int n) const { return fData->x[GetGlobalIdx(n)]; }
     inline double GetY(int n) const { return fData->y[GetGlobalIdx(n)]; }
@@ -100,10 +120,6 @@ class TRestHits {
     double GetSigmaZ2() const;
     double GetSkewXY() const;
     double GetSkewZ() const;
-
-    // double GetGaussSigmaX(double error = 150.0, int nHitsMin = 100000);
-    // double GetGaussSigmaY(double error = 150.0, int nHitsMin = 100000);
-    // double GetGaussSigmaZ(double error = 150.0, int nHitsMin = 100000);
 
     double GetEnergyByType(const TRestHitsData::REST_HitType type) const;
     double GetEnergyX() const { return GetEnergyByType(TRestHitsData::REST_HitType::X); }

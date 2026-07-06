@@ -11,47 +11,99 @@
 
 #include "TRestLogManager.h"
 
-// ============================================================
-//  TRestMetadata
-//  Abstract base for all metadata/configuration objects.
-//  Configuration is loaded from a YAML node or file.
-// ============================================================
+#include <TFile.h>
+
+/// \class TRestMetadata
+/// \brief Abstract base class for metadata and configuration objects.
+///
+/// Instances are configured from YAML nodes or files and define a common
+/// lifecycle interface (`LoadConfig`, `Initialize`, `PrintMetadata`).
 class TRestMetadata {
    protected:
+    /// Metadata instance name.
     std::string fName = "";
+
+    /// Source YAML file name, when configuration was loaded from file.
     std::string fConfigFileName = "";
+
+    /// Section name used to locate this metadata in YAML.
     std::string fSectionName = "";
+
+    /// Raw YAML node associated with this metadata instance.
     YAML::Node fNode;
+
+    /// Verbosity level used by REST logging.
     TRestLogManager::REST_Verbose_Level fVerboseLevel = TRestLogManager::REST_Verbose_Level::REST_Info;
 
    public:
+    /// \brief Returns the concrete class name.
+    /// \return Class name string.
     virtual std::string GetClassName() const = 0;
+
+    /// \brief Returns the metadata instance name.
+    /// \return Instance name.
     std::string GetName() const { return fName; }
 
-    explicit TRestMetadata(const std::string& instanceName, const std::string& sectionName,
+    /// \brief Constructs metadata from explicit YAML node.
+    /// \param instanceName Metadata instance name.
+    /// \param node YAML node with metadata configuration.
+    explicit TRestMetadata(const std::string& instanceName,
                            const YAML::Node& node);
+
+    /// \brief Constructs metadata by loading a YAML file/section.
+    /// \param fileName YAML file path.
+    /// \param sectionName Section name in YAML.
     explicit TRestMetadata(const std::string& fileName, const std::string& sectionName);
+
+    /// \brief Default constructor.
     TRestMetadata() = default;
 
+    /// \brief Sets metadata instance name.
+    /// \param name Instance name.
     void SetName(const std::string& name) { fName = name; }
+
+    /// \brief Sets the source config file name.
+    /// \param f Config file path.
     void SetConfigFileName(const std::string& f) { fConfigFileName = f; }
+
+    /// \brief Sets the YAML section name.
+    /// \param s Section name.
     void SetSectionName(const std::string& s) { fSectionName = s; }
+
+    /// \brief Sets the associated YAML node.
+    /// \param node YAML node.
     void SetYAMLNode(const YAML::Node& node) { fNode = node; }
 
+    /// \brief Virtual destructor.
     virtual ~TRestMetadata() = default;
 
+    /// \brief Loads configuration into internal members.
     virtual void LoadConfig() = 0;
+
+    /// \brief Performs initialization after configuration loading.
     virtual void Initialize() = 0;
+
+    /// \brief Prints metadata summary.
     virtual void PrintMetadata() = 0;
 
+    static void WriteMetadata(TFile* file, const std::string& instanceName, const YAML::Node& configNode);
+    static YAML::Node ReadMetadata(TFile* file, const std::string& instanceName);
+
+    /// \brief Reads and applies verbose-level configuration from YAML.
+    /// \param node YAML node containing verbosity information.
     void ReadYAMLVerbose(YAML::Node& node);
 };
 
+/// \class MetadataRegistry
+/// \brief Runtime factory registry for TRestMetadata-derived classes.
 class MetadataRegistry {
    public:
-    using Creator = std::function<std::unique_ptr<TRestMetadata>(const std::string&, const std::string&,
+    /// Function type used to create metadata instances.
+    using Creator = std::function<std::unique_ptr<TRestMetadata>(const std::string&,
                                                                  const YAML::Node&)>;
 
+    /// \brief Returns the singleton registry instance.
+    /// \return Singleton reference.
     static MetadataRegistry& Instance() {
         static MetadataRegistry inst;
         return inst;
@@ -60,15 +112,26 @@ class MetadataRegistry {
     MetadataRegistry(const MetadataRegistry&) = delete;
     MetadataRegistry& operator=(const MetadataRegistry&) = delete;
 
+    /// \brief Registers a metadata creator for a type key.
+    /// \param type Type name key.
+    /// \param creator Creator functor.
     void Register(const std::string& type, Creator creator) { creators.emplace(type, std::move(creator)); }
 
+    /// \brief Creates a metadata object by type.
+    /// \param type Type key.
+    /// \param instanceName Metadata instance name.
+    /// \param params YAML node with parameters.
+    /// \return Newly created metadata instance.
     std::unique_ptr<TRestMetadata> Create(const std::string& type, const std::string& instanceName,
-                                          const std::string& sectionName, const YAML::Node& params) const {
+                                          const YAML::Node& params) const {
         auto it = creators.find(type);
         if (it == creators.end()) throw std::runtime_error("MetadataRegistry: unknown type '" + type + "'");
-        return it->second(instanceName, sectionName, params);
+        return it->second(instanceName, params);
     }
 
+    /// \brief Checks whether a type is registered.
+    /// \param type Type key.
+    /// \return `true` if the type exists in the registry.
     bool Contains(const std::string& type) const { return creators.count(type) != 0; }
 
    private:

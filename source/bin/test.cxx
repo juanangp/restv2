@@ -31,22 +31,15 @@ int main(int argc, char** argv) {
     }
 
     try {
-        YAML::Node raw = YAML::LoadFile(configPath);
-        YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
 
-        RESTLog << "--- TRestRun ---" << RESTendl;
         TRestRun run(configPath, "run");
         run.SetInputFileName(inputPath);
         run.PrintMetadata();
 
-        if (cfg["manager"]) {
-            RESTLog << "\n--- TRestManager ---" << RESTendl;
-            TRestManager mgr(configPath, "manager");
-            mgr.PrintMetadata();
-            mgr.Run(run);
-        } else {
-            run.OpenOutputFile();
-        }
+        RESTLog << "\n--- TRestManager ---" << RESTendl;
+        TRestManager mgr(configPath, "manager");
+        mgr.PrintMetadata();
+        mgr.Run(run);
 
         RESTLog << "\n--- TRestRun Final ---" << RESTendl;
         run.PrintMetadata();

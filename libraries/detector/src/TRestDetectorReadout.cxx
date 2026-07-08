@@ -42,12 +42,14 @@ TRestDetectorReadout::~TRestDetectorReadout() {
 /// \brief Initializes geometry and decoding from YAML.
 void TRestDetectorReadout::LoadConfig() {
 
-    UpdateParamsFromYAML(fNode);
+    UpdateParamsFromYAML<TRestDetectorReadout>(fNode);
 
     if (!LoadDecoding(fDecodingFile) ){
         RESTError <<"Decoding file not found "<< RESTendl;
     }
 
+    //Sync resolved parameters to the node
+    UpdateYAMLFromParams<TRestDetectorReadout>(fNode);
 }
 
 void TRestDetectorReadout::InitializeReadout(){

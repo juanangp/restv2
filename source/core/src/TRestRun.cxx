@@ -142,7 +142,7 @@ void TRestRun::LoadConfig() {
     TRestMetadata::ReadYAMLVerbose(fNode);
 
     //Sync resolved file names to the node
-    UpdateYAMLFromParams(fNode);
+    UpdateYAMLFromParams<TRestRun>(fNode);
 
 }
 

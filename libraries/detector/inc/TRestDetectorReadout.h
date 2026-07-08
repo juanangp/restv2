@@ -32,7 +32,7 @@ protected:
 public:
 
     /// Decoding fileName
-    std::string fDecodingFile = "";
+    std::string fDecodingFile = "default_decoding.dec";
 
     /// \brief Constructs a detector readout metadata object.
     TRestDetectorReadout();

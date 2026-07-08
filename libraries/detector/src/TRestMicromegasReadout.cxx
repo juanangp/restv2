@@ -22,6 +22,7 @@ static const bool TRestMicromegasReadout_FieldsRegistered = []() {
 
     return true;
 }();
+
 namespace {
 /// \brief Registers this metadata type in the REST metadata registry.
 const bool kRegistered = []() {
@@ -64,9 +65,9 @@ void TRestMicromegasReadout::LoadConfig() {
        return;
     }
 
-    UpdateParamsFromYAML(fReadoutNode);
-    //Sync resolved file names to the node
-    UpdateYAMLFromParams(fReadoutNode);
+    UpdateParamsFromYAML<TRestMicromegasReadout>(fReadoutNode);
+    //Sync resolved parameters to the node
+    UpdateYAMLFromParams<TRestMicromegasReadout>(fReadoutNode);
 }
 
 /// \brief Builds a rectangular pixel plane for a Micromegas readout.

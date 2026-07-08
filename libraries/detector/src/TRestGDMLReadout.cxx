@@ -50,7 +50,8 @@ void TRestGDMLReadout::LoadConfig() {
 
     fReadoutNode = fNode["readoutParameters"];
 
-    UpdateParamsFromYAML(fReadoutNode);
+    UpdateParamsFromYAML<TRestGDMLReadout>(fReadoutNode);
+    UpdateYAMLFromParams<TRestGDMLReadout>(fReadoutNode);
 }
 
 void TRestGDMLReadout::BuildGeometry( ) {

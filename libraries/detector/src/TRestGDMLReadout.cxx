@@ -5,6 +5,15 @@
 #include <iostream>
 #include <cctype>
 
+static const bool TRestGDMLReadout_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+
+     reg.RegisterField<TRestGDMLReadout>("gdmlFileName", &TRestGDMLReadout::fDecodingFile);
+     reg.RegisterField<TRestGDMLReadout>("channelPrefix", &TRestGDMLReadout::fChannelPrefix);
+
+    return true;
+}();
+
 namespace {
 /// \brief Automatic self-registration into the restv2 metadata factory.
 const bool kRegistered = []() {
@@ -17,39 +26,50 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
+TRestGDMLReadout::TRestGDMLReadout() : TRestDetectorReadout() {
+    fName = "TRestGDMLReadout";
+}
+
+TRestGDMLReadout::TRestGDMLReadout(const std::string& instanceName, const YAML::Node& node)
+    : TRestDetectorReadout(instanceName, node) {
+    LoadConfig();
+}
+
+TRestGDMLReadout::TRestGDMLReadout(const std::string& fileName, const std::string& sectionName)
+    : TRestDetectorReadout(fileName, sectionName) {
+    LoadConfig();
+}
+
+void TRestGDMLReadout::LoadConfig() {
+    TRestDetectorReadout::LoadConfig();
+
+    if (!fNode || !fNode["readoutParameters"]) {
+        RESTError << "TRestGDMLReadout::LoadConfig - 'gdml_parameters' section is missing" << RESTendl;
+        return;
+    }
+
+    fReadoutNode = fNode["readoutParameters"];
+
+    UpdateParamsFromYAML(fReadoutNode);
+}
+
 void TRestGDMLReadout::BuildGeometry( ) {
 
-    if (!fNode || !fNode["gdml_parameters"]) {
-        throw std::runtime_error("TRestGDLMReadout: 'gdml_parameters' section is missing or fNode is not initialized!");
-    }
-    
-    auto params = fNode["gdml_parameters"];
-
-    if (!params["gdml_file"]) {
-        throw std::runtime_error("TRestMicromegasReadout: Required parameter 'gdml_file' is missing in gdml_parameters!");
+    if (!fNode || !fReadoutNode) {
+        throw std::runtime_error("TRestGDLMReadout: 'readoutParameters' section is missing or fNode is not initialized!");
     }
 
-    if (!params["channel_prefix"]) {
-        throw std::runtime_error("TRestMicromegasReadout: Required parameter 'channel_prefix' is missing in gdml_parameters!");
-    }
-
-    // 3. Lectura segura utilizando las herramientas nativas de TRestTools
-    fGDMLFilePath = TRestTools::ReadYAMLParam<std::string>(params["gdml_file"]);
-    fChannelPrefix = TRestTools::ReadYAMLParam<std::string>(params["channel_prefix"]);
-
-    // 1. Terminate the default TGeoManager instance created by the base class
-    // because TGeoManager::Import will spawn its own global manager context.
     if (fGeoManager) {
         delete fGeoManager;
         fGeoManager = nullptr;
     }
 
     // 2. Execute native ROOT high-speed binary GDML streaming
-    RESTInfo << "Importing external GDML layout file: " << fGDMLFilePath << RESTendl;
-    fGeoManager = TGeoManager::Import(fGDMLFilePath.c_str());
+    RESTInfo << "Importing external GDML layout file: " << fGDMLFileName << RESTendl;
+    fGeoManager = TGeoManager::Import(fGDMLFileName.c_str());
     
     if (!fGeoManager) {
-        throw std::runtime_error("TRestGDMLReadout::BuildGeometry - ROOT failed to parse GDML input: " + fGDMLFilePath);
+        throw std::runtime_error("TRestGDMLReadout::BuildGeometry - ROOT failed to parse GDML input: " + fGDMLFileName);
     }
 
     // Restore silence and grab the top assembly reference from the imported GDML world

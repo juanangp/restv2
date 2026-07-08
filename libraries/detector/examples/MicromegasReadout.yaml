@@ -1,10 +1,11 @@
 readout:
   class: "TRestMicromegasReadout"
   name: "IAXO_D1_Readout"
-  decoding_name: "iaxo_d0_nominal.dec"
-  geometry_parameters:
-    n_channels: 120    # N_CHANNELS per axis
+  decodingFile: "iaxo_d0_nominal.dec"
+  readoutParameters:
+    nChannels: 120    # N_CHANNELS per axis
     pitch: 0.5        # PITCH value in mm
-    position_relative: [0.0, 0.0, -15.0]
-    global_rotation: 45
+    thickness: 0.001
+    positionRelative: [0.0, 0.0, -15.0]
+    globalRotation: 45
 

@@ -1,3 +1,4 @@
+#include "TRestConstants.h"
 #include "TRestMicromegasReadout.h"
 
 #include <stdexcept>
@@ -8,6 +9,19 @@
 #include "TGeoNode.h"
 #include "TGeoVolume.h"
 
+using namespace TRestConstants;
+
+static const bool TRestMicromegasReadout_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+
+    reg.RegisterField<TRestMicromegasReadout>("positionRelative",  &TRestMicromegasReadout::fPositionRelative);
+    reg.RegisterField<TRestMicromegasReadout>("globalRotation",    &TRestMicromegasReadout::fGlobalRotation);
+    reg.RegisterField<TRestMicromegasReadout>("nChannels",         &TRestMicromegasReadout::fNChannels);
+    reg.RegisterField<TRestMicromegasReadout>("pitch",             &TRestMicromegasReadout::fPitch);
+    reg.RegisterField<TRestMicromegasReadout>("thickness",         &TRestMicromegasReadout::fThickness);
+
+    return true;
+}();
 namespace {
 /// \brief Registers this metadata type in the REST metadata registry.
 const bool kRegistered = []() {
@@ -21,6 +35,40 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
+TRestMicromegasReadout::TRestMicromegasReadout() : TRestDetectorReadout() {
+    fName = "TRestMicromegasReadout";
+}
+
+TRestMicromegasReadout::TRestMicromegasReadout(const std::string& instanceName, const YAML::Node& node)
+    : TRestDetectorReadout(instanceName, node) {
+    LoadConfig();
+}
+
+TRestMicromegasReadout::TRestMicromegasReadout(const std::string& fileName, const std::string& sectionName)
+    : TRestDetectorReadout(fileName, sectionName) {
+    LoadConfig();
+}
+
+void TRestMicromegasReadout::LoadConfig() {
+    TRestDetectorReadout::LoadConfig();
+
+    if (!fNode || fNode.IsNull() ) {
+        RESTError << "TRestMicromegasReadout::LoadConfig YAML node is missing" << RESTendl;
+        return;
+    }
+
+    fReadoutNode = fNode["readoutParameters"];
+
+    if (!fReadoutNode || fReadoutNode.IsNull() ) {
+       RESTError << "TRestMicromegasReadout::LoadConfig - 'readoutParameters' section is missing" << RESTendl;
+       return;
+    }
+
+    UpdateParamsFromYAML(fReadoutNode);
+    //Sync resolved file names to the node
+    UpdateYAMLFromParams(fReadoutNode);
+}
+
 /// \brief Builds a rectangular pixel plane for a Micromegas readout.
 /// \param readoutNode YAML node containing `geometry_parameters`.
 ///
@@ -29,68 +77,46 @@ const bool kRegistered = []() {
 /// increasing physical identifier stored as `TGeoNode::UniqueID`.
 void TRestMicromegasReadout::BuildGeometry( ) {
     
-    if (!fNode || !fNode["geometry_parameters"]) {
-        throw std::runtime_error("TRestMicromegasReadout: 'geometry_parameters' section is missing or fNode is not initialized!");
+    if ((!fNode || fNode.IsNull()) || !fReadoutNode || fNode.IsNull() ) {
+        throw std::runtime_error("TRestMicromegasReadout: 'readoutParameters' section is missing or fNode is not initialized!");
     }
 
-    auto params = fNode["geometry_parameters"];
-
-    if (!params["n_channels"]) {
-        throw std::runtime_error("TRestMicromegasReadout: Required parameter 'n_channels' is missing in geometry_parameters!");
-    }
-    if (!params["pitch"]) {
-        throw std::runtime_error("TRestMicromegasReadout: Required parameter 'pitch' is missing in geometry_parameters!");
-    }
+    PrintMetadata();
 
     InitializeReadout();
-
-    int nChannels = TRestTools::ReadYAMLParam<int>(params["n_channels"]);
-    double pitch = TRestTools::ReadYAMLParam<double>(params["pitch"]);     
     
-    double pixelSize = pitch / std::sqrt(2.0);
-    double visibleThickness = 0.001;
+    double pixelSize = fPitch / std::sqrt(2.0);
+    double visibleThickness = fThickness; // Parámetro recuperado del YAML
 
-    std::vector<double> positionRelative = {0.0, 0.0, 0.0};
-    if (params["position_relative"]) {
-        positionRelative = TRestTools::ReadYAMLParamVector<double>(params["position_relative"]);
-    }
+    TGeoRotation* rot45 = new TGeoRotation("rot45"); rot45->RotateZ(45.0);
+    TGeoRotation* rotMinus135 = new TGeoRotation("rotMinus135"); rotMinus135->RotateZ(-135.0);
 
-    auto globalRotAngle = TRestTools::ReadYAMLParamOrDefault<double>(params, "global_rotation", 0.0);    TGeoRotation* globalRot = new TGeoRotation();
-    globalRot->RotateZ(globalRotAngle);
-
-    // Definición de Cobre real para evitar warnings
     TGeoMedium* copperMedium = fGeoManager->GetMedium("copper_medium");
     if (!copperMedium) {
         TGeoMaterial* matCopper = new TGeoMaterial("Copper", 29.0, 63.546, 8.96);
         copperMedium = new TGeoMedium("copper_medium", 1, matCopper);
     }
 
-    // Única forma geométrica base: El diamante cuadrado
     TGeoBBox* pixelShape = new TGeoBBox("pixel_shape", pixelSize / 2.0, pixelSize / 2.0, visibleThickness / 2.0);
 
-    // Rotaciones intrínsecas dictadas estrictamente por tu RML
-    TGeoRotation* rot45 = new TGeoRotation(); rot45->RotateZ(45.0);
-    TGeoRotation* rotMinus135 = new TGeoRotation(); rotMinus135->RotateZ(-135.0);
-
-    // Centrado simétrico exacto del módulo en base al tamaño definido en tu RML
-    double moduleSizeX = (nChannels + 1) * pitch - 0.5 * pitch;
-    double moduleSizeY = (nChannels + 1) * pitch - 0.75 * pitch;
+    double moduleSizeX = (fNChannels + 1) * fPitch - 0.5 * fPitch;
+    double moduleSizeY = (fNChannels + 1) * fPitch - 0.75 * fPitch;
     double offsetX = -moduleSizeX / 2.0;
     double offsetY = -moduleSizeY / 2.0;
 
     int nodeCounter = 0;
 
-    // Función auxiliar unificada: Crea volúmenes dedicados por canal y gestiona el color inicial
-    auto addPixel = [&](double localX, double localY, double localZ, TGeoRotation* localRot, int channelID, bool isChannelX) {
-        double posX = localX + offsetX + positionRelative[0];
-        double posY = localY + offsetY + positionRelative[1];
-        double posZ = localZ + positionRelative[2];
+    TGeoVolumeAssembly* readoutGeom = new TGeoVolumeAssembly("readout_geom_rect");
 
-        TGeoCombiTrans localTrans(posX, posY, posZ, localRot);
-        TGeoCombiTrans globalTrans(0, 0, 0, globalRot);
-        TGeoHMatrix* finalMatrix = new TGeoHMatrix(globalTrans * localTrans);
+    double zGlobal = 0.0;
 
-        // Nombres de volumen independientes para separar pistas X de pistas Y
+    auto addPixel = [&](double localX, double localY, TGeoRotation* localRot, int channelID, bool isChannelX) {
+        double posX = localX + offsetX + fPositionRelative[0];
+        double posY = localY + offsetY + fPositionRelative[1];
+        double posZ = zGlobal + fPositionRelative[2];
+
+        TGeoCombiTrans* finalMatrix = new TGeoCombiTrans(posX, posY, posZ, localRot);
+
         std::string baseName = isChannelX ? "STRIP_X_" : "STRIP_Y_";
         std::string volName = baseName + std::to_string(channelID);
         
@@ -98,69 +124,109 @@ void TRestMicromegasReadout::BuildGeometry( ) {
         if (!vol) {
             vol = new TGeoVolume(volName.c_str(), pixelShape, copperMedium);
             
-            // ASIGNAR COLORES DIFERENTES POR DEFECTO PARA EL VISOR
             if (isChannelX) {
                 vol->SetLineColor(kBlack);
             } else {
                 vol->SetLineColor(kGray);
             }
-            fGeoManager->AddVolume(vol);
         }
 
-        TGeoNode* node = fTopAssembly->AddNode(vol, nodeCounter, finalMatrix);
+        TGeoNode* node = readoutGeom->AddNode(vol, nodeCounter, finalMatrix);
         node->SetUniqueID(channelID); 
         nodeCounter++;
-
     };
 
-    double zX = -visibleThickness;
-
-    // First strip is special (X0) -> ID: nChannels
-    int chX0 = nChannels;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel((0.5 + nPix) * pitch, pitch - pitch / 4.0, zX, rotMinus135, chX0, true);
+    int chX0 = fNChannels;
+    for (int nPix = 0; nPix < fNChannels; ++nPix) {
+        addPixel((0.5 + nPix) * fPitch, fPitch - fPitch / 4.0, rotMinus135, chX0, true);
     }
 
-    // Intermediate X-strips -> IDs: nChannels + 1 a 2*nChannels - 2
-    for (int nCh = 1; nCh <= nChannels - 2; ++nCh) {
-        int chID = nChannels + nCh;
-        for (int nPix = 0; nPix < nChannels; ++nPix) {
-            addPixel((0.5 + nPix) * pitch, nCh * pitch - pitch / 4.0, zX, rot45, chID, true);
+    for (int nCh = 1; nCh <= fNChannels - 2; ++nCh) {
+        int chID = fNChannels + nCh;
+        for (int nPix = 0; nPix < fNChannels; ++nPix) {
+            addPixel((0.5 + nPix) * fPitch, nCh * fPitch - fPitch / 4.0, rot45, chID, true);
         }
     }
 
-    // Last strip is special (X_nChannels-1) -> ID: 2*nChannels - 1
-    int chXLast = nChannels + nChannels - 1;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel((0.5 + nPix) * pitch, (nChannels - 1) * pitch - pitch / 4.0, zX, rot45, chXLast, true);
+    int chXLast = fNChannels + fNChannels - 1;
+    for (int nPix = 0; nPix < fNChannels; ++nPix) {
+        addPixel((0.5 + nPix) * fPitch, (fNChannels - 1) * fPitch - fPitch / 4.0, rot45, chXLast, true);
     }
 
-
-    double zY = 0.0;
-
-    // First strip is special (Y0) -> ID: 0
     int chY0 = 0;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel((1.0) * pitch, pitch / 4.0 + nPix * pitch, zY, rot45, chY0, false);
+    for (int nPix = 0; nPix < fNChannels; ++nPix) {
+        addPixel((1.0) * fPitch, fPitch / 4.0 + nPix * fPitch, rot45, chY0, false);
     }
 
-    // Intermediate Y-strips -> IDs: 1 a nChannels-2
-    for (int nCh = 1; nCh <= nChannels - 2; ++nCh) {
+    for (int nCh = 1; nCh <= fNChannels - 2; ++nCh) {
         int chID = nCh;
-        for (int nPix = 0; nPix < nChannels; ++nPix) {
-            addPixel((1.0 + nCh) * pitch, pitch / 4.0 + nPix * pitch, zY, rot45, chID, false);
+        for (int nPix = 0; nPix < fNChannels; ++nPix) {
+            addPixel((1.0 + nCh) * fPitch, fPitch / 4.0 + nPix * fPitch, rot45, chID, false);
         }
     }
 
-    // Last strip is special (Y_nChannels-1) -> ID: nChannels-1
-    int chYLast = nChannels - 1;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel(nChannels * pitch, pitch / 4.0 + nPix * pitch, zY, rot45, chYLast, false);
+    int chYLast = fNChannels - 1;
+    for (int nPix = 0; nPix < fNChannels; ++nPix) {
+        addPixel(fNChannels * fPitch, fPitch / 4.0 + nPix * fPitch, rot45, chYLast, false);
     }
+
+    TGeoHMatrix* globalMatrix = new TGeoHMatrix();
+    if (fGlobalRotation != 0.0) {
+        TGeoRotation* globalRot = new TGeoRotation("globalRot");
+        globalRot->RotateZ(fGlobalRotation);
+        globalMatrix->MultiplyLeft(globalRot);
+    }
+
+    fTopAssembly->AddNode(readoutGeom, 0, globalMatrix);
 
     fTopAssembly->GetShape()->ComputeBBox();
     fTopAssembly->Voxelize("");
-    std::cout << "[+] Geometry built: " << nodeCounter << " pixels separated into X (Brown) and Y (Cyan)." << std::endl;
+    std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single unified Z plane." << std::endl;
+
+    std::cout << "[*] Checking geometry overlaps..." << std::endl;
+    fGeoManager->CheckOverlaps(0.001); 
 
     fGeoManager->CloseGeometry();
+}
+
+TVector3 TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
+    if (!fTopAssembly) {
+      RESTError << "Geometry not initialized in TRestMicromegasReadout" << RESTendl;
+      return TVector3(REST_nan, REST_nan, REST_nan);
+    }
+
+    int targetPhysicalID = -1;
+    for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {
+        if (channelID == daqID) {
+            targetPhysicalID = physicalID;
+            break;
+        }
+    }
+    if (targetPhysicalID < 0){
+      RESTError << "DaqID " << daqID << " not found in Micromegas map" << RESTendl;
+      return TVector3(REST_nan, REST_nan, REST_nan);
+    }
+
+    double moduleSizeX = (fNChannels + 1) * fPitch - 0.5 * fPitch;
+    double moduleSizeY = (fNChannels + 1) * fPitch - 0.75 * fPitch;
+    double offsetX = -moduleSizeX / 2.0;
+    double offsetY = -moduleSizeY / 2.0;
+
+    double posX = REST_nan;
+    double posY = REST_nan;
+    double posZ = REST_nan; 
+
+    bool isChannelX = (targetPhysicalID >= fNChannels);
+
+    if (isChannelX) {
+        int nCh = targetPhysicalID - fNChannels; 
+        double localY_fixed = nCh * fPitch - fPitch / 4.0; 
+        posX = localY_fixed + offsetX + fPositionRelative[0];
+    } else {
+        int nCh = targetPhysicalID;
+        double localX_fixed = (1.0 + nCh) * fPitch;
+        posY = localX_fixed + offsetY + fPositionRelative[1];
+    }
+
+    return TVector3(posX, posY, posZ);
 }

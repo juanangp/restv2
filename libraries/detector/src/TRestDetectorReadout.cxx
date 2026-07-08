@@ -13,6 +13,12 @@
 
 using namespace TRestConstants;
 
+static const bool TRestDetectorReadout_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+    reg.RegisterField<TRestDetectorReadout>("decodingFile", &TRestDetectorReadout::fDecodingFile);
+    return true;
+}();
+
 /// \brief Constructs a generic readout metadata object with default name.
 TRestDetectorReadout::TRestDetectorReadout() : TRestMetadata() {
     fName = "TRestDetectorReadout";
@@ -36,7 +42,7 @@ TRestDetectorReadout::~TRestDetectorReadout() {
 /// \brief Initializes geometry and decoding from YAML.
 void TRestDetectorReadout::LoadConfig() {
 
-    fDecodingFile = TRestTools::ReadYAMLParamOrDefault<std::string>(fNode, "decoding_name", fDecodingFile);
+    UpdateParamsFromYAML(fNode);
 
     if (!LoadDecoding(fDecodingFile) ){
         RESTError <<"Decoding file not found "<< RESTendl;
@@ -86,7 +92,8 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
 
 /// \brief Prints metadata summary for this detector readout.
 void TRestDetectorReadout::PrintMetadata() {
-    RESTInfo << "Detector readout: " << fName << RESTendl;
+    RESTMetadata << "=== TRestDetectorReadout ===" << RESTendl;
+    if(fNode && !fNode.IsNull())RESTMetadata << YAML::Dump(fNode) << RESTendl;
 }
 
 /// \brief Opens a graphical window to visualize the readout geometry.
@@ -117,7 +124,13 @@ void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const 
 void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannels) const {
     if (!fTopAssembly) return;
 
-    int nNodes = fTopAssembly->GetNdaughters();
+    // 1. Accedemos al volumen de nuestro ensamblaje intermedio (primer hijo de fTopAssembly)
+    if (fTopAssembly->GetNdaughters() == 0) return;
+    TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
+    TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();
+
+    // Ahora el número de nodos corresponde a la cantidad de píxeles reales
+    int nNodes = subAssemblyVol->GetNdaughters();
 
     // 2. Analizar qué canales electrónicos del evento se han disparado
     for (int daqID : activeChannels) {
@@ -132,11 +145,13 @@ void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannel
 
         if (targetPhysicalID == -1) continue;
 
+        // 3. Buscamos el píxel dentro de los hijos del ensamblaje intermedio
         for (int i = 0; i < nNodes; ++i) {
-            TGeoNode* node = fTopAssembly->GetNode(i);
+            TGeoNode* node = subAssemblyVol->GetNode(i);
             int combinedID = node->GetUniqueID();
 
             if(combinedID == targetPhysicalID) {
+                // Iluminamos en rojo el volumen del píxel del canal activo
                 node->GetVolume()->SetLineColor(kRed);
             }
         }
@@ -145,7 +160,7 @@ void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannel
     fGeoManager->SetVisLevel(10);
     fGeoManager->SetVisOption(0); 
     
-    // 4. Redibujar el canvas OpenGL interactivo
+    // 4. Redibujar el canvas OpenGL interactivo con toda la estructura rotada
     fTopAssembly->Draw("ogl");
 }
 
@@ -334,17 +349,30 @@ TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
       return TVector3(REST_nan, REST_nan, REST_nan);
     }
 
-    // Scan top layout nodes to extract coordinates matching the mapped physical ID
-    int nNodes = fTopAssembly->GetNdaughters();
+    if (fTopAssembly->GetNdaughters() == 0) return TVector3(REST_nan, REST_nan, REST_nan);
+    TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
+    TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();
+
+    int nNodes = subAssemblyVol->GetNdaughters();
     for (int i = 0; i < nNodes; ++i) {
-        TGeoNode* node = fTopAssembly->GetNode(i);
+        TGeoNode* node = subAssemblyVol->GetNode(i);
+        
         if (static_cast<int>(node->GetUniqueID()) == targetPhysicalID) {
             const TGeoMatrix* matrix = node->GetMatrix();
             if (!matrix) return TVector3(REST_nan, REST_nan, REST_nan);
-            const double* trans = matrix->GetTranslation();
-            return TVector3(trans[0], trans[1], trans[2]);
+            
+            const double* localTrans = matrix->GetTranslation();
+            
+            const TGeoMatrix* globalMatrix = subAssemblyNode->GetMatrix();
+            if (!globalMatrix) return TVector3(localTrans[0], localTrans[1], localTrans[2]);
+
+            double masterTrans[3];
+            globalMatrix->LocalToMaster(localTrans, masterTrans);
+
+            return TVector3(masterTrans[0], masterTrans[1], masterTrans[2]);
         }
     }
+    
     return TVector3(REST_nan, REST_nan, REST_nan);
 }
 

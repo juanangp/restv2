@@ -105,7 +105,7 @@ public:
     /// \brief Returns the centroid position of a given DAQ channel.
     /// \param daqID DAQ channel identifier.
     /// \return Channel centroid in detector coordinates.
-    TVector3 GetPositionFromChannel(int daqID) const;
+    virtual TVector3 GetPositionFromChannel(int daqID) const;
 
     /// \brief Checks whether a DAQ channel is present in the decoding table.
     /// \param daqID DAQ channel identifier.

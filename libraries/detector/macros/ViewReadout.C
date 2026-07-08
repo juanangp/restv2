@@ -33,6 +33,7 @@ void ViewReadout(const std::string& instanceName = "IAXO_D1_Readout", const std:
     }
 
     readout->Import(fIn,instanceName,decodingName);
+    readout->PrintMetadata();
 
     double testX = 0.5;
     double testY = 0.5;
@@ -43,17 +44,20 @@ void ViewReadout(const std::string& instanceName = "IAXO_D1_Readout", const std:
     int daqChannel = readout->GetChannelFromPosition(testX, testY, testZ);
     std::cout << "Hit at (" << testX << ", " << testY << ", " << testZ << ") mm maps to DAQ ID: " << daqChannel << std::endl;
 
+    std::vector ev = {200,201,202,daqChannel-1, daqChannel,daqChannel+1};
+
     if (daqChannel != -1) {
-        TVector3 centroid = readout->GetPositionFromChannel(daqChannel);
-        std::cout << "DAQ ID " << daqChannel << " back-projects to centroid: (" 
+      for(const auto &ch : ev){
+        TVector3 centroid = readout->GetPositionFromChannel(ch);
+        std::cout << "DAQ ID " << ch << " back-projects to centroid: (" 
                   << centroid.X() << ", " << centroid.Y() << ", " << centroid.Z() << ") mm" << std::endl;
+      }
     }
 
     // =========================================================================
     // VISUALIZE GRAPHICALLY (Universal TGeo method inherited from base class)
     // =========================================================================
     std::cout << "\n[+] Spawning interactive 3D geometry viewer window..." << std::endl;
-    std::vector ev = {200,201,202,daqChannel-1, daqChannel,daqChannel+1};
     readout->ViewActiveEvent(ev); // Spawns ROOT high-speed OpenGL window
     //mmReadout->ViewReadoutGeometry();
 

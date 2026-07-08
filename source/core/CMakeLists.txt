@@ -1,8 +1,5 @@
 # ---------------------------------------------------------------------------
-# source/core  –  RestCore (shared library) Contains TRestEvent, TRestMetadata,
-# TRestRun, TRestManager, TRestHits. ROOT dictionaries are generated with
-# ROOT_GENERATE_DICTIONARY for classes that are stored in ROOT files
-# (TRestEvent, TRestRun, TRestHits).
+# source/core  -  RestCore (shared library)
 # ---------------------------------------------------------------------------
 
 file(GLOB_RECURSE CORE_SOURCES src/*.cxx)
@@ -16,8 +13,21 @@ target_include_directories(
 
 target_link_libraries(RestCore PUBLIC RestTools ${ROOT_TARGET_LIBRARIES})
 
+rest_attach_dictionary(RestCore
+  HEADERS ${CORE_HEADERS}
+  INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc
+    ${CMAKE_SOURCE_DIR}/source/tools/inc
+    ${CMAKE_SOURCE_DIR}/libraries/raw/inc
+    ${CMAKE_SOURCE_DIR}/libraries/detector/inc)
+
 install(
   TARGETS RestCore
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib/static)
+  install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/libRestCore_rdict.pcm
+    ${CMAKE_CURRENT_BINARY_DIR}/libRestCore.rootmap
+    DESTINATION lib
+    OPTIONAL)
 install(FILES ${CORE_HEADERS} DESTINATION include)

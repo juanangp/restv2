@@ -3,11 +3,11 @@
 #include "TRestDetectorReadout.h"
 
 class TRestGDMLReadout : public TRestDetectorReadout {
-private:
+  public:
+
     std::string fGDMLFilePath;    ///< Path to the input external GDML file
     std::string fChannelPrefix;   ///< Prefix token to parse inside volume names (e.g., "strip_")
 
-public:
     using TRestDetectorReadout::TRestDetectorReadout;
 
     virtual std::string GetClassName() const override { return "TRestGDMLReadout"; }

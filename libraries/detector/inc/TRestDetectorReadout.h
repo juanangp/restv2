@@ -26,13 +26,14 @@ protected:
     /// Top-level logical assembly that owns all readout nodes.
     TGeoVolumeAssembly* fTopAssembly = nullptr;
 
-    /// Decoding fileName
-    std::string fDecodingFile = "";
-
     /// Decoding map from geometry physical ID to DAQ channel ID.
     std::map<int, int> fPhysicalToDAQMap;
 
 public:
+
+    /// Decoding fileName
+    std::string fDecodingFile = "";
+
     /// \brief Constructs a detector readout metadata object.
     TRestDetectorReadout();
     TRestDetectorReadout(const std::string& instanceName, const YAML::Node& node);

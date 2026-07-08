@@ -139,6 +139,25 @@ YAML::Node TRestTools::ResolveAllRefs(const YAML::Node& root) {
     return solved;
 }
 
+void TRestTools::OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val) {
+    if (node.IsMap()) {
+        for (auto it = node.begin(); it != node.end(); ++it) {
+            if (it->first.IsScalar() && it->first.as<std::string>() == key) {
+                node[it->first] = val; 
+            }
+            
+            YAML::Node child = it->second;
+            OverrideYAMLParam(child, key, val);
+        }
+    } 
+    else if (node.IsSequence()) {
+        for (size_t i = 0; i < node.size(); ++i) {
+            YAML::Node child = node[i];
+            OverrideYAMLParam(child, key, val);
+        }
+    }
+}
+
 std::string TRestTools::PatternToRegex(const std::string& pattern) {
     std::string regex_pattern;
     for (char c : pattern) {

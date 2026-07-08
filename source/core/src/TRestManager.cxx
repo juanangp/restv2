@@ -7,7 +7,7 @@ using namespace TRestTools;
 // ---------------------------------------------------------------------------
 namespace {
 const bool kRegistered = []() {
-    MetadataRegistry::Instance().Register(
+    MetadataClassRegistry::Instance().Register(
         "TRestManager",
         [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestManager>(instanceName, params);
@@ -49,7 +49,7 @@ void TRestManager::LoadConfig() {
 
         RESTInfo << "Loading metadata "<< key <<" name: " << name << "  class: " << className << RESTendl;
 
-        fMetaObjects.emplace_back(MetadataRegistry::Instance().Create(className, name, params));
+        fMetaObjects.emplace_back(MetadataClassRegistry::Instance().Create(className, name, params));
     }
 
     for (auto& meta : fMetaObjects) meta->PrintMetadata();
@@ -79,7 +79,7 @@ void TRestManager::LoadPipeline(YAML::Node& pipeline) {
         RESTInfo << "Loading process: " << name << " (" << className << ")" << RESTendl;
         RESTInfo << "  Route: " << inputBranch << " -> " << outputBranch << RESTendl;
 
-        auto meta = MetadataRegistry::Instance().Create(className, name, params);
+        auto meta = MetadataClassRegistry::Instance().Create(className, name, params);
 
         if (auto* proc = dynamic_cast<TRestEventProcess*>(meta.get())) {
             meta.release();

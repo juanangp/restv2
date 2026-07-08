@@ -8,7 +8,7 @@
 namespace {
 /// \brief Automatic self-registration into the restv2 metadata factory.
 const bool kRegistered = []() {
-    MetadataRegistry::Instance().Register(
+    MetadataClassRegistry::Instance().Register(
         "TRestGDMLReadout",
         [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestGDMLReadout>(instanceName, params);

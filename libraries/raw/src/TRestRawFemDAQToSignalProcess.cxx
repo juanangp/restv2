@@ -4,10 +4,10 @@
 
 using namespace std;
 
-// Registration in MetadataRegistry
+// Registration in MetadataClassRegistry
 namespace {
 const bool kRegistered = []() {
-    MetadataRegistry::Instance().Register(
+    MetadataClassRegistry::Instance().Register(
         "TRestRawFemDAQToSignalProcess",
         [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestRawFemDAQToSignalProcess>(instanceName, params);

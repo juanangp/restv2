@@ -5,7 +5,7 @@ project(
   LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
-# C++ standard – honour whatever ROOT was compiled with (17 minimum)
+# C++ standard - honour whatever ROOT was compiled with (17 minimum)
 # ---------------------------------------------------------------------------
 set(ROOT_REQUIRED_LIBRARIES
     Core
@@ -52,10 +52,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # ---------------------------------------------------------------------------
-# Install prefix guard – never pollute /usr/local
+# Install prefix guard - never pollute /usr/local
 # ---------------------------------------------------------------------------
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL
-                                                  "/usr/local")
+                                                   "/usr/local")
   if(DEFINED ENV{REST_PATH})
     set(CMAKE_INSTALL_PREFIX
         "$ENV{REST_PATH}"
@@ -80,10 +80,37 @@ set(ROOT_DICT_OUTPUT_DIR "${CMAKE_BINARY_DIR}/rootdict")
 file(MAKE_DIRECTORY ${ROOT_DICT_OUTPUT_DIR})
 
 # ---------------------------------------------------------------------------
-# Subdirectories source/tools   – logging, filesystem helpers  (no ROOT dict
-# needed) source/core    – TRestEvent, TRestMetadata, TRestRun, TRestManager
-# libraries/raw  – TRestRawSignalEvent  (opt-in via REST_RAW) source/bin     –
-# executables
+# Automatic dictionary generation helper (no LinkDef/XML required)
+# ---------------------------------------------------------------------------
+function(rest_attach_dictionary target)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs HEADERS INCLUDE_DIRS)
+  cmake_parse_arguments(RAD "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  if(NOT RAD_HEADERS)
+    return()
+  endif()
+
+  if(NOT COMMAND ROOT_GENERATE_DICTIONARY)
+    message(FATAL_ERROR "ROOT_GENERATE_DICTIONARY is not available.")
+  endif()
+
+  set(_dict_options "")
+  foreach(_inc IN LISTS RAD_INCLUDE_DIRS)
+    list(APPEND _dict_options -I${_inc})
+  endforeach()
+
+  ROOT_GENERATE_DICTIONARY(G__${target}
+    ${RAD_HEADERS}
+    MODULE ${target}
+    OPTIONS ${_dict_options})
+endfunction()
+
+# ---------------------------------------------------------------------------
+# Subdirectories source/tools   - logging, filesystem helpers source/core    -
+# TRestEvent, TRestMetadata, TRestRun, TRestManager libraries/raw  -
+# TRestRawSignalEvent  (opt-in via REST_RAW) source/bin     - executables
 # ---------------------------------------------------------------------------
 add_subdirectory(source/tools)
 add_subdirectory(source/core)

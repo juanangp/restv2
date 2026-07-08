@@ -13,6 +13,74 @@
 
 #include <TFile.h>
 
+class TRestMetadata;
+
+class TRestMetadataFieldRegistry {
+public:
+    struct FieldActions {
+        std::function<void(TRestMetadata*, const YAML::Node&)> readFunc;
+        std::function<void(TRestMetadata*, YAML::Node&)> writeFunc;
+    };
+
+    static TRestMetadataFieldRegistry& Instance() {
+        static TRestMetadataFieldRegistry inst;
+        return inst;
+    }
+
+    TRestMetadataFieldRegistry(const TRestMetadataFieldRegistry&) = delete;
+    TRestMetadataFieldRegistry& operator=(const TRestMetadataFieldRegistry&) = delete;
+
+    template <typename Class, typename T>
+    void RegisterField(const std::string& yamlKey, T Class::* memberPtr) {
+        std::string className = typeid(Class).name();
+        FieldActions actions;
+
+        actions.readFunc = [yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& n) {
+            if (auto* obj = dynamic_cast<Class*>(base)) {
+                try { 
+                    if (n[yamlKey]) {
+                        obj->*memberPtr = n[yamlKey].as<T>(); 
+                    }
+                } catch (...) {
+                    std::cerr << "Error reading field '" << yamlKey << "'" << std::endl;
+                }
+            }
+        };
+
+        actions.writeFunc = [yamlKey, memberPtr](TRestMetadata* base, YAML::Node& n) {
+            if (auto* obj = dynamic_cast<Class*>(base)) {
+                n[yamlKey] = obj->*memberPtr;
+            }
+        };
+
+        fFieldMaps[className].push_back(actions);
+    }
+
+    template <typename TMetadata>
+    void ApplyFields(TMetadata* instance, const YAML::Node& params) {
+        auto it = fFieldMaps.find(typeid(*instance).name());
+        if (it != fFieldMaps.end()) {
+            for (const auto& actions : it->second) {
+                actions.readFunc(instance, params);
+            }
+        }
+    }
+
+    template <typename TMetadata>
+    void ApplyFieldsToYAML(TMetadata* instance, YAML::Node& params) {
+        auto it = fFieldMaps.find(typeid(*instance).name());
+        if (it != fFieldMaps.end()) {
+            for (const auto& actions : it->second) {
+                actions.writeFunc(instance, params);
+            }
+        }
+    }
+
+private:
+    TRestMetadataFieldRegistry() = default;
+    std::map<std::string, std::vector<FieldActions>> fFieldMaps;
+};
+
 /// \class TRestMetadata
 /// \brief Abstract base class for metadata and configuration objects.
 ///
@@ -31,6 +99,7 @@ class TRestMetadata {
 
     /// Raw YAML node associated with this metadata instance.
     YAML::Node fNode;
+
 
     /// Verbosity level used by REST logging.
     TRestLogManager::REST_Verbose_Level fVerboseLevel = TRestLogManager::REST_Verbose_Level::REST_Info;
@@ -92,11 +161,20 @@ class TRestMetadata {
     /// \brief Reads and applies verbose-level configuration from YAML.
     /// \param node YAML node containing verbosity information.
     void ReadYAMLVerbose(YAML::Node& node);
+
+    void UpdateParamsFromYAML(const YAML::Node& processedNode) {
+        TRestMetadataFieldRegistry::Instance().ApplyFields(this, processedNode);
+    }
+
+    void UpdateYAMLFromParams(YAML::Node& nodeToUpdate) {
+        TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(this, nodeToUpdate);
+    }
 };
 
-/// \class MetadataRegistry
+
+/// \class MetadataClassRegistry
 /// \brief Runtime factory registry for TRestMetadata-derived classes.
-class MetadataRegistry {
+class MetadataClassRegistry {
    public:
     /// Function type used to create metadata instances.
     using Creator = std::function<std::unique_ptr<TRestMetadata>(const std::string&,
@@ -104,13 +182,13 @@ class MetadataRegistry {
 
     /// \brief Returns the singleton registry instance.
     /// \return Singleton reference.
-    static MetadataRegistry& Instance() {
-        static MetadataRegistry inst;
+    static MetadataClassRegistry& Instance() {
+        static MetadataClassRegistry inst;
         return inst;
     }
 
-    MetadataRegistry(const MetadataRegistry&) = delete;
-    MetadataRegistry& operator=(const MetadataRegistry&) = delete;
+    MetadataClassRegistry(const MetadataClassRegistry&) = delete;
+    MetadataClassRegistry& operator=(const MetadataClassRegistry&) = delete;
 
     /// \brief Registers a metadata creator for a type key.
     /// \param type Type name key.
@@ -125,7 +203,7 @@ class MetadataRegistry {
     std::unique_ptr<TRestMetadata> Create(const std::string& type, const std::string& instanceName,
                                           const YAML::Node& params) const {
         auto it = creators.find(type);
-        if (it == creators.end()) throw std::runtime_error("MetadataRegistry: unknown type '" + type + "'");
+        if (it == creators.end()) throw std::runtime_error("MetadataClassRegistry: unknown type '" + type + "'");
         return it->second(instanceName, params);
     }
 
@@ -135,6 +213,6 @@ class MetadataRegistry {
     bool Contains(const std::string& type) const { return creators.count(type) != 0; }
 
    private:
-    MetadataRegistry() = default;
+    MetadataClassRegistry() = default;
     std::map<std::string, Creator> creators;
 };

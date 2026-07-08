@@ -13,10 +13,9 @@ std::string GetTimeStampFromUnixTime(const double tm);
 // Helper: split string por delimitador
 std::vector<std::string> Split(const std::string& s, char delim);
 YAML::Node ResolveEnvVars(const YAML::Node& node);
-
 YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node);
+void OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val);
 
-// Función principal: resuelve recursivamente mapas y secuencias
 YAML::Node ResolveAllRefs(const YAML::Node& root);
 std::string PatternToRegex(const std::string& pattern);
 double ReadYAMLParamWithUnits(const YAML::Node& node);

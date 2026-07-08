@@ -8,7 +8,7 @@
 namespace {
 /// \brief Registers the dynamic readout manager type into the restv2 metadata registry.
 const bool kRegistered = []() {
-    MetadataRegistry::Instance().Register(
+    MetadataClassRegistry::Instance().Register(
         "TRestDetectorReadoutManager",
         [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestDetectorReadoutManager>(instanceName, params);

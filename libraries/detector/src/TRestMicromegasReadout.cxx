@@ -11,7 +11,7 @@
 namespace {
 /// \brief Registers this metadata type in the REST metadata registry.
 const bool kRegistered = []() {
-    MetadataRegistry::Instance().Register(
+    MetadataClassRegistry::Instance().Register(
         "TRestMicromegasReadout",
         [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestMicromegasReadout>(instanceName, params);

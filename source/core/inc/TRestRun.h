@@ -19,9 +19,9 @@
 class TRestRun : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestRun)
 
-   protected:
-    int fRunNumber = 0;
-    int fParentRunNumber = 0;
+   public:
+    int fRunNumber = -1;
+    int fSubRunNumber = 0;
     std::string fRunType = "Null";
     std::string fRunUser = "Null";
     std::string fRunTag = "Null";
@@ -36,6 +36,8 @@ class TRestRun : public TRestMetadata {
     double fEndTime = 0;
     int fEntriesSaved = 0;
 
+    YAML::Node fInputFileNode;
+
     std::unique_ptr<TFile> fInputFile;
     std::unique_ptr<TFile> fOutputFile;
 
@@ -48,17 +50,12 @@ class TRestRun : public TRestMetadata {
 
     std::string fConfigRunNumber = "";
     std::string fConfigSubRunNumber = "";
-    std::string fConfigRunType = "";
-    std::string fConfigRunUser = "";
-    std::string fConfigRunTag = "";
-    std::string fConfigRunDescription = "";
-    std::string fConfigExperimentName = "";
-    std::string fConfigOutputFileName = "";
+    std::string fConfigRunType = "Null";
+    std::string fConfigRunUser = "Null";
+    std::string fConfigRunTag = "Null";
+    std::string fConfigRunDescription = "Null";
+    std::string fConfigExperimentName = "Null";
     bool fIsInitializedFromConfig = false;
-
-    /// \brief Builds automatic output-file name from run context.
-    /// \return Generated output filename.
-    std::string BuildAutoOutputFileName() const;
 
     /// \brief Resolves placeholders in file patterns.
     /// \param pattern Input filename pattern.
@@ -70,10 +67,9 @@ class TRestRun : public TRestMetadata {
     /// \return Resolved full path.
     std::string PrefixMainDataPath(const std::string& fileName) const;
 
-    /// \brief Resolves effective output filename according to current config.
-    void ResolveOutputFileName();
+    /// \brief Resolves effective input filename from inputFileName/inputFormat.
+    void ResolveInputFormat();
 
-   public:
     /// \brief Default constructor.
     TRestRun();
 
@@ -104,7 +100,7 @@ class TRestRun : public TRestMetadata {
 
     /// \brief Returns parent run number.
     /// \return Parent run number.
-    int GetParentRunNumber() const { return fParentRunNumber; }
+    int GetSubRunNumber() const { return fSubRunNumber; }
 
     /// \brief Returns run type label.
     /// \return Run type.
@@ -140,7 +136,7 @@ class TRestRun : public TRestMetadata {
 
     /// \brief Sets parent run number.
     /// \param v Parent run number.
-    void SetParentRunNumber(int v) { fParentRunNumber = v; }
+    void SetSubRunNumber(int v) { fSubRunNumber = v; }
 
     /// \brief Sets run type.
     /// \param v Run type string.

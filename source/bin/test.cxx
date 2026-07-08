@@ -32,8 +32,11 @@ int main(int argc, char** argv) {
 
     try {
 
-        TRestRun run(configPath, "run");
-        run.SetInputFileName(inputPath);
+        YAML::Node raw = YAML::LoadFile(configPath);
+        YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
+        TRestTools::OverrideYAMLParam(cfg, "inputFileName", inputPath);
+
+        TRestRun run("restRun", cfg["run"]);
         run.PrintMetadata();
 
         RESTLog << "\n--- TRestManager ---" << RESTendl;

@@ -10,15 +10,7 @@
 using namespace TRestTools;
 
 void ViewReadout(const std::string& instanceName = "IAXO_D1_Readout", const std::string &decodingName="iaxo_d0_nominal.dec", const std::string inputFile = "iaxo_readout_output.root") {
-     // 1. Load the framework shared libraries
-    gSystem->AddIncludePath("-I/home/juanan/restv2/source/core/inc");
-    // Detector library headers (Where TRestMicromegasReadout.h lives)
-    gSystem->AddIncludePath("-I/home/juanan/restv2/libraries/detector/inc");
-    
-    // Load the shared objects binaries compiled by CMake
-    gSystem->Load("libRestCore.so");
-    gSystem->Load("libRestDetector.so");
-
+   
     TFile* fIn = TFile::Open(inputFile.c_str(), "READ");
     auto configNode = TRestMetadata::ReadMetadata(fIn, instanceName);
 
@@ -28,7 +20,7 @@ void ViewReadout(const std::string& instanceName = "IAXO_D1_Readout", const std:
     std::string className = configNode["class"].as<std::string>();
 
     std::unique_ptr<TRestMetadata> genericMetadata = 
-        MetadataRegistry::Instance().Create(className, instanceName, configNode);
+        MetadataClassRegistry::Instance().Create(className, instanceName, configNode);
 
     if (!genericMetadata) {
         throw std::runtime_error(className + " not found in MetadataRegistry.");

@@ -145,5 +145,5 @@ class TRestHits {
     virtual void PrintHits(int nHits = -1) const {}
 
     TRestHits() = default;
-    ~TRestHits() = default;
+    virtual ~TRestHits() = default;
 };

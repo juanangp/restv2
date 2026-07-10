@@ -76,7 +76,7 @@ static std::map<std::string, std::pair<Physical_Unit, double> > REST_Units_Map =
     {"arcsec", {Angle, TMath::DegToRad() / 3600.}},  // 1" = (p/180)/3600 rad
 };
 
-static double ParseUnit(const std::string& UnitsExpr) {
+inline double ParseUnit(const std::string& UnitsExpr) {
     std::istringstream ss(UnitsExpr);
     double factor = 1.0;
     bool divide = false;
@@ -118,8 +118,7 @@ static double ParseUnit(const std::string& UnitsExpr) {
     return factor;
 }
 
-[[maybe_unused]] static void AddUnit(std::string& name, Physical_Unit type, double scale) {
+[[maybe_unused]] inline void AddUnit(std::string& name, Physical_Unit type, double scale) {
     REST_Units::REST_Units_Map[name] = std::make_pair(type, scale);
 }
-
 }  // namespace REST_Units

@@ -333,10 +333,10 @@ int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) c
 /// \brief Returns spatial position associated with a DAQ channel.
 /// \param daqID DAQ channel identifier.
 /// \return Channel position, or `(nan,nan,nan)` when not found.
-TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
+ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
     if (!fTopAssembly) {
       RESTError << "Geometry not initialized " << RESTendl;
-      return TVector3(REST_nan, REST_nan, REST_nan);
+      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     int targetPhysicalID = -1;
@@ -348,10 +348,10 @@ TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
     }
     if (targetPhysicalID < 0){
       RESTError << "DaqID " << daqID << " not found" << RESTendl;
-      return TVector3(REST_nan, REST_nan, REST_nan);
+      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
-    if (fTopAssembly->GetNdaughters() == 0) return TVector3(REST_nan, REST_nan, REST_nan);
+    if (fTopAssembly->GetNdaughters() == 0) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
     TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();
 
@@ -361,21 +361,21 @@ TVector3 TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
         
         if (static_cast<int>(node->GetUniqueID()) == targetPhysicalID) {
             const TGeoMatrix* matrix = node->GetMatrix();
-            if (!matrix) return TVector3(REST_nan, REST_nan, REST_nan);
+            if (!matrix) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
             
             const double* localTrans = matrix->GetTranslation();
             
             const TGeoMatrix* globalMatrix = subAssemblyNode->GetMatrix();
-            if (!globalMatrix) return TVector3(localTrans[0], localTrans[1], localTrans[2]);
+            if (!globalMatrix) return ROOT::Math::XYZVector(localTrans[0], localTrans[1], localTrans[2]);
 
             double masterTrans[3];
             globalMatrix->LocalToMaster(localTrans, masterTrans);
 
-            return TVector3(masterTrans[0], masterTrans[1], masterTrans[2]);
+            return ROOT::Math::XYZVector(masterTrans[0], masterTrans[1], masterTrans[2]);
         }
     }
     
-    return TVector3(REST_nan, REST_nan, REST_nan);
+    return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
 }
 
 /// \brief Sets the geometry manager and updates top assembly pointer.

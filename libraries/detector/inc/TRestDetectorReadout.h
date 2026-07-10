@@ -4,7 +4,7 @@
 #include "TRestTools.h"
 #include "TGeoManager.h"
 #include "TGeoVolume.h"
-#include "TVector3.h"
+#include "Math/Vector3D.h"
 #include <map>
 #include <string>
 
@@ -105,7 +105,7 @@ public:
     /// \brief Returns the centroid position of a given DAQ channel.
     /// \param daqID DAQ channel identifier.
     /// \return Channel centroid in detector coordinates.
-    virtual TVector3 GetPositionFromChannel(int daqID) const;
+    virtual ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const;
 
     /// \brief Checks whether a DAQ channel is present in the decoding table.
     /// \param daqID DAQ channel identifier.

@@ -190,10 +190,10 @@ void TRestMicromegasReadout::BuildGeometry( ) {
     fGeoManager->CloseGeometry();
 }
 
-TVector3 TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
+ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
     if (!fTopAssembly) {
       RESTError << "Geometry not initialized in TRestMicromegasReadout" << RESTendl;
-      return TVector3(REST_nan, REST_nan, REST_nan);
+      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     int targetPhysicalID = -1;
@@ -205,7 +205,7 @@ TVector3 TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
     }
     if (targetPhysicalID < 0){
       RESTError << "DaqID " << daqID << " not found in Micromegas map" << RESTendl;
-      return TVector3(REST_nan, REST_nan, REST_nan);
+      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     double moduleSizeX = (fNChannels + 1) * fPitch - 0.5 * fPitch;
@@ -229,5 +229,5 @@ TVector3 TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
         posY = localX_fixed + offsetY + fPositionRelative[1];
     }
 
-    return TVector3(posX, posY, posZ);
+    return ROOT::Math::XYZVector(posX, posY, posZ);
 }

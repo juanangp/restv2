@@ -1,7 +1,6 @@
 #include <iostream>
 #include "TSystem.h"
 #include "TFile.h"
-#include "TVector3.h"
 
 // Directly include your class headers
 #include "TRestTools.h"
@@ -48,7 +47,7 @@ void ViewReadout(const std::string& instanceName = "IAXO_D1_Readout", const std:
 
     if (daqChannel != -1) {
       for(const auto &ch : ev){
-        TVector3 centroid = readout->GetPositionFromChannel(ch);
+        ROOT::Math::XYZVector centroid = readout->GetPositionFromChannel(ch);
         std::cout << "DAQ ID " << ch << " back-projects to centroid: (" 
                   << centroid.X() << ", " << centroid.Y() << ", " << centroid.Z() << ") mm" << std::endl;
       }

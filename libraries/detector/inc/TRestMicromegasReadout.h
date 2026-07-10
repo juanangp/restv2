@@ -28,5 +28,5 @@ public:
     /// \param readoutNode YAML node containing the `geometry_parameters`
     /// section used to define rows, columns, pitch, position and rotation.
     void BuildGeometry() override;
-    TVector3 GetPositionFromChannel(int daqID) const override;
+    ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const override;
 };

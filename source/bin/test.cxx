@@ -31,23 +31,19 @@ int main(int argc, char** argv) {
     }
 
     try {
-
         YAML::Node raw = YAML::LoadFile(configPath);
         YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
-        TRestTools::OverrideYAMLParam(cfg, "inputFileName", inputPath);
 
-        TRestRun run("restRun", cfg["run"]);
-        run.PrintMetadata();
+        if (cfg["manager"]["run"]) {
+            YAML::Node run = cfg["manager"]["run"];
+            TRestTools::OverrideYAMLParam(run, "inputFileName", inputPath);
+        }
 
         RESTLog << "\n--- TRestManager ---" << RESTendl;
-        TRestManager mgr(configPath, "manager");
+        TRestManager mgr("manager",cfg["manager"]);
         mgr.PrintMetadata();
-        mgr.Run(run);
+        mgr.Run();
 
-        RESTLog << "\n--- TRestRun Final ---" << RESTendl;
-        run.PrintMetadata();
-        run.CloseFiles();
-        RESTLog << "Output written to: " << run.GetOutputFileName() << RESTendl;
 
     } catch (const std::exception& ex) {
         std::cerr << "[ERROR] " << ex.what() << "\n";

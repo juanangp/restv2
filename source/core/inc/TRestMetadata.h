@@ -145,7 +145,7 @@ class MetadataClassRegistry {
     std::unique_ptr<TRestMetadata> Create(const std::string& instanceName,
                                           const YAML::Node& params) const {
         if (!params["class"] || !params["class"].IsScalar()) {
-            throw std::runtime_error("MetadataClassRegistry: 'class' key missing or invalid in YAML params");
+            throw std::runtime_error("MetadataClassRegistry: 'class' key missing or invalid in YAML params "+instanceName);
         }
     
         std::string type = params["class"].as<std::string>();

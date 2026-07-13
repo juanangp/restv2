@@ -1,12 +1,19 @@
 #include "TRestProcessManager.h"
+
+#include <algorithm>
+#include <limits>
+#include <stdexcept>
+
+#include "TRestRun.h"
 #include "TRestTools.h"
 
+using namespace TRestTools;
 
 static const bool TRestProcessManager_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestProcessManager>("inputAnalysisStorage", &TRestProcessManager::fInputAnalysisStorage);
     reg.RegisterField<TRestProcessManager>("inputEventStorage", &TRestProcessManager::fInputEventStorage);
-    reg.RegisterField<TRestProcessManager>("outputEventStorage", &TRestProcessManager::fOuputEventStorage);
+    reg.RegisterField<TRestProcessManager>("outputEventStorage", &TRestProcessManager::fOutputEventStorage);
     reg.RegisterField<TRestProcessManager>("eventsToProcess", &TRestProcessManager::fEventsToProcess);
     return true;
 }();
@@ -19,16 +26,13 @@ const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
         "TRestProcessManager",
         [](const std::string& instanceName, const YAML::Node& params) {
-            return std::make_unique<TRestManager>(instanceName, params);
+            return std::make_unique<TRestProcessManager>(instanceName, params);
         });
     return true;
 }();
 }  // namespace
 
-/// \brief Constructs a generic readout metadata object with default name.
-TRestProcessManager::TRestProcessManager() : TRestMetadata() {
-    fName = "TRestProcessManager";
-}
+TRestProcessManager::TRestProcessManager() : TRestMetadata() { fName = "TRestProcessManager"; }
 
 TRestProcessManager::TRestProcessManager(const std::string& instanceName, const YAML::Node& node)
     : TRestMetadata(instanceName, node) {
@@ -40,78 +44,184 @@ TRestProcessManager::TRestProcessManager(const std::string& fileName, const std:
     LoadConfig();
 }
 
-/// \brief Initializes geometry and decoding from YAML.
 void TRestProcessManager::LoadConfig() {
+    if (!fNode || fNode.IsNull()) {
+        RESTError << "TRestProcessManager::LoadConfig - YAML node is missing" << RESTendl;
+        return;
+    }
 
     UpdateParamsFromYAML<TRestProcessManager>(fNode);
-
     //Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestProcessManager>(fNode);
+
+    LoadProcesses();
 }
 
 void TRestProcessManager::LoadProcesses() {
+    fMetaObjects.clear();
+    fProcessChain.clear();
+    fEventPool.clear();
+    fPipelineConnections.clear();
+    fPipelineOutputClasses.clear();
 
-  for (const auto& element : fNode){
+    for (const auto& element : fNode) {
         const auto key = element.first.as<std::string>();
         auto value = element.second;
 
-        if(value.IsScalar())continue;
+        if (!value || value.IsScalar() || !value.IsMap()) continue;
 
-        std::unique_ptr<TRestMetadata> meta = 
-        MetadataClassRegistry::Instance().Create(key, value);
+        auto meta = MetadataClassRegistry::Instance().Create(key, value);
 
-        if(meta) meta->PrintMetadata();
-        else continue;
+        if (!meta) continue;
+        meta->PrintMetadata();
 
-        fMetaObjects.emplace_back(meta);
+        if (auto* proc = dynamic_cast<TRestEventProcess*>(meta.get())) {
+            std::unique_ptr<TRestEventProcess> processPtr(proc);
+            meta.release();
 
-        std::unique_ptr<TRestEventProcess> proc(dynamic_cast<TRestEventProcess*>(meta.release()));
-        if(proc) fProcessChain.emplace_back(std::unique_ptr<TRestEventProcess>(proc));
+            const std::string inputEvent = proc->GetInputEvent();
+            const std::string outputEvent = proc->GetOutputEvent();
+
+            RESTInfo << "Loading process: " << proc->GetName() << " (" << proc->GetClassName() << ")" << RESTendl;
+            RESTInfo << "  Route: " << inputEvent << " -> " << outputEvent << RESTendl;
+
+            fPipelineConnections.emplace_back(inputEvent, outputEvent);
+            fPipelineOutputClasses.emplace_back(outputEvent);
+            fProcessChain.emplace_back(std::move(processPtr));
+        } else {
+            fMetaObjects.emplace_back(std::move(meta));
+        }
     }
-
 }
 
-void TRestProcessManager::Run(){
+void TRestProcessManager::Run() {
+    if (fRunInfo == nullptr) {
+        throw std::runtime_error("TRestProcessManager::Run - run context is null");
+    }
 
- for (auto& proc : fProcessChain) {
+    if (fProcessChain.empty()) {
+       return;
+    }
+
+    for (auto& proc : fProcessChain) {
         proc->SetRunInfo(fRunInfo);
         proc->Initialize();
     }
 
-  if (fOutputEventStorage && !fRunInfo.HasOutputFileOpen()) {
-     fRunInfo->OpenOutputFile();
-  }
+    if (fOutputEventStorage && !fRunInfo->HasOutputFileOpen()) {
+        fRunInfo->OpenOutputFile();
+    }
 
-  for (const auto &proc : fProcessChain) {
-    if(proc.fInputEvent != "None" && !proc.fInputEvent.empty() ){
-      const std::string inputEvent = proc.GetInputEvent();
-      const std::string outputEvent = proc.GetOutputEvent();
+    for (size_t i = 0; i < fProcessChain.size(); ++i) {
+        const std::string& inputName = fPipelineConnections[i].first;
+        const std::string& outputName = fPipelineConnections[i].second;
+        const std::string procClassName = fProcessChain[i]->GetClassName();
+
+        if (inputName != "None" && !inputName.empty()) {
+            try {
+                fRunInfo->GetInputEvent(inputName);
+            } catch (...) {
+                if (fEventPool.find(inputName) == fEventPool.end()) {
+                    throw std::runtime_error("TRestProcessManager::Run - Branch name '" + inputName +
+                                             "' not found in input events or pool.");
+                }
+            }
+        }
 
         if (fEventPool.find(outputName) == fEventPool.end()) {
             std::string inputClassName;
-            if (inputName != "None" && inputName != "") {
+            if (inputName != "None" && !inputName.empty()) {
                 inputClassName = (fEventPool.find(inputName) != fEventPool.end())
                                      ? fEventPool[inputName]->GetClassName()
-                                     : restRun.GetInputEvent(inputName).GetClassName();
+                                     : fRunInfo->GetInputEvent(inputName).GetClassName();
             } else {
                 inputClassName = fPipelineOutputClasses[i];
                 if (inputClassName.empty()) {
-                    throw std::runtime_error("TRestManager::Run - outputClass must be specified for generator process '" + procClassName + "'");
+                    throw std::runtime_error(
+                        "TRestProcessManager::Run - outputClass must be specified for generator process '" +
+                        procClassName + "'");
                 }
             }
 
             auto outEvent = EventRegistry::Instance().Create(inputClassName, outputName);
 
             if (fOutputEventStorage) {
-                restRun.RegisterEvent<TRestEvent>(outputName, *outEvent);
+                fRunInfo->RegisterEvent<TRestEvent>(outputName, *outEvent);
             }
 
             fEventPool[outputName] = std::move(outEvent);
         }
-
-
-    
     }
-  }
 
+    Long64_t totalEntries = fRunInfo->GetEntries();
+    if (totalEntries <= 0) {
+        for (const auto& process : fProcessChain) {
+            const Long64_t processEntries = process->GetInputEventCount();
+            if (processEntries >= 0) {
+                totalEntries = processEntries;
+                break;
+            }
+        }
+    }
+
+    Long64_t entriesToRun = fEventsToProcess > 0 ? fEventsToProcess : totalEntries;
+    if (totalEntries > 0 && fEventsToProcess > 0) {
+        entriesToRun = std::min(static_cast<Long64_t>(fEventsToProcess), totalEntries);
+    } else if (totalEntries == 0 && fEventsToProcess == 0) {
+        entriesToRun = std::numeric_limits<Long64_t>::max();
+    }
+
+    RESTInfo << "TRestProcessManager: Starting event loop. Entries to process: " << entriesToRun << RESTendl;
+
+    for (Long64_t entry = 0; entry < entriesToRun; ++entry) {
+        if (totalEntries > 0) {
+            fRunInfo->GetEntry(entry);
+        }
+
+        bool processOk = true;
+        for (size_t i = 0; i < fProcessChain.size(); ++i) {
+            const std::string& inputName = fPipelineConnections[i].first;
+            const std::string& outputName = fPipelineConnections[i].second;
+
+            TRestEvent* inputEventPtr = nullptr;
+            if (inputName != "None" && !inputName.empty()) {
+                if (fEventPool.find(inputName) != fEventPool.end()) {
+                    inputEventPtr = fEventPool[inputName].get();
+                } else {
+                    inputEventPtr = &fRunInfo->GetInputEvent(inputName);
+                }
+            }
+
+            TRestEvent& outputEvent = *fEventPool[outputName];
+            const TRestEvent& inputEvent = inputEventPtr ? *inputEventPtr : outputEvent;
+
+            if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent)) {
+                processOk = false;
+                break;
+            }
+        }
+
+        if (!processOk) {
+            RESTInfo << "TRestProcessManager: Process returned false, stopping loop." << RESTendl;
+            break;
+        }
+
+        if (fOutputEventStorage) {
+            fRunInfo->Fill();
+        }
+    }
+
+    for (auto& proc : fProcessChain) {
+        proc->EndProcess();
+    }
+
+    RESTInfo << "TRestProcessManager: Pipeline run succeeded." << RESTendl;
+}
+
+void TRestProcessManager::PrintMetadata() {
+    RESTMetadata << "=== TRestProcessManager ===" << RESTendl;
+    RESTMetadata << "name: " << fName << RESTendl;
+    RESTMetadata << "processes: " << fProcessChain.size() << RESTendl;
+    RESTMetadata << "eventsToProcess: " << fEventsToProcess << RESTendl;
+    RESTMetadata << "outputEventStorage: " << (fOutputEventStorage ? "true" : "false") << RESTendl;
 }

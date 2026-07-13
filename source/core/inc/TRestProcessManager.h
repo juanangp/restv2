@@ -1,15 +1,21 @@
 #pragma once
 
-#include "TRestEvent.h"
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "TRestEventProcess.h"
 #include "TRestMetadata.h"
 
 class TRestRun;
 
 /// \class TRestProcessManager
-/// \brief Abstract base for event-processing pipeline stages.
-///
+/// \brief Handles event-process pipeline loading and execution.
 class TRestProcessManager : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestProcessManager)
+
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
     std::vector<std::unique_ptr<TRestEventProcess>> fProcessChain;
@@ -18,7 +24,7 @@ class TRestProcessManager : public TRestMetadata {
     std::vector<std::pair<std::string, std::string>> fPipelineConnections;
     std::vector<std::string> fPipelineOutputClasses;
 
-    TRestRun *fRunInfo = nullptr;
+    TRestRun* fRunInfo = nullptr;
 
    public:
     int fEventsToProcess = 0;
@@ -31,12 +37,18 @@ class TRestProcessManager : public TRestMetadata {
     TRestProcessManager(const std::string& fileName, const std::string& sectionName);
     ~TRestProcessManager() override = default;
 
-    /// \brief No-op configuration loader for process instances.
-    virtual void LoadConfig() override;
+    std::string GetClassName() const override { return "TRestProcessManager"; }
 
+    void LoadConfig() override;
     void LoadProcesses();
-    void Run();
 
-    /// \brief Initializes this process by delegating to `InitProcess`.
-    void Initialize() override {  }
+    void SetRunInfo(TRestRun* runInfo) { fRunInfo = runInfo; }
+    void Run();
+    void Run(TRestRun& restRun) {
+        SetRunInfo(&restRun);
+        Run();
+    }
+
+    void Initialize() override {}
+    void PrintMetadata() override;
 };

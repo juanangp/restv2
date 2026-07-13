@@ -156,7 +156,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     fInputFile->GetObject("AnalysisTree", fAnalysisTree);
 
     if(!fAnalysisTree){
-      RESTWarning << filename << "is not a valid TRestRun " << RESTendl;
+      RESTError << filename << "is not a valid TRestRun " << RESTendl;
       return;
     }
 

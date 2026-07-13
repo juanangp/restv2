@@ -133,11 +133,24 @@ class MetadataClassRegistry {
     /// \param instanceName Metadata instance name.
     /// \param params YAML node with parameters.
     /// \return Newly created metadata instance.
+    /// \brief Creates a metadata object by type explicitly specified.
     std::unique_ptr<TRestMetadata> Create(const std::string& type, const std::string& instanceName,
                                           const YAML::Node& params) const {
         auto it = creators.find(type);
         if (it == creators.end()) throw std::runtime_error("MetadataClassRegistry: unknown type '" + type + "'");
         return it->second(instanceName, params);
+    }
+
+    /// \brief Overload: Creates a metadata object extracting the type from params["class"].
+    std::unique_ptr<TRestMetadata> Create(const std::string& instanceName,
+                                          const YAML::Node& params) const {
+        if (!params["class"] || !params["class"].IsScalar()) {
+            throw std::runtime_error("MetadataClassRegistry: 'class' key missing or invalid in YAML params");
+        }
+    
+        std::string type = params["class"].as<std::string>();
+    
+        return Create(type, instanceName, params);
     }
 
     /// \brief Checks whether a type is registered.

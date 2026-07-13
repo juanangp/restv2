@@ -30,7 +30,7 @@ TRestManager::TRestManager(const std::string& fileName, const std::string& secti
 
 // ---------------------------------------------------------------------------
 void TRestManager::LoadConfig() {
-    for (const auto& element : fNode){ 
+    for (const auto& element : fNode){
         const auto key = element.first.as<std::string>();
         auto value = element.second;
 

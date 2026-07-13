@@ -14,8 +14,13 @@ class TRestEventProcess : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestEventProcess)
 
    public:
-    using TRestMetadata::TRestMetadata;
+    TRestEventProcess();
+    TRestEventProcess(const std::string& instanceName, const YAML::Node& node);
+    TRestEventProcess(const std::string& fileName, const std::string& sectionName);
     ~TRestEventProcess() override = default;
+
+    virtual std::string GetInputEvent() const = 0;
+    virtual std::string GetOutputEvent() const = 0;
 
     /// Pointer to run context shared with this process.
     TRestRun* fRunInfo = nullptr;
@@ -37,7 +42,7 @@ class TRestEventProcess : public TRestMetadata {
     virtual Long64_t GetInputEventCount() const { return -1; }
 
     /// \brief No-op configuration loader for process instances.
-    void LoadConfig() override {}
+    virtual void LoadConfig() override;
 
     /// \brief Initializes this process by delegating to `InitProcess`.
     void Initialize() override { InitProcess(); }

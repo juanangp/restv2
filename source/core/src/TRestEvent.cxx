@@ -13,12 +13,11 @@ void TRestEvent::SetTime(double time) {
 void TRestEvent::SetEventInfo(const TRestEvent* eve) {
     if (!eve) return;
     fInfo = eve->fInfo;
-    fSubEventTag = eve->fSubEventTag;
 }
 
 void TRestEvent::PrintEvent() const {
     RESTLog << "\nEventID: " << fInfo.eventID << "  SubEventID: " << fInfo.subEventID << RESTendl;
     RESTLog << "  Timestamp: " << TRestTools::GetTimeStampFromUnixTime(GetTime()) << RESTendl;
-    if (!fSubEventTag.IsNull()) RESTLog << "  Tag: " << fSubEventTag << RESTendl;
+    if (fInfo.subEventTag[0] != '\0') RESTLog << "  Tag: " << fInfo.subEventTag << RESTendl;
     if (!fInfo.ok) RESTLog << "  [Status NOT OK]" << RESTendl;
 }

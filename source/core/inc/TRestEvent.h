@@ -21,6 +21,7 @@ struct TRestEventInfo {
     long long timeSeconds = 0;
     int timeNanoSeconds = 0;
     bool ok = true;
+    char subEventTag[256] = "";
 };
 
 /// \class TRestEvent
@@ -35,12 +36,6 @@ class TRestEvent {
 
     /// Logical event class/instance name.
     std::string fName = "";
-
-    /// Optional subevent categorization tag.
-    TString fSubEventTag = "";
-
-    /// Persistent pointer required by ROOT I/O for TString branch handling.
-    TString* fSubEventTagPtr = &fSubEventTag;
 
    public:
     /// \brief Returns the concrete event class name.
@@ -81,7 +76,10 @@ class TRestEvent {
 
     /// \brief Sets subevent tag.
     /// \param tag Subevent label.
-    void SetSubEventTag(const TString& tag) { fSubEventTag = tag; }
+    void SetSubEventTag(const std::string& tag) { 
+        strncpy(fInfo.subEventTag, tag.c_str(), sizeof(fInfo.subEventTag) - 1);
+        fInfo.subEventTag[sizeof(fInfo.subEventTag) - 1] = '\0';
+    }
 
     /// \brief Sets event validity state.
     /// \param s Validity flag.
@@ -117,7 +115,7 @@ class TRestEvent {
 
     /// \brief Returns subevent tag.
     /// \return Subevent tag string.
-    std::string GetSubEventTag() const { return fSubEventTag.Data(); }
+     std::string GetSubEventTag() const { return std::string(fInfo.subEventTag); }
 
     /// \brief Returns run origin.
     /// \return Run number.
@@ -149,7 +147,7 @@ class TRestEvent {
         tree->Branch("timeSeconds",  &fInfo.timeSeconds,     "timeSeconds/L");
         tree->Branch("timeNanoSecs", &fInfo.timeNanoSeconds, "timeNanoSecs/I");
         tree->Branch("ok",           &fInfo.ok,              "ok/O");
-        tree->Branch("subEventTag",  &fSubEventTagPtr);
+        tree->Branch("subEventTag",  fInfo.subEventTag,      "subEventTag/C");
     }
 
     /// \brief Binds common ROOT branch addresses for event metadata.
@@ -162,13 +160,11 @@ class TRestEvent {
         tree->SetBranchAddress("timeSeconds",  &fInfo.timeSeconds);
         tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
         tree->SetBranchAddress("ok",           &fInfo.ok);
-        tree->SetBranchAddress("subEventTag",  &fSubEventTagPtr);
+        tree->SetBranchAddress("subEventTag",  fInfo.subEventTag);
     }
 
     /// \brief Refreshes cached views after ROOT read operations.
-    virtual void RefreshViews() const {
-        const_cast<TRestEvent*>(this)->fSubEventTag = fSubEventTagPtr ? *fSubEventTagPtr : "";
-    }
+    virtual void RefreshViews() const { }
 
     /// \brief Copies generic event content from another event.
     /// \param other Source event pointer.

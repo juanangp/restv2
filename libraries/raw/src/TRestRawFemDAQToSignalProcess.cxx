@@ -4,6 +4,13 @@
 
 using namespace std;
 
+static const bool TRestRawFemDAQToSignalProcess_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+    reg.RegisterField<TRestRawFemDAQToSignalProcess>("useFeminosDaqRunInfo", &TRestRawFemDAQToSignalProcess::fUseFeminosDaqRunInfo);
+    reg.RegisterField<TRestRawFemDAQToSignalProcess>("setRunStartEndFromEvents", &TRestRawFemDAQToSignalProcess::fSetRunStartEndFromEvents);
+    return true;
+}();
+
 // Registration in MetadataClassRegistry
 namespace {
 const bool kRegistered = []() {
@@ -14,6 +21,33 @@ const bool kRegistered = []() {
         });
     return true;
 }();
+}
+
+TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess() : TRestEventProcess() {
+    fName = "TRestRawFemDAQToSignalProcess";
+}
+
+TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& instanceName, const YAML::Node& node)
+    : TRestEventProcess(instanceName, node) {
+    LoadConfig();
+}
+
+TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& fileName, const std::string& sectionName)
+    : TRestEventProcess(fileName, sectionName) {
+    LoadConfig();
+}
+
+void TRestRawFemDAQToSignalProcess::LoadConfig() {
+    TRestEventProcess::LoadConfig();
+
+    if (!fNode || fNode.IsNull() ) {
+        RESTError << "TRestRawFemDAQToSignalProcess::LoadConfig YAML node is missing" << RESTendl;
+        return;
+    }
+
+    UpdateParamsFromYAML<TRestRawFemDAQToSignalProcess>(fNode);
+    //Sync resolved parameters to the node
+    UpdateYAMLFromParams<TRestRawFemDAQToSignalProcess>(fNode);
 }
 
 void TRestRawFemDAQToSignalProcess::InitProcess() {

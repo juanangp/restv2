@@ -46,5 +46,4 @@ class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
     std::string GetOutputEvent() const override { return "TRestRawSignalEvent";}
 
     std::string GetClassName() const override { return "TRestRawFemDAQToSignalProcess"; }
-    void PrintMetadata() override;
 };

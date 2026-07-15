@@ -65,10 +65,12 @@ void TRestManager::Run() {
     fProcessManager->Run();
 }
 
-void TRestManager::PrintMetadata() {
-    RESTMetadata << "=== TRestManager ===" << RESTendl;
-    RESTMetadata << "name: " << fName << RESTendl;
-    RESTMetadata << "loaded metadata objects: " << fMetaObjects.size() << RESTendl;
-    RESTMetadata << "has process manager: " << (fProcessManager ? "true" : "false") << RESTendl;
-    RESTMetadata << "has configured run: " << (fConfiguredRun ? "true" : "false") << RESTendl;
+void TRestManager::SaveMetadata(){
+    if (fConfiguredRun == nullptr) {
+        throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
+    }
+
+ for(const auto &meta: fMetaObjects)
+   fConfiguredRun->AddMetadata(meta->GetName(), meta->GetYAMLNode());
+
 }

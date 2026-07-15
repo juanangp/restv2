@@ -156,7 +156,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     fInputFile->GetObject("AnalysisTree", fAnalysisTree);
 
     if(!fAnalysisTree){
-      RESTError << filename << "is not a valid TRestRun " << RESTendl;
+      RESTError << filename << " is not a valid TRestRun " << RESTendl;
       return;
     }
 
@@ -296,10 +296,6 @@ void TRestRun::CloseFiles() {
             if (tree) tree->Write("", TObject::kOverwrite);
         }
         if (fAnalysisTree) fAnalysisTree->Write("", TObject::kOverwrite);
-
-        if (fNode && !fNode.IsNull()) {
-            AddMetadata(GetName(), fNode);
-        }
 
         fOutputFile->Close();
         fOutputFile.reset();

@@ -1,7 +1,10 @@
 #pragma once
 
-#include <TRestEvent.h>
-#include <TRestLogManager.h>
+#include "TRestEvent.h"
+#include "TRestLogManager.h"
+#include "TRestPulseShapeAnalysis.h"
+
+#include "TGraph.h"
 
 #include <algorithm>
 #include <numeric>
@@ -52,6 +55,13 @@ class TRestRawSignal {
     short GetPoint(int i) const { return fData->allSamples[fData->offsets[fSignalIdx] + i]; }
 
     void IncreaseBinBy(int bin, short delta) { fData->allSamples[fData->offsets[fSignalIdx] + bin] += delta; }
+
+    TGraph GetGraph() const {
+      const std::string title = "Signal ID: " + std::to_string(GetSignalID());
+      return TRestPulseShapeAnalysis::GetGraph(GetData(),title);
+   }
+
+
 };
 
 // ============================================================
@@ -108,7 +118,7 @@ class TRestRawSignalEvent : public TRestEvent {
             this->fSignalData.allSamples = source->fSignalData.allSamples;
             this->fSignalData.signalIDs = source->fSignalData.signalIDs;
             this->fSignalData.offsets = source->fSignalData.offsets;
-            this->fSignalsViews.clear();
+            this->RefreshViews();
         }
     }
 

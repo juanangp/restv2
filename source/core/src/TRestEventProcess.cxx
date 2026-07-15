@@ -1,6 +1,12 @@
 #include "TRestEventProcess.h"
 #include "TRestTools.h"
 
+static const bool TRestEventProcess_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+    reg.RegisterField<TRestEventProcess>("observables", &TRestEventProcess::fObservables);
+    return true;
+}();
+
 /// \brief Constructs a generic readout metadata object with default name.
 TRestEventProcess::TRestEventProcess() : TRestMetadata() {
     fName = "TRestEventProcess";
@@ -24,3 +30,4 @@ void TRestEventProcess::LoadConfig() {
     //Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestEventProcess>(fNode);
 }
+

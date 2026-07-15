@@ -74,6 +74,10 @@ class TRestMetadata {
     /// \param s Section name.
     void SetSectionName(const std::string& s) { fSectionName = s; }
 
+    /// \brief Get the associated YAML node.
+    /// \param node YAML node.
+    YAML::Node GetYAMLNode( ) { return fNode; }
+
     /// \brief Sets the associated YAML node.
     /// \param node YAML node.
     void SetYAMLNode(const YAML::Node& node) { fNode = node; }
@@ -88,7 +92,7 @@ class TRestMetadata {
     virtual void Initialize() = 0;
 
     /// \brief Prints metadata summary.
-    virtual void PrintMetadata() = 0;
+    virtual void PrintMetadata();
 
     static void WriteMetadata(TFile* file, const std::string& instanceName, const YAML::Node& configNode);
     static YAML::Node ReadMetadata(TFile* file, const std::string& instanceName);
@@ -186,38 +190,37 @@ public:
     TRestMetadataFieldRegistry(const TRestMetadataFieldRegistry&) = delete;
     TRestMetadataFieldRegistry& operator=(const TRestMetadataFieldRegistry&) = delete;
 
-    template <typename Class, typename MemberClass, typename T>
-    void RegisterField(const std::string& yamlKey, T MemberClass::* memberPtr) {
-        
-        auto readFunc = [yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& n) {
-            if (auto* obj = dynamic_cast<MemberClass*>(base)) {
-                try { 
-                    if (n && n[yamlKey]) {
-                        obj->*memberPtr = n[yamlKey].as<T>(); 
-                    }
-                } catch (...) {
-                    std::cerr << "Error al leer campo '" << yamlKey << "'" << std::endl;
+  template <typename Class, typename MemberClass, typename T>
+  void RegisterField(const std::string& yamlKey, T MemberClass::* memberPtr) {
+    
+    auto readFunc = [yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& n) {
+        if (auto* obj = dynamic_cast<MemberClass*>(base)) {
+            try { 
+                if (n && n[yamlKey]) {
+                    obj->*memberPtr = n[yamlKey].as<T>(); 
                 }
+            } catch (const std::exception& e) { 
+                std::cerr << "Error al leer campo '" << yamlKey << "': " << e.what() << std::endl;
             }
-        };
+        }
+    };
 
-        auto writeFunc = [yamlKey, memberPtr](TRestMetadata* base, YAML::Node& n) {
-            if (auto* obj = dynamic_cast<MemberClass*>(base)) {
-                n[yamlKey] = obj->*memberPtr;
-            }
-        };
+    auto writeFunc = [yamlKey, memberPtr](TRestMetadata* base, YAML::Node& n) {
+        if (auto* obj = dynamic_cast<MemberClass*>(base)) {
+            n[yamlKey] = obj->*memberPtr;
+        }
+    };
 
-        // Construimos el objeto llamando al nuevo constructor de la estructura de forma directa
-        FieldActions actions(
-            std::type_index(typeid(Class)),
-            std::type_index(typeid(MemberClass)),
-            readFunc,
-            writeFunc
-        );
+    FieldActions actions(
+        std::type_index(typeid(Class)),
+        std::type_index(typeid(MemberClass)),
+        readFunc,
+        writeFunc
+    );
 
-        // Guardamos las acciones indexadas bajo el tipo de clase exacto de la plantilla
-        fFieldMaps[actions.classType].push_back(actions);
-    }
+    fFieldMaps[actions.classType].push_back(actions);
+  }
+
 
     void ApplyFields(std::type_index typeIdx, TRestMetadata* instance, const YAML::Node& params) {
         if (!instance || !params) return;

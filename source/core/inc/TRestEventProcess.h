@@ -2,8 +2,7 @@
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
-
-class TRestRun;
+#include "TRestRun.h"
 
 /// \class TRestEventProcess
 /// \brief Abstract base for event-processing pipeline stages.
@@ -14,6 +13,8 @@ class TRestEventProcess : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestEventProcess)
 
    public:
+    std::vector<std::string> fObservables ={"none"};
+
     TRestEventProcess();
     TRestEventProcess(const std::string& instanceName, const YAML::Node& node);
     TRestEventProcess(const std::string& fileName, const std::string& sectionName);
@@ -50,4 +51,23 @@ class TRestEventProcess : public TRestMetadata {
     /// \brief Sets run context pointer.
     /// \param r Run context.
     inline void SetRunInfo(TRestRun* r) { fRunInfo = r; }
+
+    template <typename T>
+    void RegisterObservable(const std::string& name, T& variable) {
+        if (!fRunInfo) return;
+
+        bool shouldRegister = false;
+        for (const auto& obs : fObservables) {
+            if(obs == "none")return;
+            if (obs == "all" || obs == name) {
+                shouldRegister = true;
+                break;
+            }
+        }
+
+        if (shouldRegister) {
+            fRunInfo->SetObservable(name, variable);
+        }
+    }
+
 };

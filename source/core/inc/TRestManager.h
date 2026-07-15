@@ -33,5 +33,5 @@ class TRestManager : public TRestMetadata {
 
     void LoadConfig() override;
     void Initialize() override {}
-    void PrintMetadata() override;
+    void SaveMetadata();
 };

@@ -91,3 +91,12 @@ if (!file || file->IsZombie()) return YAML::Node();
 
     return node;
 }
+
+void TRestMetadata::PrintMetadata(){
+  if(fNode && !fNode.IsNull()){
+    RESTMetadata << "===" << GetClassName() << "===" << RESTendl;
+    RESTMetadata << YAML::Dump(fNode) << RESTendl;
+  }
+
+
+}

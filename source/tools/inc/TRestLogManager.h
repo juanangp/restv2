@@ -8,6 +8,75 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <chrono>
+
+// ---------------- TRestProgressBar ----------------
+class TRestProgressBar {
+   public:
+    TRestProgressBar() : total(0), current(0), width(60), started(false) {}
+
+    void Reset(int totalEvents, int barWidth = 30) {
+        total = totalEvents;
+        width = barWidth;
+        current = 0;
+        started = true;
+        startTime = std::chrono::steady_clock::now();
+        Update(0);
+    }
+
+    void Update(int currentEvent) {
+        if (!started || total <= 0) return;
+        current = currentEvent;
+        if (current > total) current = total;
+
+        double percentage = (double)current / total;
+        int progress = width * percentage;
+
+        std::string etaStr = "inf";
+        if (current > 0) {
+            auto currentTime = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
+            double secondsPerEvent = (double)elapsed / current;
+            int remainingEvents = total - current;
+            int etaSeconds = remainingEvents * secondsPerEvent;
+            
+            int etaMinutes = etaSeconds / 60;
+            etaStr = std::to_string(etaMinutes) + "." + std::to_string((etaSeconds % 60) * 10 / 60);
+        }
+
+        std::cout << "\r\033[K" << current << " Events, " << etaStr << " min ETA, "
+                  << (int)(percentage * 100) << ".0%[";
+
+        for (int i = 0; i < width; ++i) {
+            if (i < progress) {
+                std::cout << "=";
+            } else if (i == progress && current < total) {
+                std::cout << ">";
+            } else {
+                std::cout << " ";
+            }
+        }
+        std::cout << "]";
+        std::cout.flush();
+    }
+
+    void Finish() {
+        if (!started) return;
+        Update(total);
+        std::cout << std::endl;
+        started = false;
+    }
+
+   private:
+    int total;
+    int current;
+    int width;
+    bool started;
+    std::chrono::steady_clock::time_point startTime;
+};
+
+inline TRestProgressBar RESTProgress;
+
 
 class TRestLogManager {
    public:

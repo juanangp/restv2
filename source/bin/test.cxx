@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
         TRestManager mgr("manager",cfg["manager"]);
         mgr.PrintMetadata();
         mgr.Run();
+        mgr.SaveMetadata();
 
 
     } catch (const std::exception& ex) {

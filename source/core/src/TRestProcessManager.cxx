@@ -103,13 +103,13 @@ void TRestProcessManager::Run() {
        return;
     }
 
+    if (fOutputEventStorage && !fRunInfo->HasOutputFileOpen()) {
+        fRunInfo->OpenOutputFile();
+    }
+
     for (auto& proc : fProcessChain) {
         proc->SetRunInfo(fRunInfo);
         proc->Initialize();
-    }
-
-    if (fOutputEventStorage && !fRunInfo->HasOutputFileOpen()) {
-        fRunInfo->OpenOutputFile();
     }
 
     for (size_t i = 0; i < fProcessChain.size(); ++i) {
@@ -173,6 +173,8 @@ void TRestProcessManager::Run() {
 
     RESTInfo << "TRestProcessManager: Starting event loop. Entries to process: " << entriesToRun << RESTendl;
 
+RESTProgress.Reset(entriesToRun);
+
     for (Long64_t entry = 0; entry < entriesToRun; ++entry) {
         if (totalEntries > 0) {
             fRunInfo->GetEntry(entry);
@@ -209,7 +211,13 @@ void TRestProcessManager::Run() {
         if (fOutputEventStorage) {
             fRunInfo->Fill();
         }
+
+        if (entry % 10 == 0 || entry == entriesToRun - 1) {
+          RESTProgress.Update(entry + 1);
+        }
     }
+
+    std::cout<<"\n";
 
     for (auto& proc : fProcessChain) {
         proc->EndProcess();
@@ -218,10 +226,3 @@ void TRestProcessManager::Run() {
     RESTInfo << "TRestProcessManager: Pipeline run succeeded." << RESTendl;
 }
 
-void TRestProcessManager::PrintMetadata() {
-    RESTMetadata << "=== TRestProcessManager ===" << RESTendl;
-    RESTMetadata << "name: " << fName << RESTendl;
-    RESTMetadata << "processes: " << fProcessChain.size() << RESTendl;
-    RESTMetadata << "eventsToProcess: " << fEventsToProcess << RESTendl;
-    RESTMetadata << "outputEventStorage: " << (fOutputEventStorage ? "true" : "false") << RESTendl;
-}

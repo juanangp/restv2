@@ -171,9 +171,3 @@ void TRestRawFemDAQToSignalProcess::EndProcess() {
         fInputFile = nullptr;
     }
 }
-
-void TRestRawFemDAQToSignalProcess::PrintMetadata() {
-    std::cout << "=== TRestRawFemDAQToSignalProcess ===" << std::endl;
-    std::cout << "Use fem-daq run information: " << (fUseFeminosDaqRunInfo ? "true" : "false") << std::endl;
-    std::cout << "Set run start/end times from events: " << (fSetRunStartEndFromEvents ? "true" : "false") << std::endl;
-}

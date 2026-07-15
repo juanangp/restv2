@@ -1,47 +1,54 @@
 #pragma once
 
-#include <Rtypes.h>
 #include <TGraph.h>
 #include <TMath.h>
-#include <TVector2.h>
 
 #include <algorithm>
 #include <array>
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <string>
 
 /// This namespace define generic functions to calculate different signal parameters
 namespace TRestPulseShapeAnalysis {
 
 template <typename T>
-void CalculateBaselineAndSigmaSD(const std::vector<T>& signal, Int_t startBin, Int_t endBin,
-                                 Double_t& baseLine, Double_t& baseLineSigma);
+std::vector<float> CalculateBaselineAndSigma(const std::vector<T>& signal, int startBin, int endBin,
+                                 double& baseLine, double& baseLineSigma, std::string option="");
 
 template <typename T>
-void CalculateBaselineAndSigmaIQR(const std::vector<T>& signal, Int_t startBin, Int_t endBin,
-                                  Double_t& baseLine, Double_t& baseLineSigma);
+std::vector<float> CalculateBaselineAndSigmaSD(const std::vector<T>& signal, int startBin, int endBin,
+                                 double& baseLine, double& baseLineSigma);
 
 template <typename T>
-Double_t GetAverage(const std::vector<T>& signal, Int_t startBin, Int_t endBin);
+std::vector<float> CalculateBaselineAndSigmaIQR(const std::vector<T>& signal, int startBin, int endBin,
+                                  double& baseLine, double& baseLineSigma);
 
 template <typename T>
-std::vector<Float_t> GetSignalSmoothed(const std::vector<T>& signal, int averagingPoints = 3);
+std::vector<float> CalculateBaselineAndSigmaExcludeOutliers(const std::vector<T>& signal, int startBin, int endBin,
+                                  double& baseLine, double& baseLineSigma);
 
 template <typename T>
-std::vector<Float_t> GetSignalSmoothed_ExcludeOutliers(const std::vector<T>& signal, int averagingPoints,
-                                                       Double_t& baseLine, Double_t& baseLineSigma);
+double GetAverage(const std::vector<T>& signal, int startBin, int endBin);
 
 template <typename T>
-std::vector<Float_t> GetDerivative(const std::vector<T>& signal);
+std::vector<float> GetSignalSmoothed(const std::vector<T>& signal, int averagingPoints = 3);
 
 template <typename T>
-std::vector<std::pair<Int_t, Float_t> > GetPointsOverThreshold(const std::vector<T>& signal, TVector2& range,
-                                                               const TVector2& thrPar, Int_t nPointsOver,
-                                                               Int_t nPointsFlat, Double_t baseLineSigma);
+std::vector<float> GetSignalSmoothed_ExcludeOutliers(const std::vector<T>& signal, int averagingPoints,
+                                                       double& baseLine, double& baseLineSigma);
 
 template <typename T>
-Int_t GetMaxBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
+std::vector<float> GetDerivative(const std::vector<T>& signal);
+
+template <typename T>
+std::vector<std::pair<int, float> > GetPointsOverThreshold(const std::vector<T>& signal, std::pair<int,int>& range,
+                                                               const std::pair<double,double>& thrPar, int nPointsOver,
+                                                               int nPointsFlat, double baseLineSigma);
+
+template <typename T>
+int GetMaxBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
     if (endBin <= 0 || endBin > (int)signal.size()) endBin = signal.size();
     if (startBin < 0) startBin = 0;
 
@@ -50,7 +57,7 @@ Int_t GetMaxBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) 
 }
 
 template <typename T>
-Int_t GetMinBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
+int GetMinBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
     if (endBin <= 0 || endBin > (int)signal.size()) endBin = signal.size();
     if (startBin < 0) startBin = 0;
 
@@ -59,24 +66,37 @@ Int_t GetMinBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) 
 }
 
 template <typename T>
-Double_t GetIntegral(const std::vector<T>& signal, Int_t startBin, Int_t endBin);
+double GetIntegral(const std::vector<T>& signal, int startBin, int endBin);
 
 template <typename T>
-Double_t GetMaxPeakWidth(const std::vector<T>& signal);
+double GetMaxPeakWidth(const std::vector<T>& signal);
 
 template <typename T>
-Double_t GetSlopeIntegral(const std::vector<std::pair<T, Float_t> >& signal);
+double GetSlopeIntegral(const std::vector<std::pair<T, float> >& signal);
 template <typename T>
-Double_t GetRiseSlope(const std::vector<std::pair<T, Float_t> >& signal);
+double GetRiseSlope(const std::vector<std::pair<T, float> >& signal);
 template <typename T>
-Double_t GetRiseTime(const std::vector<std::pair<T, Float_t> >& signal);
+double GetRiseTime(const std::vector<std::pair<T, float> >& signal);
 
-std::vector<std::pair<double, double> > GetIntWindow(TGraph* signal, double intWindow);
-std::array<std::pair<Double_t, Double_t>, 3> GetTripleMax(TGraph* signal);
-TVector2 GetTripleMaxAverage(TGraph* signal);
-Double_t GetTripleMaxIntegral(TGraph* signal);
-TVector2 GetMaxGauss(TGraph* signal);
-TVector2 GetMaxLandau(TGraph* signal);
-TVector2 GetMaxAget(TGraph* signal);
+template <typename T>
+double GetRiseTime(const std::vector<std::pair<T, float> >& signal);
 
-}  // namespace TRestPulseShapeAnalysis
+template <typename T>
+TGraph GetGraphPair(const std::vector<std::pair<T, float>> &points, const std::string& title="");
+
+template <typename T>
+TGraph GetGraph(const std::vector<T>& signal, const std::string& title="");
+
+std::vector<std::pair<double, double> > GetIntWindow(TGraph& signal, double intWindow);
+std::array<std::pair<double, double>, 3> GetTripleMax(TGraph& signal);
+std::pair<double, double> GetMin(TGraph& signal);
+std::pair<double, double> GetMax(TGraph& signal, std::string option);
+std::pair<double, double> GetMaxAmplitude(TGraph& signal);
+std::pair<double,double> GetTripleMaxAverage(TGraph& signal);
+std::pair<double, double> GetTripleMaxIntegral(TGraph& signal);
+std::pair<double,double> GetMaxGauss(TGraph& signal);
+std::pair<double,double> GetMaxLandau(TGraph& signal);
+std::pair<double,double> GetMaxAget(TGraph& signal);
+
+
+}

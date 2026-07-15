@@ -50,5 +50,4 @@ class TRestProcessManager : public TRestMetadata {
     }
 
     void Initialize() override {}
-    void PrintMetadata() override;
 };

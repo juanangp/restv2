@@ -48,6 +48,8 @@ void TRestDetectorReadout::LoadConfig() {
         RESTError <<"Decoding file not found "<< RESTendl;
     }
 
+    ReadYAMLVerbose(fNode);
+
     //Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestDetectorReadout>(fNode);
 }

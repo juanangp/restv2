@@ -174,16 +174,15 @@ class TRestLogger {
                     const std::string& prefix, const std::string& className, const std::string& msg);
 };
 
-// ---------------- Contexto de clase ----------------
-inline thread_local std::string currentClassName;
+inline thread_local const std::string* currentClassNamePtr = nullptr;
 
-#define DECLARE_LOG_CLASS(CLASSNAME)                        \
-    static const std::string& getLogClassName() {           \
-        static const std::string name = #CLASSNAME;         \
-        return name;                                        \
-    }                                                       \
-    struct LogClassSetter {                                 \
-        LogClassSetter() { currentClassName = #CLASSNAME; } \
+#define DECLARE_LOG_CLASS(CLASSNAME)                                      \
+    static inline const std::string& getLogClassName() {                  \
+        static const std::string name = #CLASSNAME;                       \
+        return name;                                                      \
+    }                                                                     \
+    struct LogClassSetter {                                               \
+        LogClassSetter() { currentClassNamePtr = &getLogClassName(); }    \
     } _logClassSetter;
 
 // ---------------- LogStream ----------------
@@ -194,12 +193,15 @@ class TRestLogBuffer : public std::stringbuf {
         : level(lvl), color(color), prefix(prefix) {}
 
     int sync() override {
-        if (!str().empty()) {
-            TRestLogger::log(level, color, prefix, currentClassName, str());
-            str("");  // limpiar buffer
-        }
-        return 0;
+    if (!str().empty()) {
+        std::string className = currentClassNamePtr ? *currentClassNamePtr : "Global";
+        
+        TRestLogger::log(level, color, prefix, className, str());
+        str("");
     }
+    return 0;
+}
+
 
    private:
     TRestLogManager::REST_Verbose_Level level;
@@ -217,14 +219,12 @@ class TRestLogStream : public std::ostream {
     TRestLogBuffer buf;
 };
 
-// ---------------- Manipulador RESTendl ----------------
 inline std::ostream& RESTendl(std::ostream& os) {
-    os.put('\n');  // salto de línea
-    os.flush();    // forzar volcado inmediato
+    os.put('\n');
+    os.flush();
     return os;
 }
 
-// --- Instancias globales accesibles ---
 inline TRestLogStream RESTError(TRestLogManager::REST_Verbose_Level::REST_Error, TRestLogger::COLOR_RED,
                                 " ERROR ");
 inline TRestLogStream RESTWarning(TRestLogManager::REST_Verbose_Level::REST_Warning,

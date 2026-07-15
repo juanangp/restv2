@@ -15,7 +15,6 @@ class TRestProcessManager;
 /// `TRestManager` parses configuration and instantiates metadata objects.
 /// Event pipeline execution is delegated to `TRestProcessManager`.
 class TRestManager : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestManager)
 
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;

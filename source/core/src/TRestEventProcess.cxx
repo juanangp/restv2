@@ -26,7 +26,7 @@ TRestEventProcess::TRestEventProcess(const std::string& fileName, const std::str
 void TRestEventProcess::LoadConfig() {
 
     UpdateParamsFromYAML<TRestEventProcess>(fNode);
-
+    ReadYAMLVerbose(fNode);
     //Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestEventProcess>(fNode);
 }

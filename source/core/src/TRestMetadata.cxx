@@ -27,6 +27,8 @@ void TRestMetadata::ReadYAMLVerbose(YAML::Node& node) {
     const std::string verboseValue = ReadYAMLParamOrDefault<std::string>(
         node, "verbose", TRestLogManager::GetStringFromVerbose(TRestLogManager::globalVerboseLevel));
     fVerboseLevel = TRestLogManager::GetVerboseLevelFromString(verboseValue);
+    auto& logMgr = TRestLogManager::instance();
+    logMgr.SetLevel(this->GetClassName(),fVerboseLevel);
     TRestTools::SetNodeParameter(node, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
 }
 

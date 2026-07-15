@@ -51,6 +51,7 @@ void TRestProcessManager::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestProcessManager>(fNode);
+    ReadYAMLVerbose(fNode);
     //Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestProcessManager>(fNode);
 

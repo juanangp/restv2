@@ -35,14 +35,13 @@ class TRestMetadata {
     /// Raw YAML node associated with this metadata instance.
     YAML::Node fNode;
 
-
     /// Verbosity level used by REST logging.
     TRestLogManager::REST_Verbose_Level fVerboseLevel = TRestLogManager::REST_Verbose_Level::REST_Info;
 
    public:
     /// \brief Returns the concrete class name.
     /// \return Class name string.
-    virtual std::string GetClassName() const = 0;
+    virtual std::string GetClassName() const { return "TRestMetadata"; }
 
     /// \brief Returns the metadata instance name.
     /// \return Instance name.

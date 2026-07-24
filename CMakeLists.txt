@@ -5,6 +5,13 @@ project(
   LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
+# Canonical REST target names
+# ---------------------------------------------------------------------------
+set(RAW_LIB RestRaw)
+set(GEANT4_LIB RestGeant4)
+set(DETECTOR_LIB RestDetector)
+
+# ---------------------------------------------------------------------------
 # C++ standard - honour whatever ROOT was compiled with (17 minimum)
 # ---------------------------------------------------------------------------
 set(ROOT_REQUIRED_LIBRARIES
@@ -54,16 +61,11 @@ endif()
 # ---------------------------------------------------------------------------
 # Install prefix guard - never pollute /usr/local
 # ---------------------------------------------------------------------------
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL
-                                                   "/usr/local")
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
   if(DEFINED ENV{REST_PATH})
-    set(CMAKE_INSTALL_PREFIX
-        "$ENV{REST_PATH}"
-        CACHE PATH "" FORCE)
+    set(CMAKE_INSTALL_PREFIX "$ENV{REST_PATH}" CACHE PATH "" FORCE)
   else()
-    set(CMAKE_INSTALL_PREFIX
-        "${CMAKE_SOURCE_DIR}/install"
-        CACHE PATH "" FORCE)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "" FORCE)
   endif()
   message(STATUS "Install prefix set to: ${CMAKE_INSTALL_PREFIX}")
 endif()
@@ -108,21 +110,30 @@ function(rest_attach_dictionary target)
 endfunction()
 
 # ---------------------------------------------------------------------------
-# Subdirectories source/tools   - logging, filesystem helpers source/core    -
-# TRestEvent, TRestMetadata, TRestRun, TRestManager libraries/raw  -
-# TRestRawSignalEvent  (opt-in via REST_RAW) source/bin     - executables
+# Subdirectories activation via unifed flags
 # ---------------------------------------------------------------------------
 add_subdirectory(source/tools)
 add_subdirectory(source/core)
 
-option(REST_RAW "Build the raw-signal library" ON)
-if(REST_RAW)
+option(${RAW_LIB} "Build the raw-signal library" ON)
+if(${RAW_LIB})
   add_subdirectory(libraries/raw)
 endif()
 
-option(REST_DETECTOR "Build the detector library" ON)
-if(REST_DETECTOR)
+option(${DETECTOR_LIB} "Build the detector library" ON)
+if(${DETECTOR_LIB})
   add_subdirectory(libraries/detector)
+endif()
+
+option(${GEANT4_LIB} "Build the geant4 library" ON)
+if(${GEANT4_LIB})
+  add_subdirectory(libraries/geant4)
+endif()
+
+# Nuevo Flag para el paquete de simulación ejecutable restG4
+option(REST_G4 "Build the optional restG4 package application" ON)
+if(REST_G4)
+  add_subdirectory(packages/restG4)
 endif()
 
 add_subdirectory(source/bin)
@@ -139,6 +150,9 @@ message(STATUS "=== REST ${PROJECT_VERSION} ===")
 message(STATUS "  Install : ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  ROOT    : ${ROOT_VERSION}")
-message(STATUS "  REST_RAW: ${REST_RAW}")
-message(STATUS "  REST_DETECTOR: ${REST_DETECTOR}")
+message(STATUS "  ${RAW_LIB}: ${${RAW_LIB}}")
+message(STATUS "  ${DETECTOR_LIB}: ${${DETECTOR_LIB}}")
+message(STATUS "  ${GEANT4_LIB}: ${${GEANT4_LIB}}")
+message(STATUS "  REST_G4 : ${REST_G4}")
 message(STATUS "")
+

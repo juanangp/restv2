@@ -67,6 +67,8 @@ class TRestRun : public TRestMetadata {
     /// \return Resolved full path.
     std::string PrefixMainDataPath(const std::string& fileName) const;
 
+    void FormOutputFile();
+
     /// \brief Resolves effective input filename from inputFileName/inputFormat.
     void ResolveInputFormat();
 
@@ -159,6 +161,11 @@ class TRestRun : public TRestMetadata {
     void SetInputFileName(const std::string& v) {
         fInputFileName = v;
         if (fNode) TRestTools::SetNodeParameter(fNode, "inputFileName", fInputFileName);
+    }
+
+    void SetOutputFileName(const std::string& v) {
+        fOutputFileName = v;
+        if (fNode) TRestTools::SetNodeParameter(fNode, "outputFileName", fOutputFileName);
     }
 
     /// \brief Sets experiment name.

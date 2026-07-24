@@ -99,6 +99,7 @@ class TRestMetadata {
     /// \brief Reads and applies verbose-level configuration from YAML.
     /// \param node YAML node containing verbosity information.
     void ReadYAMLVerbose(YAML::Node& node);
+    inline TRestLogManager::REST_Verbose_Level GetVerboseLevel() const {return fVerboseLevel;}
 
     template <typename ClassName, typename TNode>
     void UpdateParamsFromYAML(const TNode& processedNode);

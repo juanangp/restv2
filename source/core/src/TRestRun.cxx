@@ -269,6 +269,18 @@ bool TRestRun::HasEvent(const std::string& treeName) const {
     return fInputEvents.find(treeName) != fInputEvents.end();
 }
 
+void TRestRun::FormOutputFile(){
+
+fOutputFileName = PrefixMainDataPath( ResolveFilePattern(fOutputFileName) );
+
+TRestMetadata::ReadYAMLVerbose(fNode);
+
+UpdateYAMLFromParams<TRestRun>(fNode);
+
+OpenOutputFile();
+
+}
+
 void TRestRun::OpenOutputFile() {
     fOutputFile = std::make_unique<TFile>(fOutputFileName.c_str(), "RECREATE");
     if (!fOutputFile || fOutputFile->IsZombie()) {

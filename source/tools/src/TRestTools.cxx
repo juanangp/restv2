@@ -46,6 +46,21 @@ std::vector<std::string> TRestTools::GetFilesMatchingPattern(const std::string& 
     return outputFileNames;
 }
 
+Bool_t TRestTools::StringToBool(std::string booleanString) {
+    // Convierte todo el string a mayúsculas en una sola línea
+    std::transform(booleanString.begin(), booleanString.end(), booleanString.begin(), ::toupper);
+    
+    return booleanString == "TRUE" || 
+           booleanString == "ON" ||
+           booleanString == "1";
+}
+
+std::pair<std::string, std::string> TRestTools::SeparatePathAndName(const std::string& fullname) {
+    fs::path path(fullname);
+    return {path.parent_path().string(), path.filename().string()};
+}
+
+
 std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
     char tmpstm[20];  //"YYYY-MM-DD HH:MM:SS" + \0
     std::time_t time = static_cast<std::time_t>(tm);
@@ -54,6 +69,60 @@ std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
 
     return std::string(tmpstm);
 }
+
+bool TRestTools::fileExists(const std::string& filename) {
+
+    return std::filesystem::exists(filename);
+
+}
+
+std::string TRestTools::GetFullPath(const std::string& filename){
+    if (filename.empty()) {
+        return "";
+    }
+
+    try {
+        // Convert the input string into a standard filesystem path
+        std::filesystem::path relativePath(filename);
+        // Convert the relative path to an absolute path
+        std::filesystem::path absolutePath = std::filesystem::absolute(relativePath);
+        // Convert the absolute path back to a standard string and return it
+        return absolutePath.string();
+    }
+    catch (const std::filesystem::filesystem_error& e) {
+        // Fallback or error logging can be placed here if needed
+        // For now, it returns an empty string if an unexpected filesystem error occurs
+        return "";
+    }
+}
+
+std::string TRestTools::SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename) {
+    if (fs::exists(filename)) return filename;
+
+    for (const auto& p : paths) {
+        fs::path basePath(p);
+        if (fs::exists(basePath / filename)) return (basePath / filename).string();
+
+        if (fs::is_directory(basePath)) {
+            // Use explicit iterator to access depth() control
+            for (fs::recursive_directory_iterator it(basePath, fs::directory_options::skip_permission_denied), end; it != end; ++it) {
+                
+                // Keeps the 5-level recursion limit using the iterator depth
+                if (it.depth() >= 5) {
+                    it.disable_recursion_pending(); // Optimization: stop descending deeper into this branch
+                    continue;
+                }
+
+                const auto& entry = *it;
+                if (entry.is_directory() && fs::exists(entry.path() / filename)) {
+                    return (entry.path() / filename).string();
+                }
+            }
+        }
+    }
+    return "";
+}
+
 
 YAML::Node TRestTools::ResolveEnvVars(const YAML::Node& node) {
     if (node.IsScalar()) {
@@ -92,6 +161,32 @@ std::vector<std::string> TRestTools::Split(const std::string& s, char delim) {
     std::string item;
     while (std::getline(ss, item, delim)) tokens.push_back(item);
     return tokens;
+}
+
+
+YAML::Node TRestTools::OpenConfigFile(const std::string &fileName){
+    YAML::Node raw = YAML::LoadFile(fileName);
+    YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
+    return cfg;
+}
+
+std::pair<std::string, YAML::Node> TRestTools::GetMetadataClass(const YAML::Node& cfg, const std::string& className){
+
+    for (const auto& element : cfg) {
+        const auto key = element.first.as<std::string>();
+        auto value = element.second;
+
+        if (!value || value.IsScalar() || !value.IsMap()) continue;
+
+        if (!value["class"]) continue;
+    
+        std::string cName = value["class"].as<std::string>();
+        if(cName == className)return std::make_pair(key, value);
+
+    }
+
+  return {};
+
 }
 
 // Función recursiva para resolver referencias YAML ${...}
@@ -215,3 +310,17 @@ void TRestTools::ReplaceAll(std::string& str, const std::string& from, const std
         start_pos += to.length();
     }
 }
+
+std::string TRestTools::ToTimeStringLong(double seconds) {
+    const auto abs = TMath::Abs(seconds);
+    if (abs < 60) {
+        return TString::Format("%.2f %s", seconds, "seconds").Data();
+    } else if (abs < 60 * 60) {
+        return TString::Format("%.2f %s", seconds / 60.0, "minutes").Data();
+    } else if (abs < 60 * 60 * 24) {
+        return TString::Format("%.2f %s", seconds / (60.0 * 60.0), "hours").Data();
+    } else {
+        return TString::Format("%.2f %s", seconds / (60.0 * 60.0 * 24.0), "days").Data();
+    }
+}
+

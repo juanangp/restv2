@@ -114,7 +114,7 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
     }
 
     //Reset observable values
-    fObs = SignalObservables{};
+    fObs.clear();
     const auto thrParams = std::make_pair(fPointsThreshold, fSignalThreshold);
 
     fObs.MaxPeakAmplitude = 0.0;

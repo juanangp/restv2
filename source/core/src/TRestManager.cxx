@@ -18,7 +18,7 @@ const bool kRegistered = []() {
         });
     return true;
 }();
-}  // namespace
+} // namespace
 
 TRestManager::TRestManager(const std::string& instanceName, const YAML::Node& node)
     : TRestMetadata(instanceName, node) {

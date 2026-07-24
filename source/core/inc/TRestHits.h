@@ -57,8 +57,25 @@ class TRestHits {
     /// \brief Rotates one hit around a center using Euler angles.
     void RotateIn3D(int n, double alpha, double beta, double gamma, ROOT::Math::XYZVector center);
 
-    /// \brief Removes all hits in current view from storage.
-    inline void RemoveHits();
+    inline void RemoveHits() {
+      if (!fData || fNHits <= 0) {
+        fNHits = 0;
+        return;
+      }
+
+      auto startIt = fData->x.begin() + fStartIdx;
+      auto endIt = startIt + fNHits;
+
+      fData->x.erase(startIt, endIt);
+      fData->y.erase(fData->y.begin() + fStartIdx, fData->y.begin() + fStartIdx + fNHits);
+      fData->z.erase(fData->z.begin() + fStartIdx, fData->z.begin() + fStartIdx + fNHits);
+      fData->time.erase(fData->time.begin() + fStartIdx, fData->time.begin() + fStartIdx + fNHits);
+      fData->energy.erase(fData->energy.begin() + fStartIdx, fData->energy.begin() + fStartIdx + fNHits);
+      fData->type.erase(fData->type.begin() + fStartIdx, fData->type.begin() + fStartIdx + fNHits);
+
+      fNHits = 0;
+    }
+
 
     /// \brief Adds one hit.
     void AddHit(ROOT::Math::XYZVector position, double energy, double time, TRestHitsData::REST_HitType type);

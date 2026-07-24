@@ -12,12 +12,12 @@ foreach(src ${BIN_SOURCES})
 
   target_link_libraries(${exe_name} PRIVATE RestCore)
 
-  if(TARGET RestDetector)
-    target_link_libraries(${exe_name} PRIVATE RestDetector)
+  if(TARGET ${DETECTOR_LIB})
+    target_link_libraries(${exe_name} PRIVATE ${DETECTOR_LIB})
   endif()
 
-  if(TARGET RestRaw)
-    target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" RestRaw "-Wl,--as-needed")
+  if(TARGET ${RAW_LIB})
+    target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" ${RAW_LIB} "-Wl,--as-needed")
   endif()
 
   # Link all configured ROOT libraries in every executable.

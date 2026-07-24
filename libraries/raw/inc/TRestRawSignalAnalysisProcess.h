@@ -50,6 +50,21 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
         double MinPeakTime = 0.0;
         double MaxPeakTimeDelay = 0.0;
         double AveragePeakTime = 0.0;
+
+        void clear() {
+          auto clear_vectors = [](auto&... vecs) { (vecs.clear(), ...); };
+          clear_vectors(SignalsID, Baseline, BaselineSigma, AmpSgnMaxMethod, 
+                        AmpSgnIntMethod, RiseTime, RiseSlope, PeakTime, 
+                        PointsOverThr, Saturated);
+
+          BaselineAvg = BaselineSigmaAvg = 0.0;
+          TimeBinLength = NSignals = NGoodSignals = 0;
+          FullIntegralSum = ThresholdIntegralSum = RiseSlopeAvg = SlopeIntegral = 0.0;
+          RateOfChangeAvg = RiseTimeAvg = MaxIntegral = IntegralBalance = 0.0;
+          AmplitudeIntegralRatio = MinPeakAmplitude = MaxPeakAmplitude = 0.0;
+          PeakAmplitudeIntegral = MinEventValue = AmplitudeRatio = 0.0;
+          MaxPeakTime = MinPeakTime = MaxPeakTimeDelay = AveragePeakTime = 0.0;
+        }
     };
 
     SignalObservables fObs;

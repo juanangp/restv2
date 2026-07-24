@@ -31,13 +31,13 @@ struct TRestEventInfo {
 /// (run IDs, timestamps, status, and subevent tag).
 class TRestEvent {
    protected:
-    /// Generic event metadata block.
-    TRestEventInfo fInfo;
-
     /// Logical event class/instance name.
     std::string fName = "";
 
    public:
+    /// Generic event metadata block.
+    TRestEventInfo fInfo;
+
     /// \brief Returns the concrete event class name.
     /// \return Class name string.
     virtual std::string GetClassName() const = 0;

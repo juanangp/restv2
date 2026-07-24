@@ -1,7 +1,5 @@
 #include "TRestRawSignalEvent.h"
 
-#include <TPad.h>
-
 #include <iostream>
 
 // ---------------------------------------------------------------------------

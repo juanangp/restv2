@@ -8,14 +8,20 @@
 namespace TRestTools {
 
 std::vector<std::string> GetFilesMatchingPattern(const std::string& filePattern);
-
 std::string GetTimeStampFromUnixTime(const double tm);
-// Helper: split string por delimitador
+std::string GetFullPath(const std::string& filename);
+bool fileExists(const std::string& filename);
+std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
+std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);
+bool StringToBool(std::string booleanString);
+std::string ToTimeStringLong(double seconds);
 std::vector<std::string> Split(const std::string& s, char delim);
+
+YAML::Node OpenConfigFile(const std::string &fileName);
+std::pair<std::string, YAML::Node> GetMetadataClass(const YAML::Node& cfg, const std::string& className);
 YAML::Node ResolveEnvVars(const YAML::Node& node);
 YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node);
 void OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val);
-
 YAML::Node ResolveAllRefs(const YAML::Node& root);
 std::string PatternToRegex(const std::string& pattern);
 double ReadYAMLParamWithUnits(const YAML::Node& node);

@@ -1,8 +1,8 @@
 #pragma once
 
+#include <iostream>
 #include <string>
 #include <utility>
-#include <iostream>
 
 // ROOT MathCore GenVector header
 #include <Math/Vector3D.h>
@@ -15,7 +15,7 @@ class TRestGeant4BiasingVolume {
    public:
     std::array<double, 3> fVolumePosition = {0.0, 0.0, 0.0};
     double fVolumeSize = 0.0;
-    std::string fBiasingVolumeType = "virtualBox"; // Obsolete duplicate field kept for compatibility
+    std::string fBiasingVolumeType = "virtualBox";  // Obsolete duplicate field kept for compatibility
     double fBiasingFactor = 1.0;
     std::pair<double, double> fEnergyRange = {0.0, 1.0E20};
     std::string fVolumeType = "virtualBox";
@@ -27,15 +27,22 @@ class TRestGeant4BiasingVolume {
     inline double GetBiasingFactor() const { return fBiasingFactor; }
     inline double GetBiasingVolumeSize() const { return fVolumeSize; }
     inline std::string GetBiasingVolumeType() const { return fVolumeType; }
-    inline ROOT::Math::XYZVector GetBiasingVolumePosition() const { return ROOT::Math::XYZVector(fVolumePosition[0], fVolumePosition[1], fVolumePosition[2]); }
+    inline ROOT::Math::XYZVector GetBiasingVolumePosition() const {
+        return ROOT::Math::XYZVector(fVolumePosition[0], fVolumePosition[1], fVolumePosition[2]);
+    }
     inline std::pair<double, double> GetEnergyRange() const { return fEnergyRange; }
     inline double GetMaxEnergy() const { return fEnergyRange.second; }
     inline double GetMinEnergy() const { return fEnergyRange.first; }
 
     // --- Setters ---
     inline void SetBiasingVolumeSize(double size) { fVolumeSize = size; }
-    inline void SetBiasingVolumeType(const std::string& type) { fVolumeType = type; fBiasingVolumeType = type; }
-    inline void SetBiasingVolumePosition(const ROOT::Math::XYZVector& pos) { fVolumePosition = {pos.X(), pos.Y(), pos.Z()}; }
+    inline void SetBiasingVolumeType(const std::string& type) {
+        fVolumeType = type;
+        fBiasingVolumeType = type;
+    }
+    inline void SetBiasingVolumePosition(const ROOT::Math::XYZVector& pos) {
+        fVolumePosition = {pos.X(), pos.Y(), pos.Z()};
+    }
     inline void SetBiasingFactor(double factor) { fBiasingFactor = factor; }
     inline void SetEnergyRange(const std::pair<double, double>& eRange) { fEnergyRange = eRange; }
 
@@ -66,4 +73,3 @@ class TRestGeant4BiasingVolume {
     // Grants reflection registration macro privileges
     friend class TRestMetadataFieldRegistry;
 };
-

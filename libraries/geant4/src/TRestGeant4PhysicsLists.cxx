@@ -1,5 +1,7 @@
 #include "TRestGeant4PhysicsLists.h"
+
 #include <TRestTools.h>
+
 #include <set>
 
 using namespace std;
@@ -10,32 +12,32 @@ using namespace std;
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestGeant4PhysicsLists",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestGeant4PhysicsLists", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestGeant4PhysicsLists>(instanceName, params);
         });
     return true;
 }();
-} // namespace
+}  // namespace
 
 static const bool TRestGeant4PhysicsLists_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    
+
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForElectron", &TRestGeant4PhysicsLists::fCutForElectron);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForGamma", &TRestGeant4PhysicsLists::fCutForGamma);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForPositron", &TRestGeant4PhysicsLists::fCutForPositron);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForMuon", &TRestGeant4PhysicsLists::fCutForMuon);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForNeutron", &TRestGeant4PhysicsLists::fCutForNeutron);
-    reg.RegisterField<TRestGeant4PhysicsLists>("minEnergyRangeProductionCuts", &TRestGeant4PhysicsLists::fMinEnergyRangeProductionCuts);
-    reg.RegisterField<TRestGeant4PhysicsLists>("maxEnergyRangeProductionCuts", &TRestGeant4PhysicsLists::fMaxEnergyRangeProductionCuts);
-    reg.RegisterField<TRestGeant4PhysicsLists>("ionLimitStepList", &TRestGeant4PhysicsLists::fIonLimitStepList);
-    
+    reg.RegisterField<TRestGeant4PhysicsLists>("minEnergyRangeProductionCuts",
+                                               &TRestGeant4PhysicsLists::fMinEnergyRangeProductionCuts);
+    reg.RegisterField<TRestGeant4PhysicsLists>("maxEnergyRangeProductionCuts",
+                                               &TRestGeant4PhysicsLists::fMaxEnergyRangeProductionCuts);
+    reg.RegisterField<TRestGeant4PhysicsLists>("ionLimitStepList",
+                                               &TRestGeant4PhysicsLists::fIonLimitStepList);
+
     return true;
 }();
 
-TRestGeant4PhysicsLists::TRestGeant4PhysicsLists() : TRestMetadata() {
-    fName = "TRestGeant4PhysicsLists";
-}
+TRestGeant4PhysicsLists::TRestGeant4PhysicsLists() : TRestMetadata() { fName = "TRestGeant4PhysicsLists"; }
 
 TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const char* configFilename, const std::string& name)
     : TRestMetadata(configFilename, name) {
@@ -50,7 +52,6 @@ TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& instanceName
 TRestGeant4PhysicsLists::~TRestGeant4PhysicsLists() = default;
 
 void TRestGeant4PhysicsLists::LoadConfig() {
-
     UpdateParamsFromYAML<TRestGeant4PhysicsLists>(fNode);
 
     fPhysicsLists.clear();
@@ -71,7 +72,8 @@ void TRestGeant4PhysicsLists::LoadConfig() {
             std::string physicsListName = item["name"].as<std::string>();
 
             if (!PhysicsListExists(physicsListName)) {
-                cerr << "TRestPhysicsList: Physics list: '" << physicsListName << "' not found among valid options" << endl;
+                cerr << "TRestPhysicsList: Physics list: '" << physicsListName
+                     << "' not found among valid options" << endl;
                 exit(1);
             }
 
@@ -79,7 +81,7 @@ void TRestGeant4PhysicsLists::LoadConfig() {
             if (item["option"]) {
                 YAML::Node optNode = item["option"];
                 std::vector<YAML::Node> optElements;
-                
+
                 if (optNode.IsSequence()) {
                     for (const auto& o : optNode) optElements.push_back(o);
                 } else if (optNode.IsMap()) {
@@ -121,7 +123,7 @@ std::string TRestGeant4PhysicsLists::GetPhysicsListOptionValue(const std::string
     Int_t index = FindPhysicsList(physicsListName);
     if (index == -1) return defaultValue;
 
-    vector<string> optList = TRestTools::Split(fPhysicsListOptions[index],':');
+    vector<string> optList = TRestTools::Split(fPhysicsListOptions[index], ':');
     for (unsigned int n = 0; n < optList.size(); n = n + 2) {
         if (optList[n] == option) {
             return optList[n + 1];
@@ -160,15 +162,15 @@ void TRestGeant4PhysicsLists::PrintMetadata() {
     cout << "Min Energy for particle production: " << fMinEnergyRangeProductionCuts << " keV" << endl;
     cout << "Max Energy for particle production: " << fMaxEnergyRangeProductionCuts << " keV" << endl;
     cout << "---------------------------------------" << endl;
-    
+
     for (unsigned int n = 0; n < fPhysicsLists.size(); n++) {
         cout << "Physics list " << n << " : " << fPhysicsLists[n] << endl;
-        vector<string> optList = TRestTools::Split(fPhysicsListOptions[n],':');
+        vector<string> optList = TRestTools::Split(fPhysicsListOptions[n], ':');
         for (unsigned int m = 0; m < optList.size(); m = m + 2) {
             cout << " - Option " << m / 2 << " : " << optList[m] << " = " << optList[m + 1] << endl;
         }
     }
-    
+
     if (!fIonLimitStepList.empty()) {
         cout << "List of ions affected by step limit" << endl;
         for (const auto& ion : fIonLimitStepList) {
@@ -179,4 +181,3 @@ void TRestGeant4PhysicsLists::PrintMetadata() {
     cout << "******************************************" << endl;
     cout << endl << endl;
 }
-

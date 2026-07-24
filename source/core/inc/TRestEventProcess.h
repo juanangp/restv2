@@ -13,7 +13,7 @@ class TRestEventProcess : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestEventProcess)
 
    public:
-    std::vector<std::string> fObservables ={"none"};
+    std::vector<std::string> fObservables = {"none"};
 
     TRestEventProcess();
     TRestEventProcess(const std::string& instanceName, const YAML::Node& node);
@@ -58,7 +58,7 @@ class TRestEventProcess : public TRestMetadata {
 
         bool shouldRegister = false;
         for (const auto& obs : fObservables) {
-            if(obs == "none")return;
+            if (obs == "none") return;
             if (obs == "all" || obs == name) {
                 shouldRegister = true;
                 break;
@@ -69,5 +69,4 @@ class TRestEventProcess : public TRestMetadata {
             fRunInfo->SetObservable(name, variable);
         }
     }
-
 };

@@ -1,22 +1,22 @@
 #pragma once
 
+#include <algorithm>
+#include <map>
+#include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <set>
-#include <map>
-#include <algorithm>
-#include <stdexcept>
 
 // ROOT MathCore GenVector headers
 #include <Math/Vector3D.h>
 
-#include "TRestMetadata.h"
-#include "TRestTools.h"
 #include "TRestGeant4BiasingVolume.h"
 #include "TRestGeant4GeometryInfo.h"
 #include "TRestGeant4ParticleSource.h"
 #include "TRestGeant4PhysicsInfo.h"
 #include "TRestGeant4PrimaryGeneratorInfo.h"
+#include "TRestMetadata.h"
+#include "TRestTools.h"
 
 // Forward declarations for framework friend classes
 class SteppingAction;
@@ -56,7 +56,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     std::string fMaterialsReference;
 
     /// A pair storing the energy range, in keV, to decide if a particular event should be written to disk
-   std::pair<double, double> fEnergyRangeStored = {0.0, 1.0E20};
+    std::pair<double, double> fEnergyRangeStored = {0.0, 1.0E20};
 
     /// A vector to store the names of the active volumes
     std::vector<std::string> fActiveVolumes;
@@ -77,12 +77,14 @@ class TRestGeant4Metadata : public TRestMetadata {
     std::vector<TRestGeant4BiasingVolume> fBiasingVolumes;
 
     /// The maximum target step size, in mm, allowed in Geant4 for the target volume (Obsolete)
-    double fMaxTargetStepSize = 0.0; //!
+    double fMaxTargetStepSize = 0.0;  //!
 
-    /// A time gap, in us, determining if an energy hit should be considered (and stored) as an independent event
+    /// A time gap, in us, determining if an energy hit should be considered (and stored) as an independent
+    /// event
     double fSubEventTimeDelay = 100.0;
 
-    /// Defines if a radioactive isotope decay is simulated in full chain (true) or just a single decay (false)
+    /// Defines if a radioactive isotope decay is simulated in full chain (true) or just a single decay
+    /// (false)
     bool fFullChain = true;
 
     /// Reset global time in case of a long radioactive decay
@@ -125,7 +127,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     bool fStoreHadronicTargetInfo = false;
 
     /// Sets all volumes as active without having to explicitly list them
-    bool fActivateAllVolumes = false; //!
+    bool fActivateAllVolumes = false;  //!
 
     /// If activated will remove tracks not present in volumes marked as "keep" or "sensitive"
     bool fRemoveUnwantedTracks = false;
@@ -137,7 +139,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     bool fRemoveUnwantedTracksKeepZeroEnergyTracks = false;
 
     /// If set to true it will print out on screen every time 10k events are reached
-    bool fPrintProgress = false; //!
+    bool fPrintProgress = false;  //!
 
     /// If disabled then empty tracks will not be written to disk to save space
     bool fRegisterEmptyTracks = true;
@@ -146,12 +148,13 @@ class TRestGeant4Metadata : public TRestMetadata {
     std::array<double, 3> fMagneticField = {0.0, 0.0, 0.0};
 
     /// Used for faster lookup (non-persisted)
-    std::set<std::string> fActiveVolumesSet = {}; //!
+    std::set<std::string> fActiveVolumesSet = {};  //!
 
     // --- Constructors and Destructors ---
     TRestGeant4Metadata();
     TRestGeant4Metadata(const char* configFilename, const std::string& name = "");
-    TRestGeant4Metadata(const std::string& instanceName, const YAML::Node& node); // Modern REST v3 constructor
+    TRestGeant4Metadata(const std::string& instanceName,
+                        const YAML::Node& node);  // Modern REST v3 constructor
     virtual ~TRestGeant4Metadata();
 
     // Copy constructor and assignment operator
@@ -164,7 +167,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     // --- Life Cycle and Configuration Methods ---
     void LoadConfig() override;
     void PrintMetadata() override;
-    void Initialize() override { }
+    void Initialize() override {}
     void Clear();
     void Merge(const TRestGeant4Metadata& other);
 
@@ -172,7 +175,9 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline long GetSeed() const { return fSeed; }
     inline const TRestGeant4GeometryInfo& GetGeant4GeometryInfo() const { return fGeant4GeometryInfo; }
     inline const TRestGeant4PhysicsInfo& GetGeant4PhysicsInfo() const { return fGeant4PhysicsInfo; }
-    inline const TRestGeant4PrimaryGeneratorInfo& GetGeant4PrimaryGeneratorInfo() const { return fGeant4PrimaryGeneratorInfo; }
+    inline const TRestGeant4PrimaryGeneratorInfo& GetGeant4PrimaryGeneratorInfo() const {
+        return fGeant4PrimaryGeneratorInfo;
+    }
 
     // --- Modernized Getters (std::string) ---
     inline std::string GetGeant4Version() const { return fGeant4Version; }
@@ -188,7 +193,9 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline bool isGlobalTimeReset() const { return fResetGlobalTime; }
     inline double GetResetTimePrecision() const { return fResetTimePrecision; }
     inline std::set<std::string> GetFullChainStopIsotopes() const { return fFullChainStopIsotopes; }
-    inline bool IsIsotopeFullChainStop(const std::string& isotope) const { return fFullChainStopIsotopes.count(isotope) > 0; }
+    inline bool IsIsotopeFullChainStop(const std::string& isotope) const {
+        return fFullChainStopIsotopes.count(isotope) > 0;
+    }
     inline double GetMaxTargetStepSize() const { return fMaxTargetStepSize; }
     inline double GetSubEventTimeDelay() const { return fSubEventTimeDelay; }
     inline bool GetSaveAllEvents() const { return fSaveAllEvents; }
@@ -229,27 +236,42 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline size_t GetNumberOfSensitiveVolumes() const { return fSensitiveVolumes.size(); }
     inline const std::vector<std::string>& GetSensitiveVolumes() const { return fSensitiveVolumes; }
     inline void InsertSensitiveVolume(const std::string& volume) {
-        if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), volume) == fSensitiveVolumes.end()) {
+        if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), volume) ==
+            fSensitiveVolumes.end()) {
             fSensitiveVolumes.push_back(volume);
         }
     }
 
     // --- Fast Lookup and Modernized Volume Properties ---
-    inline unsigned int GetNumberOfActiveVolumes() const { return static_cast<unsigned int>(fActiveVolumes.size()); }
-    inline bool IsActiveVolume(const std::string& volumeName) const { return fActiveVolumesSet.count(volumeName) > 0; } //!
-    inline bool IsKeepTracksVolume(const std::string& volumeName) const { return fRemoveUnwantedTracksVolumesToKeep.count(volumeName) > 0; }
-    inline bool IsKillVolume(const std::string& volumeName) const { return fKillVolumes.count(volumeName) > 0; }
+    inline unsigned int GetNumberOfActiveVolumes() const {
+        return static_cast<unsigned int>(fActiveVolumes.size());
+    }
+    inline bool IsActiveVolume(const std::string& volumeName) const {
+        return fActiveVolumesSet.count(volumeName) > 0;
+    }  //!
+    inline bool IsKeepTracksVolume(const std::string& volumeName) const {
+        return fRemoveUnwantedTracksVolumesToKeep.count(volumeName) > 0;
+    }
+    inline bool IsKillVolume(const std::string& volumeName) const {
+        return fKillVolumes.count(volumeName) > 0;
+    }
 
     // Range-constructor based conversions from std::set to std::vector
-    inline std::vector<std::string> GetKillVolumes() const { return {fKillVolumes.begin(), fKillVolumes.end()}; }
-    inline std::vector<std::string> GetRemoveUnwantedTracksVolumesToKeep() const { return {fRemoveUnwantedTracksVolumesToKeep.begin(), fRemoveUnwantedTracksVolumesToKeep.end()}; }
+    inline std::vector<std::string> GetKillVolumes() const {
+        return {fKillVolumes.begin(), fKillVolumes.end()};
+    }
+    inline std::vector<std::string> GetRemoveUnwantedTracksVolumesToKeep() const {
+        return {fRemoveUnwantedTracksVolumesToKeep.begin(), fRemoveUnwantedTracksVolumesToKeep.end()};
+    }
 
     inline std::string GetActiveVolumeName(int n) const { return fActiveVolumes.at(n); }
     inline std::vector<std::string> GetActiveVolumes() const { return fActiveVolumes; }
 
     inline bool GetRemoveUnwantedTracks() const { return fRemoveUnwantedTracks; }
     inline bool GetStoreTracks() const { return fStoreTracks; }
-    inline bool GetRemoveUnwantedTracksKeepZeroEnergyTracks() const { return fRemoveUnwantedTracksKeepZeroEnergyTracks; }
+    inline bool GetRemoveUnwantedTracksKeepZeroEnergyTracks() const {
+        return fRemoveUnwantedTracksKeepZeroEnergyTracks;
+    }
 
     double GetStorageChance(const std::string& volume) const;
     double GetMaxStepSize(const std::string& volume) const;
@@ -269,10 +291,11 @@ class TRestGeant4Metadata : public TRestMetadata {
     // --- Geometric and Field Getters ---
     inline double GetMinimumEnergyStored() const { return fEnergyRangeStored.first; }
     inline double GetMaximumEnergyStored() const { return fEnergyRangeStored.second; }
-    inline ROOT::Math::XYZVector GetMagneticField() const {  return ROOT::Math::XYZVector(fMagneticField[0], fMagneticField[1], fMagneticField[2]); }
+    inline ROOT::Math::XYZVector GetMagneticField() const {
+        return ROOT::Math::XYZVector(fMagneticField[0], fMagneticField[1], fMagneticField[2]);
+    }
 
     friend class SteppingAction;
     friend class DetectorConstruction;
     friend class TRestGeant4Hits;
 };
-

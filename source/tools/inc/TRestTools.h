@@ -17,7 +17,7 @@ bool StringToBool(std::string booleanString);
 std::string ToTimeStringLong(double seconds);
 std::vector<std::string> Split(const std::string& s, char delim);
 
-YAML::Node OpenConfigFile(const std::string &fileName);
+YAML::Node OpenConfigFile(const std::string& fileName);
 std::pair<std::string, YAML::Node> GetMetadataClass(const YAML::Node& cfg, const std::string& className);
 YAML::Node ResolveEnvVars(const YAML::Node& node);
 YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node);
@@ -30,20 +30,20 @@ std::string CleanString(const std::string& str);
 void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
 
 // ==================================================
-// Templates genéricos
+/// \brief Generic template helpers.
 // ==================================================
 template <typename T>
 inline T ReadYAMLParam(const YAML::Node& node) {
     return node.as<T>();
 }
 
-// Especialización: double con unidades
+/// \brief Specialization for `double` values with units.
 template <>
 inline double ReadYAMLParam<double>(const YAML::Node& node) {
     return TRestTools::ReadYAMLParamWithUnits(node);
 }
 
-// Especialización: std::pair<T,T>
+/// \brief Specialization for `std::pair<T, T>`.
 template <typename T>
 inline std::pair<T, T> ReadYAMLParamPair(const YAML::Node& node) {
     if (!node.IsSequence() || node.size() != 2) {
@@ -52,7 +52,7 @@ inline std::pair<T, T> ReadYAMLParamPair(const YAML::Node& node) {
     return {node[0].as<T>(), node[1].as<T>()};
 }
 
-// Especialización: std::vector<T>
+/// \brief Specialization for `std::vector<T>`.
 template <typename T>
 inline std::vector<T> ReadYAMLParamVector(const YAML::Node& node) {
     if (!node.IsSequence()) {

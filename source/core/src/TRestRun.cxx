@@ -1,37 +1,38 @@
 #include "TRestRun.h"
 
-#include <stdexcept>
+#include <TKey.h>
+#include <TList.h>
+
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <regex>
+#include <stdexcept>
 
 #include "TObjString.h"
 #include "TRestTools.h"
-#include <TKey.h>
-#include <TList.h>
 
 using namespace TRestTools;
 
 static const bool TRestRun_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    
-    reg.RegisterField<TRestRun>("runNumber",          &TRestRun::fRunNumber);
-    reg.RegisterField<TRestRun>("subRunNumber",       &TRestRun::fSubRunNumber);
-    reg.RegisterField<TRestRun>("runType",            &TRestRun::fRunType);
-    reg.RegisterField<TRestRun>("runUser",            &TRestRun::fRunUser);
-    reg.RegisterField<TRestRun>("runTag",             &TRestRun::fRunTag);
-    reg.RegisterField<TRestRun>("runDescription",     &TRestRun::fRunDescription);
-    reg.RegisterField<TRestRun>("experimentName",     &TRestRun::fExperimentName);
 
-    reg.RegisterField<TRestRun>("inputFileName",      &TRestRun::fInputFileName);
-    reg.RegisterField<TRestRun>("outputFileName",     &TRestRun::fOutputFileName);
-    reg.RegisterField<TRestRun>("mainDataPath",       &TRestRun::fMainDataPath);
-    reg.RegisterField<TRestRun>("inputFormat",        &TRestRun::fInputFormat);
+    reg.RegisterField<TRestRun>("runNumber", &TRestRun::fRunNumber);
+    reg.RegisterField<TRestRun>("subRunNumber", &TRestRun::fSubRunNumber);
+    reg.RegisterField<TRestRun>("runType", &TRestRun::fRunType);
+    reg.RegisterField<TRestRun>("runUser", &TRestRun::fRunUser);
+    reg.RegisterField<TRestRun>("runTag", &TRestRun::fRunTag);
+    reg.RegisterField<TRestRun>("runDescription", &TRestRun::fRunDescription);
+    reg.RegisterField<TRestRun>("experimentName", &TRestRun::fExperimentName);
 
-    reg.RegisterField<TRestRun>("startTime",          &TRestRun::fStartTime);
-    reg.RegisterField<TRestRun>("endTime",            &TRestRun::fEndTime);
-    reg.RegisterField<TRestRun>("entriesSaved",       &TRestRun::fEntriesSaved);
+    reg.RegisterField<TRestRun>("inputFileName", &TRestRun::fInputFileName);
+    reg.RegisterField<TRestRun>("outputFileName", &TRestRun::fOutputFileName);
+    reg.RegisterField<TRestRun>("mainDataPath", &TRestRun::fMainDataPath);
+    reg.RegisterField<TRestRun>("inputFormat", &TRestRun::fInputFormat);
+
+    reg.RegisterField<TRestRun>("startTime", &TRestRun::fStartTime);
+    reg.RegisterField<TRestRun>("endTime", &TRestRun::fEndTime);
+    reg.RegisterField<TRestRun>("entriesSaved", &TRestRun::fEntriesSaved);
 
     return true;
 }();
@@ -41,19 +42,16 @@ static const bool TRestRun_FieldsRegistered = []() {
 // ---------------------------------------------------------------------------
 namespace {
 const bool kRegistered = []() {
-    MetadataClassRegistry::Instance().Register(
-        "TRestRun",
-        [](const std::string& instanceName, const YAML::Node& params) {
-            return std::make_unique<TRestRun>(instanceName, params);
-        });
+    MetadataClassRegistry::Instance().Register("TRestRun",
+                                               [](const std::string& instanceName, const YAML::Node& params) {
+                                                   return std::make_unique<TRestRun>(instanceName, params);
+                                               });
     return true;
 }();
 }  // namespace
 
 // ---------------------------------------------------------------------------
-TRestRun::TRestRun() {
-    fName = "TRestRun";
-}
+TRestRun::TRestRun() { fName = "TRestRun"; }
 
 TRestRun::TRestRun(const std::string& inputFileName) {
     fName = "TRestRun";
@@ -81,69 +79,84 @@ TRestRun::~TRestRun() {
 
 // ---------------------------------------------------------------------------
 void TRestRun::LoadConfig() {
-
     if (!fNode || fNode.IsNull()) {
         RESTError << "TRestRun::LoadConfig - node is missing or null" << RESTendl;
         return;
     }
 
     if (!fIsInitializedFromConfig) {
-        fConfigRunNumber      = ReadYAMLParamOrDefault<std::string>(fNode, "runNumber", fConfigRunNumber);
-        fConfigSubRunNumber   = ReadYAMLParamOrDefault<std::string>(fNode, "subRunNumber", fConfigSubRunNumber);
-        fConfigRunType        = ReadYAMLParamOrDefault<std::string>(fNode, "runType", fConfigRunType);
-        fConfigRunUser        = ReadYAMLParamOrDefault<std::string>(fNode, "runUser", fConfigRunUser);
-        fConfigRunTag         = ReadYAMLParamOrDefault<std::string>(fNode, "runTag", fConfigRunTag);
-        fConfigRunDescription = ReadYAMLParamOrDefault<std::string>(fNode, "runDescription", fConfigRunDescription);
-        fConfigExperimentName = ReadYAMLParamOrDefault<std::string>(fNode, "experimentName", fConfigExperimentName);
-        
+        fConfigRunNumber = ReadYAMLParamOrDefault<std::string>(fNode, "runNumber", fConfigRunNumber);
+        fConfigSubRunNumber = ReadYAMLParamOrDefault<std::string>(fNode, "subRunNumber", fConfigSubRunNumber);
+        fConfigRunType = ReadYAMLParamOrDefault<std::string>(fNode, "runType", fConfigRunType);
+        fConfigRunUser = ReadYAMLParamOrDefault<std::string>(fNode, "runUser", fConfigRunUser);
+        fConfigRunTag = ReadYAMLParamOrDefault<std::string>(fNode, "runTag", fConfigRunTag);
+        fConfigRunDescription =
+            ReadYAMLParamOrDefault<std::string>(fNode, "runDescription", fConfigRunDescription);
+        fConfigExperimentName =
+            ReadYAMLParamOrDefault<std::string>(fNode, "experimentName", fConfigExperimentName);
+
         if (fConfigRunNumber != "preserve" && fConfigRunNumber != "auto") {
-            try { fRunNumber = std::stoi(fConfigRunNumber); } catch (...) {}
+            try {
+                fRunNumber = std::stoi(fConfigRunNumber);
+            } catch (...) {
+            }
         }
         if (fConfigSubRunNumber != "preserve") {
-            try { fSubRunNumber = std::stoi(fConfigSubRunNumber); } catch (...) {}
+            try {
+                fSubRunNumber = std::stoi(fConfigSubRunNumber);
+            } catch (...) {
+            }
         }
-        if (fConfigRunType != "preserve")        fRunType = fConfigRunType;
-        if (fConfigRunUser != "preserve")        fRunUser = fConfigRunUser;
-        if (fConfigRunTag != "preserve")         fRunTag = fConfigRunTag;
+        if (fConfigRunType != "preserve") fRunType = fConfigRunType;
+        if (fConfigRunUser != "preserve") fRunUser = fConfigRunUser;
+        if (fConfigRunTag != "preserve") fRunTag = fConfigRunTag;
         if (fConfigRunDescription != "preserve") fRunDescription = fConfigRunDescription;
         if (fConfigExperimentName != "preserve") fExperimentName = fConfigExperimentName;
 
         fOutputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName", fOutputFileName);
-        fMainDataPath   = ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath);
-        fInputFormat    = ReadYAMLParamOrDefault<std::string>(fNode, "inputFormat", fInputFormat);
-        fEntriesSaved   = ReadYAMLParamOrDefault<int>(fNode, "entriesSaved", fEntriesSaved);
-        fInputFileName  = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
+        fMainDataPath = ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath);
+        fInputFormat = ReadYAMLParamOrDefault<std::string>(fNode, "inputFormat", fInputFormat);
+        fEntriesSaved = ReadYAMLParamOrDefault<int>(fNode, "entriesSaved", fEntriesSaved);
+        fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
 
         fIsInitializedFromConfig = true;
     }
 
-    if(!fInputFileName.empty() && fInputFileName != "Null")OpenInputFile(fInputFileName);
+    if (!fInputFileName.empty() && fInputFileName != "Null") OpenInputFile(fInputFileName);
 
-    //Input format is resolved if we have fInputFileName and fInputFormat
+    // Input format is resolved if we have fInputFileName and fInputFormat
     ResolveInputFormat();
 
-    //In case inputFormat is empty we get preserve variables fron input file 
+    // In case inputFormat is empty we get preserve variables fron input file
     if (fInputFormat.empty()) {
         if (fInputFileNode && !fInputFileNode.IsNull()) {
-            if (fConfigRunNumber == "preserve")      fRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "runNumber", fRunNumber);
-            if (fConfigSubRunNumber == "preserve")   fSubRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "subRunNumber", fSubRunNumber);
-            if (fConfigRunType == "preserve")        fRunType = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runType", "Null");
-            if (fConfigRunTag == "preserve")         fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", "Null");
-            if (fConfigRunDescription == "preserve") fRunDescription = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runDescription", "Null");
-            if (fConfigExperimentName == "preserve") fExperimentName = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", "Null");
+            if (fConfigRunNumber == "preserve")
+                fRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "runNumber", fRunNumber);
+            if (fConfigSubRunNumber == "preserve")
+                fSubRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "subRunNumber", fSubRunNumber);
+            if (fConfigRunType == "preserve")
+                fRunType = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runType", "Null");
+            if (fConfigRunTag == "preserve")
+                fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", "Null");
+            if (fConfigRunDescription == "preserve")
+                fRunDescription =
+                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runDescription", "Null");
+            if (fConfigExperimentName == "preserve")
+                fExperimentName =
+                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", "Null");
         }
     }
 
-    //In case inputFormat is not empty we generate the variables from the input file name
-    if( (fInputFileName.empty() || fInputFileName == "Null" ) && !fInputFormat.empty() )fInputFileName = ResolveFilePattern(fInputFormat);
+    // In case inputFormat is not empty we generate the variables from the input file name
+    if ((fInputFileName.empty() || fInputFileName == "Null") && !fInputFormat.empty())
+        fInputFileName = ResolveFilePattern(fInputFormat);
 
-    fOutputFileName = PrefixMainDataPath( ResolveFilePattern(fOutputFileName) );
+    fOutputFileName = PrefixMainDataPath(ResolveFilePattern(fOutputFileName));
 
     TRestMetadata::ReadYAMLVerbose(fNode);
 
-    //Sync resolved file names to the node
+    // Sync resolved file names to the node
     UpdateYAMLFromParams<TRestRun>(fNode);
-
 }
 
 void TRestRun::OpenInputFile(const std::string& filename) {
@@ -155,9 +168,9 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     fInputFile->GetObject("AnalysisTree", fAnalysisTree);
 
-    if(!fAnalysisTree){
-      RESTError << filename << " is not a valid TRestRun " << RESTendl;
-      return;
+    if (!fAnalysisTree) {
+        RESTError << filename << " is not a valid TRestRun " << RESTendl;
+        return;
     }
 
     YAML::Node selfConfig = GetMetadata(GetName());
@@ -191,7 +204,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     if (selfConfig && !selfConfig.IsNull()) {
         fInputFileNode = selfConfig;
     } else {
-       RESTWarning <<"Not valid TRestRun Metadata in " << filename << RESTendl;
+        RESTWarning << "Not valid TRestRun Metadata in " << filename << RESTendl;
     }
 
     // Auto-discover: any key in the file that is registered in EventRegistry
@@ -223,13 +236,9 @@ void TRestRun::OpenInputFile(const std::string& filename) {
             }
         }
     }
-
-  
-
 }
 
-void TRestRun::AddMetadata(const std::string& instanceName,
-                           const YAML::Node& configNode) {
+void TRestRun::AddMetadata(const std::string& instanceName, const YAML::Node& configNode) {
     WriteMetadata(fOutputFile.get(), instanceName, configNode);
 }
 
@@ -269,16 +278,14 @@ bool TRestRun::HasEvent(const std::string& treeName) const {
     return fInputEvents.find(treeName) != fInputEvents.end();
 }
 
-void TRestRun::FormOutputFile(){
+void TRestRun::FormOutputFile() {
+    fOutputFileName = PrefixMainDataPath(ResolveFilePattern(fOutputFileName));
 
-fOutputFileName = PrefixMainDataPath( ResolveFilePattern(fOutputFileName) );
+    TRestMetadata::ReadYAMLVerbose(fNode);
 
-TRestMetadata::ReadYAMLVerbose(fNode);
+    UpdateYAMLFromParams<TRestRun>(fNode);
 
-UpdateYAMLFromParams<TRestRun>(fNode);
-
-OpenOutputFile();
-
+    OpenOutputFile();
 }
 
 void TRestRun::OpenOutputFile() {
@@ -324,10 +331,11 @@ void TRestRun::CloseFiles() {
 
 // ---------------------------------------------------------------------------
 void TRestRun::PrintMetadata() {
-
     RESTMetadata << "=== TRestRun ===" << RESTendl;
-    if(fNode && !fNode.IsNull())RESTMetadata << YAML::Dump(fNode) << RESTendl;
-    else if (fInputFileNode && !fInputFileNode.IsNull())RESTMetadata << YAML::Dump(fInputFileNode) << RESTendl;
+    if (fNode && !fNode.IsNull())
+        RESTMetadata << YAML::Dump(fNode) << RESTendl;
+    else if (fInputFileNode && !fInputFileNode.IsNull())
+        RESTMetadata << YAML::Dump(fInputFileNode) << RESTendl;
 }
 
 std::string TRestRun::ResolveFilePattern(const std::string& pattern) const {
@@ -400,8 +408,9 @@ void TRestRun::ResolveInputFormat() {
         tags.push_back(m[1].str());
         regexStr = m.prefix().str() + "([^\\_]+)" + m.suffix().str();
     }
-    
-    if (regexStr.size() > 5 && regexStr.substr(regexStr.size() - 5) == ".root") regexStr.resize(regexStr.size() - 5);
+
+    if (regexStr.size() > 5 && regexStr.substr(regexStr.size() - 5) == ".root")
+        regexStr.resize(regexStr.size() - 5);
 
     std::smatch matches;
     if (std::regex_match(filenameBase, matches, std::regex(regexStr))) {
@@ -409,14 +418,19 @@ void TRestRun::ResolveInputFormat() {
             std::string t = tags[i - 1];
             std::string val = matches[i].str();
 
-            if ((t == "runNumber")       && fConfigRunNumber == "preserve")    try { fRunNumber = std::stoi(val); } catch(...) {}
-            if ((t == "subRunNumber")    && fConfigSubRunNumber == "preserve") try { fSubRunNumber = std::stoi(val); } catch(...) {}
-            if ((t == "runType")         && fConfigRunType == "preserve")      fRunType = val;
-            if ((t == "runUser")         && fConfigRunUser == "preserve")      fRunUser = val;
-            if ((t == "runTag")          && fConfigRunTag == "preserve")       fRunTag = val;
-            if ((t == "runDescription")  && fConfigRunDescription == "preserve") fRunDescription = val;
-            if ((t == "experimentName")  && fConfigExperimentName == "preserve") fExperimentName = val;
+            if ((t == "runNumber") && fConfigRunNumber == "preserve") try {
+                    fRunNumber = std::stoi(val);
+                } catch (...) {
+                }
+            if ((t == "subRunNumber") && fConfigSubRunNumber == "preserve") try {
+                    fSubRunNumber = std::stoi(val);
+                } catch (...) {
+                }
+            if ((t == "runType") && fConfigRunType == "preserve") fRunType = val;
+            if ((t == "runUser") && fConfigRunUser == "preserve") fRunUser = val;
+            if ((t == "runTag") && fConfigRunTag == "preserve") fRunTag = val;
+            if ((t == "runDescription") && fConfigRunDescription == "preserve") fRunDescription = val;
+            if ((t == "experimentName") && fConfigExperimentName == "preserve") fExperimentName = val;
         }
     }
 }
-

@@ -1,21 +1,21 @@
 #pragma once
 
-#include <vector>
+#include <algorithm>
+#include <functional>
+#include <iostream>
 #include <string>
 #include <utility>
-#include <iostream>
-#include <functional>
-#include <algorithm>
+#include <vector>
 
 // ROOT MathCore and Core dependencies
 #include <Math/Vector3D.h>
-#include <TMath.h>
 #include <TF1.h>
 #include <TF2.h>
+#include <TMath.h>
 
-#include "TRestMetadata.h"
 #include "TRestGeant4Particle.h"
 #include "TRestGeant4PrimaryGeneratorInfo.h"
+#include "TRestMetadata.h"
 
 /// \class TRestGeant4ParticleSource
 class TRestGeant4ParticleSource : public TRestMetadata {
@@ -47,18 +47,18 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     TF2* fEnergyAndAngularDistributionFunction = nullptr;
 
     std::string fGenFilename;
-    
+
     /// Stored set of generated particles
     std::vector<TRestGeant4Particle> fParticles;
 
     // --- Composition: Internal Particle State Encapsulation ---
-    TRestGeant4Particle fParticle; 
+    TRestGeant4Particle fParticle;
 
     /// Stored list of particle templates
-    std::vector<std::vector<TRestGeant4Particle>> fParticlesTemplate; //! Non-persisted template buffers
+    std::vector<std::vector<TRestGeant4Particle>> fParticlesTemplate;  //! Non-persisted template buffers
 
     /// Modern functional container
-    std::function<double()> fRandomMethod = nullptr; //! Non-persisted functional hook
+    std::function<double()> fRandomMethod = nullptr;  //! Non-persisted functional hook
 
     TRestGeant4ParticleSource();
     TRestGeant4ParticleSource(const std::string& instanceName, const YAML::Node& node);
@@ -107,14 +107,20 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     inline std::string GetAngularDistributionFilename() const { return fAngularDistributionFilename; }
     inline std::string GetAngularDistributionNameInFile() const { return fAngularDistributionNameInFile; }
     inline const TF1* GetAngularDistributionFunction() const { return fAngularDistributionFunction; }
-    inline double GetAngularDistributionIsotropicConeHalfAngle() const { return fAngularDistributionIsotropicConeHalfAngle; }
+    inline double GetAngularDistributionIsotropicConeHalfAngle() const {
+        return fAngularDistributionIsotropicConeHalfAngle;
+    }
 
-    inline const TF2* GetEnergyAndAngularDistributionFunction() const { return fEnergyAndAngularDistributionFunction; }
+    inline const TF2* GetEnergyAndAngularDistributionFunction() const {
+        return fEnergyAndAngularDistributionFunction;
+    }
     inline std::string GetGenFilename() const { return fGenFilename; }
     inline std::vector<TRestGeant4Particle> GetParticles() const { return fParticles; }
 
     inline void SetAngularDistributionIsotropicConeHalfAngle(double angle) {
-        if (angle < 0.0 || angle > TMath::Pi()) { exit(1); }
+        if (angle < 0.0 || angle > TMath::Pi()) {
+            exit(1);
+        }
         fAngularDistributionIsotropicConeHalfAngle = angle;
     }
 
@@ -129,34 +135,54 @@ class TRestGeant4ParticleSource : public TRestMetadata {
 
     inline void SetAngularDistributionFormula(const std::string& formula) {
         if (fAngularDistributionFunction) delete fAngularDistributionFunction;
-        fAngularDistributionFunction = static_cast<TF1*>(TRestGeant4PrimaryGeneratorTypes::AngularDistributionFormulasToRootFormula(
-            TRestGeant4PrimaryGeneratorTypes::StringToAngularDistributionFormulas(formula)).Clone());
+        fAngularDistributionFunction = static_cast<TF1*>(
+            TRestGeant4PrimaryGeneratorTypes::AngularDistributionFormulasToRootFormula(
+                TRestGeant4PrimaryGeneratorTypes::StringToAngularDistributionFormulas(formula))
+                .Clone());
     }
 
-    inline void SetAngularDistributionFormulaNPoints(size_t nPoints) { fAngularDistributionFormulaNPoints = std::min(nPoints, (size_t)10000); }
-    inline void SetAngularDistributionFilename(const std::string& filename) { fAngularDistributionFilename = filename; }
-    inline void SetAngularDistributionNameInFile(const std::string& name) { fAngularDistributionNameInFile = name; }
+    inline void SetAngularDistributionFormulaNPoints(size_t nPoints) {
+        fAngularDistributionFormulaNPoints = std::min(nPoints, (size_t)10000);
+    }
+    inline void SetAngularDistributionFilename(const std::string& filename) {
+        fAngularDistributionFilename = filename;
+    }
+    inline void SetAngularDistributionNameInFile(const std::string& name) {
+        fAngularDistributionNameInFile = name;
+    }
 
     inline void SetEnergyDistributionType(const std::string& type) {
         fEnergyDistributionType = TRestGeant4PrimaryGeneratorTypes::EnergyDistributionTypesToString(
             TRestGeant4PrimaryGeneratorTypes::StringToEnergyDistributionTypes(type));
     }
 
-    inline void SetEnergyDistributionRange(const std::pair<double, double>& range) { fEnergyDistributionRange = range; }
-    inline void SetEnergyDistributionFormulaNPoints(size_t nPoints) { fEnergyDistributionFormulaNPoints = std::min(nPoints, (size_t)10000); }
-    inline void SetEnergyDistributionFilename(const std::string& filename) { fEnergyDistributionFilename = filename; }
-    inline void SetEnergyDistributionNameInFile(const std::string& name) { fEnergyDistributionNameInFile = name; }
-    
+    inline void SetEnergyDistributionRange(const std::pair<double, double>& range) {
+        fEnergyDistributionRange = range;
+    }
+    inline void SetEnergyDistributionFormulaNPoints(size_t nPoints) {
+        fEnergyDistributionFormulaNPoints = std::min(nPoints, (size_t)10000);
+    }
+    inline void SetEnergyDistributionFilename(const std::string& filename) {
+        fEnergyDistributionFilename = filename;
+    }
+    inline void SetEnergyDistributionNameInFile(const std::string& name) {
+        fEnergyDistributionNameInFile = name;
+    }
+
     inline void SetEnergyDistributionFormula(const std::string& formula) {
         if (fEnergyDistributionFunction) delete fEnergyDistributionFunction;
-        fEnergyDistributionFunction = static_cast<TF1*>(TRestGeant4PrimaryGeneratorTypes::EnergyDistributionFormulasToRootFormula(
-            TRestGeant4PrimaryGeneratorTypes::StringToEnergyDistributionFormulas(formula)).Clone());
+        fEnergyDistributionFunction = static_cast<TF1*>(
+            TRestGeant4PrimaryGeneratorTypes::EnergyDistributionFormulasToRootFormula(
+                TRestGeant4PrimaryGeneratorTypes::StringToEnergyDistributionFormulas(formula))
+                .Clone());
     }
 
     inline void SetEnergyAndAngularDistributionFormula(const std::string& formula) {
         if (fEnergyAndAngularDistributionFunction) delete fEnergyAndAngularDistributionFunction;
-        fEnergyAndAngularDistributionFunction = static_cast<TF2*>(TRestGeant4PrimaryGeneratorTypes::EnergyAndAngularDistributionFormulasToRootFormula(
-            TRestGeant4PrimaryGeneratorTypes::StringToEnergyAndAngularDistributionFormulas(formula)).Clone());
+        fEnergyAndAngularDistributionFunction = static_cast<TF2*>(
+            TRestGeant4PrimaryGeneratorTypes::EnergyAndAngularDistributionFormulasToRootFormula(
+                TRestGeant4PrimaryGeneratorTypes::StringToEnergyAndAngularDistributionFormulas(formula))
+                .Clone());
     }
 
     inline void SetGenFilename(const std::string& name) { fGenFilename = name; }
@@ -164,7 +190,10 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     inline void AddParticle(const TRestGeant4Particle& particle) { fParticles.push_back(particle); }
     inline void RemoveParticles() { fParticles.clear(); }
     inline void RemoveTemplates() { fParticlesTemplate.clear(); }
-    inline void FlushParticlesTemplate() { fParticlesTemplate.push_back(fParticles); fParticles.clear(); }
+    inline void FlushParticlesTemplate() {
+        fParticlesTemplate.push_back(fParticles);
+        fParticles.clear();
+    }
 
     virtual TRestGeant4ParticleSource* Clone() const;
 
@@ -172,5 +201,5 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     std::string GetClassName() const override { return "TRestGeant4ParticleSource"; }
     void PrintMetadata() override;
     void LoadConfig() override;
-    void Initialize() override { }; 
+    void Initialize() override {};
 };

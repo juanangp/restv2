@@ -1,12 +1,13 @@
 #pragma once
 
-#include "TRestMetadata.h"
-#include "TRestTools.h"
-#include "TGeoManager.h"
-#include "TGeoVolume.h"
-#include "Math/Vector3D.h"
 #include <map>
 #include <string>
+
+#include "Math/Vector3D.h"
+#include "TGeoManager.h"
+#include "TGeoVolume.h"
+#include "TRestMetadata.h"
+#include "TRestTools.h"
 
 class TFile;
 
@@ -18,8 +19,8 @@ class TFile;
 /// Derived classes must implement `BuildGeometry` to define a concrete readout
 /// technology.
 class TRestDetectorReadout : public TRestMetadata {
-DECLARE_LOG_CLASS(TRestDetectorReadout)
-protected:
+    DECLARE_LOG_CLASS(TRestDetectorReadout)
+   protected:
     /// ROOT geometry manager used for geometry navigation and position lookup.
     TGeoManager* fGeoManager = nullptr;
 
@@ -29,8 +30,7 @@ protected:
     /// Decoding map from geometry physical ID to DAQ channel ID.
     std::map<int, int> fPhysicalToDAQMap;
 
-public:
-
+   public:
     /// Decoding fileName
     std::string fDecodingFile = "default_decoding.dec";
 
@@ -93,7 +93,8 @@ public:
     /// \param geometryName Geometry object name.
     /// \param decodingName Decoding object name.
     /// \return `true` if export completed successfully.
-    bool Export(TFile* fOut, const std::string& geometryName, const std::string& decodingName = "default") const;
+    bool Export(TFile* fOut, const std::string& geometryName,
+                const std::string& decodingName = "default") const;
 
     /// \brief Returns DAQ channel corresponding to a spatial position.
     /// \param x X coordinate in detector reference frame.

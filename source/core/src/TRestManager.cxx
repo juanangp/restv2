@@ -12,13 +12,12 @@ using namespace TRestTools;
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestManager",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestManager", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestManager>(instanceName, params);
         });
     return true;
 }();
-} // namespace
+}  // namespace
 
 TRestManager::TRestManager(const std::string& instanceName, const YAML::Node& node)
     : TRestMetadata(instanceName, node) {
@@ -39,7 +38,7 @@ void TRestManager::LoadConfig() {
         const auto key = element.first.as<std::string>();
         auto value = element.second;
 
-         if (!value || value.IsScalar() || !value.IsMap()) continue;
+        if (!value || value.IsScalar() || !value.IsMap()) continue;
 
         auto meta = MetadataClassRegistry::Instance().Create(key, value);
         if (!meta) continue;
@@ -65,13 +64,12 @@ void TRestManager::Run() {
     fProcessManager->Run();
 }
 
-void TRestManager::SaveMetadata(){
+void TRestManager::SaveMetadata() {
     if (fConfiguredRun == nullptr) {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
 
- for(const auto &meta: fMetaObjects){
-   fConfiguredRun->AddMetadata(meta->GetName(), meta->GetYAMLNode());
- }
-
+    for (const auto& meta : fMetaObjects) {
+        fConfiguredRun->AddMetadata(meta->GetName(), meta->GetYAMLNode());
+    }
 }

@@ -1,8 +1,10 @@
 #include "TRestGeant4Track.h"
+
+#include <algorithm>
+#include <iostream>
+
 #include "TRestGeant4Event.h"
 #include "TRestGeant4Metadata.h"
-#include <iostream>
-#include <algorithm>
 
 using namespace std;
 
@@ -86,15 +88,13 @@ void TRestGeant4Track::PrintTrack(size_t maxHits) const {
         cout << " - Parent particle: " << GetParentTrack()->GetParticleName();
     }
     cout << " - Created by '" << fCreatorProcess << "' in volume '" << GetInitialVolume()
-         << "' with initial KE of " << (fInitialKineticEnergy) << " - Initial position "
-         << (fInitialPosition) << " mm at time " << (fGlobalTimestamp)
-         << " - Time length of " << (fTimeLength) << " and spatial length of "
-         << (fLength) << endl;
+         << "' with initial KE of " << (fInitialKineticEnergy) << " - Initial position " << (fInitialPosition)
+         << " mm at time " << (fGlobalTimestamp) << " - Time length of " << (fTimeLength)
+         << " and spatial length of " << (fLength) << endl;
 
-    cout << "   Initial position " << (fInitialPosition) << " mm at time "
-         << (fGlobalTimestamp) << " - Time offset " << (fTimeOffset)
-         << " - Time length of " << (fTimeLength) << " and spatial length of "
-         << (fLength) << endl;
+    cout << "   Initial position " << (fInitialPosition) << " mm at time " << (fGlobalTimestamp)
+         << " - Time offset " << (fTimeOffset) << " - Time length of " << (fTimeLength)
+         << " and spatial length of " << (fLength) << endl;
 
     size_t nHits = GetNumberOfHits();
     if (maxHits > 0 && maxHits < nHits) {
@@ -116,11 +116,10 @@ void TRestGeant4Track::PrintTrack(size_t maxHits) const {
         if (volumeName.empty()) {
             volumeName = std::to_string(fHits.GetHitVolume(i));
         }
-        cout << "      - Hit " << i << " - Energy: " << (fHits.GetEnergy(i))
-             << " - Process: " << processName << " - Volume: " << volumeName
+        cout << "      - Hit " << i << " - Energy: " << (fHits.GetEnergy(i)) << " - Process: " << processName
+             << " - Volume: " << volumeName
              << " - Position: " << (ROOT::Math::XYZVector(fHits.GetX(i), fHits.GetY(i), fHits.GetZ(i)))
-             << " mm - Time: " << (fHits.GetTime(i))
-             << " - KE: " << (fHits.GetKineticEnergy(i)) << endl;
+             << " mm - Time: " << (fHits.GetTime(i)) << " - KE: " << (fHits.GetKineticEnergy(i)) << endl;
     }
 }
 
@@ -150,10 +149,9 @@ void TRestGeant4Track::PrintTrackFilterVolumes(const std::set<std::string>& volu
         cout << " - Parent particle: " << GetParentTrack()->GetParticleName();
     }
     cout << " - Created by '" << fCreatorProcess << "' in volume '" << GetInitialVolume()
-         << "' with initial KE of " << (fInitialKineticEnergy) << " - Initial position "
-         << (fInitialPosition) << " mm at time " << (fGlobalTimestamp)
-         << " - Time length of " << (fTimeLength) << " and spatial length of "
-         << (fLength) << endl;
+         << "' with initial KE of " << (fInitialKineticEnergy) << " - Initial position " << (fInitialPosition)
+         << " mm at time " << (fGlobalTimestamp) << " - Time length of " << (fTimeLength)
+         << " and spatial length of " << (fLength) << endl;
 
     size_t nHits = GetNumberOfHits();
     for (unsigned int i = 0; i < nHits; i++) {
@@ -169,11 +167,10 @@ void TRestGeant4Track::PrintTrackFilterVolumes(const std::set<std::string>& volu
         if (volumeNames.find(volumeName) == volumeNames.end()) {
             continue;
         }
-        cout << "      - Hit " << i << " - Energy: " << (fHits.GetEnergy(i))
-             << " - Process: " << processName << " - Volume: " << volumeName
+        cout << "      - Hit " << i << " - Energy: " << (fHits.GetEnergy(i)) << " - Process: " << processName
+             << " - Volume: " << volumeName
              << " - Position: " << (ROOT::Math::XYZVector(fHits.GetX(i), fHits.GetY(i), fHits.GetZ(i)))
-             << " mm - Time: " << (fHits.GetTime(i))
-             << " - KE: " << (fHits.GetKineticEnergy(i)) << endl;
+             << " mm - Time: " << (fHits.GetTime(i)) << " - KE: " << (fHits.GetKineticEnergy(i)) << endl;
     }
 }
 
@@ -277,4 +274,3 @@ std::string TRestGeant4Track::GetLastProcessName() const {
     return GetGeant4Metadata()->GetGeant4PhysicsInfo().GetProcessName(
         hits.GetProcess(hits.GetNumberOfHits() - 1));
 }
-

@@ -1,12 +1,12 @@
 #pragma once
 
+#include <Math/Vector3D.h>
 #include <TColor.h>
+
+#include <iostream>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
-#include <iostream>
-
-#include <Math/Vector3D.h>
 
 #include "TRestGeant4Hits.h"
 
@@ -20,11 +20,11 @@ class TRestGeant4Track {
     Int_t fTrackID;
     Int_t fParentID;
 
-    std::string fParticleName; 
+    std::string fParticleName;
 
     TRestGeant4Hits fHits;
 
-    std::string fCreatorProcess; 
+    std::string fCreatorProcess;
 
     std::vector<Int_t> fSecondaryTrackIDs;
 
@@ -82,35 +82,39 @@ class TRestGeant4Track {
 
     TRestGeant4Track* GetParentTrack() const;
 
-    inline ROOT::Math::XYZVector GetTrackOrigin() const { return GetInitialPosition(); } // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetTrackOrigin() const {
+        return GetInitialPosition();
+    }  // Migrado a XYZVector
 
     EColor GetParticleColor() const;
 
     inline Double_t GetEnergyInVolume(Int_t volID) const { return fHits.GetEnergyInVolume(volID); }
-    inline ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volID) const { // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volID) const {  // Migrado a XYZVector
         return fHits.GetMeanPositionInVolume(volID);
     }
-    inline ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volID) const { // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volID) const {  // Migrado a XYZVector
         return fHits.GetFirstPositionInVolume(volID);
     }
-    inline ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volID) const { // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volID) const {  // Migrado a XYZVector
         return fHits.GetLastPositionInVolume(volID);
     }
 
-    Int_t GetProcessID(const std::string& processName) const; // Migrado a std::string
-    std::string GetProcessName(Int_t id) const;               // Migrado a std::string
+    Int_t GetProcessID(const std::string& processName) const;  // Migrado a std::string
+    std::string GetProcessName(Int_t id) const;                // Migrado a std::string
 
     Bool_t ContainsProcessInVolume(Int_t processID, Int_t volumeID = -1) const;
     inline Bool_t ContainsProcess(Int_t processID) const { return ContainsProcessInVolume(processID, -1); }
 
-    Bool_t ContainsProcessInVolume(const std::string& processName, Int_t volumeID = -1) const; // Migrado a std::string
-    inline Bool_t ContainsProcess(const std::string& processName) const { // Migrado a std::string
+    Bool_t ContainsProcessInVolume(const std::string& processName,
+                                   Int_t volumeID = -1) const;             // Migrado a std::string
+    inline Bool_t ContainsProcess(const std::string& processName) const {  // Migrado a std::string
         return ContainsProcessInVolume(processName, -1);
     }
 
-    Double_t GetEnergyInVolume(const std::string& volumeName, bool children = false) const; // Migrado a std::string
+    Double_t GetEnergyInVolume(const std::string& volumeName,
+                               bool children = false) const;  // Migrado a std::string
 
-    std::string GetLastProcessName() const; // Migrado a std::string
+    std::string GetLastProcessName() const;  // Migrado a std::string
 
     /// Prints the track information. N number of hits to print, 0 = all
     void PrintTrack(size_t maxHits = 0) const;
@@ -132,4 +136,3 @@ class TRestGeant4Track {
     void UpdateTrack(const G4Track*);           //!
     void InsertStep(const G4Step*);             //!
 };
-

@@ -1,19 +1,21 @@
 #pragma once
 
+#include <TFile.h>
+#include <TTree.h>
+
+#include <limits>
+#include <vector>
+
 #include "TRestEventProcess.h"
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
-#include <vector>
-#include <TFile.h>
-#include <TTree.h>
-#include <limits>
 
 ///
 /// Read data from the root file output of femdaq into a TRestRawSignalEvent
 ///
 class TRestRawSignalAnalysisProcess : public TRestEventProcess {
    private:
-      struct SignalObservables {
+    struct SignalObservables {
         std::vector<int> SignalsID;
         std::vector<double> Baseline;
         std::vector<double> BaselineSigma;
@@ -24,7 +26,6 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
         std::vector<double> PeakTime;
         std::vector<int> PointsOverThr;
         std::vector<bool> Saturated;
-        
 
         double BaselineAvg = 0.0;
         double BaselineSigmaAvg = 0.0;
@@ -33,7 +34,7 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
         int NGoodSignals = 0;
         double FullIntegralSum = 0.0;
         double ThresholdIntegralSum = 0.0;
-        
+
         double RiseSlopeAvg = 0.0;
         double SlopeIntegral = 0.0;
         double RateOfChangeAvg = 0.0;
@@ -52,25 +53,23 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
         double AveragePeakTime = 0.0;
 
         void clear() {
-          auto clear_vectors = [](auto&... vecs) { (vecs.clear(), ...); };
-          clear_vectors(SignalsID, Baseline, BaselineSigma, AmpSgnMaxMethod, 
-                        AmpSgnIntMethod, RiseTime, RiseSlope, PeakTime, 
-                        PointsOverThr, Saturated);
+            auto clear_vectors = [](auto&... vecs) { (vecs.clear(), ...); };
+            clear_vectors(SignalsID, Baseline, BaselineSigma, AmpSgnMaxMethod, AmpSgnIntMethod, RiseTime,
+                          RiseSlope, PeakTime, PointsOverThr, Saturated);
 
-          BaselineAvg = BaselineSigmaAvg = 0.0;
-          TimeBinLength = NSignals = NGoodSignals = 0;
-          FullIntegralSum = ThresholdIntegralSum = RiseSlopeAvg = SlopeIntegral = 0.0;
-          RateOfChangeAvg = RiseTimeAvg = MaxIntegral = IntegralBalance = 0.0;
-          AmplitudeIntegralRatio = MinPeakAmplitude = MaxPeakAmplitude = 0.0;
-          PeakAmplitudeIntegral = MinEventValue = AmplitudeRatio = 0.0;
-          MaxPeakTime = MinPeakTime = MaxPeakTimeDelay = AveragePeakTime = 0.0;
+            BaselineAvg = BaselineSigmaAvg = 0.0;
+            TimeBinLength = NSignals = NGoodSignals = 0;
+            FullIntegralSum = ThresholdIntegralSum = RiseSlopeAvg = SlopeIntegral = 0.0;
+            RateOfChangeAvg = RiseTimeAvg = MaxIntegral = IntegralBalance = 0.0;
+            AmplitudeIntegralRatio = MinPeakAmplitude = MaxPeakAmplitude = 0.0;
+            PeakAmplitudeIntegral = MinEventValue = AmplitudeRatio = 0.0;
+            MaxPeakTime = MinPeakTime = MaxPeakTimeDelay = AveragePeakTime = 0.0;
         }
     };
 
     SignalObservables fObs;
 
    public:
-
     /// Just a flag to quickly determine if we have to apply the range filter
     bool fRangeEnabled = false;
 
@@ -81,7 +80,7 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     std::pair<int, int> fIntegralRange = {10, 500};
 
     /// Option for calculation of baseline parameters, can be set to "ROBUST"
-    std::string fBaselineOption ="";
+    std::string fBaselineOption = "";
 
     std::string fMaxOption = "tripleMaxAverage";
 
@@ -108,9 +107,9 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override;
 
-    std::string GetInputEvent() const override { return "TRestRawSignalEvent";}
-    std::string GetOutputEvent() const override { return "TRestRawSignalEvent";}
+    std::string GetInputEvent() const override { return "TRestRawSignalEvent"; }
+    std::string GetOutputEvent() const override { return "TRestRawSignalEvent"; }
 
     std::string GetClassName() const override { return "TRestRawSignalAnalysisProcess"; }
-    //void PrintMetadata() override;
+    // void PrintMetadata() override;
 };

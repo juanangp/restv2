@@ -1,21 +1,21 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <set>
 #include <map>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
 // Modern ROOT vector headers (MathCore GenVector)
-#include <Math/Vector3D.h>
 #include <Math/GenVector/Rotation3D.h>
+#include <Math/Vector3D.h>
 
 // ROOT Geometry Manager headers
 class G4VPhysicalVolume;
 #include "TGeoManager.h"
-#include "TGeoVolume.h"
-#include "TGeoNode.h"
 #include "TGeoMatrix.h"
+#include "TGeoNode.h"
+#include "TGeoVolume.h"
 #include "TList.h"
 
 /// \class TRestGeant4GeometryInfo
@@ -50,13 +50,13 @@ class TRestGeant4GeometryInfo {
     }
 
     // --- Modernized Spatial Analytics Getters (Replacing TVector3/TRotation) ---
-    
+
     /// \brief Gets the position in world coordinates of a given physical node.
     inline ROOT::Math::XYZVector GetPosition(const std::string& physicalVolumeName) const {
         if (!fGeoManager) return {0.0, 0.0, 0.0};
         TGeoNode* node = fGeoManager->FindNode(physicalVolumeName.c_str());
         if (!node || !node->GetMatrix()) return {0.0, 0.0, 0.0};
-        
+
         const double* translation = node->GetMatrix()->GetTranslation();
         return ROOT::Math::XYZVector(translation[0], translation[1], translation[2]);
     }
@@ -66,14 +66,10 @@ class TRestGeant4GeometryInfo {
         if (!fGeoManager) return {};
         TGeoNode* node = fGeoManager->FindNode(physicalVolumeName.c_str());
         if (!node || !node->GetMatrix()) return {};
-        
+
         const double* r = node->GetMatrix()->GetRotationMatrix();
         // Construct standard MathCore 3D rotation from raw matrix elements array directly
-        return ROOT::Math::Rotation3D(
-            r[0], r[1], r[2],
-            r[3], r[4], r[5],
-            r[6], r[7], r[8]
-        );
+        return ROOT::Math::Rotation3D(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]);
     }
 
     // --- Material Extraction ---

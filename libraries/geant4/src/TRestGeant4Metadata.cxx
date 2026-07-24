@@ -1,13 +1,15 @@
-#include "TRestConstants.h"
 #include "TRestGeant4Metadata.h"
-#include "TError.h"
-#include "TDirectory.h"
-#include "TFile.h"
-#include "TObjString.h"
+
 #include <fstream>
-#include <sstream>
 #include <iostream>
 #include <limits>
+#include <sstream>
+
+#include "TDirectory.h"
+#include "TError.h"
+#include "TFile.h"
+#include "TObjString.h"
+#include "TRestConstants.h"
 
 using namespace TRestConstants;
 
@@ -17,58 +19,59 @@ using namespace TRestConstants;
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestGeant4Metadata",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestGeant4Metadata", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestGeant4Metadata>(instanceName, params);
         });
     return true;
 }();
-} // namespace
+}  // namespace
 
 // Modern REST v3 field registry hook for safe, reflection-based YAML initialization
 static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    
+
     // Core parameters mapping
     reg.RegisterField<TRestGeant4Metadata>("geant4Version", &TRestGeant4Metadata::fGeant4Version);
     reg.RegisterField<TRestGeant4Metadata>("geometryPath", &TRestGeant4Metadata::fGeometryPath);
     reg.RegisterField<TRestGeant4Metadata>("gdmlFilename", &TRestGeant4Metadata::fGdmlFilename);
     reg.RegisterField<TRestGeant4Metadata>("gdmlReference", &TRestGeant4Metadata::fGdmlReference);
     reg.RegisterField<TRestGeant4Metadata>("materialsReference", &TRestGeant4Metadata::fMaterialsReference);
-    
+
     // Standard Library components (std::pair handles seamlessly via reflection)
     reg.RegisterField<TRestGeant4Metadata>("energyRangeStored", &TRestGeant4Metadata::fEnergyRangeStored);
-    
+
     // MathCore components
     reg.RegisterField<TRestGeant4Metadata>("magneticField", &TRestGeant4Metadata::fMagneticField);
-    
+
     // Physics and simulation chains
     reg.RegisterField<TRestGeant4Metadata>("subEventTimeDelay", &TRestGeant4Metadata::fSubEventTimeDelay);
     reg.RegisterField<TRestGeant4Metadata>("fullChain", &TRestGeant4Metadata::fFullChain);
     reg.RegisterField<TRestGeant4Metadata>("resetGlobalTime", &TRestGeant4Metadata::fResetGlobalTime);
     reg.RegisterField<TRestGeant4Metadata>("resetTimePrecision", &TRestGeant4Metadata::fResetTimePrecision);
-    
+
     // Event loop control
     reg.RegisterField<TRestGeant4Metadata>("nEvents", &TRestGeant4Metadata::fNEvents);
     reg.RegisterField<TRestGeant4Metadata>("nRequestedEntries", &TRestGeant4Metadata::fNRequestedEntries);
-    reg.RegisterField<TRestGeant4Metadata>("simulationMaxTimeSeconds", &TRestGeant4Metadata::fSimulationMaxTimeSeconds);
+    reg.RegisterField<TRestGeant4Metadata>("simulationMaxTimeSeconds",
+                                           &TRestGeant4Metadata::fSimulationMaxTimeSeconds);
     reg.RegisterField<TRestGeant4Metadata>("seed", &TRestGeant4Metadata::fSeed);
-    
+
     // Structural boolean options
     reg.RegisterField<TRestGeant4Metadata>("saveAllEvents", &TRestGeant4Metadata::fSaveAllEvents);
-    reg.RegisterField<TRestGeant4Metadata>("storeHadronicTargetInfo", &TRestGeant4Metadata::fStoreHadronicTargetInfo);
-    reg.RegisterField<TRestGeant4Metadata>("removeUnwantedTracks", &TRestGeant4Metadata::fRemoveUnwantedTracks);
+    reg.RegisterField<TRestGeant4Metadata>("storeHadronicTargetInfo",
+                                           &TRestGeant4Metadata::fStoreHadronicTargetInfo);
+    reg.RegisterField<TRestGeant4Metadata>("removeUnwantedTracks",
+                                           &TRestGeant4Metadata::fRemoveUnwantedTracks);
     reg.RegisterField<TRestGeant4Metadata>("storeTracks", &TRestGeant4Metadata::fStoreTracks);
-    reg.RegisterField<TRestGeant4Metadata>("removeUnwantedTracksKeepZeroEnergyTracks", &TRestGeant4Metadata::fRemoveUnwantedTracksKeepZeroEnergyTracks);
+    reg.RegisterField<TRestGeant4Metadata>("removeUnwantedTracksKeepZeroEnergyTracks",
+                                           &TRestGeant4Metadata::fRemoveUnwantedTracksKeepZeroEnergyTracks);
     reg.RegisterField<TRestGeant4Metadata>("registerEmptyTracks", &TRestGeant4Metadata::fRegisterEmptyTracks);
-    
+
     return true;
 }();
 
 /// \brief Default constructor.
-TRestGeant4Metadata::TRestGeant4Metadata() : TRestMetadata() {
-    fName = "TRestGeant4Metadata";
-}
+TRestGeant4Metadata::TRestGeant4Metadata() : TRestMetadata() { fName = "TRestGeant4Metadata"; }
 
 /// \brief Constructor using raw config file path.
 TRestGeant4Metadata::TRestGeant4Metadata(const char* configFilename, const std::string& name)
@@ -83,9 +86,7 @@ TRestGeant4Metadata::TRestGeant4Metadata(const std::string& instanceName, const 
 }
 
 /// \brief Destructor clean-up logic.
-TRestGeant4Metadata::~TRestGeant4Metadata() {
-    RemoveParticleSources();
-}
+TRestGeant4Metadata::~TRestGeant4Metadata() { RemoveParticleSources(); }
 
 /// \brief Pre-allocation and basic environment state setups.
 void TRestGeant4Metadata::Clear() {
@@ -184,7 +185,7 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fSensitiveVolumes = other.fSensitiveVolumes;
     fRemoveUnwantedTracksVolumesToKeep = other.fRemoveUnwantedTracksVolumesToKeep;
     fKillVolumes = other.fKillVolumes;
-    fNEvents += other.fNEvents; // Cumulative update on events count
+    fNEvents += other.fNEvents;  // Cumulative update on events count
     fNRequestedEntries += other.fNRequestedEntries;
     fSimulationMaxTimeSeconds = other.fSimulationMaxTimeSeconds;
     fSimulationTime += other.fSimulationTime;
@@ -244,9 +245,7 @@ int TRestGeant4Metadata::GetActiveVolumeID(const std::string& name) {
 }
 
 /// \brief Checks whether a given volume layout exists inside storage tracking.
-bool TRestGeant4Metadata::isVolumeStored(const std::string& volume) const {
-    return IsActiveVolume(volume);
-}
+bool TRestGeant4Metadata::isVolumeStored(const std::string& volume) const { return IsActiveVolume(volume); }
 
 /// \brief Registers or updates tracking states on a structural simulation volume.
 void TRestGeant4Metadata::SetActiveVolume(const std::string& name, double chance, double maxStep) {
@@ -297,4 +296,3 @@ void TRestGeant4Metadata::PrintMetadata() {
         RESTMetadata << YAML::Dump(fNode) << RESTendl;
     }
 }
-

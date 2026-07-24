@@ -1,17 +1,17 @@
 #pragma once
 
-#include <vector>
-#include <string>
+#include <algorithm>
 #include <map>
 #include <set>
-#include <utility>
-#include <algorithm>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "TRestEvent.h"
-#include "TRestHits.h"
-#include "TRestGeant4Track.h"
 #include "TRestGeant4Metadata.h"
+#include "TRestGeant4Track.h"
+#include "TRestHits.h"
 
 class TTree;
 class TRestRun;
@@ -40,7 +40,7 @@ struct TRestGeant4TrackData {
 };
 
 // ============================================================================
-//  TRestGeant4EventData (AOD Plano unificado con TRestHitsData)
+//  TRestGeant4EventData (Unified flat AOD with TRestHitsData)
 // ============================================================================
 struct TRestGeant4EventData {
     ROOT::Math::XYZVector primaryPosition;
@@ -69,7 +69,7 @@ struct TRestGeant4EventData {
     std::vector<std::string> trackCreatorProcesses;
     std::vector<std::string> trackDepositedEnergy;
     std::vector<double> trackInitialEnergies;
-    
+
     std::vector<int> trackStartIndices;
     std::vector<int> trackNHits;
 
@@ -82,27 +82,26 @@ struct TRestGeant4EventData {
 
     void clear() {
         auto clear_all = [](auto&... vecs) { (vecs.clear(), ...); };
-        clear_all(primaryParticleNames, primaryEnergies, primaryDirections,
-                  volumeStored, volumeStoredNames, volumeDepositedEnergy,
-                  trackIDs, parentIDs, trackParticleNames, trackCreatorProcesses, trackDepositedEnergy,
-                  trackInitialEnergies, trackStartIndices, trackNHits,
-                  crossVolumeNames, crossParticleNames, crossProcessNames, crossDepositedEnergies);
+        clear_all(primaryParticleNames, primaryEnergies, primaryDirections, volumeStored, volumeStoredNames,
+                  volumeDepositedEnergy, trackIDs, parentIDs, trackParticleNames, trackCreatorProcesses,
+                  trackDepositedEnergy, trackInitialEnergies, trackStartIndices, trackNHits, crossVolumeNames,
+                  crossParticleNames, crossProcessNames, crossDepositedEnergies);
 
-        hitsStorage.clear(); 
+        hitsStorage.clear();
 
         subEventParticleName.clear();
         primaryPosition = {};
         subEventPosition = {};
         subEventDirection = {};
-        
-        subEventEnergy = totalDepositedEnergy = sensitiveVolumeEnergy = 
-        eventTimeWall = eventTimeWallPrimaryGeneration = 0.0;
+
+        subEventEnergy = totalDepositedEnergy = sensitiveVolumeEnergy = eventTimeWall =
+            eventTimeWallPrimaryGeneration = 0.0;
         nVolumes = 0;
     }
 };
 
 // ============================================================================
-//  TRestGeant4TrackView 
+//  TRestGeant4TrackView
 // ============================================================================
 class TRestGeant4TrackView : public TRestHits {
    public:
@@ -110,9 +109,9 @@ class TRestGeant4TrackView : public TRestHits {
     int fTrackIdx = -1;
 
    public:
-    TRestGeant4TrackView(TRestGeant4EventData* data, int idx) 
+    TRestGeant4TrackView(TRestGeant4EventData* data, int idx)
         : TRestHits(&(data->hitsStorage), data->trackStartIndices[idx], data->trackNHits[idx]),
-          fEventData(data), 
+          fEventData(data),
           fTrackIdx(idx) {}
 
     int GetTrackID() const { return fEventData->trackIDs[fTrackIdx]; }
@@ -126,10 +125,10 @@ class TRestGeant4TrackView : public TRestHits {
 //  TRestGeant4Event
 // ============================================================================
 class TRestGeant4Event : public TRestEvent {
-  private:
-   mutable std::unordered_map<std::string, double> fVolumeEnergyCache;
-   std::unordered_map<std::string, size_t> fCrossIndexMap;
-   std::unordered_map<std::string, size_t> fTradVolumeIndexMap;
+   private:
+    mutable std::unordered_map<std::string, double> fVolumeEnergyCache;
+    std::unordered_map<std::string, size_t> fCrossIndexMap;
+    std::unordered_map<std::string, size_t> fTradVolumeIndexMap;
 
    public:
     using XYZVector = ROOT::Math::XYZVector;
@@ -143,7 +142,7 @@ class TRestGeant4Event : public TRestEvent {
     std::vector<XYZVector>* fPtrPrimaryDirections = nullptr;
     std::vector<int>* fPtrTrackIDs = nullptr;
     std::vector<int>* fPtrTrackStartIndices = nullptr;
-    
+
     std::vector<float>* fPtrHitX = nullptr;
     std::vector<float>* fPtrHitY = nullptr;
     std::vector<float>* fPtrHitZ = nullptr;
@@ -152,7 +151,6 @@ class TRestGeant4Event : public TRestEvent {
 
     std::vector<TRestGeant4Track> fTracks;
     std::map<int, int> fTrackIDToTrackIndex;
-    
 
     TRestGeant4Event(const G4Event* event);
     bool InsertTrack(const G4Track* track);
@@ -184,7 +182,7 @@ class TRestGeant4Event : public TRestEvent {
         fEventData.parentIDs.clear();
         fEventData.trackParticleNames.clear();
         fEventData.trackCreatorProcesses.clear();
-        fEventData.trackDepositedEnergy.clear(); // Corregido el punto y coma faltante
+        fEventData.trackDepositedEnergy.clear();  // Keep vectors in sync when clearing track state.
         fEventData.trackInitialEnergies.clear();
         fEventData.trackStartIndices.clear();
         fEventData.trackNHits.clear();
@@ -199,14 +197,14 @@ class TRestGeant4Event : public TRestEvent {
     void InitializeOnDetectorConstruction(const std::string&, const G4VPhysicalVolume*) {}
     void PopulateFromGeant4World(const G4VPhysicalVolume* world);
 
- void CreateBranches(TTree* tree) override {
+    void CreateBranches(TTree* tree) override {
         TRestEvent::CreateBranches(tree);
-        
+
         tree->Branch("fPrimaryPosition", &fEventData.primaryPosition);
         tree->Branch("fPrimaryParticleNames", &fEventData.primaryParticleNames);
         tree->Branch("fPrimaryEnergies", &fEventData.primaryEnergies);
         tree->Branch("fPrimaryDirections", &fEventData.primaryDirections);
-        
+
         tree->Branch("fSubEventParticleName", &fEventData.subEventParticleName);
         tree->Branch("fSubEventEnergy", &fEventData.subEventEnergy);
         tree->Branch("fSubEventPosition", &fEventData.subEventPosition);
@@ -230,7 +228,7 @@ class TRestGeant4Event : public TRestEvent {
         tree->Branch("fTrackInitialEnergies", &fEventData.trackInitialEnergies);
         tree->Branch("fTrackStartIndices", &fEventData.trackStartIndices);
         tree->Branch("fTrackNHits", &fEventData.trackNHits);
-        
+
         tree->Branch("fHitX", &fEventData.hitsStorage.x);
         tree->Branch("fHitY", &fEventData.hitsStorage.y);
         tree->Branch("fHitZ", &fEventData.hitsStorage.z);
@@ -244,15 +242,15 @@ class TRestGeant4Event : public TRestEvent {
         tree->Branch("fCrossDepositedEnergies", &fEventData.crossDepositedEnergies);
     }
 
-void SetBranchAddresses(TTree* tree) override {
+    void SetBranchAddresses(TTree* tree) override {
         TRestEvent::SetBranchAddresses(tree);
-        
+
         fPtrPrimaryNames = &fEventData.primaryParticleNames;
         fPtrPrimaryEnergies = &fEventData.primaryEnergies;
         fPtrPrimaryDirections = &fEventData.primaryDirections;
         fPtrTrackIDs = &fEventData.trackIDs;
         fPtrTrackStartIndices = &fEventData.trackStartIndices;
-        
+
         fPtrHitX = &fEventData.hitsStorage.x;
         fPtrHitY = &fEventData.hitsStorage.y;
         fPtrHitZ = &fEventData.hitsStorage.z;
@@ -262,7 +260,7 @@ void SetBranchAddresses(TTree* tree) override {
         tree->SetBranchAddress("fPrimaryParticleNames", &fPtrPrimaryNames);
         tree->SetBranchAddress("fPrimaryEnergies", &fPtrPrimaryEnergies);
         tree->SetBranchAddress("fPrimaryDirections", &fPtrPrimaryDirections);
-        
+
         tree->SetBranchAddress("fSubEventParticleName", &fEventData.subEventParticleName);
         tree->SetBranchAddress("fSubEventEnergy", &fEventData.subEventEnergy);
         tree->SetBranchAddress("fSubEventPosition", &fEventData.subEventPosition);
@@ -286,7 +284,7 @@ void SetBranchAddresses(TTree* tree) override {
         tree->SetBranchAddress("fTrackInitialEnergies", &fEventData.trackInitialEnergies);
         tree->SetBranchAddress("fTrackStartIndices", &fPtrTrackStartIndices);
         tree->SetBranchAddress("fTrackNHits", &fEventData.trackNHits);
-        
+
         tree->SetBranchAddress("fHitX", &fPtrHitX);
         tree->SetBranchAddress("fHitY", &fPtrHitY);
         tree->SetBranchAddress("fHitZ", &fPtrHitZ);
@@ -316,12 +314,11 @@ void SetBranchAddresses(TTree* tree) override {
         }
     }
 
-    void AddTrack(int trackID, int parentID, const std::string& pName, const std::string& process, 
+    void AddTrack(int trackID, int parentID, const std::string& pName, const std::string& process,
                   double initialEnergy, const TRestHits& hits) {
-        
         fEventData.trackStartIndices.push_back((int)fEventData.hitsStorage.x.size());
         fEventData.trackNHits.push_back((int)hits.GetNumberOfHits());
-        
+
         fEventData.trackIDs.push_back(trackID);
         fEventData.parentIDs.push_back(parentID);
         fEventData.trackParticleNames.push_back(pName);
@@ -361,7 +358,8 @@ void SetBranchAddresses(TTree* tree) override {
     }
 
     TRestHits GetEventHits() const {
-        return TRestHits(const_cast<TRestHitsData*>(&fEventData.hitsStorage), 0, (int)fEventData.hitsStorage.x.size());
+        return TRestHits(const_cast<TRestHitsData*>(&fEventData.hitsStorage), 0,
+                         (int)fEventData.hitsStorage.x.size());
     }
 
     inline double GetTotalDepositedEnergy() const { return fEventData.totalDepositedEnergy; }
@@ -372,8 +370,7 @@ void SetBranchAddresses(TTree* tree) override {
         fEventData.volumeDepositedEnergy[volID] = eDep;
     }
 
-        inline double GetEnergyInVolume(const std::string& volumeName) const {
-
+    inline double GetEnergyInVolume(const std::string& volumeName) const {
         if (fVolumeEnergyCache.empty() && !fEventData.crossVolumeNames.empty()) {
             for (size_t i = 0; i < fEventData.crossVolumeNames.size(); ++i) {
                 fVolumeEnergyCache[fEventData.crossVolumeNames[i]] += fEventData.crossDepositedEnergies[i];
@@ -387,9 +384,11 @@ void SetBranchAddresses(TTree* tree) override {
         return 0.0;
     }
 
-    void AddEnergyInVolumeForParticleForProcess(Double_t energy, const std::string& volumeName,const std::string& particleName, const std::string& processName);
+    void AddEnergyInVolumeForParticleForProcess(Double_t energy, const std::string& volumeName,
+                                                const std::string& particleName,
+                                                const std::string& processName);
 
-    void PrintEvent() const override { };
+    void PrintEvent() const override {};
     TPad* DrawEvent(const TString& option = "") const override { return nullptr; };
 
     TRestGeant4Event() = default;

@@ -76,7 +76,7 @@ class TRestEvent {
 
     /// \brief Sets subevent tag.
     /// \param tag Subevent label.
-    void SetSubEventTag(const std::string& tag) { 
+    void SetSubEventTag(const std::string& tag) {
         strncpy(fInfo.subEventTag, tag.c_str(), sizeof(fInfo.subEventTag) - 1);
         fInfo.subEventTag[sizeof(fInfo.subEventTag) - 1] = '\0';
     }
@@ -115,7 +115,7 @@ class TRestEvent {
 
     /// \brief Returns subevent tag.
     /// \return Subevent tag string.
-     std::string GetSubEventTag() const { return std::string(fInfo.subEventTag); }
+    std::string GetSubEventTag() const { return std::string(fInfo.subEventTag); }
 
     /// \brief Returns run origin.
     /// \return Run number.
@@ -140,31 +140,31 @@ class TRestEvent {
     /// \brief Creates common ROOT branches for event metadata.
     /// \param tree Target ROOT tree.
     virtual void CreateBranches(TTree* tree) {
-        tree->Branch("runOrigin",    &fInfo.runOrigin,       "runOrigin/I");
-        tree->Branch("subRunOrigin", &fInfo.subRunOrigin,    "subRunOrigin/I");
-        tree->Branch("eventID",      &fInfo.eventID,         "eventID/I");
-        tree->Branch("subEventID",   &fInfo.subEventID,      "subEventID/I");
-        tree->Branch("timeSeconds",  &fInfo.timeSeconds,     "timeSeconds/L");
+        tree->Branch("runOrigin", &fInfo.runOrigin, "runOrigin/I");
+        tree->Branch("subRunOrigin", &fInfo.subRunOrigin, "subRunOrigin/I");
+        tree->Branch("eventID", &fInfo.eventID, "eventID/I");
+        tree->Branch("subEventID", &fInfo.subEventID, "subEventID/I");
+        tree->Branch("timeSeconds", &fInfo.timeSeconds, "timeSeconds/L");
         tree->Branch("timeNanoSecs", &fInfo.timeNanoSeconds, "timeNanoSecs/I");
-        tree->Branch("ok",           &fInfo.ok,              "ok/O");
-        tree->Branch("subEventTag",  fInfo.subEventTag,      "subEventTag/C");
+        tree->Branch("ok", &fInfo.ok, "ok/O");
+        tree->Branch("subEventTag", fInfo.subEventTag, "subEventTag/C");
     }
 
     /// \brief Binds common ROOT branch addresses for event metadata.
     /// \param tree Source ROOT tree.
     virtual void SetBranchAddresses(TTree* tree) {
-        tree->SetBranchAddress("runOrigin",    &fInfo.runOrigin);
+        tree->SetBranchAddress("runOrigin", &fInfo.runOrigin);
         tree->SetBranchAddress("subRunOrigin", &fInfo.subRunOrigin);
-        tree->SetBranchAddress("eventID",      &fInfo.eventID);
-        tree->SetBranchAddress("subEventID",   &fInfo.subEventID);
-        tree->SetBranchAddress("timeSeconds",  &fInfo.timeSeconds);
+        tree->SetBranchAddress("eventID", &fInfo.eventID);
+        tree->SetBranchAddress("subEventID", &fInfo.subEventID);
+        tree->SetBranchAddress("timeSeconds", &fInfo.timeSeconds);
         tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
-        tree->SetBranchAddress("ok",           &fInfo.ok);
-        tree->SetBranchAddress("subEventTag",  fInfo.subEventTag);
+        tree->SetBranchAddress("ok", &fInfo.ok);
+        tree->SetBranchAddress("subEventTag", fInfo.subEventTag);
     }
 
     /// \brief Refreshes cached views after ROOT read operations.
-    virtual void RefreshViews() const { }
+    virtual void RefreshViews() const {}
 
     /// \brief Copies generic event content from another event.
     /// \param other Source event pointer.

@@ -1,23 +1,27 @@
 #include "TRestGeant4GeometryInfo.h"
+
 #include <TPRegexp.h>
-#include <iostream>
+
 #include <algorithm>
+#include <iostream>
 #include <regex>
 
 using namespace std;
 
 /// \brief Modernized entry point to load GDML geometry using ROOT's native TGeoManager engine.
 void TRestGeant4GeometryInfo::LoadGeometryFromGdml(const std::string& gdmlFilename) {
-    cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - Importing via TGeoManager: " << gdmlFilename << endl;
-    
+    cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - Importing via TGeoManager: " << gdmlFilename
+         << endl;
+
     // Import the GDML file directly into ROOT's geometry core engine
     // This replaces the old legacy TXMLEngine manual parsing completely
     fGeoManager = TGeoManager::Import(gdmlFilename.c_str());
     if (!fGeoManager) {
-        cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - ERROR: Failed to load GDML: " << gdmlFilename << endl;
+        cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - ERROR: Failed to load GDML: " << gdmlFilename
+             << endl;
         exit(1);
     }
-    
+
     // Check if the root geometry structure utilizes assembly constructs
     fIsAssembly = false;
     TGeoVolume* topVolume = fGeoManager->GetTopVolume();
@@ -61,7 +65,8 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumes() const 
 }
 
 /// \brief Helper method to filter logical volume structures matching an explicit regular expression pattern.
-std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingExpression(const std::string& expression) const {
+std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingExpression(
+    const std::string& expression) const {
     std::vector<std::string> matched;
     std::vector<std::string> allLogical = GetAllLogicalVolumes();
     TPRegexp regex(expression.c_str());
@@ -75,7 +80,8 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingEx
 }
 
 /// \brief Helper method to filter physical volume structures matching an explicit regular expression pattern.
-std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesMatchingExpression(const std::string& expression) const {
+std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesMatchingExpression(
+    const std::string& expression) const {
     std::vector<std::string> matched;
     std::vector<std::string> allPhysical = GetAllPhysicalVolumes();
     TPRegexp regex(expression.c_str());
@@ -94,15 +100,18 @@ std::string TRestGeant4GeometryInfo::GetAlternativePathFromGeant4Path(const std:
     return std::regex_replace(g4Path, std::regex("/"), fPathSeparator);
 }
 
-std::string TRestGeant4GeometryInfo::GetAlternativeNameFromGeant4PhysicalName(const std::string& g4Name) const {
-    return g4Name; // Simplified fallback mapping since TGeoManager references the true unique node paths
+std::string TRestGeant4GeometryInfo::GetAlternativeNameFromGeant4PhysicalName(
+    const std::string& g4Name) const {
+    return g4Name;  // Simplified fallback mapping since TGeoManager references the true unique node paths
 }
 
-std::set<std::string> TRestGeant4GeometryInfo::GetAlternativeNamesFromGeant4PhysicalName(const std::string& g4Name) const {
+std::set<std::string> TRestGeant4GeometryInfo::GetAlternativeNamesFromGeant4PhysicalName(
+    const std::string& g4Name) const {
     return {g4Name};
 }
 
-std::string TRestGeant4GeometryInfo::GetGeant4PhysicalNameFromAlternativeName(const std::string& altName) const {
+std::string TRestGeant4GeometryInfo::GetGeant4PhysicalNameFromAlternativeName(
+    const std::string& altName) const {
     return altName;
 }
 

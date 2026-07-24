@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
-#include <iostream>
-
 #include <Math/Vector3D.h>
+
+#include <iostream>
+#include <string>
 
 /// A class used to store particle properties modernized for REST-for-Physics
 class TRestGeant4Particle {
@@ -45,5 +45,4 @@ class TRestGeant4Particle {
     TRestGeant4Particle();
     // Destructor
     virtual ~TRestGeant4Particle();
-
 };

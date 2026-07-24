@@ -1,10 +1,11 @@
 #pragma once
 
-#include "TRestMetadata.h"
-#include "TRestDetectorReadout.h"
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "TRestDetectorReadout.h"
+#include "TRestMetadata.h"
 
 struct TRestReadoutRequest {
     std::string fInstanceName;
@@ -13,12 +14,12 @@ struct TRestReadoutRequest {
 };
 
 class TRestDetectorReadoutManager : public TRestMetadata {
-private:
+   private:
     std::map<std::string, TRestDetectorReadout*> fReadoutMap;
     std::vector<TRestReadoutRequest> fRequestedReadouts;
     std::string fInputFileName;
 
-public:
+   public:
     TRestDetectorReadoutManager();
     using TRestMetadata::TRestMetadata;
     virtual ~TRestDetectorReadoutManager();

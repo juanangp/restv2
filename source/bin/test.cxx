@@ -40,11 +40,10 @@ int main(int argc, char** argv) {
         }
 
         RESTLog << "\n--- TRestManager ---" << RESTendl;
-        TRestManager mgr("manager",cfg["manager"]);
+        TRestManager mgr("manager", cfg["manager"]);
         mgr.PrintMetadata();
         mgr.Run();
         mgr.SaveMetadata();
-
 
     } catch (const std::exception& ex) {
         std::cerr << "[ERROR] " << ex.what() << "\n";

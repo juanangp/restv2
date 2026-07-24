@@ -1,13 +1,12 @@
 #include "TRestMetadata.h"
-#include "TRestTools.h"
 
 #include <TObjString.h>
 
+#include "TRestTools.h"
+
 using namespace TRestTools;
 
-
-TRestMetadata::TRestMetadata(const std::string& instanceName,
-                             const YAML::Node& node)
+TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& node)
     : fName(instanceName), fNode(node) {
     if (fNode) {
         fName = ReadYAMLParamOrDefault<std::string>(fNode, "name", fName);
@@ -29,13 +28,12 @@ void TRestMetadata::ReadYAMLVerbose(YAML::Node& node) {
         node, "verbose", TRestLogManager::GetStringFromVerbose(TRestLogManager::globalVerboseLevel));
     fVerboseLevel = TRestLogManager::GetVerboseLevelFromString(verboseValue);
     auto& logMgr = TRestLogManager::instance();
-    logMgr.SetLevel(this->GetClassName(),fVerboseLevel);
+    logMgr.SetLevel(this->GetClassName(), fVerboseLevel);
     TRestTools::SetNodeParameter(node, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
 }
 
-void TRestMetadata::WriteMetadata(TFile* file, 
-                        const std::string& instanceName, 
-                        const YAML::Node& configNode) {
+void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
+                                  const YAML::Node& configNode) {
     if (!file || file->IsZombie()) {
         throw std::runtime_error("TRestMetadata::WriteRESTMetadata: El archivo ROOT no es válido.");
     }
@@ -44,7 +42,7 @@ void TRestMetadata::WriteMetadata(TFile* file,
     }
     if (!configNode || configNode.IsNull()) return;
 
-    file->cd(); 
+    file->cd();
 
     TDirectory* metadataDir = file->GetDirectory("RESTMetadataStore");
     if (!metadataDir) {
@@ -53,22 +51,22 @@ void TRestMetadata::WriteMetadata(TFile* file,
             throw std::runtime_error("TRestMetadata::WriteMetadata: cannot create RESTMetadataStore");
         }
     }
-    
+
     metadataDir->cd();
 
     std::string yamlDump = YAML::Dump(configNode);
 
     auto* rootYamlString = new TObjString(yamlDump.c_str());
-    
+
     rootYamlString->Write(instanceName.c_str(), TObject::kOverwrite);
-    
+
     delete rootYamlString;
 
     file->cd();
 }
 
 YAML::Node TRestMetadata::ReadMetadata(TFile* file, const std::string& instanceName) {
-if (!file || file->IsZombie()) return YAML::Node();
+    if (!file || file->IsZombie()) return YAML::Node();
     if (!file || file->IsZombie()) return YAML::Node();
 
     file->cd();
@@ -86,7 +84,7 @@ if (!file || file->IsZombie()) return YAML::Node();
         try {
             node = YAML::Load(yamlObj->GetString().Data());
         } catch (const std::exception&) {
-          throw std::runtime_error("TRestMetadata::ReadMetadata: Cannot read RESTMetadataStore");
+            throw std::runtime_error("TRestMetadata::ReadMetadata: Cannot read RESTMetadataStore");
         }
     }
 
@@ -95,11 +93,9 @@ if (!file || file->IsZombie()) return YAML::Node();
     return node;
 }
 
-void TRestMetadata::PrintMetadata(){
-  if(fNode && !fNode.IsNull()){
-    RESTMetadata << "===" << GetClassName() << "===" << RESTendl;
-    RESTMetadata << YAML::Dump(fNode) << RESTendl;
-  }
-
-
+void TRestMetadata::PrintMetadata() {
+    if (fNode && !fNode.IsNull()) {
+        RESTMetadata << "===" << GetClassName() << "===" << RESTendl;
+        RESTMetadata << YAML::Dump(fNode) << RESTendl;
+    }
 }

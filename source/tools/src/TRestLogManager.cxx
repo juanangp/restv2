@@ -5,10 +5,10 @@ void TRestLogger::log(TRestLogManager::REST_Verbose_Level level, const std::stri
     TRestLogManager::REST_Verbose_Level minLevel = TRestLogManager::instance().GetVerboseLevel(className);
     if (level > minLevel) return;
 
-    // -------- Consola (con colores) --------
+    // -------- Console output (with colors) --------
     std::cout << color << msg << COLOR_RESET;
 
-    // -------- Archivo (sin colores) --------
+    // -------- File output (without colors) --------
     if (!TRestLogManager::instance().hasFile()) return;
 
     // Timestamp

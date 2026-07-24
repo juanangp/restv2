@@ -1,8 +1,7 @@
 #include "TRestGeant4Event.h"
 
-
 // ---------------------------------------------------------------------------
-// Self-registration in EventRegistry 
+// Self-registration in EventRegistry
 // ---------------------------------------------------------------------------
 namespace {
 const bool kRegistered = []() {
@@ -12,24 +11,23 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
-void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(Double_t energy, 
-                                                              const std::string& volumeName,
-                                                              const std::string& particleName, 
+void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(Double_t energy, const std::string& volumeName,
+                                                              const std::string& particleName,
                                                               const std::string& processName) {
     if (energy <= 0) return;
 
     fEventData.totalDepositedEnergy += energy;
 
-    // --- 1. OPTIMIZACIÓN AOD DESGLOSADO ---
-    // Creamos una clave única compacta uniendo los strings
+    // --- 1. Decomposed AOD optimization ---
+    // Create a compact unique key by concatenating the strings.
     std::string crossKey = volumeName + "\0" + particleName + "\0" + processName;
-    
+
     auto itCross = fCrossIndexMap.find(crossKey);
     if (itCross != fCrossIndexMap.end()) {
-        // Si ya existe, accedemos directamente por índice en O(1) sin bucles
+        // If it already exists, update it directly by index in O(1).
         fEventData.crossDepositedEnergies[itCross->second] += energy;
     } else {
-        // Si es nuevo, insertamos al final y registramos su posición
+        // If it is new, append it and register its position.
         size_t newIdx = fEventData.crossVolumeNames.size();
         fEventData.crossVolumeNames.push_back(volumeName);
         fEventData.crossParticleNames.push_back(particleName);
@@ -38,13 +36,13 @@ void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(Double_t energy,
         fCrossIndexMap[crossKey] = newIdx;
     }
 
-    // --- 2. OPTIMIZACIÓN TRADICIONAL REST ---
+    // --- 2. Traditional REST optimization ---
     auto itTrad = fTradVolumeIndexMap.find(volumeName);
     if (itTrad != fTradVolumeIndexMap.end()) {
-        // Acceso directo por índice en O(1)
+        // Direct O(1) access by index.
         fEventData.volumeDepositedEnergy[itTrad->second] += energy;
     } else {
-        // Registro de nuevo volumen
+        // Register a new volume entry.
         size_t newVolIdx = fEventData.volumeStoredNames.size();
         fEventData.volumeStoredNames.push_back(volumeName);
         fEventData.volumeDepositedEnergy.push_back(energy);
@@ -74,9 +72,9 @@ void TRestGeant4Event::SyncTracksToEventData() {
         fEventData.parentIDs.push_back(track.GetParentID());
         fEventData.trackParticleNames.push_back(track.GetParticleName());
         fEventData.trackCreatorProcesses.push_back(track.GetCreatorProcess());
-        
+
         fEventData.trackInitialEnergies.push_back(track.GetTotalEnergy());
-        
+
         fEventData.trackStartIndices.push_back(currentHitStartIndex);
         fEventData.trackNHits.push_back(track.GetNumberOfHits());
 
@@ -85,5 +83,3 @@ void TRestGeant4Event::SyncTracksToEventData() {
 
     this->RefreshViews();
 }
-
-

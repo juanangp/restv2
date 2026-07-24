@@ -47,7 +47,7 @@ static std::map<std::string, std::pair<Physical_Unit, double> > REST_Units_Map =
     {"mg", {Mass, 1e-6}},    // 1 mg = 1e-6 kg
     {"g", {Mass, 1e-3}},     // 1 g = 0.001 kg
     {"kg", {Mass, 1.}},      // base
-    {"ton", {Mass, 1000.}},  // 1 ton (métrica) = 1000 kg
+    {"ton", {Mass, 1000.}},  // 1 metric ton = 1000 kg
 
     // ================== Voltage (base = V) ==================
     {"mV", {Voltage, 1e-3}},   // 1 mV = 0.001 V

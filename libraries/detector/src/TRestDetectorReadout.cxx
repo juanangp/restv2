@@ -1,15 +1,17 @@
-#include "TRestConstants.h"
 #include "TRestDetectorReadout.h"
-#include "TGeoNode.h"
-#include "TGeoMatrix.h"
-#include "TError.h"
-#include "TDirectory.h"
-#include "TFile.h"
-#include "TObjString.h"
+
 #include <fstream>
-#include <sstream>
 #include <iostream>
 #include <limits>
+#include <sstream>
+
+#include "TDirectory.h"
+#include "TError.h"
+#include "TFile.h"
+#include "TGeoMatrix.h"
+#include "TGeoNode.h"
+#include "TObjString.h"
+#include "TRestConstants.h"
 
 using namespace TRestConstants;
 
@@ -20,9 +22,7 @@ static const bool TRestDetectorReadout_FieldsRegistered = []() {
 }();
 
 /// \brief Constructs a generic readout metadata object with default name.
-TRestDetectorReadout::TRestDetectorReadout() : TRestMetadata() {
-    fName = "TRestDetectorReadout";
-}
+TRestDetectorReadout::TRestDetectorReadout() : TRestMetadata() { fName = "TRestDetectorReadout"; }
 
 TRestDetectorReadout::TRestDetectorReadout(const std::string& instanceName, const YAML::Node& node)
     : TRestMetadata(instanceName, node) {
@@ -36,27 +36,25 @@ TRestDetectorReadout::TRestDetectorReadout(const std::string& fileName, const st
 
 /// \brief Destructor.
 TRestDetectorReadout::~TRestDetectorReadout() {
-// TGeoManager is globally owned by ROOT (gGeoManager), it unregisters automatically.
+    // TGeoManager is globally owned by ROOT (gGeoManager), it unregisters automatically.
 }
 
 /// \brief Initializes geometry and decoding from YAML.
 void TRestDetectorReadout::LoadConfig() {
-
     UpdateParamsFromYAML<TRestDetectorReadout>(fNode);
 
-    if (!LoadDecoding(fDecodingFile) ){
-        RESTError <<"Decoding file not found "<< RESTendl;
+    if (!LoadDecoding(fDecodingFile)) {
+        RESTError << "Decoding file not found " << RESTendl;
     }
 
     ReadYAMLVerbose(fNode);
 
-    //Sync resolved parameters to the node
+    // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestDetectorReadout>(fNode);
 }
 
-void TRestDetectorReadout::InitializeReadout(){
-
-// Initialize an isolated, silent TGeoManager instance
+void TRestDetectorReadout::InitializeReadout() {
+    // Initialize an isolated, silent TGeoManager instance
     if (fGeoManager) delete fGeoManager;
     fGeoManager = new TGeoManager(fName.c_str(), fName.c_str());
     TGeoManager::SetVerboseLevel(0);
@@ -64,7 +62,6 @@ void TRestDetectorReadout::InitializeReadout(){
     // Create a logical Assembly as Top Volume (no physical materials or vacuum setup required)
     fTopAssembly = fGeoManager->MakeVolumeAssembly("READOUT_TOP");
     fGeoManager->SetTopVolume(fTopAssembly);
-
 }
 
 /// \brief Parses decoding text with `physicalID readoutChannel` rows.
@@ -97,7 +94,7 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
 /// \brief Prints metadata summary for this detector readout.
 void TRestDetectorReadout::PrintMetadata() {
     RESTMetadata << "=== TRestDetectorReadout ===" << RESTendl;
-    if(fNode && !fNode.IsNull())RESTMetadata << YAML::Dump(fNode) << RESTendl;
+    if (fNode && !fNode.IsNull()) RESTMetadata << YAML::Dump(fNode) << RESTendl;
 }
 
 /// \brief Opens a graphical window to visualize the readout geometry.
@@ -110,7 +107,7 @@ void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const 
 
     RESTInfo << "Opening visualizer for readout geometry: " << GetName() << RESTendl;
 
-    // Set visibility settings for the logical assembly container so it doesn't 
+    // Set visibility settings for the logical assembly container so it doesn't
     // obstruct the view of the internal sensitive channels/pixels
     fTopAssembly->SetVisibility(kFALSE);
     fTopAssembly->VisibleDaughters(kTRUE);
@@ -133,13 +130,13 @@ void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannel
     TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
     TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();
 
-    // Ahora el número de nodos corresponde a la cantidad de píxeles reales
+    // The node count now matches the number of physical pixels.
     int nNodes = subAssemblyVol->GetNdaughters();
 
-    // 2. Analizar qué canales electrónicos del evento se han disparado
+    // 2. Analyze which DAQ channels were activated in the event.
     for (int daqID : activeChannels) {
         int targetPhysicalID = -1;
-        
+
         for (const auto& [physicalID, readoutChannel] : fPhysicalToDAQMap) {
             if (readoutChannel == daqID) {
                 targetPhysicalID = physicalID;
@@ -149,31 +146,30 @@ void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannel
 
         if (targetPhysicalID == -1) continue;
 
-        // 3. Buscamos el píxel dentro de los hijos del ensamblaje intermedio
+        // 3. Find the pixel among the intermediate assembly children.
         for (int i = 0; i < nNodes; ++i) {
             TGeoNode* node = subAssemblyVol->GetNode(i);
             int combinedID = node->GetUniqueID();
 
-            if(combinedID == targetPhysicalID) {
-                // Iluminamos en rojo el volumen del píxel del canal activo
+            if (combinedID == targetPhysicalID) {
+                // Highlight the active channel pixel volume in red.
                 node->GetVolume()->SetLineColor(kRed);
             }
         }
     }
 
     fGeoManager->SetVisLevel(10);
-    fGeoManager->SetVisOption(0); 
-    
-    // 4. Redibujar el canvas OpenGL interactivo con toda la estructura rotada
+    fGeoManager->SetVisOption(0);
+
+    // 4. Redraw the interactive OpenGL canvas with the full rotated structure.
     fTopAssembly->Draw("ogl");
 }
-
 
 /// \brief Loads decoding from a text file.
 /// \param decFilename Decoding file path.
 /// \return `true` on successful decoding load.
 bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
-    if (decFilename.empty()){
+    if (decFilename.empty()) {
         Error("TRestDetectorReadout::LoadDecoding", "Cannot open mapping file: %s", decFilename.c_str());
         return false;
     }
@@ -184,7 +180,7 @@ bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
         return false;
     }
 
-    std::cout<<"Loading decoding file "<<decFilename<<std::endl;
+    std::cout << "Loading decoding file " << decFilename << std::endl;
 
     std::stringstream buffer;
     buffer << file.rdbuf();
@@ -237,7 +233,8 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
 /// \param geometryName Geometry object name.
 /// \param decodingName Decoding object name.
 /// \return `true` if import succeeded.
-bool TRestDetectorReadout::Import(TFile* fIn, const std::string& geometryName, const std::string& decodingName) {
+bool TRestDetectorReadout::Import(TFile* fIn, const std::string& geometryName,
+                                  const std::string& decodingName) {
     if (!ImportGeometry(fIn, geometryName)) return false;
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
@@ -262,7 +259,8 @@ bool TRestDetectorReadout::Import(TFile* fIn, const std::string& geometryName, c
 /// \param geometryName Geometry object name.
 /// \param decodingName Decoding object name.
 /// \return `true` if export succeeded.
-bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName, const std::string& decodingName) const {
+bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
+                                  const std::string& decodingName) const {
     if (!fOut || fOut->IsZombie()) return false;
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
@@ -276,7 +274,7 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName, 
         GetGeoManager()->Write(resolvedGeometryName.c_str(), TObject::kOverwrite);
     }
 
-    // Exportación del Decoding (Tu lógica original intacta)
+    // Export the decoding payload (original logic preserved).
     TDirectory* decDir = fOut->GetDirectory("Decodings");
     if (!decDir) decDir = fOut->mkdir("Decodings");
     if (!decDir) return false;
@@ -312,13 +310,13 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName, 
 /// \return DAQ channel ID, or `-1` when no channel is mapped.
 int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) const {
     if (!fGeoManager) {
-      RESTError << "Geometry not initialized " << RESTendl;
-      return -1;
+        RESTError << "Geometry not initialized " << RESTendl;
+        return -1;
     }
 
-    if (fPhysicalToDAQMap.empty()){
-      RESTError << "Decoding not initialazed " << RESTendl;
-      return -1;
+    if (fPhysicalToDAQMap.empty()) {
+        RESTError << "Decoding not initialazed " << RESTendl;
+        return -1;
     }
 
     // ROOT high-speed navigation tree lookup over RAM voxel cells
@@ -337,8 +335,8 @@ int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) c
 /// \return Channel position, or `(nan,nan,nan)` when not found.
 ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
     if (!fTopAssembly) {
-      RESTError << "Geometry not initialized " << RESTendl;
-      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+        RESTError << "Geometry not initialized " << RESTendl;
+        return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     int targetPhysicalID = -1;
@@ -348,9 +346,9 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
             break;
         }
     }
-    if (targetPhysicalID < 0){
-      RESTError << "DaqID " << daqID << " not found" << RESTendl;
-      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+    if (targetPhysicalID < 0) {
+        RESTError << "DaqID " << daqID << " not found" << RESTendl;
+        return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     if (fTopAssembly->GetNdaughters() == 0) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
@@ -360,13 +358,13 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
     int nNodes = subAssemblyVol->GetNdaughters();
     for (int i = 0; i < nNodes; ++i) {
         TGeoNode* node = subAssemblyVol->GetNode(i);
-        
+
         if (static_cast<int>(node->GetUniqueID()) == targetPhysicalID) {
             const TGeoMatrix* matrix = node->GetMatrix();
             if (!matrix) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
-            
+
             const double* localTrans = matrix->GetTranslation();
-            
+
             const TGeoMatrix* globalMatrix = subAssemblyNode->GetMatrix();
             if (!globalMatrix) return ROOT::Math::XYZVector(localTrans[0], localTrans[1], localTrans[2]);
 
@@ -376,7 +374,7 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
             return ROOT::Math::XYZVector(masterTrans[0], masterTrans[1], masterTrans[2]);
         }
     }
-    
+
     return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
 }
 

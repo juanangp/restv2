@@ -1,4 +1,3 @@
-#include "TRestConstants.h"
 #include "TRestMicromegasReadout.h"
 
 #include <stdexcept>
@@ -8,17 +7,18 @@
 #include "TGeoMatrix.h"
 #include "TGeoNode.h"
 #include "TGeoVolume.h"
+#include "TRestConstants.h"
 
 using namespace TRestConstants;
 
 static const bool TRestMicromegasReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
-    reg.RegisterField<TRestMicromegasReadout>("positionRelative",  &TRestMicromegasReadout::fPositionRelative);
-    reg.RegisterField<TRestMicromegasReadout>("globalRotation",    &TRestMicromegasReadout::fGlobalRotation);
-    reg.RegisterField<TRestMicromegasReadout>("nChannels",         &TRestMicromegasReadout::fNChannels);
-    reg.RegisterField<TRestMicromegasReadout>("pitch",             &TRestMicromegasReadout::fPitch);
-    reg.RegisterField<TRestMicromegasReadout>("thickness",         &TRestMicromegasReadout::fThickness);
+    reg.RegisterField<TRestMicromegasReadout>("positionRelative", &TRestMicromegasReadout::fPositionRelative);
+    reg.RegisterField<TRestMicromegasReadout>("globalRotation", &TRestMicromegasReadout::fGlobalRotation);
+    reg.RegisterField<TRestMicromegasReadout>("nChannels", &TRestMicromegasReadout::fNChannels);
+    reg.RegisterField<TRestMicromegasReadout>("pitch", &TRestMicromegasReadout::fPitch);
+    reg.RegisterField<TRestMicromegasReadout>("thickness", &TRestMicromegasReadout::fThickness);
 
     return true;
 }();
@@ -27,10 +27,8 @@ namespace {
 /// \brief Registers this metadata type in the REST metadata registry.
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestMicromegasReadout",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestMicromegasReadout", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestMicromegasReadout>(instanceName, params);
-
         });
     return true;
 }();
@@ -53,20 +51,21 @@ TRestMicromegasReadout::TRestMicromegasReadout(const std::string& fileName, cons
 void TRestMicromegasReadout::LoadConfig() {
     TRestDetectorReadout::LoadConfig();
 
-    if (!fNode || fNode.IsNull() ) {
+    if (!fNode || fNode.IsNull()) {
         RESTError << "TRestMicromegasReadout::LoadConfig YAML node is missing" << RESTendl;
         return;
     }
 
     fReadoutNode = fNode["readoutParameters"];
 
-    if (!fReadoutNode || fReadoutNode.IsNull() ) {
-       RESTError << "TRestMicromegasReadout::LoadConfig - 'readoutParameters' section is missing" << RESTendl;
-       return;
+    if (!fReadoutNode || fReadoutNode.IsNull()) {
+        RESTError << "TRestMicromegasReadout::LoadConfig - 'readoutParameters' section is missing"
+                  << RESTendl;
+        return;
     }
 
     UpdateParamsFromYAML<TRestMicromegasReadout>(fReadoutNode);
-    //Sync resolved parameters to the node
+    // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestMicromegasReadout>(fReadoutNode);
 }
 
@@ -76,21 +75,23 @@ void TRestMicromegasReadout::LoadConfig() {
 /// The method creates one reusable pixel volume and instantiates nodes arranged
 /// in a regular `rows x cols` lattice. Every node receives a monotonically
 /// increasing physical identifier stored as `TGeoNode::UniqueID`.
-void TRestMicromegasReadout::BuildGeometry( ) {
-    
-    if ((!fNode || fNode.IsNull()) || !fReadoutNode || fNode.IsNull() ) {
-        throw std::runtime_error("TRestMicromegasReadout: 'readoutParameters' section is missing or fNode is not initialized!");
+void TRestMicromegasReadout::BuildGeometry() {
+    if ((!fNode || fNode.IsNull()) || !fReadoutNode || fNode.IsNull()) {
+        throw std::runtime_error(
+            "TRestMicromegasReadout: 'readoutParameters' section is missing or fNode is not initialized!");
     }
 
     PrintMetadata();
 
     InitializeReadout();
-    
-    double pixelSize = fPitch / std::sqrt(2.0);
-    double visibleThickness = fThickness; // Parámetro recuperado del YAML
 
-    TGeoRotation* rot45 = new TGeoRotation("rot45"); rot45->RotateZ(45.0);
-    TGeoRotation* rotMinus135 = new TGeoRotation("rotMinus135"); rotMinus135->RotateZ(-135.0);
+    double pixelSize = fPitch / std::sqrt(2.0);
+    double visibleThickness = fThickness;  // Parameter loaded from YAML.
+
+    TGeoRotation* rot45 = new TGeoRotation("rot45");
+    rot45->RotateZ(45.0);
+    TGeoRotation* rotMinus135 = new TGeoRotation("rotMinus135");
+    rotMinus135->RotateZ(-135.0);
 
     TGeoMedium* copperMedium = fGeoManager->GetMedium("copper_medium");
     if (!copperMedium) {
@@ -98,7 +99,8 @@ void TRestMicromegasReadout::BuildGeometry( ) {
         copperMedium = new TGeoMedium("copper_medium", 1, matCopper);
     }
 
-    TGeoBBox* pixelShape = new TGeoBBox("pixel_shape", pixelSize / 2.0, pixelSize / 2.0, visibleThickness / 2.0);
+    TGeoBBox* pixelShape =
+        new TGeoBBox("pixel_shape", pixelSize / 2.0, pixelSize / 2.0, visibleThickness / 2.0);
 
     double moduleSizeX = (fNChannels + 1) * fPitch - 0.5 * fPitch;
     double moduleSizeY = (fNChannels + 1) * fPitch - 0.75 * fPitch;
@@ -111,7 +113,8 @@ void TRestMicromegasReadout::BuildGeometry( ) {
 
     double zGlobal = 0.0;
 
-    auto addPixel = [&](double localX, double localY, TGeoRotation* localRot, int channelID, bool isChannelX) {
+    auto addPixel = [&](double localX, double localY, TGeoRotation* localRot, int channelID,
+                        bool isChannelX) {
         double posX = localX + offsetX + fPositionRelative[0];
         double posY = localY + offsetY + fPositionRelative[1];
         double posZ = zGlobal + fPositionRelative[2];
@@ -120,11 +123,11 @@ void TRestMicromegasReadout::BuildGeometry( ) {
 
         std::string baseName = isChannelX ? "STRIP_X_" : "STRIP_Y_";
         std::string volName = baseName + std::to_string(channelID);
-        
+
         TGeoVolume* vol = fGeoManager->GetVolume(volName.c_str());
         if (!vol) {
             vol = new TGeoVolume(volName.c_str(), pixelShape, copperMedium);
-            
+
             if (isChannelX) {
                 vol->SetLineColor(kBlack);
             } else {
@@ -133,7 +136,7 @@ void TRestMicromegasReadout::BuildGeometry( ) {
         }
 
         TGeoNode* node = readoutGeom->AddNode(vol, nodeCounter, finalMatrix);
-        node->SetUniqueID(channelID); 
+        node->SetUniqueID(channelID);
         nodeCounter++;
     };
 
@@ -185,15 +188,15 @@ void TRestMicromegasReadout::BuildGeometry( ) {
     std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single unified Z plane." << std::endl;
 
     std::cout << "[*] Checking geometry overlaps..." << std::endl;
-    fGeoManager->CheckOverlaps(0.001); 
+    fGeoManager->CheckOverlaps(0.001);
 
     fGeoManager->CloseGeometry();
 }
 
 ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
     if (!fTopAssembly) {
-      RESTError << "Geometry not initialized in TRestMicromegasReadout" << RESTendl;
-      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+        RESTError << "Geometry not initialized in TRestMicromegasReadout" << RESTendl;
+        return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     int targetPhysicalID = -1;
@@ -203,9 +206,9 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
             break;
         }
     }
-    if (targetPhysicalID < 0){
-      RESTError << "DaqID " << daqID << " not found in Micromegas map" << RESTendl;
-      return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+    if (targetPhysicalID < 0) {
+        RESTError << "DaqID " << daqID << " not found in Micromegas map" << RESTendl;
+        return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
     double moduleSizeX = (fNChannels + 1) * fPitch - 0.5 * fPitch;
@@ -215,13 +218,13 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
 
     double posX = REST_nan;
     double posY = REST_nan;
-    double posZ = REST_nan; 
+    double posZ = REST_nan;
 
     bool isChannelX = (targetPhysicalID >= fNChannels);
 
     if (isChannelX) {
-        int nCh = targetPhysicalID - fNChannels; 
-        double localY_fixed = nCh * fPitch - fPitch / 4.0; 
+        int nCh = targetPhysicalID - fNChannels;
+        double localY_fixed = nCh * fPitch - fPitch / 4.0;
         posX = localY_fixed + offsetX + fPositionRelative[0];
     } else {
         int nCh = targetPhysicalID;

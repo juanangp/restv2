@@ -11,7 +11,8 @@ using namespace TRestTools;
 
 static const bool TRestProcessManager_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestProcessManager>("inputAnalysisStorage", &TRestProcessManager::fInputAnalysisStorage);
+    reg.RegisterField<TRestProcessManager>("inputAnalysisStorage",
+                                           &TRestProcessManager::fInputAnalysisStorage);
     reg.RegisterField<TRestProcessManager>("inputEventStorage", &TRestProcessManager::fInputEventStorage);
     reg.RegisterField<TRestProcessManager>("outputEventStorage", &TRestProcessManager::fOutputEventStorage);
     reg.RegisterField<TRestProcessManager>("eventsToProcess", &TRestProcessManager::fEventsToProcess);
@@ -24,8 +25,7 @@ static const bool TRestProcessManager_FieldsRegistered = []() {
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestProcessManager",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestProcessManager", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestProcessManager>(instanceName, params);
         });
     return true;
@@ -52,7 +52,7 @@ void TRestProcessManager::LoadConfig() {
 
     UpdateParamsFromYAML<TRestProcessManager>(fNode);
     ReadYAMLVerbose(fNode);
-    //Sync resolved parameters to the node
+    // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestProcessManager>(fNode);
 
     LoadProcesses();
@@ -83,7 +83,8 @@ void TRestProcessManager::LoadProcesses() {
             const std::string inputEvent = proc->GetInputEvent();
             const std::string outputEvent = proc->GetOutputEvent();
 
-            RESTInfo << "Loading process: " << proc->GetName() << " (" << proc->GetClassName() << ")" << RESTendl;
+            RESTInfo << "Loading process: " << proc->GetName() << " (" << proc->GetClassName() << ")"
+                     << RESTendl;
             RESTInfo << "  Route: " << inputEvent << " -> " << outputEvent << RESTendl;
 
             fPipelineConnections.emplace_back(inputEvent, outputEvent);
@@ -101,7 +102,7 @@ void TRestProcessManager::Run() {
     }
 
     if (fProcessChain.empty()) {
-       return;
+        return;
     }
 
     if (fOutputEventStorage && !fRunInfo->HasOutputFileOpen()) {
@@ -174,7 +175,7 @@ void TRestProcessManager::Run() {
 
     RESTInfo << "TRestProcessManager: Starting event loop. Entries to process: " << entriesToRun << RESTendl;
 
-RESTProgress.Reset(entriesToRun);
+    RESTProgress.Reset(entriesToRun);
 
     for (Long64_t entry = 0; entry < entriesToRun; ++entry) {
         if (totalEntries > 0) {
@@ -214,11 +215,11 @@ RESTProgress.Reset(entriesToRun);
         }
 
         if (entry % 10 == 0 || entry == entriesToRun - 1) {
-          RESTProgress.Update(entry + 1);
+            RESTProgress.Update(entry + 1);
         }
     }
 
-    std::cout<<"\n";
+    std::cout << "\n";
 
     for (auto& proc : fProcessChain) {
         proc->EndProcess();
@@ -226,4 +227,3 @@ RESTProgress.Reset(entriesToRun);
 
     RESTInfo << "TRestProcessManager: Pipeline run succeeded." << RESTendl;
 }
-

@@ -1,8 +1,10 @@
 #include "TRestGeant4PhysicsInfo.h"
-#include "TRestMetadata.h"
-#include <iostream>
+
 #include <algorithm>
+#include <iostream>
 #include <mutex>
+
+#include "TRestMetadata.h"
 
 using namespace std;
 
@@ -46,7 +48,8 @@ std::set<std::string> TRestGeant4PhysicsInfo::GetAllProcessTypes() const {
 
 // --- Thread-Safe Insertion Routines (Multi-Threading Protected) ---
 
-void TRestGeant4PhysicsInfo::InsertProcessName(int id, const std::string& processName, const std::string& processType) {
+void TRestGeant4PhysicsInfo::InsertProcessName(int id, const std::string& processName,
+                                               const std::string& processType) {
     if (fProcessNamesMap.count(id) > 0) {
         return;
     }
@@ -73,7 +76,7 @@ static U GetOrDefaultMapValueFromKey(const std::map<T, U>& internalMap, const T&
     if (it != internalMap.end()) {
         return it->second;
     }
-    return U{}; // Returns default empty construct safely (e.g. "" or -1)
+    return U{};  // Returns default empty construct safely (e.g. "" or -1)
 }
 
 std::string TRestGeant4PhysicsInfo::GetProcessName(int id) const {
@@ -122,4 +125,3 @@ void TRestGeant4PhysicsInfo::Print() const {
     PrintParticles();
     PrintProcesses();
 }
-

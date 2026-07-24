@@ -1,4 +1,5 @@
 #include "TRestGeant4BiasingVolume.h"
+
 #include "TRestMetadata.h"
 
 // Modern REST v3 field registry reflection hook
@@ -19,8 +20,7 @@ TRestGeant4BiasingVolume::TRestGeant4BiasingVolume() {
 }
 
 /// \brief Destructor.
-TRestGeant4BiasingVolume::~TRestGeant4BiasingVolume() {
-}
+TRestGeant4BiasingVolume::~TRestGeant4BiasingVolume() {}
 
 /// \brief Outputs the biasing fields configuration data summary.
 void TRestGeant4BiasingVolume::PrintBiasingVolume() const {
@@ -30,11 +30,8 @@ void TRestGeant4BiasingVolume::PrintBiasingVolume() const {
     std::cout << "volume size : " << GetBiasingVolumeSize() << " mm" << std::endl;
     std::cout << "volume type : " << GetBiasingVolumeType() << std::endl;
     std::cout << "volume factor : " << GetBiasingFactor() << std::endl;
-    std::cout << "volume position : ( " 
-              << fVolumePosition[0] << " , "
-              << fVolumePosition[1] << " , " 
+    std::cout << "volume position : ( " << fVolumePosition[0] << " , " << fVolumePosition[1] << " , "
               << fVolumePosition[2] << " ) mm" << std::endl;
     std::cout << "Energy range : ( " << GetMinEnergy() << " , " << GetMaxEnergy() << " ) keV" << std::endl;
     std::cout << "-----------------------------" << std::endl;
 }
-

@@ -3,17 +3,16 @@
 #include <memory>
 #include <vector>
 
-#include "TRestLogManager.h"
-#include "TRestRun.h"
 #include "TRestGeant4Metadata.h"
 #include "TRestGeant4PhysicsLists.h"
+#include "TRestLogManager.h"
+#include "TRestRun.h"
 
 /// \class TRestGeant4Manager
 /// \brief Top-level orchestrator that loads configured metadata classes.
 ///
 /// `TRestGeant4Manager` parses configuration and instantiates metadata objects.
 class TRestGeant4Manager : public TRestMetadata {
-
    public:
     TRestGeant4Metadata* fG4Metadata = nullptr;
     TRestGeant4PhysicsLists* fG4PhysicsLists = nullptr;
@@ -30,4 +29,3 @@ class TRestGeant4Manager : public TRestMetadata {
     void PrintMetadata() override;
     void SaveMetadata();
 };
-

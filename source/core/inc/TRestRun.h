@@ -273,8 +273,7 @@ class TRestRun : public TRestMetadata {
     /// \param instanceName Metadata instance name.
     /// \param className Metadata class name.
     /// \param configNode Metadata YAML node.
-    void AddMetadata(const std::string& instanceName,
-                     const YAML::Node& configNode);
+    void AddMetadata(const std::string& instanceName, const YAML::Node& configNode);
 
     /// \brief Retrieves metadata YAML node by instance name.
     /// \param instanceName Metadata instance name.

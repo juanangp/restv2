@@ -1,17 +1,18 @@
 #include <iostream>
-#include "TSystem.h"
+
 #include "TFile.h"
+#include "TSystem.h"
 
 // Directly include your class headers
-#include "TRestTools.h"
 #include "TRestMicromegasReadout.h"
+#include "TRestTools.h"
 
 using namespace TRestTools;
 
-TRestMicromegasReadout* mmReadout=nullptr;
+TRestMicromegasReadout* mmReadout = nullptr;
 
-void GenerateReadout(const std::string& yamlFile = "MicromegasReadout.yaml", const std::string outputFile = "iaxo_readout_output.root") {
-    
+void GenerateReadout(const std::string& yamlFile = "MicromegasReadout.yaml",
+                     const std::string outputFile = "iaxo_readout_output.root") {
     std::cout << "[+] ROOT Macro -> Instantiating TRestMicromegasReadout directly..." << std::endl;
 
     mmReadout = new TRestMicromegasReadout(yamlFile, "readout");
@@ -26,5 +27,4 @@ void GenerateReadout(const std::string& yamlFile = "MicromegasReadout.yaml", con
 
     TFile* fOut = TFile::Open(outputFile.c_str(), "RECREATE");
     mmReadout->Export(fOut, mmReadout->GetName(), "nominal_decoding");
-
 }

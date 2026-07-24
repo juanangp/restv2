@@ -1,7 +1,9 @@
 #include "TRestGeant4Hits.h"
-#include "TRestGeant4Track.h"
-#include "TRestGeant4Event.h"
+
 #include <TMath.h>
+
+#include "TRestGeant4Event.h"
+#include "TRestGeant4Track.h"
 
 using namespace std;
 
@@ -32,11 +34,11 @@ double TRestGeant4Hits::GetEnergyInVolume(int volumeID) const {
 ROOT::Math::XYZVector TRestGeant4Hits::GetMeanPositionInVolume(int volumeID) const {
     ROOT::Math::XYZVector pos(0.0, 0.0, 0.0);
     double energy = 0;
-    
+
     for (size_t n = 0; n < GetNumberOfHits(); n++) {
         if (fVolumeID[n] == volumeID) {
-            // El operador + y * numérico funcionan nativamente en XYZVector
-            pos += GetPosition(n) * GetEnergy(n); 
+            // `+` and scalar `*` operators are natively supported by `XYZVector`.
+            pos += GetPosition(n) * GetEnergy(n);
             energy += GetEnergy(n);
         }
     }
@@ -81,7 +83,7 @@ TRestGeant4Metadata* TRestGeant4Hits::GetGeant4Metadata() const {
         event = fEvent;
     }
     if (event == nullptr) return nullptr;
-    
+
     return const_cast<TRestGeant4Metadata*>(event->GetGeant4Metadata());
 }
 
@@ -94,4 +96,3 @@ std::string TRestGeant4Hits::GetVolumeName(size_t n) const {
     const auto metadata = GetGeant4Metadata();
     return metadata == nullptr ? "" : metadata->GetGeant4GeometryInfo().GetVolumeFromID(GetVolumeId(n));
 }
-

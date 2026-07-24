@@ -1,14 +1,15 @@
 #pragma once
 
-#include <string>
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 class G4VProcess;
 
 /// \class TRestGeant4PhysicsInfo
-/// \brief Class to store and map Geant4 process names, particle names, and process types to unique integer identifiers.
+/// \brief Class to store and map Geant4 process names, particle names, and process types to unique integer
+/// identifiers.
 class TRestGeant4PhysicsInfo {
    public:
     std::map<int, std::string> fProcessNamesMap;
@@ -17,7 +18,7 @@ class TRestGeant4PhysicsInfo {
     std::map<int, std::string> fParticleNamesMap;
     std::map<std::string, int> fParticleNamesReverseMap;
 
-    std::map<std::string, std::string> fProcessTypesMap; // Process name -> Process type
+    std::map<std::string, std::string> fProcessTypesMap;  // Process name -> Process type
 
     TRestGeant4PhysicsInfo() = default;
     virtual ~TRestGeant4PhysicsInfo() = default;
@@ -50,4 +51,3 @@ class TRestGeant4PhysicsInfo {
     // Grants reflection registration macro privileges
     friend class TRestMetadataFieldRegistry;
 };
-

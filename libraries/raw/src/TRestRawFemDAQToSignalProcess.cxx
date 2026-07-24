@@ -1,13 +1,17 @@
 #include "TRestRawFemDAQToSignalProcess.h"
+
 #include <TObjString.h>
+
 #include <iostream>
 
 using namespace std;
 
 static const bool TRestRawFemDAQToSignalProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestRawFemDAQToSignalProcess>("useFeminosDaqRunInfo", &TRestRawFemDAQToSignalProcess::fUseFeminosDaqRunInfo);
-    reg.RegisterField<TRestRawFemDAQToSignalProcess>("setRunStartEndFromEvents", &TRestRawFemDAQToSignalProcess::fSetRunStartEndFromEvents);
+    reg.RegisterField<TRestRawFemDAQToSignalProcess>("useFeminosDaqRunInfo",
+                                                     &TRestRawFemDAQToSignalProcess::fUseFeminosDaqRunInfo);
+    reg.RegisterField<TRestRawFemDAQToSignalProcess>(
+        "setRunStartEndFromEvents", &TRestRawFemDAQToSignalProcess::fSetRunStartEndFromEvents);
     return true;
 }();
 
@@ -15,24 +19,25 @@ static const bool TRestRawFemDAQToSignalProcess_FieldsRegistered = []() {
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestRawFemDAQToSignalProcess",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestRawFemDAQToSignalProcess", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestRawFemDAQToSignalProcess>(instanceName, params);
         });
     return true;
 }();
-}
+}  // namespace
 
 TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess() : TRestEventProcess() {
     fName = "TRestRawFemDAQToSignalProcess";
 }
 
-TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& instanceName, const YAML::Node& node)
+TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& instanceName,
+                                                             const YAML::Node& node)
     : TRestEventProcess(instanceName, node) {
     LoadConfig();
 }
 
-TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& fileName, const std::string& sectionName)
+TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& fileName,
+                                                             const std::string& sectionName)
     : TRestEventProcess(fileName, sectionName) {
     LoadConfig();
 }
@@ -40,18 +45,17 @@ TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& 
 void TRestRawFemDAQToSignalProcess::LoadConfig() {
     TRestEventProcess::LoadConfig();
 
-    if (!fNode || fNode.IsNull() ) {
+    if (!fNode || fNode.IsNull()) {
         RESTError << "TRestRawFemDAQToSignalProcess::LoadConfig YAML node is missing" << RESTendl;
         return;
     }
 
     UpdateParamsFromYAML<TRestRawFemDAQToSignalProcess>(fNode);
-    //Sync resolved parameters to the node
+    // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestRawFemDAQToSignalProcess>(fNode);
 }
 
 void TRestRawFemDAQToSignalProcess::InitProcess() {
-    
     // Read parameters from YAML
     std::string inputFilename;
     if (fNode["inputFileName"]) {
@@ -61,11 +65,13 @@ void TRestRawFemDAQToSignalProcess::InitProcess() {
         inputFilename = fRunInfo->GetInputFileName();
     }
     if (inputFilename.empty() || inputFilename == "Null") {
-        throw std::runtime_error("TRestRawFemDAQToSignalProcess: missing input file in process config and TRestRun");
+        throw std::runtime_error(
+            "TRestRawFemDAQToSignalProcess: missing input file in process config and TRestRun");
     }
 
     if (fNode["useFeminosDaqRunInfo"]) fUseFeminosDaqRunInfo = fNode["useFeminosDaqRunInfo"].as<bool>();
-    if (fNode["setRunStartEndFromEvents"]) fSetRunStartEndFromEvents = fNode["setRunStartEndFromEvents"].as<bool>();
+    if (fNode["setRunStartEndFromEvents"])
+        fSetRunStartEndFromEvents = fNode["setRunStartEndFromEvents"].as<bool>();
 
     if (inputFilename.substr(inputFilename.size() - 5) != ".root") {
         throw std::runtime_error("TRestRawFemDAQToSignalProcess: Input file is not a root file");
@@ -122,7 +128,7 @@ void TRestRawFemDAQToSignalProcess::InitProcess() {
 
 bool TRestRawFemDAQToSignalProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
     if (fInputTreeEntry >= fInputTree->GetEntries()) {
-        return false; // EOF reached
+        return false;  // EOF reached
     }
 
     auto* sigEvent = dynamic_cast<TRestRawSignalEvent*>(&output);
@@ -164,7 +170,7 @@ void TRestRawFemDAQToSignalProcess::EndProcess() {
         fRunInfo->SetStartTimeStamp(fStartTimestamp);
         fRunInfo->SetEndTimeStamp(fEndTimestamp);
     }
-    
+
     if (fInputFile) {
         fInputFile->Close();
         delete fInputFile;

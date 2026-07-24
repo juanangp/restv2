@@ -9,10 +9,10 @@
 /// parameters and stores each pixel as a ROOT geometry node with a unique
 /// physical identifier.
 class TRestMicromegasReadout : public TRestDetectorReadout {
-public:
+   public:
     YAML::Node fReadoutNode;
     std::vector<double> fPositionRelative = {0.0, 0.0, 0.0};
-    double fGlobalRotation=0;
+    double fGlobalRotation = 0;
     int fNChannels = 0;
     double fPitch = 0;
     double fThickness = 0;

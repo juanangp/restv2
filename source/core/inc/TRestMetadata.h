@@ -1,5 +1,6 @@
 #pragma once
 
+#include <TFile.h>
 #include <yaml-cpp/yaml.h>
 
 #include <functional>
@@ -7,12 +8,10 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <vector>
 #include <typeindex>
+#include <vector>
 
 #include "TRestLogManager.h"
-
-#include <TFile.h>
 
 class TRestMetadataFieldRegistry;
 
@@ -50,8 +49,7 @@ class TRestMetadata {
     /// \brief Constructs metadata from explicit YAML node.
     /// \param instanceName Metadata instance name.
     /// \param node YAML node with metadata configuration.
-    explicit TRestMetadata(const std::string& instanceName,
-                           const YAML::Node& node);
+    explicit TRestMetadata(const std::string& instanceName, const YAML::Node& node);
 
     /// \brief Constructs metadata by loading a YAML file/section.
     /// \param fileName YAML file path.
@@ -75,7 +73,7 @@ class TRestMetadata {
 
     /// \brief Get the associated YAML node.
     /// \param node YAML node.
-    YAML::Node GetYAMLNode( ) { return fNode; }
+    YAML::Node GetYAMLNode() { return fNode; }
 
     /// \brief Sets the associated YAML node.
     /// \param node YAML node.
@@ -99,7 +97,7 @@ class TRestMetadata {
     /// \brief Reads and applies verbose-level configuration from YAML.
     /// \param node YAML node containing verbosity information.
     void ReadYAMLVerbose(YAML::Node& node);
-    inline TRestLogManager::REST_Verbose_Level GetVerboseLevel() const {return fVerboseLevel;}
+    inline TRestLogManager::REST_Verbose_Level GetVerboseLevel() const { return fVerboseLevel; }
 
     template <typename ClassName, typename TNode>
     void UpdateParamsFromYAML(const TNode& processedNode);
@@ -108,14 +106,12 @@ class TRestMetadata {
     void UpdateYAMLFromParams(TNode& nodeToUpdate);
 };
 
-
 /// \class MetadataClassRegistry
 /// \brief Runtime factory registry for TRestMetadata-derived classes.
 class MetadataClassRegistry {
    public:
     /// Function type used to create metadata instances.
-    using Creator = std::function<std::unique_ptr<TRestMetadata>(const std::string&,
-                                                                 const YAML::Node&)>;
+    using Creator = std::function<std::unique_ptr<TRestMetadata>(const std::string&, const YAML::Node&)>;
 
     /// \brief Returns the singleton registry instance.
     /// \return Singleton reference.
@@ -141,19 +137,20 @@ class MetadataClassRegistry {
     std::unique_ptr<TRestMetadata> Create(const std::string& type, const std::string& instanceName,
                                           const YAML::Node& params) const {
         auto it = creators.find(type);
-        if (it == creators.end()) throw std::runtime_error("MetadataClassRegistry: unknown type '" + type + "'");
+        if (it == creators.end())
+            throw std::runtime_error("MetadataClassRegistry: unknown type '" + type + "'");
         return it->second(instanceName, params);
     }
 
     /// \brief Overload: Creates a metadata object extracting the type from params["class"].
-    std::unique_ptr<TRestMetadata> Create(const std::string& instanceName,
-                                          const YAML::Node& params) const {
+    std::unique_ptr<TRestMetadata> Create(const std::string& instanceName, const YAML::Node& params) const {
         if (!params["class"] || !params["class"].IsScalar()) {
-            throw std::runtime_error("MetadataClassRegistry: 'class' key missing or invalid in YAML params "+instanceName);
+            throw std::runtime_error("MetadataClassRegistry: 'class' key missing or invalid in YAML params " +
+                                     instanceName);
         }
-    
+
         std::string type = params["class"].as<std::string>();
-    
+
         return Create(type, instanceName, params);
     }
 
@@ -168,14 +165,14 @@ class MetadataClassRegistry {
 };
 
 class TRestMetadataFieldRegistry {
-public:
+   public:
     struct FieldActions {
-        std::type_index classType;       
-        std::type_index memberClassType; 
+        std::type_index classType;
+        std::type_index memberClassType;
         std::function<void(TRestMetadata*, const YAML::Node&)> readFunc;
         std::function<void(TRestMetadata*, YAML::Node&)> writeFunc;
 
-        // Añadimos un constructor explícito para inicializar los type_index correctamente
+        // Explicit constructor to initialize `type_index` members correctly.
         FieldActions(std::type_index cType, std::type_index mType,
                      std::function<void(TRestMetadata*, const YAML::Node&)> rFunc,
                      std::function<void(TRestMetadata*, YAML::Node&)> wFunc)
@@ -190,37 +187,31 @@ public:
     TRestMetadataFieldRegistry(const TRestMetadataFieldRegistry&) = delete;
     TRestMetadataFieldRegistry& operator=(const TRestMetadataFieldRegistry&) = delete;
 
-  template <typename Class, typename MemberClass, typename T>
-  void RegisterField(const std::string& yamlKey, T MemberClass::* memberPtr) {
-    
-    auto readFunc = [yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& n) {
-        if (auto* obj = dynamic_cast<MemberClass*>(base)) {
-            try { 
-                if (n && n[yamlKey]) {
-                    obj->*memberPtr = n[yamlKey].as<T>(); 
+    template <typename Class, typename MemberClass, typename T>
+    void RegisterField(const std::string& yamlKey, T MemberClass::* memberPtr) {
+        auto readFunc = [yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& n) {
+            if (auto* obj = dynamic_cast<MemberClass*>(base)) {
+                try {
+                    if (n && n[yamlKey]) {
+                        obj->*memberPtr = n[yamlKey].as<T>();
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error al leer campo '" << yamlKey << "': " << e.what() << std::endl;
                 }
-            } catch (const std::exception& e) { 
-                std::cerr << "Error al leer campo '" << yamlKey << "': " << e.what() << std::endl;
             }
-        }
-    };
+        };
 
-    auto writeFunc = [yamlKey, memberPtr](TRestMetadata* base, YAML::Node& n) {
-        if (auto* obj = dynamic_cast<MemberClass*>(base)) {
-            n[yamlKey] = obj->*memberPtr;
-        }
-    };
+        auto writeFunc = [yamlKey, memberPtr](TRestMetadata* base, YAML::Node& n) {
+            if (auto* obj = dynamic_cast<MemberClass*>(base)) {
+                n[yamlKey] = obj->*memberPtr;
+            }
+        };
 
-    FieldActions actions(
-        std::type_index(typeid(Class)),
-        std::type_index(typeid(MemberClass)),
-        readFunc,
-        writeFunc
-    );
+        FieldActions actions(std::type_index(typeid(Class)), std::type_index(typeid(MemberClass)), readFunc,
+                             writeFunc);
 
-    fFieldMaps[actions.classType].push_back(actions);
-  }
-
+        fFieldMaps[actions.classType].push_back(actions);
+    }
 
     void ApplyFields(std::type_index typeIdx, TRestMetadata* instance, const YAML::Node& params) {
         if (!instance || !params) return;
@@ -238,7 +229,7 @@ public:
         }
     }
 
-private:
+   private:
     TRestMetadataFieldRegistry() = default;
     std::map<std::type_index, std::vector<FieldActions>> fFieldMaps;
 };

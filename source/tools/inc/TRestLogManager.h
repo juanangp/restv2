@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -8,7 +9,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <chrono>
 
 // ---------------- TRestProgressBar ----------------
 class TRestProgressBar {
@@ -39,13 +39,13 @@ class TRestProgressBar {
             double secondsPerEvent = (double)elapsed / current;
             int remainingEvents = total - current;
             int etaSeconds = remainingEvents * secondsPerEvent;
-            
+
             int etaMinutes = etaSeconds / 60;
             etaStr = std::to_string(etaMinutes) + "." + std::to_string((etaSeconds % 60) * 10 / 60);
         }
 
-        std::cout << "\r\033[K" << current << " Events, " << etaStr << " min ETA, "
-                  << (int)(percentage * 100) << ".0%[";
+        std::cout << "\r\033[K" << current << " Events, " << etaStr << " min ETA, " << (int)(percentage * 100)
+                  << ".0%[";
 
         for (int i = 0; i < width; ++i) {
             if (i < progress) {
@@ -76,7 +76,6 @@ class TRestProgressBar {
 };
 
 inline TRestProgressBar RESTProgress;
-
 
 class TRestLogManager {
    public:
@@ -176,13 +175,13 @@ class TRestLogger {
 
 inline thread_local const std::string* currentClassNamePtr = nullptr;
 
-#define DECLARE_LOG_CLASS(CLASSNAME)                                      \
-    static inline const std::string& getLogClassName() {                  \
-        static const std::string name = #CLASSNAME;                       \
-        return name;                                                      \
-    }                                                                     \
-    struct LogClassSetter {                                               \
-        LogClassSetter() { currentClassNamePtr = &getLogClassName(); }    \
+#define DECLARE_LOG_CLASS(CLASSNAME)                                   \
+    static inline const std::string& getLogClassName() {               \
+        static const std::string name = #CLASSNAME;                    \
+        return name;                                                   \
+    }                                                                  \
+    struct LogClassSetter {                                            \
+        LogClassSetter() { currentClassNamePtr = &getLogClassName(); } \
     } _logClassSetter;
 
 // ---------------- LogStream ----------------
@@ -193,15 +192,14 @@ class TRestLogBuffer : public std::stringbuf {
         : level(lvl), color(color), prefix(prefix) {}
 
     int sync() override {
-    if (!str().empty()) {
-        std::string className = currentClassNamePtr ? *currentClassNamePtr : "Global";
-        
-        TRestLogger::log(level, color, prefix, className, str());
-        str("");
-    }
-    return 0;
-}
+        if (!str().empty()) {
+            std::string className = currentClassNamePtr ? *currentClassNamePtr : "Global";
 
+            TRestLogger::log(level, color, prefix, className, str());
+            str("");
+        }
+        return 0;
+    }
 
    private:
     TRestLogManager::REST_Verbose_Level level;

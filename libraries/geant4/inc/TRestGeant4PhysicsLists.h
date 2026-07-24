@@ -1,12 +1,14 @@
 #pragma once
 
 #include <TRestMetadata.h>
+
+#include <iostream>
 #include <string>
 #include <vector>
-#include <iostream>
 
 /// \class TRestGeant4PhysicsLists
-/// \brief Metadata component managing physics list configurations and region cuts via modern REST v3 YAML reflection.
+/// \brief Metadata component managing physics list configurations and region cuts via modern REST v3 YAML
+/// reflection.
 class TRestGeant4PhysicsLists : public TRestMetadata {
    public:
     std::vector<std::string> fPhysicsLists;
@@ -21,7 +23,6 @@ class TRestGeant4PhysicsLists : public TRestMetadata {
     Double_t fMaxEnergyRangeProductionCuts = 1e6;
 
     std::vector<std::string> fIonLimitStepList;
-
 
    public:
     inline Double_t GetCutForGamma() const { return fCutForGamma; }
@@ -48,7 +49,7 @@ class TRestGeant4PhysicsLists : public TRestMetadata {
     // Constructors & Destructors
     TRestGeant4PhysicsLists();
     TRestGeant4PhysicsLists(const char* configFilename, const std::string& name = "");
-    TRestGeant4PhysicsLists(const std::string& instanceName, const YAML::Node& node); // Constructor moderno v3
+    TRestGeant4PhysicsLists(const std::string& instanceName,
+                            const YAML::Node& node);  // Constructor moderno v3
     virtual ~TRestGeant4PhysicsLists();
-
 };

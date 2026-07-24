@@ -1,9 +1,10 @@
 #pragma once
 
 #include <TRestHits.h>
+
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 
 // Modern ROOT vector header adopted by REST-for-Physics
 #include <Math/Vector3D.h>
@@ -19,7 +20,7 @@ class TRestGeant4Hits : public TRestHits {
     std::vector<int> fProcessID = {};
     std::vector<int> fVolumeID = {};
     std::vector<float> fKineticEnergy = {};
-    std::vector<ROOT::Math::XYZVector> fMomentumDirection = {}; 
+    std::vector<ROOT::Math::XYZVector> fMomentumDirection = {};
 
     std::vector<std::string> fHadronicTargetIsotopeName = {};
     std::vector<int> fHadronicTargetIsotopeA = {};
@@ -42,7 +43,7 @@ class TRestGeant4Hits : public TRestHits {
     inline int GetProcessId(size_t n) const { return fProcessID[n]; }
     inline int GetProcess(size_t n) const { return GetProcessId(n); }
     inline int GetHitProcess(size_t n) const { return GetProcessId(n); }
-    std::string GetProcessName(size_t n) const; 
+    std::string GetProcessName(size_t n) const;
 
     inline int GetVolumeId(size_t n) const { return fVolumeID[n]; }
     inline int GetHitVolume(size_t n) const { return GetVolumeId(n); }
@@ -58,14 +59,14 @@ class TRestGeant4Hits : public TRestHits {
 
     Double_t GetEnergyInVolume(Int_t volumeID) const;
 
-    ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volumeID) const; 
-    ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volumeID) const; 
-    ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volumeID) const; 
+    ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volumeID) const;
+    ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volumeID) const;
+    ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volumeID) const;
 
     size_t GetNumberOfHitsInVolume(Int_t volumeID) const;
 
     // non-const methods (should only be used on the analysis, carefully)
-    // Corrección para REST v3 Field Registry: apunta al almacenamiento centralizado
+    // REST v3 Field Registry: points to centralized storage.
     std::vector<float>& GetEnergyRef() { return fData->energy; }
 
     // Constructor
@@ -73,7 +74,7 @@ class TRestGeant4Hits : public TRestHits {
     // Destructor
     virtual ~TRestGeant4Hits();
 
-    ClassDef(TRestGeant4Hits, 9);  
+    ClassDef(TRestGeant4Hits, 9);
 
     // restG4
    public:

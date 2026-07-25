@@ -15,6 +15,7 @@
 //  One digitised signal (time series) from a single readout
 //  channel.  Stored as 16-bit ADC samples.
 // ============================================================
+/// \brief Shared contiguous storage used by TRestRawSignal lightweight views.
 struct TRestRawSignalData {
     std::vector<short> allSamples;
     std::vector<int> signalIDs;
@@ -27,6 +28,7 @@ struct TRestRawSignalData {
     }
 };
 
+/// \brief Non-owning view over one signal stored inside TRestRawSignalData.
 class TRestRawSignal {
    protected:
     TRestRawSignalData* fData = nullptr;
@@ -35,8 +37,10 @@ class TRestRawSignal {
    public:
     TRestRawSignal(TRestRawSignalData* data, int idx) : fData(data), fSignalIdx(idx) {}
 
+    /// \brief Returns the detector channel identifier for this signal.
     int GetSignalID() const { return fData->signalIDs[fSignalIdx]; }
 
+    /// \brief Returns the number of ADC samples belonging to this signal.
     int GetNPoints() const {
         int start = fData->offsets[fSignalIdx];
         int next = (fSignalIdx + 1 < (int)fData->offsets.size()) ? fData->offsets[fSignalIdx + 1]
@@ -44,6 +48,7 @@ class TRestRawSignal {
         return next - start;
     }
 
+    /// \brief Copies this signal waveform into a standalone sample vector.
     std::vector<short> GetData() const {
         int start = fData->offsets[fSignalIdx];
         int nPoints = GetNPoints();
@@ -51,10 +56,13 @@ class TRestRawSignal {
                                   fData->allSamples.begin() + start + nPoints);
     }
 
+    /// \brief Returns one ADC sample by local signal index.
     short GetPoint(int i) const { return fData->allSamples[fData->offsets[fSignalIdx] + i]; }
 
+    /// \brief Adds delta to one ADC sample bin in-place.
     void IncreaseBinBy(int bin, short delta) { fData->allSamples[fData->offsets[fSignalIdx] + bin] += delta; }
 
+    /// \brief Builds a ROOT graph representation for quick waveform inspection.
     TGraph GetGraph() const {
         const std::string title = "Signal ID: " + std::to_string(GetSignalID());
         return TRestPulseShapeAnalysis::GetGraph(GetData(), title);
@@ -66,6 +74,8 @@ class TRestRawSignal {
 //  Collection of signals from one detector
 //  readout event.
 // ============================================================
+/// \class TRestRawSignalEvent
+/// \brief Event container holding all digitized waveforms of one acquisition trigger.
 class TRestRawSignalEvent : public TRestEvent {
    protected:
     TRestRawSignalData fSignalData;
@@ -119,6 +129,7 @@ class TRestRawSignalEvent : public TRestEvent {
         }
     }
 
+    /// \brief Appends a new signal waveform associated with a detector channel ID.
     void AddSignal(int sID, const std::vector<short>& samples) {
         fSignalData.offsets.push_back((int)fSignalData.allSamples.size());
         fSignalData.signalIDs.push_back(sID);
@@ -126,6 +137,7 @@ class TRestRawSignalEvent : public TRestEvent {
         fSignalsViews.clear();
     }
 
+    /// \brief Removes one signal by index and compacts the backing sample storage.
     inline void RemoveSignal(int index) {
         if (index >= (int)fSignalData.signalIDs.size()) return;
 
@@ -145,6 +157,7 @@ class TRestRawSignalEvent : public TRestEvent {
         fSignalsViews.clear();
     }
 
+    /// \brief Removes the first signal matching the given channel ID.
     inline void RemoveSignalByID(int id) {
         auto it = std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id);
         if (it == fSignalData.signalIDs.end()) return;
@@ -152,6 +165,7 @@ class TRestRawSignalEvent : public TRestEvent {
     }
 
     // --- GETTERS ---
+    /// \brief Returns the number of stored signal waveforms in this event.
     int GetNumberOfSignals() const { return static_cast<int>(fSignalData.signalIDs.size()); }
 
     inline TRestRawSignal& GetSignal(int n) {

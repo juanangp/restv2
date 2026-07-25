@@ -125,7 +125,7 @@ void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const 
 void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannels) const {
     if (!fTopAssembly) return;
 
-    // 1. Accedemos al volumen de nuestro ensamblaje intermedio (primer hijo de fTopAssembly)
+    // 1. Access the intermediate assembly volume (first child of fTopAssembly)
     if (fTopAssembly->GetNdaughters() == 0) return;
     TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
     TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();

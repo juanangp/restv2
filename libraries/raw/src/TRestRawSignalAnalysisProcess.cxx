@@ -44,22 +44,26 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
+/// \brief Default constructor for raw signal analysis processing.
 TRestRawSignalAnalysisProcess::TRestRawSignalAnalysisProcess() : TRestEventProcess() {
     fName = "TRestRawSignalAnalysisProcess";
 }
 
+/// \brief Constructor from an in-memory YAML node.
 TRestRawSignalAnalysisProcess::TRestRawSignalAnalysisProcess(const std::string& instanceName,
                                                              const YAML::Node& node)
     : TRestEventProcess(instanceName, node) {
     LoadConfig();
 }
 
+/// \brief Constructor from a file and YAML section name.
 TRestRawSignalAnalysisProcess::TRestRawSignalAnalysisProcess(const std::string& fileName,
                                                              const std::string& sectionName)
     : TRestEventProcess(fileName, sectionName) {
     LoadConfig();
 }
 
+/// \brief Loads process parameters and synchronizes resolved values back to YAML.
 void TRestRawSignalAnalysisProcess::LoadConfig() {
     TRestEventProcess::LoadConfig();
 
@@ -73,6 +77,7 @@ void TRestRawSignalAnalysisProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawSignalAnalysisProcess>(fNode);
 }
 
+/// \brief Registers all event observables produced by this process.
 void TRestRawSignalAnalysisProcess::InitProcess() {
     if (fSignalsRange.first != -1 && fSignalsRange.second != -1) {
         fRangeEnabled = true;
@@ -115,6 +120,7 @@ void TRestRawSignalAnalysisProcess::InitProcess() {
     RegisterObservable("AveragePeakTime", fObs.AveragePeakTime);
 }
 
+/// \brief Computes per-signal and event-level pulse-shape observables for one event.
 bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
     output.CopyFrom(&input);
 
@@ -231,4 +237,5 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
     return true;
 }
 
+/// \brief Finalization hook for the analysis process.
 void TRestRawSignalAnalysisProcess::EndProcess() {}

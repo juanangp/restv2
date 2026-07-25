@@ -20,7 +20,9 @@ class TRestGeant4BiasingVolume {
     std::pair<double, double> fEnergyRange = {0.0, 1.0E20};
     std::string fVolumeType = "virtualBox";
 
+    /// \brief Constructs a biasing-volume descriptor with default neutral parameters.
     TRestGeant4BiasingVolume();
+    /// \brief Destructor.
     virtual ~TRestGeant4BiasingVolume();
 
     // --- Getters ---
@@ -68,6 +70,7 @@ class TRestGeant4BiasingVolume {
         return 0;
     }
 
+    /// \brief Prints the configured volume geometry, biasing factor and energy range.
     void PrintBiasingVolume() const;
 
     // Grants reflection registration macro privileges

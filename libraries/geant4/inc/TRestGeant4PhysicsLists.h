@@ -36,20 +36,29 @@ class TRestGeant4PhysicsLists : public TRestMetadata {
     inline Double_t GetMinimumEnergyProductionCuts() const { return fMinEnergyRangeProductionCuts; }
     inline Double_t GetMaximumEnergyProductionCuts() const { return fMaxEnergyRangeProductionCuts; }
 
+    /// \brief Returns index of a physics list by name, or -1 when not found.
     Int_t FindPhysicsList(const std::string& physicsListName) const;
+    /// \brief Returns true if a given physics list name is configured.
     Bool_t PhysicsListExists(const std::string& physicsListName) const;
 
+    /// \brief Retrieves one option value associated with a physics list (or defaultValue).
     std::string GetPhysicsListOptionValue(const std::string& physicsListName, const std::string& option,
                                           const std::string& defaultValue = "NotDefined") const;
 
+    /// \brief Loads physics lists, options and production cuts from YAML.
     void LoadConfig() override;
+    /// \brief No-op hook kept for REST metadata lifecycle compatibility.
     void Initialize() override {}
+    /// \brief Prints configured physics lists and cut settings.
     void PrintMetadata() override;
 
     // Constructors & Destructors
+    /// \brief Constructs an empty physics-list metadata container.
     TRestGeant4PhysicsLists();
+    /// \brief Loads physics list metadata from an RML/YAML configuration file section.
     TRestGeant4PhysicsLists(const char* configFilename, const std::string& name = "");
-    TRestGeant4PhysicsLists(const std::string& instanceName,
-                            const YAML::Node& node);  // Constructor moderno v3
+    /// \brief Builds metadata directly from REST v3 YAML node content.
+    TRestGeant4PhysicsLists(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Destructor.
     virtual ~TRestGeant4PhysicsLists();
 };

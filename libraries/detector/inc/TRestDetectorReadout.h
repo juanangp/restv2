@@ -31,12 +31,14 @@ class TRestDetectorReadout : public TRestMetadata {
     std::map<int, int> fPhysicalToDAQMap;
 
    public:
-    /// Decoding fileName
+    /// \brief Default decoding file name used when none is provided by configuration.
     std::string fDecodingFile = "default_decoding.dec";
 
     /// \brief Constructs a detector readout metadata object.
     TRestDetectorReadout();
+    /// \brief Constructs a readout from an in-memory YAML node section.
     TRestDetectorReadout(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructs a readout from file+section metadata references.
     TRestDetectorReadout(const std::string& fileName, const std::string& sectionName);
 
     /// \brief Destructor.
@@ -59,11 +61,13 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \param readoutNode YAML node with geometry parameters.
     virtual void BuildGeometry() = 0;
 
+    /// \brief Finalizes geometry/readout internals after loading configuration.
     void InitializeReadout();
 
     /// \brief Opens a graphical window to visualize the readout geometry.
     /// \param option Drawing option passed to ROOT (e.g., "ogl" for OpenGL, "" for default X11/Web).
     void ViewReadoutGeometry(const std::string& option = "ogl") const;
+    /// \brief Visualizes the geometry highlighting the provided active DAQ channels.
     void ViewActiveEvent(const std::vector<int>& activeChannels) const;
 
     /// \brief Loads a decoding file mapping physical IDs to DAQ channels.

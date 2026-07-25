@@ -15,6 +15,8 @@ class TRestGeant4Metadata;
 class G4Track;
 class G4Step;
 
+/// \class TRestGeant4Track
+/// \brief Holds one Geant4 particle track and its associated step-level hit history.
 class TRestGeant4Track {
    protected:
     Int_t fTrackID;
@@ -45,6 +47,7 @@ class TRestGeant4Track {
     inline const TRestGeant4Hits& GetHits() const { return fHits; }
     inline TRestGeant4Hits* GetHitsPointer() { return &fHits; }
     inline const TRestGeant4Event* GetEvent() const { return fEvent; }
+    /// \brief Returns Geant4 metadata associated with the parent event.
     const TRestGeant4Metadata* GetGeant4Metadata() const;
 
     inline void SetEvent(TRestGeant4Event* event) { fEvent = event; }
@@ -59,7 +62,9 @@ class TRestGeant4Track {
 
     inline void AddSecondaryTrackID(Int_t trackID) { fSecondaryTrackIDs.push_back(trackID); }
 
+    /// \brief Returns total hits, optionally filtered by volume id.
     size_t GetNumberOfHits(Int_t volID = -1) const;
+    /// \brief Returns non-zero energy hits, optionally filtered by volume id.
     size_t GetNumberOfPhysicalHits(Int_t volID = -1) const;
 
     inline Int_t GetTrackID() const { return fTrackID; }
@@ -73,51 +78,58 @@ class TRestGeant4Track {
     inline Double_t GetWeight() const { return fWeight; }
     inline Double_t GetTotalEnergy() const { return fHits.GetTotalEnergy(); }
     inline Double_t GetLength() const { return fLength; }
+    /// \brief Returns the volume name where the track starts.
     std::string GetInitialVolume() const;
+    /// \brief Returns the volume name where the track ends.
     std::string GetFinalVolume() const;
 
     inline std::vector<Int_t> GetSecondaryTrackIDs() const { return fSecondaryTrackIDs; }
     std::vector<const TRestGeant4Track*> GetSecondaryTracks() const;
     inline std::vector<const TRestGeant4Track*> GetChildrenTracks() const { return GetSecondaryTracks(); }
 
+    /// \brief Resolves and returns the parent track from the owning event.
     TRestGeant4Track* GetParentTrack() const;
 
     inline ROOT::Math::XYZVector GetTrackOrigin() const {
         return GetInitialPosition();
-    }  // Migrado a XYZVector
+    }  // Migrated to XYZVector
 
     EColor GetParticleColor() const;
 
     inline Double_t GetEnergyInVolume(Int_t volID) const { return fHits.GetEnergyInVolume(volID); }
-    inline ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volID) const {  // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volID) const {  // Migrated to XYZVector
         return fHits.GetMeanPositionInVolume(volID);
     }
-    inline ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volID) const {  // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volID) const {  // Migrated to XYZVector
         return fHits.GetFirstPositionInVolume(volID);
     }
-    inline ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volID) const {  // Migrado a XYZVector
+    inline ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volID) const {  // Migrated to XYZVector
         return fHits.GetLastPositionInVolume(volID);
     }
 
-    Int_t GetProcessID(const std::string& processName) const;  // Migrado a std::string
-    std::string GetProcessName(Int_t id) const;                // Migrado a std::string
+    /// \brief Resolves process id from process name.
+    Int_t GetProcessID(const std::string& processName) const;
+    /// \brief Resolves process name from process id.
+    std::string GetProcessName(Int_t id) const;
 
     Bool_t ContainsProcessInVolume(Int_t processID, Int_t volumeID = -1) const;
     inline Bool_t ContainsProcess(Int_t processID) const { return ContainsProcessInVolume(processID, -1); }
 
-    Bool_t ContainsProcessInVolume(const std::string& processName,
-                                   Int_t volumeID = -1) const;             // Migrado a std::string
-    inline Bool_t ContainsProcess(const std::string& processName) const {  // Migrado a std::string
+    /// \brief Returns true if a named process appears in the selected volume.
+    Bool_t ContainsProcessInVolume(const std::string& processName, Int_t volumeID = -1) const;
+    inline Bool_t ContainsProcess(const std::string& processName) const {
         return ContainsProcessInVolume(processName, -1);
     }
 
-    Double_t GetEnergyInVolume(const std::string& volumeName,
-                               bool children = false) const;  // Migrado a std::string
+    /// \brief Returns deposited energy in a named volume (optionally including daughters).
+    Double_t GetEnergyInVolume(const std::string& volumeName, bool children = false) const;
 
-    std::string GetLastProcessName() const;  // Migrado a std::string
+    /// \brief Returns the process name recorded in the last hit of this track.
+    std::string GetLastProcessName() const;
 
     /// Prints the track information. N number of hits to print, 0 = all
     void PrintTrack(size_t maxHits = 0) const;
+    /// \brief Prints track information restricted to the provided volume name set.
     void PrintTrackFilterVolumes(const std::set<std::string>& filterVolumes) const;
 
     inline void RemoveHits() { fHits.RemoveHits(); }
@@ -132,7 +144,10 @@ class TRestGeant4Track {
 
     // restG4
    public:
+    /// \brief Constructs a REST track from a Geant4 track object.
     explicit TRestGeant4Track(const G4Track*);  //!
-    void UpdateTrack(const G4Track*);           //!
-    void InsertStep(const G4Step*);             //!
+    /// \brief Updates scalar track properties from Geant4 runtime state.
+    void UpdateTrack(const G4Track*);  //!
+    /// \brief Adds one Geant4 step to the internal hit collection.
+    void InsertStep(const G4Step*);  //!
 };

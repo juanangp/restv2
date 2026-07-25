@@ -18,11 +18,14 @@
 #include "TRestMetadata.h"
 
 /// \class TRestGeant4ParticleSource
+/// \brief Configures and generates primary particles with energy/angular phase-space models.
 class TRestGeant4ParticleSource : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestGeant4ParticleSource)
 
    private:
+    /// \brief Loads event-wise particle templates from an external event data file.
     void ReadEventDataFile(const std::string& filename);
+    /// \brief Parses DECAY0 generator output and converts it into source templates.
     bool ReadDecay0File(const std::string& filename);
 
    public:
@@ -60,13 +63,18 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     /// Modern functional container
     std::function<double()> fRandomMethod = nullptr;  //! Non-persisted functional hook
 
+    /// \brief Builds a particle source with default distributions and empty particle buffers.
     TRestGeant4ParticleSource();
+    /// \brief Builds and configures a particle source from a YAML metadata node.
     TRestGeant4ParticleSource(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Releases owned ROOT distribution functions and source resources.
     virtual ~TRestGeant4ParticleSource();
 
     // --- REST Pipeline Life Cycle Hooks ---
+    /// \brief Samples/updates internal particle state according to configured distributions.
     virtual void Update();
 
+    /// \brief Factory method to instantiate a concrete source model by name.
     static TRestGeant4ParticleSource* instantiate(const std::string& model = "");
 
     // --- Exposing Inner Particle State (Maintains Interface Compatibility) ---
@@ -88,6 +96,7 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     inline TRestGeant4Particle& GetBaseParticle() { return fParticle; }
     inline const TRestGeant4Particle& GetBaseParticle() const { return fParticle; }
 
+    /// \brief Returns a sampled direction vector based on the active angular model.
     ROOT::Math::XYZVector GetDirection() const;
     // --- Energy & Angular Getters/Setters ---
     inline std::string GetEnergyDistributionType() const { return fEnergyDistributionType; }
@@ -195,11 +204,15 @@ class TRestGeant4ParticleSource : public TRestMetadata {
         fParticles.clear();
     }
 
+    /// \brief Clones this source including configuration state.
     virtual TRestGeant4ParticleSource* Clone() const;
 
     // --- Framework and Identification Overrides ---
     std::string GetClassName() const override { return "TRestGeant4ParticleSource"; }
+    /// \brief Prints source configuration and active distribution settings.
     void PrintMetadata() override;
+    /// \brief Loads source configuration from the current YAML metadata node.
     void LoadConfig() override;
+    /// \brief No-op hook kept for REST metadata lifecycle compatibility.
     void Initialize() override {};
 };

@@ -15,6 +15,8 @@ class G4Step;
 class TRestGeant4Track;
 class TRestGeant4Event;
 
+/// \class TRestGeant4Hits
+/// \brief Stores Geant4 hit-level information and provides volume/process-based accessors.
 class TRestGeant4Hits : public TRestHits {
    protected:
     std::vector<int> fProcessID = {};
@@ -30,6 +32,7 @@ class TRestGeant4Hits : public TRestHits {
     TRestGeant4Event* fEvent = nullptr;  //!
 
    public:
+    /// \brief Returns associated Geant4 metadata through the owning event/track context.
     TRestGeant4Metadata* GetGeant4Metadata() const;
 
     inline const TRestGeant4Track* GetTrack() const { return fTrack; }
@@ -53,16 +56,22 @@ class TRestGeant4Hits : public TRestHits {
     inline int GetHadronicTargetIsotopeA(size_t n) const { return fHadronicTargetIsotopeA[n]; }
     inline int GetHadronicTargetIsotopeZ(size_t n) const { return fHadronicTargetIsotopeZ[n]; }
 
+    /// \brief Clears Geant4-specific hit attributes while preserving base hit container semantics.
     void RemoveG4Hits();
 
     inline Double_t GetKineticEnergy(size_t n) const { return fKineticEnergy[n]; }
 
+    /// \brief Accumulates deposited energy for all hits matching a given volume id.
     Double_t GetEnergyInVolume(Int_t volumeID) const;
 
+    /// \brief Returns energy-weighted centroid of hits in a given volume.
     ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volumeID) const;
+    /// \brief Returns first hit position registered in the selected volume.
     ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volumeID) const;
+    /// \brief Returns last hit position registered in the selected volume.
     ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volumeID) const;
 
+    /// \brief Counts hits recorded in a given volume id.
     size_t GetNumberOfHitsInVolume(Int_t volumeID) const;
 
     // non-const methods (should only be used on the analysis, carefully)
@@ -78,5 +87,6 @@ class TRestGeant4Hits : public TRestHits {
 
     // restG4
    public:
+    /// \brief Inserts one Geant4 step as a hit entry in the current hit container.
     void InsertStep(const G4Step*);
 };

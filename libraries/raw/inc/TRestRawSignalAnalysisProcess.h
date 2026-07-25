@@ -10,8 +10,8 @@
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
 
-///
-/// Read data from the root file output of femdaq into a TRestRawSignalEvent
+/// \class TRestRawSignalAnalysisProcess
+/// \brief Computes pulse-shape observables for each signal inside a raw signal event.
 ///
 class TRestRawSignalAnalysisProcess : public TRestEventProcess {
    private:
@@ -102,9 +102,13 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     TRestRawSignalAnalysisProcess(const std::string& instanceName, const YAML::Node& node);
     TRestRawSignalAnalysisProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads analysis parameters (ranges, thresholds and options) from YAML.
     virtual void LoadConfig() override;
+    /// \brief Initializes per-run state and declares produced observables.
     void InitProcess() override;
+    /// \brief Analyzes one input event and fills signal/event-level observables.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Finalizes process-level counters and summary observables.
     void EndProcess() override;
 
     std::string GetInputEvent() const override { return "TRestRawSignalEvent"; }

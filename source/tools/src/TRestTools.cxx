@@ -9,6 +9,11 @@
 #include <memory>
 #include <regex>
 #include <thread>
+#include <string>
+#include <charconv>
+#include <cmath>
+#include <string_view>
+
 
 #include "TRestLogManager.h"
 #include "TRestSystemOfUnits.h"
@@ -303,14 +308,31 @@ void TRestTools::ReplaceAll(std::string& str, const std::string& from, const std
 }
 
 std::string TRestTools::ToTimeStringLong(double seconds) {
-    const auto abs = TMath::Abs(seconds);
-    if (abs < 60) {
-        return TString::Format("%.2f %s", seconds, "seconds").Data();
-    } else if (abs < 60 * 60) {
-        return TString::Format("%.2f %s", seconds / 60.0, "minutes").Data();
-    } else if (abs < 60 * 60 * 24) {
-        return TString::Format("%.2f %s", seconds / (60.0 * 60.0), "hours").Data();
+    const auto absSeconds = std::abs(seconds); 
+    
+    char buffer[32];
+    double valueToFormat = seconds;
+    std::string_view unit;
+
+    if (absSeconds < 60) {
+        unit = " seconds";
+    } else if (absSeconds < 3600) {
+        valueToFormat = seconds / 60.0;
+        unit = " minutes";
+    } else if (absSeconds < 86400) {
+        valueToFormat = seconds / 3600.0;
+        unit = " hours";
     } else {
-        return TString::Format("%.2f %s", seconds / (60.0 * 60.0 * 24.0), "days").Data();
+        valueToFormat = seconds / 86400.0;
+        unit = " days";
     }
+
+    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), valueToFormat, std::chars_format::fixed, 2);
+
+    if (ec == std::errc{}) {
+        return std::string(buffer, ptr - buffer) + std::string(unit);
+    }
+
+    return "0.00 seconds";
 }
+

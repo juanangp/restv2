@@ -5,7 +5,8 @@
 #include <iostream>
 #include <string>
 
-/// A class used to store particle properties modernized for REST-for-Physics
+/// \class TRestGeant4Particle
+/// \brief Stores one primary/secondary particle state used by generators and track metadata.
 class TRestGeant4Particle {
    protected:
     std::string fParticleName;
@@ -24,6 +25,7 @@ class TRestGeant4Particle {
     inline ROOT::Math::XYZVector GetOrigin() const { return fOrigin; }
     inline ROOT::Math::XYZVector GetDirection() const { return fDirection; }
 
+    /// \brief Copies all particle fields from another particle instance.
     void SetParticle(const TRestGeant4Particle& particle);
 
     void SetParticleName(const std::string& particle) { fParticleName = particle; }
@@ -39,10 +41,13 @@ class TRestGeant4Particle {
     void SetEnergy(double en) { fEnergy = en; }
     void SetOrigin(const ROOT::Math::XYZVector& pos) { fOrigin = pos; }
 
+    /// \brief Prints particle identity, energy, direction and origin.
     void Print() const;
 
     // Constructor
+    /// \brief Constructor.
     TRestGeant4Particle();
     // Destructor
+    /// \brief Destructor.
     virtual ~TRestGeant4Particle();
 };

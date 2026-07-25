@@ -38,6 +38,7 @@ class TRestGeant4GeometryInfo {
 
     /// \brief Binds an existing geometry manager or loads a GDML file into ROOT.
     void LoadGeometry(TGeoManager* geoManager) { fGeoManager = geoManager; }
+    /// \brief Imports geometry from a GDML file and initializes the ROOT geometry manager.
     void LoadGeometryFromGdml(const std::string& gdmlFilename);
 
     // --- Fast Validation Methods relying directly on TGeoManager ---
@@ -98,13 +99,20 @@ class TRestGeant4GeometryInfo {
     }
 
     // --- Geometric Path and Translation Methods ---
+    /// \brief Converts a Geant4 path into the REST alternative naming convention.
     std::string GetAlternativePathFromGeant4Path(const std::string& g4Path) const;
+    /// \brief Converts one Geant4 physical volume name into its alternative REST name.
     std::string GetAlternativeNameFromGeant4PhysicalName(const std::string& g4Name) const;
+    /// \brief Returns all compatible alternative names for one Geant4 physical volume name.
     std::set<std::string> GetAlternativeNamesFromGeant4PhysicalName(const std::string& g4Name) const;
+    /// \brief Resolves a REST alternative volume name back to a Geant4 physical name.
     std::string GetGeant4PhysicalNameFromAlternativeName(const std::string& altName) const;
 
+    /// \brief Returns all logical volume names available in the loaded geometry.
     std::vector<std::string> GetAllLogicalVolumes() const;
+    /// \brief Returns all physical volume names available in the loaded geometry.
     std::vector<std::string> GetAllPhysicalVolumes() const;
+    /// \brief Returns physical volumes translated to alternative REST naming.
     std::vector<std::string> GetAllAlternativePhysicalVolumes() const;
 
     void InitializeOnDetectorConstruction(const std::string& gdmlFilename, const G4VPhysicalVolume* world) {
@@ -114,6 +122,7 @@ class TRestGeant4GeometryInfo {
         PopulateFromGeant4World(world);
     }
 
+    /// \brief Traverses the Geant4 world to populate logical/physical volume lookup maps.
     void PopulateFromGeant4World(const G4VPhysicalVolume* world);
 
     std::vector<std::string> GetAllPhysicalVolumesFromLogical(const std::string& logicalVolumeName) const {
@@ -131,9 +140,12 @@ class TRestGeant4GeometryInfo {
         return result;
     }
 
+    /// \brief Returns logical volume names matching a wildcard/regex-like expression.
     std::vector<std::string> GetAllLogicalVolumesMatchingExpression(const std::string& expression) const;
+    /// \brief Returns physical volume names matching a wildcard/regex-like expression.
     std::vector<std::string> GetAllPhysicalVolumesMatchingExpression(const std::string& expression) const;
 
+    /// \brief Prints geometry summary and cached mapping information.
     void Print() const;
 
     friend class DetectorConstruction;

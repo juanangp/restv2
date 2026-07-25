@@ -10,8 +10,8 @@
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
 
-///
-/// Read data from the root file output of femdaq into a TRestRawSignalEvent
+/// \class TRestRawFemDAQToSignalProcess
+/// \brief Converts FemDAQ ROOT tree entries into REST raw signal events.
 ///
 class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
    private:
@@ -35,10 +35,15 @@ class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
     TRestRawFemDAQToSignalProcess(const std::string& instanceName, const YAML::Node& node);
     TRestRawFemDAQToSignalProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads input file names and conversion options from YAML.
     virtual void LoadConfig() override;
+    /// \brief Opens input ROOT resources and connects branch addresses.
     void InitProcess() override;
+    /// \brief Converts one FemDAQ entry into a TRestRawSignalEvent payload.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Closes input resources and updates run-level timestamps.
     void EndProcess() override;
+    /// \brief Returns the number of available entries in the input tree.
     Long64_t GetInputEventCount() const override { return fInputTree ? fInputTree->GetEntries() : -1; }
 
     std::string GetInputEvent() const override { return "None"; }

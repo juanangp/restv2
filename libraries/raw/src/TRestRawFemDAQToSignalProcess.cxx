@@ -26,22 +26,26 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
+/// \brief Default constructor for FEMDAQ-to-signal conversion.
 TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess() : TRestEventProcess() {
     fName = "TRestRawFemDAQToSignalProcess";
 }
 
+/// \brief Constructor from an in-memory YAML node.
 TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& instanceName,
                                                              const YAML::Node& node)
     : TRestEventProcess(instanceName, node) {
     LoadConfig();
 }
 
+/// \brief Constructor from a file and YAML section name.
 TRestRawFemDAQToSignalProcess::TRestRawFemDAQToSignalProcess(const std::string& fileName,
                                                              const std::string& sectionName)
     : TRestEventProcess(fileName, sectionName) {
     LoadConfig();
 }
 
+/// \brief Loads process parameters and synchronizes resolved values back to YAML.
 void TRestRawFemDAQToSignalProcess::LoadConfig() {
     TRestEventProcess::LoadConfig();
 
@@ -55,6 +59,7 @@ void TRestRawFemDAQToSignalProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawFemDAQToSignalProcess>(fNode);
 }
 
+/// \brief Opens input trees, imports run timing metadata, and prepares branch bindings.
 void TRestRawFemDAQToSignalProcess::InitProcess() {
     // Read parameters from YAML
     std::string inputFilename;
@@ -126,6 +131,7 @@ void TRestRawFemDAQToSignalProcess::InitProcess() {
     fInputTree->SetBranchAddress("eventID", &fEventID);
 }
 
+/// \brief Converts one tree entry into a TRestRawSignalEvent and fills per-channel samples.
 bool TRestRawFemDAQToSignalProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
     if (fInputTreeEntry >= fInputTree->GetEntries()) {
         return false;  // EOF reached
@@ -165,6 +171,7 @@ bool TRestRawFemDAQToSignalProcess::ProcessEvent(const TRestEvent& input, TRestE
     return true;
 }
 
+/// \brief Updates run time range and releases opened ROOT resources.
 void TRestRawFemDAQToSignalProcess::EndProcess() {
     if (fSetRunStartEndFromEvents && fRunInfo) {
         fRunInfo->SetStartTimeStamp(fStartTimestamp);

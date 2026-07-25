@@ -168,7 +168,9 @@ class TRestGeant4Metadata : public TRestMetadata {
     void LoadConfig() override;
     void PrintMetadata() override;
     void Initialize() override {}
+    /// \brief Resets all metadata containers and cached lookup structures.
     void Clear();
+    /// \brief Merges another metadata object into this one for combined simulations.
     void Merge(const TRestGeant4Metadata& other);
 
     // --- Immutable Getters for Internal Structures ---
@@ -181,6 +183,7 @@ class TRestGeant4Metadata : public TRestMetadata {
 
     // --- Modernized Getters (std::string) ---
     inline std::string GetGeant4Version() const { return fGeant4Version; }
+    /// \brief Extracts the Geant4 major version number from the version string.
     size_t GetGeant4VersionMajor() const;
     inline bool GetStoreHadronicTargetInfo() const { return fStoreHadronicTargetInfo; }
     inline std::string GetGeometryPath() const { return fGeometryPath; }
@@ -223,7 +226,9 @@ class TRestGeant4Metadata : public TRestMetadata {
     // --- Primary Generator Sources Management ---
     inline int GetNumberOfSources() const { return static_cast<int>(fParticleSource.size()); }
     inline TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) const { return fParticleSource.at(n); }
+    /// \brief Deletes and clears all configured primary particle sources.
     void RemoveParticleSources();
+    /// \brief Registers one particle source (ownership transferred to metadata).
     void AddParticleSource(TRestGeant4ParticleSource* src);
 
     // --- Biasing Volumes Management ---
@@ -273,10 +278,13 @@ class TRestGeant4Metadata : public TRestMetadata {
         return fRemoveUnwantedTracksKeepZeroEnergyTracks;
     }
 
+    /// \brief Returns event storage probability associated with a given active volume.
     double GetStorageChance(const std::string& volume) const;
+    /// \brief Returns configured Geant4 max step size for a given active volume.
     double GetMaxStepSize(const std::string& volume) const;
 
     // --- Cosmic Ray Analysis Methods ---
+    /// \brief Computes effective source generation surface in cm2 when available.
     double GetGeneratorSurfaceCm2() const;
     double GetCosmicFluxInCountsPerCm2PerSecond() const;
     double GetCosmicIntensityInCountsPerSecond() const;

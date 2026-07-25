@@ -121,9 +121,8 @@ class TRestGeant4TrackView : public TRestHits {
     double GetInitialEnergy() const { return fEventData->trackInitialEnergies[fTrackIdx]; }
 };
 
-// ============================================================================
-//  TRestGeant4Event
-// ============================================================================
+/// \class TRestGeant4Event
+/// \brief Event container for Geant4 output with flat AOD views and track synchronization.
 class TRestGeant4Event : public TRestEvent {
    private:
     mutable std::unordered_map<std::string, double> fVolumeEnergyCache;
@@ -152,9 +151,13 @@ class TRestGeant4Event : public TRestEvent {
     std::vector<TRestGeant4Track> fTracks;
     std::map<int, int> fTrackIDToTrackIndex;
 
+    /// \brief Builds the event from one Geant4 event payload.
     TRestGeant4Event(const G4Event* event);
+    /// \brief Inserts a new track if its id is not yet registered.
     bool InsertTrack(const G4Track* track);
+    /// \brief Updates an existing track with the latest Geant4 state.
     void UpdateTrack(const G4Track* track);
+    /// \brief Appends one Geant4 step into the corresponding track hit sequence.
     void InsertStep(const G4Step* step);
     std::string GetClassName() const override { return "TRestGeant4Event"; }
 
@@ -166,6 +169,7 @@ class TRestGeant4Event : public TRestEvent {
         fTradVolumeIndexMap.clear();
     }
 
+    /// \brief Returns true when this entry represents a delayed sub-event fragment.
     bool IsSubEvent() const { return GetSubID() > 0; }
 
     TRestGeant4Hits fInitialStep;
@@ -175,6 +179,7 @@ class TRestGeant4Event : public TRestEvent {
     std::map<int, int>& GetTrackIDToTrackIndex() { return fTrackIDToTrackIndex; }
     const std::map<int, int>& GetTrackIDToTrackIndex() const { return fTrackIDToTrackIndex; }
 
+    /// \brief Clears track caches and flat storage vectors while keeping event object reusable.
     void ClearTracks() {
         fTracks.clear();
         fTrackIDToTrackIndex.clear();
@@ -193,8 +198,10 @@ class TRestGeant4Event : public TRestEvent {
         RefreshViews();
     }
 
+    /// \brief Synchronizes object-based tracks into flat AOD vectors and hit storage.
     void SyncTracksToEventData();
     void InitializeOnDetectorConstruction(const std::string&, const G4VPhysicalVolume*) {}
+    /// \brief Populates detector-volume bookkeeping using the Geant4 world hierarchy.
     void PopulateFromGeant4World(const G4VPhysicalVolume* world);
 
     void CreateBranches(TTree* tree) override {

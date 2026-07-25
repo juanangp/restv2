@@ -12,6 +12,7 @@ TRestGeant4Track::TRestGeant4Track() = default;
 
 TRestGeant4Track::~TRestGeant4Track() = default;
 
+/// \brief Resolves a Geant4 process name into its numeric process identifier.
 Int_t TRestGeant4Track::GetProcessID(const std::string& processName) const {
     const TRestGeant4Metadata* metadata = GetGeant4Metadata();
     if (metadata != nullptr) {
@@ -25,6 +26,7 @@ Int_t TRestGeant4Track::GetProcessID(const std::string& processName) const {
     return -1;
 }
 
+/// \brief Resolves a Geant4 process identifier into its process name.
 std::string TRestGeant4Track::GetProcessName(Int_t processID) const {
     const TRestGeant4Metadata* metadata = GetGeant4Metadata();
     if (metadata != nullptr) {
@@ -38,6 +40,7 @@ std::string TRestGeant4Track::GetProcessName(Int_t processID) const {
     return "";
 }
 
+/// \brief Returns a display color associated with the track particle species.
 EColor TRestGeant4Track::GetParticleColor() const {
     EColor color = kGray;
 
@@ -82,6 +85,7 @@ size_t TRestGeant4Track::GetNumberOfPhysicalHits(Int_t volID) const {
     return numberOfHits;
 }
 
+/// \brief Prints a detailed textual summary of the track and its hits.
 void TRestGeant4Track::PrintTrack(size_t maxHits) const {
     cout << " * TrackID: " << fTrackID << " - Particle: " << fParticleName << " - ParentID: " << fParentID;
     if (GetParentTrack() != nullptr) {
@@ -174,6 +178,7 @@ void TRestGeant4Track::PrintTrackFilterVolumes(const std::set<std::string>& volu
     }
 }
 
+/// \brief Checks whether any hit in the track matches a process and optional volume filter.
 Bool_t TRestGeant4Track::ContainsProcessInVolume(Int_t processID, Int_t volumeID) const {
     for (unsigned int i = 0; i < GetNumberOfHits(); i++) {
         if (fHits.GetHitProcess(i) != processID) continue;
@@ -195,6 +200,7 @@ Bool_t TRestGeant4Track::ContainsProcessInVolume(const std::string& processName,
     return false;
 }
 
+/// \brief Returns the Geant4 metadata associated with the owning event.
 const TRestGeant4Metadata* TRestGeant4Track::GetGeant4Metadata() const {
     if (GetEvent() == nullptr) {
         return nullptr;

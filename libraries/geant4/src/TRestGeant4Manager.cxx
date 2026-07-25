@@ -15,16 +15,19 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
+/// \brief Builds Geant4 manager metadata from an in-memory YAML node.
 TRestGeant4Manager::TRestGeant4Manager(const std::string& instanceName, const YAML::Node& node)
     : TRestMetadata(instanceName, node) {
     LoadConfig();
 }
 
+/// \brief Builds Geant4 manager metadata from a file section.
 TRestGeant4Manager::TRestGeant4Manager(const std::string& fileName, const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
     LoadConfig();
 }
 
+/// \brief Resolves and stores nested metadata blocks declared under the manager node.
 void TRestGeant4Manager::LoadConfig() {
     fG4Metadata = nullptr;
     fConfiguredRun = nullptr;
@@ -55,6 +58,7 @@ void TRestGeant4Manager::LoadConfig() {
     }
 }
 
+/// \brief Persists configured Geant4 metadata blocks into the associated run metadata.
 void TRestGeant4Manager::SaveMetadata() {
     if (fConfiguredRun == nullptr) {
         throw std::runtime_error("TRestGeant4Manager::Run - no TRestRun configured under manager section.");
@@ -65,6 +69,7 @@ void TRestGeant4Manager::SaveMetadata() {
     if (fG4Metadata) fConfiguredRun->AddMetadata(fG4Metadata->GetName(), fG4Metadata->GetYAMLNode());
 }
 
+/// \brief Prints manager-level metadata and its effective YAML configuration.
 void TRestGeant4Manager::PrintMetadata() {
     RESTMetadata << "=== TRestGeant4Manager ===" << RESTendl;
     if (fNode && !fNode.IsNull()) RESTMetadata << YAML::Dump(fNode) << RESTendl;

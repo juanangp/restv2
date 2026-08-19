@@ -86,7 +86,7 @@ TRestGeant4Metadata::TRestGeant4Metadata(const std::string& instanceName, const 
 }
 
 /// \brief Destructor clean-up logic.
-TRestGeant4Metadata::~TRestGeant4Metadata() { RemoveParticleSources(); }
+TRestGeant4Metadata::~TRestGeant4Metadata() { fGeant4PrimaryGeneratorInfo.RemoveParticleSources(); }
 
 /// \brief Pre-allocation and basic environment state setups.
 void TRestGeant4Metadata::Clear() {
@@ -99,16 +99,32 @@ void TRestGeant4Metadata::Clear() {
     fRemoveUnwantedTracksVolumesToKeep.clear();
     fKillVolumes.clear();
     fActiveVolumesSet.clear();
-    fParticleSource.clear();
+    fGeant4PrimaryGeneratorInfo.RemoveParticleSources();
 }
 
 /// \brief Modern framework configuration entry point.
 void TRestGeant4Metadata::LoadConfig() {
-    // Structural multi-field validation injection from the field registry maps
-    // This automatically maps nodes like energyRangeStored into the std::pair structure
+    // If the generator type is a pure zero-size point, we explicitly inject safe fallback fields
+    // so the internal StringToSpatialGeneratorShapes parser doesn't trigger an out-of-range memory collision.
+    if (fNode["generator"] && fNode["generator"].IsMap()) {
+        auto mutableGenerator = fNode["generator"];
+        if (mutableGenerator["type"] && mutableGenerator["type"].as<std::string>() == "point") {
+            if (!mutableGenerator["shape"]) {
+                mutableGenerator["shape"] = "box"; // Inject safe enum string template
+            }
+            if (!mutableGenerator["size"]) {
+                mutableGenerator["size"] = std::vector<double>{0.0, 0.0, 0.0}; // Consolidated spatial footprint
+            }
+        }
+    }
+
     UpdateParamsFromYAML<TRestGeant4Metadata>(fNode);
 
-    // Unpack explicit string vectors from custom structure arrays
+    if (fNode["generator"] && fNode["generator"].IsMap()) {
+        fGeant4PrimaryGeneratorInfo.SetYAMLNode(fNode["generator"]);
+        fGeant4PrimaryGeneratorInfo.LoadConfig();
+    }
+
     if (fNode["activeVolumes"] && fNode["activeVolumes"].IsSequence()) {
         for (const auto& volNode : fNode["activeVolumes"]) {
             if (volNode.IsMap() && volNode["name"]) {
@@ -144,7 +160,10 @@ void TRestGeant4Metadata::LoadConfig() {
 
     // Dynamic field state synchronization back onto the nodes
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
+
 }
+
+
 /// \brief Copy constructor implementing full internal state replication.
 TRestGeant4Metadata::TRestGeant4Metadata(const TRestGeant4Metadata& metadata) : TRestMetadata(metadata) {
     this->Merge(metadata);
@@ -201,24 +220,15 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fMagneticField = other.fMagneticField;
     fActiveVolumesSet = other.fActiveVolumesSet;
 
-    // Deep replication of raw source pointers
-    RemoveParticleSources();
-    for (const auto* src : other.fParticleSource) {
-        if (src) fParticleSource.push_back(src->Clone());
-    }
 }
 
-/// \brief Safe cleanup of structural source allocations.
 void TRestGeant4Metadata::RemoveParticleSources() {
-    for (auto* src : fParticleSource) {
-        if (src) delete src;
-    }
-    fParticleSource.clear();
+    fGeant4PrimaryGeneratorInfo.RemoveParticleSources();
 }
 
 /// \brief Append a newly declared target particle source generator.
 void TRestGeant4Metadata::AddParticleSource(TRestGeant4ParticleSource* src) {
-    if (src) fParticleSource.push_back(src);
+    if (src) fGeant4PrimaryGeneratorInfo.fParticleSources.push_back(src);
 }
 
 /// \brief Parses the local Major configuration value from the semantic version string.

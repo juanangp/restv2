@@ -1,9 +1,11 @@
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 // ROOT MathCore and Core dependencies
 #include <Math/Vector3D.h>
@@ -59,28 +61,40 @@ TF2 EnergyAndAngularDistributionFormulasToRootFormula(EnergyAndAngularDistributi
 
 }  // namespace TRestGeant4PrimaryGeneratorTypes
 
+#include "TRestMetadata.h"
+
+class TRestGeant4ParticleSource;
+
 /// \class TRestGeant4PrimaryGeneratorInfo
 /// \brief Class to store global spatial parameters, geometry shapes, and boundaries for primary event
 /// generators.
 /// \class TRestGeant4PrimaryGeneratorInfo
 /// \brief Class to store global spatial parameters, geometry shapes, and boundaries for primary event
 /// generators.
-class TRestGeant4PrimaryGeneratorInfo {
+class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
    public:
     std::string fSpatialGeneratorType = "point";
-    std::string fSpatialGeneratorShape;
-    std::string fSpatialGeneratorFrom;
+    std::string fSpatialGeneratorShape = "box";
+    std::string fSpatialGeneratorFrom = "World";
 
     std::array<double, 3> fSpatialGeneratorPosition = {0.0, 0.0, 0.0};
-    std::array<double, 3> fSpatialGeneratorRotationAxis = {0.0, 0.0, 0.0};
+    std::array<double, 3> fSpatialGeneratorRotationAxis = {0.0, 0.0, 1.0};
     double fSpatialGeneratorRotationValue = 0.0;
     std::array<double, 3> fSpatialGeneratorSize = {0.0, 0.0, 0.0};
-
-    std::string fSpatialGeneratorSpatialDensityFunction;
     std::array<double, 3> fSpatialGeneratorWorldSize = {0.0, 0.0, 0.0};
+    std::string fSpatialGeneratorSpatialDensityFunction = "";
 
-    TRestGeant4PrimaryGeneratorInfo() = default;
-    virtual ~TRestGeant4PrimaryGeneratorInfo() = default;
+    // 2. COMPOSITION UNIFICATION: The particle sources now live inside the generator info!
+    std::vector<TRestGeant4ParticleSource*> fParticleSources;
+
+    // Standard constructor definitions matching the pipeline
+    TRestGeant4PrimaryGeneratorInfo();
+    TRestGeant4PrimaryGeneratorInfo(const std::string& name, const YAML::Node& node);
+    virtual ~TRestGeant4PrimaryGeneratorInfo();
+
+    void LoadConfig() override;
+    void Initialize() override {}
+    void RemoveParticleSources();
 
     void Print() const;
     // --- Inline analytical getters (explicit conversions from std::array to XYZVector) ---

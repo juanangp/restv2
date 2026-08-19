@@ -15,7 +15,7 @@ struct TRestHitsData {
     enum REST_HitType : int { unknown = -1, X = 2, Y = 3, Z = 5, XY = 6, XZ = 10, YZ = 15, XYZ = 30 };
 
     std::vector<float> x, y, z, time, energy;
-    std::vector<REST_HitType> type;
+    std::vector<int> type;
 
     /// \brief Clears all hit arrays.
     void clear() {
@@ -73,6 +73,12 @@ class TRestHits {
         fData->energy.erase(fData->energy.begin() + fStartIdx, fData->energy.begin() + fStartIdx + fNHits);
         fData->type.erase(fData->type.begin() + fStartIdx, fData->type.begin() + fStartIdx + fNHits);
 
+        fNHits = 0;
+    }
+
+    inline void ClearHits() {
+        if (fData) fData->clear();
+        fStartIdx = 0;
         fNHits = 0;
     }
 

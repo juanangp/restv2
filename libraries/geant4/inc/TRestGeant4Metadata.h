@@ -12,9 +12,9 @@
 
 #include "TRestGeant4BiasingVolume.h"
 #include "TRestGeant4GeometryInfo.h"
-#include "TRestGeant4ParticleSource.h"
 #include "TRestGeant4PhysicsInfo.h"
 #include "TRestGeant4PrimaryGeneratorInfo.h"
+#include "TRestGeant4ParticleSource.h"
 #include "TRestMetadata.h"
 #include "TRestTools.h"
 
@@ -66,9 +66,6 @@ class TRestGeant4Metadata : public TRestMetadata {
 
     /// A vector to store the maximum step size at a particular volume
     std::vector<double> fMaxStepSize;
-
-    /// It defines the primary source properties, particle type, momentum, energy, etc.
-    std::vector<TRestGeant4ParticleSource*> fParticleSource;
 
     /// The number of biasing volumes used in the simulation. If zero, no biasing technique is used.
     int fNBiasingVolumes = 0;
@@ -224,8 +221,12 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline void SetSimulationMaxTimeSeconds(double seconds) { fSimulationMaxTimeSeconds = seconds; }
 
     // --- Primary Generator Sources Management ---
-    inline int GetNumberOfSources() const { return static_cast<int>(fParticleSource.size()); }
-    inline TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) const { return fParticleSource.at(n); }
+    inline int GetNumberOfSources() const {
+        return static_cast<int>(fGeant4PrimaryGeneratorInfo.fParticleSources.size());
+    }
+    inline TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) const {
+        return fGeant4PrimaryGeneratorInfo.fParticleSources.at(n);
+    }
     /// \brief Deletes and clears all configured primary particle sources.
     void RemoveParticleSources();
     /// \brief Registers one particle source (ownership transferred to metadata).

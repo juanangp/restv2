@@ -1,4 +1,5 @@
 #include "TRestGeant4PrimaryGeneratorInfo.h"
+#include "TRestGeant4ParticleSource.h"
 
 #include <TAxis.h>
 #include <TMath.h>
@@ -12,34 +13,74 @@
 using namespace std;
 using namespace TRestGeant4PrimaryGeneratorTypes;
 
-// Modern REST v3 field registry reflection hooks for seamless composite metadata loading
 static const bool TRestGeant4PrimaryGeneratorInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
+    // Standard structural definitions mapping correctly to the clean YAML file keys
     reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorType", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorType);
+        "type", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorType);
     reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorShape", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorShape);
+        "shape", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorShape);
+    
+    // FIXED: Swapped out legacy verbose strings for the real flat YAML keys
     reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorFrom", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorFrom);
+        "from", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorFrom);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "position", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorPosition);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "rotationAxis", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorRotationAxis);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "rotationValue", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorRotationValue);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "size", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorSize);
 
+    // Operational densities and boundary maps
     reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorPosition", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorPosition);
+        "spatialDensityFunction", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorSpatialDensityFunction);
     reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorRotationAxis", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorRotationAxis);
-    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorRotationValue", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorRotationValue);
-    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorSize", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorSize);
-
-    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorSpatialDensityFunction",
-        &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorSpatialDensityFunction);
-    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
-        "spatialGeneratorWorldSize", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorWorldSize);
+        "worldSize", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorWorldSize);
 
     return true;
 }();
+
+TRestGeant4PrimaryGeneratorInfo::TRestGeant4PrimaryGeneratorInfo() : TRestMetadata() {
+    fName = "TRestGeant4PrimaryGeneratorInfo";
+}
+
+TRestGeant4PrimaryGeneratorInfo::TRestGeant4PrimaryGeneratorInfo(const std::string& name,
+                                                                 const YAML::Node& node)
+    : TRestMetadata(name, node) {
+    LoadConfig();
+}
+
+TRestGeant4PrimaryGeneratorInfo::~TRestGeant4PrimaryGeneratorInfo() {
+    RemoveParticleSources();
+}
+
+void TRestGeant4PrimaryGeneratorInfo::LoadConfig() {
+    UpdateParamsFromYAML<TRestGeant4PrimaryGeneratorInfo>(fNode);
+
+    RemoveParticleSources();
+    if (fNode["source"]) {
+        if (fNode["source"].IsSequence()) {
+            for (const auto& srcNode : fNode["source"]) {
+                fParticleSources.push_back(new TRestGeant4ParticleSource("source", srcNode));
+            }
+        } else if (fNode["source"].IsMap()) {
+            fParticleSources.push_back(new TRestGeant4ParticleSource("source", fNode["source"]));
+        }
+    }
+
+    ReadYAMLVerbose(fNode);
+    UpdateYAMLFromParams<TRestGeant4PrimaryGeneratorInfo>(fNode);
+}
+
+void TRestGeant4PrimaryGeneratorInfo::RemoveParticleSources() {
+    for (auto* source : fParticleSources) {
+        delete source;
+    }
+    fParticleSources.clear();
+}
 
 // --- Internal Helper for Case-Insensitive String Comparisons replacing TString ---
 static bool CaseInsensitiveCompare(const std::string& str1, const std::string& str2) {
@@ -130,8 +171,8 @@ SpatialGeneratorShapes TRestGeant4PrimaryGeneratorTypes::StringToSpatialGenerato
         return SpatialGeneratorShapes::CYLINDER;
 
     cout << "TRestGeant4PrimaryGeneratorTypes::StringToSpatialGeneratorShapes - Error - Unknown "
-            "SpatialGeneratorShapes: "
-         << shape << endl;
+            "SpatialGeneratorShapes: '"
+         << shape << "'" << endl;
     exit(1);
 }
 

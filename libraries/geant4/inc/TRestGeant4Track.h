@@ -19,27 +19,27 @@ class G4Step;
 /// \brief Holds one Geant4 particle track and its associated step-level hit history.
 class TRestGeant4Track {
    protected:
-    Int_t fTrackID;
-    Int_t fParentID;
+    int fTrackID;
+    int fParentID;
 
-    std::string fParticleName;
+    std::string fParticleName; 
 
     TRestGeant4Hits fHits;
 
     std::string fCreatorProcess;
 
-    std::vector<Int_t> fSecondaryTrackIDs;
+    std::vector<int> fSecondaryTrackIDs;
 
-    Double_t fGlobalTimestamp;
-    Double_t fTimeOffset = 0;
-    Double_t fTimeLength;
+    double fGlobalTimestamp;
+    double fTimeOffset = 0;
+    double fTimeLength;
 
-    Double_t fInitialKineticEnergy;
-    Double_t fLength;
+    double fInitialKineticEnergy;
+    double fLength;
 
     ROOT::Math::XYZVector fInitialPosition;
 
-    Double_t fWeight = 1;
+    double fWeight = 1;
 
     TRestGeant4Event* fEvent = nullptr;  //!
 
@@ -50,7 +50,10 @@ class TRestGeant4Track {
     /// \brief Returns Geant4 metadata associated with the parent event.
     const TRestGeant4Metadata* GetGeant4Metadata() const;
 
-    inline void SetEvent(TRestGeant4Event* event) { fEvent = event; }
+    inline void SetEvent(TRestGeant4Event* event) {
+        fEvent = event;
+        fHits.SetEvent(event);
+    }
     inline void SetHits(const TRestGeant4Hits& hits) {
         fHits = hits;
         fHits.SetTrack(this);
@@ -151,3 +154,4 @@ class TRestGeant4Track {
     /// \brief Adds one Geant4 step to the internal hit collection.
     void InsertStep(const G4Step*);  //!
 };
+

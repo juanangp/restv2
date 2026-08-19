@@ -12,7 +12,8 @@ using REST_HitType = TRestHitsData::REST_HitType;
 bool TRestHits::areXY() const {
     if (fNHits == 0) return false;
     for (int i = 0; i < fNHits; ++i) {
-        if (fData->type[GetGlobalIdx(i)] != TRestHitsData::XY) return false;
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(i)]);
+        if (type != TRestHitsData::XY) return false;
     }
     return true;
 }
@@ -20,7 +21,8 @@ bool TRestHits::areXY() const {
 bool TRestHits::areXZ() const {
     if (fNHits == 0) return false;
     for (int i = 0; i < fNHits; ++i) {
-        if (fData->type[GetGlobalIdx(i)] != TRestHitsData::XZ) return false;
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(i)]);
+        if (type != TRestHitsData::XZ) return false;
     }
     return true;
 }
@@ -28,7 +30,8 @@ bool TRestHits::areXZ() const {
 bool TRestHits::areYZ() const {
     if (fNHits == 0) return false;
     for (int i = 0; i < fNHits; ++i) {
-        if (fData->type[GetGlobalIdx(i)] != TRestHitsData::YZ) return false;
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(i)]);
+        if (type != TRestHitsData::YZ) return false;
     }
     return true;
 }
@@ -36,7 +39,8 @@ bool TRestHits::areYZ() const {
 bool TRestHits::areXYZ() const {
     if (fNHits == 0) return false;
     for (int i = 0; i < fNHits; ++i) {
-        if (fData->type[GetGlobalIdx(i)] != TRestHitsData::XYZ) return false;
+         const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(i)]);
+        if (type != TRestHitsData::XYZ) return false;
     }
     return true;
 }
@@ -48,7 +52,7 @@ void TRestHits::AddHit(ROOT::Math::XYZVector position, double energy, double tim
     fData->z.push_back((float)position.Z());
     fData->energy.push_back((float)energy);
     fData->time.push_back((float)time);
-    fData->type.push_back(type);
+    fData->type.push_back(static_cast<int>(type));
 
     fNHits++;
 }
@@ -152,7 +156,7 @@ void TRestHits::RemoveHit(int n) {
 
 ROOT::Math::XYZVector TRestHits::GetPosition(int n) const {
     int idx = GetGlobalIdx(n);
-    REST_HitType type = fData->type[idx];
+    const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[idx]);
     double x = fData->x[idx];
     double y = fData->y[idx];
     double z = fData->z[idx];
@@ -184,7 +188,8 @@ double TRestHits::GetMeanPositionX() const {
     double mean = 0, totalEnergy = 0;
     for (int i = 0; i < fNHits; ++i) {
         int idx = GetGlobalIdx(i);
-        if (fData->type[idx] % TRestHitsData::X == 0) {
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[idx]);
+        if (type % TRestHitsData::X == 0) {
             mean += fData->x[idx] * fData->energy[idx];
             totalEnergy += fData->energy[idx];
         }
@@ -196,7 +201,8 @@ double TRestHits::GetMeanPositionY() const {
     double mean = 0, totalEnergy = 0;
     for (int i = 0; i < fNHits; ++i) {
         int idx = GetGlobalIdx(i);
-        if (fData->type[idx] % TRestHitsData::Y == 0) {
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[idx]);
+        if (type % TRestHitsData::Y == 0) {
             mean += fData->y[idx] * fData->energy[idx];
             totalEnergy += fData->energy[idx];
         }
@@ -208,7 +214,8 @@ double TRestHits::GetMeanPositionZ() const {
     double mean = 0, totalEnergy = 0;
     for (int i = 0; i < fNHits; ++i) {
         int idx = GetGlobalIdx(i);
-        if (fData->type[idx] % TRestHitsData::Z == 0) {
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[idx]);
+        if (type % TRestHitsData::Z == 0) {
             mean += fData->z[idx] * fData->energy[idx];
             totalEnergy += fData->energy[idx];
         }

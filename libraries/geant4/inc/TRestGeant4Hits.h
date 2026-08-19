@@ -80,10 +80,10 @@ class TRestGeant4Hits : public TRestHits {
 
     // Constructor
     TRestGeant4Hits();
+    TRestGeant4Hits(const TRestGeant4Hits& other);
+    TRestGeant4Hits& operator=(const TRestGeant4Hits& other);
     // Destructor
     virtual ~TRestGeant4Hits();
-
-    ClassDef(TRestGeant4Hits, 9);
 
     // restG4
    public:

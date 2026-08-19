@@ -13,36 +13,32 @@ using namespace std;
 using namespace TRestGeant4PrimaryGeneratorTypes;
 
 // Modern REST v3 field registry reflection hook for safe YAML pipeline loading
-static const bool TRestGeant4ParticleSource_FieldsRegistered = []() {
+static const bool TRestGeant4PrimaryGeneratorInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
-    // Core distribution mappings
-    reg.RegisterField<TRestGeant4ParticleSource>("angularDistributionType",
-                                                 &TRestGeant4ParticleSource::fAngularDistributionType);
-    reg.RegisterField<TRestGeant4ParticleSource>("angularDistributionFilename",
-                                                 &TRestGeant4ParticleSource::fAngularDistributionFilename);
-    reg.RegisterField<TRestGeant4ParticleSource>("angularDistributionNameInFile",
-                                                 &TRestGeant4ParticleSource::fAngularDistributionNameInFile);
-    reg.RegisterField<TRestGeant4ParticleSource>(
-        "angularDistributionFormulaNPoints", &TRestGeant4ParticleSource::fAngularDistributionFormulaNPoints);
-    reg.RegisterField<TRestGeant4ParticleSource>("angularDistributionRange",
-                                                 &TRestGeant4ParticleSource::fAngularDistributionRange);
-    reg.RegisterField<TRestGeant4ParticleSource>(
-        "angularDistributionIsotropicConeHalfAngle",
-        &TRestGeant4ParticleSource::fAngularDistributionIsotropicConeHalfAngle);
+    // Standard structural definitions mapping correctly to the clean YAML file keys
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "type", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorType);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "shape", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorShape);
+    
+    // FIXED: Swapped out legacy verbose strings for the real flat YAML keys
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "from", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorFrom);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "position", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorPosition);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "rotationAxis", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorRotationAxis);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "rotationValue", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorRotationValue);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "size", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorSize);
 
-    reg.RegisterField<TRestGeant4ParticleSource>("energyDistributionType",
-                                                 &TRestGeant4ParticleSource::fEnergyDistributionType);
-    reg.RegisterField<TRestGeant4ParticleSource>("energyDistributionFilename",
-                                                 &TRestGeant4ParticleSource::fEnergyDistributionFilename);
-    reg.RegisterField<TRestGeant4ParticleSource>("energyDistributionNameInFile",
-                                                 &TRestGeant4ParticleSource::fEnergyDistributionNameInFile);
-    reg.RegisterField<TRestGeant4ParticleSource>(
-        "energyDistributionFormulaNPoints", &TRestGeant4ParticleSource::fEnergyDistributionFormulaNPoints);
-    reg.RegisterField<TRestGeant4ParticleSource>("energyDistributionRange",
-                                                 &TRestGeant4ParticleSource::fEnergyDistributionRange);
-
-    reg.RegisterField<TRestGeant4ParticleSource>("genFilename", &TRestGeant4ParticleSource::fGenFilename);
+    // Operational densities and boundary maps
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "spatialDensityFunction", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorSpatialDensityFunction);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
+        "worldSize", &TRestGeant4PrimaryGeneratorInfo::fSpatialGeneratorWorldSize);
 
     return true;
 }();
@@ -65,9 +61,45 @@ TRestGeant4ParticleSource::~TRestGeant4ParticleSource() {
 
 /// \brief Modern framework configuration pipeline loader.
 void TRestGeant4ParticleSource::LoadConfig() {
+    fAngularDistributionFunction = nullptr;
+    fEnergyDistributionFunction = nullptr;
+    fEnergyAndAngularDistributionFunction = nullptr;
+
     UpdateParamsFromYAML<TRestGeant4ParticleSource>(fNode);
 
-    // Resolve decay data filenames automatically if declared in the configuration node
+    if (fNode && fNode.IsMap()) {
+        if (fNode["particle"]) {
+            SetParticleName(fNode["particle"].as<std::string>());
+        }
+
+        const auto angular = fNode["angular"];
+        if (angular && angular.IsMap()) {
+            if (angular["type"]) {
+                SetAngularDistributionType(angular["type"].as<std::string>());
+            }
+            if (angular["direction"] && angular["direction"].IsSequence() &&
+                angular["direction"].size() == 3) {
+                SetDirection(ROOT::Math::XYZVector(angular["direction"][0].as<double>(),
+                                                  angular["direction"][1].as<double>(),
+                                                  angular["direction"][2].as<double>()));
+            }
+        }
+
+        const auto energy = fNode["energy"];
+        if (energy && energy.IsMap()) {
+            if (energy["type"]) {
+                SetEnergyDistributionType(energy["type"].as<std::string>());
+            }
+            if (energy["energy"]) {
+                double value = energy["energy"].as<double>();
+                const auto units = energy["units"] ? energy["units"].as<std::string>() : "keV";
+                if (units == "MeV") value *= 1000.0;
+                if (units == "eV") value *= 0.001;
+                SetEnergy(value);
+            }
+        }
+    }
+
     if (fNode["use"]) {
         std::string modelUse = fNode["use"].as<std::string>();
         if (modelUse.find(".dat") != std::string::npos) {
@@ -86,6 +118,7 @@ void TRestGeant4ParticleSource::LoadConfig() {
 
     ReadYAMLVerbose(fNode);
     UpdateYAMLFromParams<TRestGeant4ParticleSource>(fNode);
+
 }
 
 /// \brief Prints advanced kinetics metadata information to framework logs.
@@ -156,11 +189,22 @@ void TRestGeant4ParticleSource::PrintMetadata() {
 }
 
 TRestGeant4ParticleSource* TRestGeant4ParticleSource::Clone() const {
-    // Bypasses the abstract class restriction by using your factory method
     TRestGeant4ParticleSource* cloned = TRestGeant4ParticleSource::instantiate();
-    if (cloned) {
-        *cloned = *this;  // Copies all metadata variables
-    }
+    if (!cloned) return nullptr;
+
+    cloned->TRestMetadata::operator=(*this);
+
+    cloned->fAngularDistributionFunction = this->fAngularDistributionFunction ? 
+        new TF1(*(this->fAngularDistributionFunction)) : nullptr;
+
+    cloned->fEnergyDistributionFunction = this->fEnergyDistributionFunction ? 
+        new TF1(*(this->fEnergyDistributionFunction)) : nullptr;
+
+    cloned->fEnergyAndAngularDistributionFunction = this->fEnergyAndAngularDistributionFunction ? 
+        new TF2(*(this->fEnergyAndAngularDistributionFunction)) : nullptr;
+
+    // cloned->fParticleName = this->fParticleName;
+
     return cloned;
 }
 

@@ -7,9 +7,37 @@
 
 using namespace std;
 
-ClassImp(TRestGeant4Hits);
-
 TRestGeant4Hits::TRestGeant4Hits() : TRestHits() {}
+
+TRestGeant4Hits::TRestGeant4Hits(const TRestGeant4Hits& other)
+    : TRestHits(other), 
+      fProcessID(other.fProcessID),
+      fVolumeID(other.fVolumeID),
+      fKineticEnergy(other.fKineticEnergy),
+      fMomentumDirection(other.fMomentumDirection),
+      fHadronicTargetIsotopeName(other.fHadronicTargetIsotopeName),
+      fHadronicTargetIsotopeA(other.fHadronicTargetIsotopeA),
+      fHadronicTargetIsotopeZ(other.fHadronicTargetIsotopeZ),
+      fTrack(other.fTrack),
+      fEvent(other.fEvent) {}
+
+TRestGeant4Hits& TRestGeant4Hits::operator=(const TRestGeant4Hits& other) {
+    if (this == &other) return *this;
+
+    TRestHits::operator=(other); 
+
+    fProcessID = other.fProcessID;
+    fVolumeID = other.fVolumeID;
+    fKineticEnergy = other.fKineticEnergy;
+    fMomentumDirection = other.fMomentumDirection;
+    fHadronicTargetIsotopeName = other.fHadronicTargetIsotopeName;
+    fHadronicTargetIsotopeA = other.fHadronicTargetIsotopeA;
+    fHadronicTargetIsotopeZ = other.fHadronicTargetIsotopeZ;
+    fTrack = other.fTrack;
+    fEvent = other.fEvent;
+
+    return *this;
+}
 
 TRestGeant4Hits::~TRestGeant4Hits() = default;
 
@@ -20,7 +48,6 @@ void TRestGeant4Hits::RemoveG4Hits() {
     fKineticEnergy.clear();
     fMomentumDirection.clear();
 }
-
 double TRestGeant4Hits::GetEnergyInVolume(int volumeID) const {
     double energy = 0;
     for (size_t n = 0; n < GetNumberOfHits(); n++) {

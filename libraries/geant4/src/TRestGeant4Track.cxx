@@ -44,6 +44,7 @@ std::string TRestGeant4Track::GetProcessName(Int_t processID) const {
 EColor TRestGeant4Track::GetParticleColor() const {
     EColor color = kGray;
 
+    // COMPATIBILITY: Implicit conversion from std::string returned by GetParticleName() works natively
     if (GetParticleName() == "e-")
         color = kRed;
     else if (GetParticleName() == "e+")
@@ -87,6 +88,7 @@ size_t TRestGeant4Track::GetNumberOfPhysicalHits(Int_t volID) const {
 
 /// \brief Prints a detailed textual summary of the track and its hits.
 void TRestGeant4Track::PrintTrack(size_t maxHits) const {
+    // COMPATIBILITY: Evaluates the TString content natively inside cout print streams
     cout << " * TrackID: " << fTrackID << " - Particle: " << fParticleName << " - ParentID: " << fParentID;
     if (GetParentTrack() != nullptr) {
         cout << " - Parent particle: " << GetParentTrack()->GetParticleName();
@@ -207,39 +209,63 @@ const TRestGeant4Metadata* TRestGeant4Track::GetGeant4Metadata() const {
     }
     return GetEvent()->GetGeant4Metadata();
 }
-
+// FIXED: Securely resolve parent references through the active event view framework layer
 TRestGeant4Track* TRestGeant4Track::GetParentTrack() const {
-    // TODO: Migrate to use TRestGeant4TrackView after architecture unification
-    if (fEvent == nullptr) {
+    if (GetEvent() == nullptr || fParentID == 0) {
         return nullptr;
     }
-    return nullptr;  // GetTrackByID now returns TRestGeant4TrackView, not TRestGeant4Track*
+    
+    // GetTrackByID returns a TRestGeant4TrackView. Since we migrated fTracks to pointers,
+    // we fetch the raw pointer matching the parent's index from the fast indexing map.
+    auto& event = const_cast<TRestGeant4Event&>(*GetEvent());
+    auto it = event.fTrackIDToTrackIndex.find(fParentID);
+    if (it != event.fTrackIDToTrackIndex.end()) {
+        size_t idx = it->second;
+        if (idx < event.GetTracks().size()) {
+            return event.GetTracks()[idx]; // Returns the exact parent TRestGeant4Track* pointer
+        }
+    }
+    return nullptr;
 }
 
+// FIXED: Resolve secondary track pointers using the event tracking matrix mappings
 vector<const TRestGeant4Track*> TRestGeant4Track::GetSecondaryTracks() const {
-    // TODO: Migrate to use TRestGeant4TrackView after architecture unification
-    vector<const TRestGeant4Track*> secondaryTracks = {};
-    // GetTrackByID now returns TRestGeant4TrackView, not TRestGeant4Track*
+    vector<const TRestGeant4Track*> secondaryTracks;
+    if (GetEvent() == nullptr) return secondaryTracks;
+
+    auto& event = const_cast<TRestGeant4Event&>(*GetEvent());
+    const auto& allTracks = event.GetTracks();
+
+    // Iterate through registered secondary IDs and resolve their active pointers
+    for (int secID : fSecondaryTrackIDs) {
+        auto it = event.fTrackIDToTrackIndex.find(secID);
+        if (it != event.fTrackIDToTrackIndex.end()) {
+            size_t idx = it->second;
+            if (idx < allTracks.size() && allTracks[idx] != nullptr) {
+                secondaryTracks.push_back(allTracks[idx]);
+            }
+        }
+    }
     return secondaryTracks;
 }
 
 std::string TRestGeant4Track::GetInitialVolume() const {
     const auto metadata = GetGeant4Metadata();
-    if (metadata == nullptr) {
+    if (metadata == nullptr || fHits.GetNumberOfHits() == 0) {
         return "";
     }
-    const auto& hits = GetHits();
-    return GetGeant4Metadata()->GetGeant4GeometryInfo().GetVolumeFromID(hits.GetVolumeId(0));
+    // FIXED: TRestGeant4Hits utilizes GetHitVolume() to lookup indices safely
+    return metadata->GetGeant4GeometryInfo().GetVolumeFromID(fHits.GetHitVolume(0));
 }
 
 std::string TRestGeant4Track::GetFinalVolume() const {
     const auto metadata = GetGeant4Metadata();
-    if (metadata == nullptr) {
+    if (metadata == nullptr || fHits.GetNumberOfHits() == 0) {
         return "";
     }
-    const auto& hits = GetHits();
-    return GetGeant4Metadata()->GetGeant4GeometryInfo().GetVolumeFromID(
-        hits.GetVolumeId(hits.GetNumberOfHits() - 1));
+    // FIXED: Swapped out legacy GetVolumeId for the real GetHitVolume API method call
+    size_t lastIdx = fHits.GetNumberOfHits() - 1;
+    return metadata->GetGeant4GeometryInfo().GetVolumeFromID(fHits.GetHitVolume(lastIdx));
 }
 
 Double_t TRestGeant4Track::GetEnergyInVolume(const std::string& volumeName, bool children) const {
@@ -272,11 +298,11 @@ Double_t TRestGeant4Track::GetEnergyInVolume(const std::string& volumeName, bool
 
 std::string TRestGeant4Track::GetLastProcessName() const {
     const auto metadata = GetGeant4Metadata();
-    if (metadata == nullptr) {
+    if (metadata == nullptr || fHits.GetNumberOfHits() == 0) {
         return "";
     }
-
-    const auto& hits = GetHits();
-    return GetGeant4Metadata()->GetGeant4PhysicsInfo().GetProcessName(
-        hits.GetProcess(hits.GetNumberOfHits() - 1));
+    // FIXED: Swapped out legacy hits.GetProcess for the real GetHitProcess API method call
+    size_t lastIdx = fHits.GetNumberOfHits() - 1;
+    return metadata->GetGeant4PhysicsInfo().GetProcessName(fHits.GetHitProcess(lastIdx));
 }
+

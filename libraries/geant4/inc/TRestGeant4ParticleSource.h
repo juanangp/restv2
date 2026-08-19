@@ -20,7 +20,6 @@
 /// \class TRestGeant4ParticleSource
 /// \brief Configures and generates primary particles with energy/angular phase-space models.
 class TRestGeant4ParticleSource : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestGeant4ParticleSource)
 
    private:
     /// \brief Loads event-wise particle templates from an external event data file.

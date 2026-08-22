@@ -11,11 +11,11 @@
 class TRestMicromegasReadout : public TRestDetectorReadout {
    public:
     YAML::Node fReadoutNode;
-    std::vector<double> fPositionRelative = {0.0, 0.0, 0.0};
-    double fGlobalRotation = 0;
+    std::array<TRestWithUnits, 3> fPositionRelative = {0.0, 0.0, 0.0};
+    TRestWithUnits fGlobalRotation = 0;
     int fNChannels = 0;
-    double fPitch = 0;
-    double fThickness = 0;
+    TRestWithUnits fPitch = 0;
+    TRestWithUnits fThickness = 0;
 
     /// \brief Constructor.
     TRestMicromegasReadout();

@@ -61,7 +61,7 @@ class TRestGeant4Track {
 
     inline void SetTimeOffset(const double tOffset) { fTimeOffset = tOffset; }
 
-    inline std::string GetCreatorProcess() const { return fCreatorProcess; }
+    inline const std::string& GetCreatorProcess() const { return fCreatorProcess; }
 
     inline void AddSecondaryTrackID(Int_t trackID) { fSecondaryTrackIDs.push_back(trackID); }
 
@@ -72,7 +72,7 @@ class TRestGeant4Track {
 
     inline Int_t GetTrackID() const { return fTrackID; }
     inline Int_t GetParentID() const { return fParentID; }
-    inline std::string GetParticleName() const { return fParticleName; }
+    inline const std::string& GetParticleName() const { return fParticleName; }
     inline Double_t GetGlobalTime() const { return fGlobalTimestamp; }
     inline Double_t GetTimeOffset() const { return fTimeOffset; }
     inline Double_t GetTimeLength() const { return fTimeLength; }

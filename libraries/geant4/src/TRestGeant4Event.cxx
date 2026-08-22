@@ -57,16 +57,16 @@ void TRestGeant4Event::CreateBranches(TTree* tree) {
 void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     TRestEvent::SetBranchAddresses(tree);
 
-    tree->SetBranchAddress("fPrimaryPosition", &fEventData.primaryPosition);
     tree->SetBranchAddress("fSubEventEnergy", &fEventData.subEventEnergy);
-    tree->SetBranchAddress("fSubEventPosition", &fEventData.subEventPosition);
-    tree->SetBranchAddress("fSubEventDirection", &fEventData.subEventDirection);
     tree->SetBranchAddress("fTotalDepositedEnergy", &fEventData.totalDepositedEnergy);
     tree->SetBranchAddress("fSensitiveVolumeEnergy", &fEventData.sensitiveVolumeEnergy);
     tree->SetBranchAddress("fEventTimeWall", &fEventData.eventTimeWall);
     tree->SetBranchAddress("fEventTimeWallPrimaryGeneration", &fEventData.eventTimeWallPrimaryGeneration);
     tree->SetBranchAddress("fNVolumes", &fEventData.nVolumes);
 
+    fPtrPrimaryPosition       = &fEventData.primaryPosition;
+    fPtrSubEventPosition      = &fEventData.subEventPosition;
+    fPtrSubEventDirection     = &fEventData.subEventDirection;
     fPtrSubEventParticleName  = &fEventData.subEventParticleName;
     fPtrPrimaryParticleNames  = &fEventData.primaryParticleNames;
     fPtrPrimaryEnergies       = &fEventData.primaryEnergies;
@@ -93,6 +93,9 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     fPtrCrossProcessNames     = &fEventData.crossProcessNames;
     fPtrCrossDepositedEnergies = &fEventData.crossDepositedEnergies;
 
+    tree->SetBranchAddress("fPrimaryPosition", &fPtrPrimaryPosition);
+    tree->SetBranchAddress("fSubEventPosition", &fPtrSubEventPosition);
+    tree->SetBranchAddress("fSubEventDirection", &fPtrSubEventDirection);
     tree->SetBranchAddress("fSubEventParticleName", &fPtrSubEventParticleName);
     tree->SetBranchAddress("fPrimaryParticleNames", &fPtrPrimaryParticleNames);
     tree->SetBranchAddress("fPrimaryEnergies", &fPtrPrimaryEnergies);
@@ -163,34 +166,15 @@ void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(Double_t energy, c
 }
 
 void TRestGeant4Event::SyncTracksToEventData() {
-    double preservedTotalEnergy = fEventData.totalDepositedEnergy;
-    double preservedSensitiveEnergy = fEventData.sensitiveVolumeEnergy;
-    double preservedTimeWall = fEventData.eventTimeWall;
-    double preservedTimeWallPrimary = fEventData.eventTimeWallPrimaryGeneration;
-    int preservedNVolumes = fEventData.nVolumes;
-
-    std::vector<int> preservedVolStored = fEventData.volumeStored;
-    std::vector<std::string> preservedVolNames = fEventData.volumeStoredNames;
-    std::vector<double> preservedVolEnergy = fEventData.volumeDepositedEnergy;
-    std::vector<std::string> preservedCrossVol = fEventData.crossVolumeNames;
-    std::vector<std::string> preservedCrossPart = fEventData.crossParticleNames;
-    std::vector<std::string> preservedCrossProc = fEventData.crossProcessNames;
-    std::vector<double> preservedCrossEnergy = fEventData.crossDepositedEnergies;
-
-    fEventData.clear();
-
-    fEventData.totalDepositedEnergy = preservedTotalEnergy;
-    fEventData.sensitiveVolumeEnergy = preservedSensitiveEnergy;
-    fEventData.eventTimeWall = preservedTimeWall;
-    fEventData.eventTimeWallPrimaryGeneration = preservedTimeWallPrimary;
-    fEventData.nVolumes = preservedNVolumes;
-    fEventData.volumeStored = preservedVolStored;
-    fEventData.volumeStoredNames = preservedVolNames;
-    fEventData.volumeDepositedEnergy = preservedVolEnergy;
-    fEventData.crossVolumeNames = preservedCrossVol;
-    fEventData.crossParticleNames = preservedCrossPart;
-    fEventData.crossProcessNames = preservedCrossProc;
-    fEventData.crossDepositedEnergies = preservedCrossEnergy;
+    fEventData.trackIDs.clear();
+    fEventData.parentIDs.clear();
+    fEventData.trackParticleNames.clear();
+    fEventData.trackCreatorProcesses.clear();
+    fEventData.trackDepositedEnergy.clear();
+    fEventData.trackInitialEnergies.clear();
+    fEventData.trackStartIndices.clear();
+    fEventData.trackNHits.clear();
+    fEventData.hitsStorage.clear();
 
     int currentHitStartIndex = 0;
     for (const auto& track : fTracks) {
@@ -198,16 +182,18 @@ void TRestGeant4Event::SyncTracksToEventData() {
 
         fEventData.trackStartIndices.push_back(currentHitStartIndex);
         const auto& hits = track->GetHits();
+        const size_t nHits = hits.GetNumberOfHits();
 
         fEventData.trackIDs.push_back(track->GetTrackID());
         fEventData.parentIDs.push_back(track->GetParentID());
         fEventData.trackParticleNames.push_back(track->GetParticleName());
         fEventData.trackCreatorProcesses.push_back(track->GetCreatorProcess());
         fEventData.trackInitialEnergies.push_back(track->GetInitialKineticEnergy());
-        fEventData.trackDepositedEnergy.push_back(hits.GetTotalEnergy());
-        fEventData.trackNHits.push_back(static_cast<int>(hits.GetNumberOfHits()));
+        fEventData.trackNHits.push_back(static_cast<int>(nHits));
+        double trackDepositedEnergy = 0;
 
-        for (size_t i = 0; i < hits.GetNumberOfHits(); ++i) {
+        for (size_t i = 0; i < nHits; ++i) {
+            trackDepositedEnergy += hits.GetEnergy(i);
             fEventData.hitsStorage.x.push_back(static_cast<float>(hits.GetX(i)));
             fEventData.hitsStorage.y.push_back(static_cast<float>(hits.GetY(i)));
             fEventData.hitsStorage.z.push_back(static_cast<float>(hits.GetZ(i)));
@@ -215,7 +201,8 @@ void TRestGeant4Event::SyncTracksToEventData() {
             fEventData.hitsStorage.time.push_back(static_cast<float>(hits.GetTime(i)));
             fEventData.hitsStorage.type.push_back(static_cast<int>(hits.GetType(i)));
         }
-        currentHitStartIndex += static_cast<int>(hits.GetNumberOfHits());
+        fEventData.trackDepositedEnergy.push_back(trackDepositedEnergy);
+        currentHitStartIndex += static_cast<int>(nHits);
     }
 
     RefreshViews();

@@ -22,7 +22,22 @@
 class SteppingAction;
 class DetectorConstruction;
 
-/// \class TRestGeant4Metadata
+/// \class TRestGeant4ActiveVolumeMetadata
+class TRestGeant4ActiveVolumeMetadata : public TRestMetadata {
+   public:
+    std::string fVolumeName;
+    double fChance = 1.0;
+    TRestWithUnits fMaxStep = 0.0;
+
+    TRestGeant4ActiveVolumeMetadata();
+    TRestGeant4ActiveVolumeMetadata(const std::string& instanceName, const YAML::Node& node);
+    std::string GetClassName() const override { return "TRestGeant4ActiveVolumeMetadata"; }
+    void LoadConfig() override;
+    void Initialize() override {}
+
+    friend class TRestMetadataFieldRegistry;
+};
+
 /// \brief The main class to store the *Geant4* simulation conditions that will be used by *restG4*.
 class TRestGeant4Metadata : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestGeant4Metadata)
@@ -49,23 +64,18 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// The filename of the GDML geometry
     std::string fGdmlFilename;  //!
 
-    /// A GDML geometry reference introduced in the header of the GDML main setup
-    std::string fGdmlReference;
-
-    /// A GDML materials reference introduced in the header of the GDML of materials definition
-    std::string fMaterialsReference;
-
     /// A pair storing the energy range, in keV, to decide if a particular event should be written to disk
-    std::pair<double, double> fEnergyRangeStored = {0.0, 1.0E20};
+    std::pair<TRestWithUnits, TRestWithUnits> fEnergyRangeStored = {0.0, 1.0E20};
 
     /// A vector to store the names of the active volumes
+    std::vector<TRestGeant4ActiveVolumeMetadata> fActiveVolumesMetadata;
     std::vector<std::string> fActiveVolumes;
 
     /// A vector to store the probability value to write to disk the hits in a particular event
     std::vector<double> fChance;
 
     /// A vector to store the maximum step size at a particular volume
-    std::vector<double> fMaxStepSize;
+    std::vector<TRestWithUnits> fMaxStepSize;
 
     /// The number of biasing volumes used in the simulation. If zero, no biasing technique is used.
     int fNBiasingVolumes = 0;
@@ -74,11 +84,11 @@ class TRestGeant4Metadata : public TRestMetadata {
     std::vector<TRestGeant4BiasingVolume> fBiasingVolumes;
 
     /// The maximum target step size, in mm, allowed in Geant4 for the target volume (Obsolete)
-    double fMaxTargetStepSize = 0.0;  //!
+    TRestWithUnits fMaxTargetStepSize = 0.0;  //!
 
     /// A time gap, in us, determining if an energy hit should be considered (and stored) as an independent
     /// event
-    double fSubEventTimeDelay = 100.0;
+    TRestWithUnits fSubEventTimeDelay = 100.0;
 
     /// Defines if a radioactive isotope decay is simulated in full chain (true) or just a single decay
     /// (false)
@@ -92,6 +102,7 @@ class TRestGeant4Metadata : public TRestMetadata {
 
     /// If defined, it will stop the full chain decay simulation when one of these isotopes appears
     std::set<std::string> fFullChainStopIsotopes;
+    std::vector<std::string> fFullChainStopIsotopesRegistry;  //! YAML adapter for registry
 
     /// The volume that serves as trigger for data storage
     std::vector<std::string> fSensitiveVolumes;
@@ -101,6 +112,7 @@ class TRestGeant4Metadata : public TRestMetadata {
 
     /// A container to store volumes where particles are killed instantly
     std::set<std::string> fKillVolumes;
+    std::vector<std::string> fKillVolumesRegistry;  //! YAML adapter for registry
 
     /// The number of events simulated, or to be simulated
     int64_t fNEvents = 0;
@@ -142,7 +154,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     bool fRegisterEmptyTracks = true;
 
     /// The world magnetic field in Tesla
-    std::array<double, 3> fMagneticField = {0.0, 0.0, 0.0};
+    std::array<TRestWithUnits, 3> fMagneticField = {0.0, 0.0, 0.0};
 
     /// Used for faster lookup (non-persisted)
     std::set<std::string> fActiveVolumesSet = {};  //!
@@ -163,10 +175,10 @@ class TRestGeant4Metadata : public TRestMetadata {
 
     // --- Life Cycle and Configuration Methods ---
     void LoadConfig() override;
-    void PrintMetadata() override;
     void Initialize() override {}
     /// \brief Resets all metadata containers and cached lookup structures.
     void Clear();
+    void SyncActiveVolumesFromMetadata();
     /// \brief Merges another metadata object into this one for combined simulations.
     void Merge(const TRestGeant4Metadata& other);
 
@@ -185,8 +197,6 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline bool GetStoreHadronicTargetInfo() const { return fStoreHadronicTargetInfo; }
     inline std::string GetGeometryPath() const { return fGeometryPath; }
     inline std::string GetGdmlFilename() const { return fGdmlFilename; }
-    inline std::string GetGdmlReference() const { return fGdmlReference; }
-    inline std::string GetMaterialsReference() const { return fMaterialsReference; }
 
     // --- Analytical Logic Getters ---
     inline bool isFullChainActivated() const { return fFullChain; }
@@ -209,8 +219,6 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline void SetFullChain(bool fullChain) { fFullChain = fullChain; }
     inline void SetGeometryPath(const std::string& path) { fGeometryPath = path; }
     inline void SetGdmlFilename(const std::string& gdmlFile) { fGdmlFilename = gdmlFile; }
-    inline void SetGdmlReference(const std::string& reference) { fGdmlReference = reference; }
-    inline void SetMaterialsReference(const std::string& reference) { fMaterialsReference = reference; }
 
     // --- Event Counting and Max Simulation Times ---
     inline int64_t GetNumberOfEvents() const { return fNEvents; }
@@ -224,12 +232,15 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline int GetNumberOfSources() const {
         return static_cast<int>(fGeant4PrimaryGeneratorInfo.fParticleSources.size());
     }
-    inline TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) const {
-        return fGeant4PrimaryGeneratorInfo.fParticleSources.at(n);
+    inline TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) {
+        return &fGeant4PrimaryGeneratorInfo.fParticleSources.at(n);
     }
-    /// \brief Deletes and clears all configured primary particle sources.
+    inline const TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) const {
+        return &fGeant4PrimaryGeneratorInfo.fParticleSources.at(n);
+    }
+    /// \brief Clears all configured primary particle sources.
     void RemoveParticleSources();
-    /// \brief Registers one particle source (ownership transferred to metadata).
+    /// \brief Copies one particle source into metadata and releases the supplied instance.
     void AddParticleSource(TRestGeant4ParticleSource* src);
 
     // --- Biasing Volumes Management ---

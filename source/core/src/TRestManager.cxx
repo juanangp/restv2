@@ -70,6 +70,6 @@ void TRestManager::SaveMetadata() {
     }
 
     for (const auto& meta : fMetaObjects) {
-        fConfiguredRun->AddMetadata(meta->GetName(), meta->GetYAMLNode());
+        fConfiguredRun->AddMetadata(meta.get());
     }
 }

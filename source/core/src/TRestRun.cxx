@@ -114,7 +114,7 @@ void TRestRun::LoadConfig() {
         if (fConfigExperimentName != "preserve") fExperimentName = fConfigExperimentName;
 
         fOutputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName", fOutputFileName);
-        fMainDataPath = ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath);
+        fMainDataPath = GetFullPath(ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath));
         fInputFormat = ReadYAMLParamOrDefault<std::string>(fNode, "inputFormat", fInputFormat);
         fEntriesSaved = ReadYAMLParamOrDefault<int>(fNode, "entriesSaved", fEntriesSaved);
         fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
@@ -135,21 +135,27 @@ void TRestRun::LoadConfig() {
             if (fConfigSubRunNumber == "preserve")
                 fSubRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "subRunNumber", fSubRunNumber);
             if (fConfigRunType == "preserve")
-                fRunType = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runType", "Null");
+                fRunType = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runType", fRunType);
             if (fConfigRunTag == "preserve")
-                fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", "Null");
+                fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", fConfigRunTag);
             if (fConfigRunDescription == "preserve")
                 fRunDescription =
-                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runDescription", "Null");
+                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runDescription", fRunDescription);
             if (fConfigExperimentName == "preserve")
                 fExperimentName =
-                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", "Null");
+                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", fExperimentName);
         }
     }
 
-    // In case inputFormat is not empty we generate the variables from the input file name
-    if ((fInputFileName.empty() || fInputFileName == "Null") && !fInputFormat.empty())
+    if (fInputFileName.empty() || fInputFileName == "Null") {
+      if(fInputFormat.empty()){
+        //In case no input is provided we perform the automatic run numbering
+        if (fConfigRunNumber == "auto") fRunNumber = GetRunNumberAuto();
+      } else {
+        // In case inputFormat is not empty we generate the variables from the input file name
         fInputFileName = ResolveFilePattern(fInputFormat);
+      }
+    }
 
     fOutputFileName = PrefixMainDataPath(ResolveFilePattern(fOutputFileName));
 
@@ -160,7 +166,7 @@ void TRestRun::LoadConfig() {
 }
 
 void TRestRun::OpenInputFile(const std::string& filename) {
-    fInputFileName = filename;
+    fInputFileName = GetFullPath(filename);
     fInputFile = std::make_unique<TFile>(fInputFileName.c_str(), "READ");
     if (!fInputFile || fInputFile->IsZombie()) {
         throw std::runtime_error("TRestRun: Cannot open file " + filename);
@@ -238,8 +244,11 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     }
 }
 
-void TRestRun::AddMetadata(const std::string& instanceName, const YAML::Node& configNode) {
-    WriteMetadata(fOutputFile.get(), instanceName, configNode);
+void TRestRun::AddMetadata(TRestMetadata* metadata) {
+    if (!metadata) {
+        throw std::runtime_error("TRestRun::AddMetadata: NULL metadata object");
+    }
+    metadata->WriteMetadata(fOutputFile.get());
 }
 
 YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {

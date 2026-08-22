@@ -19,6 +19,8 @@ class TRestGeant4Event;
 /// \brief Stores Geant4 hit-level information and provides volume/process-based accessors.
 class TRestGeant4Hits : public TRestHits {
    protected:
+    TRestHitsData fStorage;
+
     std::vector<int> fProcessID = {};
     std::vector<int> fVolumeID = {};
     std::vector<float> fKineticEnergy = {};

@@ -106,12 +106,12 @@ void TRestGeant4PhysicsLists::LoadConfig() {
     UpdateYAMLFromParams<TRestGeant4PhysicsLists>(fNode);
 }
 
-Int_t TRestGeant4PhysicsLists::FindPhysicsList(const std::string& physicsListName) const {
+int TRestGeant4PhysicsLists::FindPhysicsList(const std::string& physicsListName) const {
     if (!PhysicsListExists(physicsListName)) return -1;
 
     for (unsigned int n = 0; n < fPhysicsLists.size(); n++) {
         if (fPhysicsLists[n] == physicsListName) {
-            return (Int_t)n;
+            return static_cast<int>(n);
         }
     }
     return -1;
@@ -120,7 +120,7 @@ Int_t TRestGeant4PhysicsLists::FindPhysicsList(const std::string& physicsListNam
 std::string TRestGeant4PhysicsLists::GetPhysicsListOptionValue(const std::string& physicsListName,
                                                                const std::string& option,
                                                                const std::string& defaultValue) const {
-    Int_t index = FindPhysicsList(physicsListName);
+    const int index = FindPhysicsList(physicsListName);
     if (index == -1) return defaultValue;
 
     vector<string> optList = TRestTools::Split(fPhysicsListOptions[index], ':');
@@ -132,7 +132,7 @@ std::string TRestGeant4PhysicsLists::GetPhysicsListOptionValue(const std::string
     return defaultValue;
 }
 
-Bool_t TRestGeant4PhysicsLists::PhysicsListExists(const std::string& physicsListName) const {
+bool TRestGeant4PhysicsLists::PhysicsListExists(const std::string& physicsListName) const {
     const set<std::string> validPhysicsLists = {"G4DecayPhysics",
                                                 "G4RadioactiveDecayPhysics",
                                                 "G4RadioactiveDecay",
@@ -151,33 +151,3 @@ Bool_t TRestGeant4PhysicsLists::PhysicsListExists(const std::string& physicsList
     return validPhysicsLists.count(physicsListName) > 0;
 }
 
-void TRestGeant4PhysicsLists::PrintMetadata() {
-    TRestMetadata::PrintMetadata();
-
-    cout << "Cut for electrons : " << fCutForElectron << " mm" << endl;
-    cout << "Cut for positrons : " << fCutForPositron << " mm" << endl;
-    cout << "Cut for gammas : " << fCutForGamma << " mm" << endl;
-    cout << "Cut for muons : " << fCutForMuon << " mm" << endl;
-    cout << "Cut for neutrons : " << fCutForNeutron << " mm" << endl;
-    cout << "Min Energy for particle production: " << fMinEnergyRangeProductionCuts << " keV" << endl;
-    cout << "Max Energy for particle production: " << fMaxEnergyRangeProductionCuts << " keV" << endl;
-    cout << "---------------------------------------" << endl;
-
-    for (unsigned int n = 0; n < fPhysicsLists.size(); n++) {
-        cout << "Physics list " << n << " : " << fPhysicsLists[n] << endl;
-        vector<string> optList = TRestTools::Split(fPhysicsListOptions[n], ':');
-        for (unsigned int m = 0; m < optList.size(); m = m + 2) {
-            cout << " - Option " << m / 2 << " : " << optList[m] << " = " << optList[m + 1] << endl;
-        }
-    }
-
-    if (!fIonLimitStepList.empty()) {
-        cout << "List of ions affected by step limit" << endl;
-        for (const auto& ion : fIonLimitStepList) {
-            cout << "   - " << ion << endl;
-        }
-    }
-
-    cout << "******************************************" << endl;
-    cout << endl << endl;
-}

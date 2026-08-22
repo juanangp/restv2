@@ -112,6 +112,9 @@ class TRestGeant4Event : public TRestEvent {
     std::vector<std::string>* fPtrPrimaryParticleNames = nullptr;
     std::vector<double>* fPtrPrimaryEnergies = nullptr;
     std::vector<ROOT::Math::XYZVector>* fPtrPrimaryDirections = nullptr;
+    ROOT::Math::XYZVector* fPtrPrimaryPosition = nullptr;  //!
+    ROOT::Math::XYZVector* fPtrSubEventPosition = nullptr; //!
+    ROOT::Math::XYZVector* fPtrSubEventDirection = nullptr; //!
     std::vector<int>* fPtrVolumeStored = nullptr;
     std::vector<std::string>* fPtrVolumeStoredNames = nullptr;
     std::vector<double>* fPtrVolumeDepositedEnergy = nullptr;
@@ -152,6 +155,8 @@ class TRestGeant4Event : public TRestEvent {
     void UpdateTrack(const G4Track* track);
     /// \brief Appends one Geant4 step into the corresponding track hit sequence.
     void InsertStep(const G4Step* step);
+    /// \brief Synchronizes primary vertex data after Geant4 primary generation.
+    void UpdatePrimaryData(const G4Event* event);
     std::string GetClassName() const override { return "TRestGeant4Event"; }
 
     void Initialize() override {

@@ -4,6 +4,10 @@
 
 #include <chrono>
 #include <filesystem>
+#include <stdexcept>
+#include <sys/file.h>
+#include <unistd.h>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -13,6 +17,8 @@
 #include <charconv>
 #include <cmath>
 #include <string_view>
+#include <random>
+#include <limits>
 
 
 #include "TRestLogManager.h"
@@ -75,15 +81,13 @@ std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
 bool TRestTools::fileExists(const std::string& filename) { return std::filesystem::exists(filename); }
 
 std::string TRestTools::GetFullPath(const std::string& filename) {
-    if (filename.empty()) {
-        return "";
-    }
+    std::string targetPath = filename.empty() ? "." : filename;
 
     try {
         // Convert the input string into a standard filesystem path
-        std::filesystem::path relativePath(filename);
+        std::filesystem::path relativePath(targetPath);
         // Convert the relative path to an absolute path
-        std::filesystem::path absolutePath = std::filesystem::absolute(relativePath);
+        std::filesystem::path absolutePath = std::filesystem::absolute(relativePath).lexically_normal();;
         // Convert the absolute path back to a standard string and return it
         return absolutePath.string();
     } catch (const std::filesystem::filesystem_error& e) {
@@ -91,6 +95,58 @@ std::string TRestTools::GetFullPath(const std::string& filename) {
         // For now, it returns an empty string if an unexpected filesystem error occurs
         return "";
     }
+}
+
+int TRestTools::GetRunNumberAuto() {
+    const char* restHomeEnv = std::getenv("REST_HOME");
+    if (!restHomeEnv) {
+         throw std::runtime_error("TRestTools::GetRunNumberAuto: REST_HOME environment variable is not defined.");
+    }
+
+    std::filesystem::path runFilePath = std::filesystem::path(restHomeEnv) / ".rest" / "runNumber";
+    
+        try {
+        std::filesystem::create_directories(runFilePath.parent_path());
+    } catch (const std::filesystem::filesystem_error& e) {
+        throw std::runtime_error("TRestTools::GetRunNumberAuto: Could not create or access directory: " + 
+                                 runFilePath.parent_path().string() + " (" + e.what() + ")");
+    }
+
+    int fd = ::open(runFilePath.c_str(), O_RDWR | O_CREAT, 0666);
+    if (fd == -1) {
+        throw std::runtime_error("TRestTools::GetRunNumberAuto: Failed to open or create runNumber file: " + 
+                                 runFilePath.string() + " (" + std::strerror(errno) + ")");
+    }
+
+    // Lock the file exclusively to handle multi-process concurrency safely
+    ::flock(fd, LOCK_EX);
+
+    int currentRunNr = 0;
+    if (std::filesystem::exists(runFilePath) && std::filesystem::file_size(runFilePath) > 0) {
+        std::ifstream in(runFilePath);
+        if (in.is_open()) in >> currentRunNr;
+    }
+
+    // Increment the run number for the next execution
+    int nextRunNr = currentRunNr + 1;
+
+    // Overwrite the file with the new incremented value
+    std::ofstream out(runFilePath, std::ios::trunc);
+    if (out.is_open()) {
+        out << nextRunNr << "\n";
+        out.flush();
+    } else {
+        RESTError << "Failed to update runNumber file: " << runFilePath << RESTendl;
+        ::flock(fd, LOCK_UN);
+        ::close(fd);
+        throw std::runtime_error("TRestTools::GetRunNumberAuto: Failed to update runNumber file: " + runFilePath.string());
+    }
+
+    ::flock(fd, LOCK_UN);
+    ::close(fd);
+
+    // Return the current allocated run number to the process
+    return currentRunNr;
 }
 
 std::string TRestTools::SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename) {
@@ -164,6 +220,14 @@ YAML::Node TRestTools::OpenConfigFile(const std::string& fileName) {
     YAML::Node raw = YAML::LoadFile(fileName);
     YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
     return cfg;
+}
+
+long TRestTools::GetRandomSeed() {
+    thread_local std::random_device rd;
+    thread_local std::mt19937_64 engine(rd());
+    std::uniform_int_distribution<long> dist(1, std::numeric_limits<long>::max());
+    
+    return dist(engine);
 }
 
 std::pair<std::string, YAML::Node> TRestTools::GetMetadataClass(const YAML::Node& cfg,

@@ -7,10 +7,11 @@
 
 using namespace std;
 
-TRestGeant4Hits::TRestGeant4Hits() : TRestHits() {}
+TRestGeant4Hits::TRestGeant4Hits() : TRestHits(&fStorage) {}
 
 TRestGeant4Hits::TRestGeant4Hits(const TRestGeant4Hits& other)
-    : TRestHits(other), 
+    : TRestHits(&fStorage),
+      fStorage(other.fStorage),
       fProcessID(other.fProcessID),
       fVolumeID(other.fVolumeID),
       fKineticEnergy(other.fKineticEnergy),
@@ -24,7 +25,10 @@ TRestGeant4Hits::TRestGeant4Hits(const TRestGeant4Hits& other)
 TRestGeant4Hits& TRestGeant4Hits::operator=(const TRestGeant4Hits& other) {
     if (this == &other) return *this;
 
-    TRestHits::operator=(other); 
+    fStorage = other.fStorage;
+    fData = &fStorage;
+    fStartIdx = other.fStartIdx;
+    fNHits = other.fNHits;
 
     fProcessID = other.fProcessID;
     fVolumeID = other.fVolumeID;

@@ -27,6 +27,17 @@ const bool kRegistered = []() {
 }  // namespace
 
 // Modern REST v3 field registry hook for safe, reflection-based YAML initialization
+static const bool TRestGeant4ActiveVolumeMetadata_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("name",
+                                                       &TRestGeant4ActiveVolumeMetadata::fVolumeName);
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("chance",
+                                                       &TRestGeant4ActiveVolumeMetadata::fChance);
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("maxStep",
+                                                       &TRestGeant4ActiveVolumeMetadata::fMaxStep);
+    return true;
+}();
+
 static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
@@ -34,8 +45,6 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4Metadata>("geant4Version", &TRestGeant4Metadata::fGeant4Version);
     reg.RegisterField<TRestGeant4Metadata>("geometryPath", &TRestGeant4Metadata::fGeometryPath);
     reg.RegisterField<TRestGeant4Metadata>("gdmlFilename", &TRestGeant4Metadata::fGdmlFilename);
-    reg.RegisterField<TRestGeant4Metadata>("gdmlReference", &TRestGeant4Metadata::fGdmlReference);
-    reg.RegisterField<TRestGeant4Metadata>("materialsReference", &TRestGeant4Metadata::fMaterialsReference);
 
     // Standard Library components (std::pair handles seamlessly via reflection)
     reg.RegisterField<TRestGeant4Metadata>("energyRangeStored", &TRestGeant4Metadata::fEnergyRangeStored);
@@ -67,10 +76,35 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
                                            &TRestGeant4Metadata::fRemoveUnwantedTracksKeepZeroEnergyTracks);
     reg.RegisterField<TRestGeant4Metadata>("registerEmptyTracks", &TRestGeant4Metadata::fRegisterEmptyTracks);
 
+    // Additional YAML-backed control and volume lists
+    reg.RegisterField<TRestGeant4Metadata>("activateAllVolumes", &TRestGeant4Metadata::fActivateAllVolumes);
+    reg.RegisterField<TRestGeant4Metadata>("printProgress", &TRestGeant4Metadata::fPrintProgress);
+    reg.RegisterField<TRestGeant4Metadata>("activeVolumes", &TRestGeant4Metadata::fActiveVolumesMetadata);
+    reg.RegisterNestedField<TRestGeant4Metadata>("generator", &TRestGeant4Metadata::fGeant4PrimaryGeneratorInfo);
+    reg.RegisterField<TRestGeant4Metadata>("sensitiveVolumes", &TRestGeant4Metadata::fSensitiveVolumes);
+    reg.RegisterField<TRestGeant4Metadata>("killVolumes", &TRestGeant4Metadata::fKillVolumesRegistry);
+    reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes",
+                                           &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
+
     return true;
 }();
 
 /// \brief Default constructor.
+TRestGeant4ActiveVolumeMetadata::TRestGeant4ActiveVolumeMetadata() {
+    fName = "TRestGeant4ActiveVolumeMetadata";
+}
+
+TRestGeant4ActiveVolumeMetadata::TRestGeant4ActiveVolumeMetadata(const std::string& instanceName,
+                                                                 const YAML::Node& node)
+    : TRestMetadata(instanceName, node) {
+    LoadConfig();
+}
+
+void TRestGeant4ActiveVolumeMetadata::LoadConfig() {
+    UpdateParamsFromYAML<TRestGeant4ActiveVolumeMetadata>(fNode);
+    UpdateYAMLFromParams<TRestGeant4ActiveVolumeMetadata>(fNode);
+}
+
 TRestGeant4Metadata::TRestGeant4Metadata() : TRestMetadata() { fName = "TRestGeant4Metadata"; }
 
 /// \brief Constructor using raw config file path.
@@ -90,77 +124,28 @@ TRestGeant4Metadata::~TRestGeant4Metadata() { fGeant4PrimaryGeneratorInfo.Remove
 
 /// \brief Pre-allocation and basic environment state setups.
 void TRestGeant4Metadata::Clear() {
+    fActiveVolumesMetadata.clear();
     fActiveVolumes.clear();
     fChance.clear();
     fMaxStepSize.clear();
     fBiasingVolumes.clear();
     fSensitiveVolumes.clear();
     fFullChainStopIsotopes.clear();
+    fFullChainStopIsotopesRegistry.clear();
     fRemoveUnwantedTracksVolumesToKeep.clear();
     fKillVolumes.clear();
+    fKillVolumesRegistry.clear();
     fActiveVolumesSet.clear();
     fGeant4PrimaryGeneratorInfo.RemoveParticleSources();
 }
 
 /// \brief Modern framework configuration entry point.
 void TRestGeant4Metadata::LoadConfig() {
-    // If the generator type is a pure zero-size point, we explicitly inject safe fallback fields
-    // so the internal StringToSpatialGeneratorShapes parser doesn't trigger an out-of-range memory collision.
-    if (fNode["generator"] && fNode["generator"].IsMap()) {
-        auto mutableGenerator = fNode["generator"];
-        if (mutableGenerator["type"] && mutableGenerator["type"].as<std::string>() == "point") {
-            if (!mutableGenerator["shape"]) {
-                mutableGenerator["shape"] = "box"; // Inject safe enum string template
-            }
-            if (!mutableGenerator["size"]) {
-                mutableGenerator["size"] = std::vector<double>{0.0, 0.0, 0.0}; // Consolidated spatial footprint
-            }
-        }
-    }
-
     UpdateParamsFromYAML<TRestGeant4Metadata>(fNode);
-
-    if (fNode["generator"] && fNode["generator"].IsMap()) {
-        fGeant4PrimaryGeneratorInfo.SetYAMLNode(fNode["generator"]);
-        fGeant4PrimaryGeneratorInfo.LoadConfig();
-    }
-
-    if (fNode["activeVolumes"] && fNode["activeVolumes"].IsSequence()) {
-        for (const auto& volNode : fNode["activeVolumes"]) {
-            if (volNode.IsMap() && volNode["name"]) {
-                std::string vName = volNode["name"].as<std::string>();
-                double chance = volNode["chance"] ? volNode["chance"].as<double>() : 1.0;
-                double maxStep = volNode["maxStep"] ? volNode["maxStep"].as<double>() : 0.0;
-                SetActiveVolume(vName, chance, maxStep);
-            } else if (volNode.IsScalar()) {
-                SetActiveVolume(volNode.as<std::string>(), 1.0, 0.0);
-            }
-        }
-    }
-
-    if (fNode["sensitiveVolumes"] && fNode["sensitiveVolumes"].IsSequence()) {
-        for (const auto& sNode : fNode["sensitiveVolumes"]) {
-            InsertSensitiveVolume(sNode.as<std::string>());
-        }
-    }
-
-    if (fNode["killVolumes"] && fNode["killVolumes"].IsSequence()) {
-        for (const auto& kNode : fNode["killVolumes"]) {
-            fKillVolumes.insert(kNode.as<std::string>());
-        }
-    }
-
-    if (fNode["fullChainStopIsotopes"] && fNode["fullChainStopIsotopes"].IsSequence()) {
-        for (const auto& isoNode : fNode["fullChainStopIsotopes"]) {
-            fFullChainStopIsotopes.insert(isoNode.as<std::string>());
-        }
-    }
-
     ReadYAMLVerbose(fNode);
-
-    // Dynamic field state synchronization back onto the nodes
+    if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
-
+    SyncActiveVolumesFromMetadata();
 }
 
 
@@ -178,7 +163,23 @@ TRestGeant4Metadata& TRestGeant4Metadata::operator=(const TRestGeant4Metadata& m
     return *this;
 }
 
-/// \brief Deep copies properties from an external metadata reference instance.
+  /// \brief Synchronizes runtime active-volume caches from registry-managed entries.
+void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
+    fActiveVolumes.clear();
+    fChance.clear();
+    fMaxStepSize.clear();
+    fActiveVolumesSet.clear();
+    for (const auto& volume : fActiveVolumesMetadata) {
+        if (volume.fVolumeName.empty()) continue;
+        SetActiveVolume(volume.fVolumeName, volume.fChance, volume.fMaxStep);
+    }
+    fKillVolumes.clear();
+    fKillVolumes.insert(fKillVolumesRegistry.begin(), fKillVolumesRegistry.end());
+    fFullChainStopIsotopes.clear();
+    fFullChainStopIsotopes.insert(fFullChainStopIsotopesRegistry.begin(), fFullChainStopIsotopesRegistry.end());
+}
+
+  /// \brief Deep copies properties from an external metadata reference instance.
 void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fIsMerge = true;
     fGeant4GeometryInfo = other.fGeant4GeometryInfo;
@@ -187,9 +188,8 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fGeant4Version = other.fGeant4Version;
     fGeometryPath = other.fGeometryPath;
     fGdmlFilename = other.fGdmlFilename;
-    fGdmlReference = other.fGdmlReference;
-    fMaterialsReference = other.fMaterialsReference;
     fEnergyRangeStored = other.fEnergyRangeStored;
+    fActiveVolumesMetadata = other.fActiveVolumesMetadata;
     fActiveVolumes = other.fActiveVolumes;
     fChance = other.fChance;
     fMaxStepSize = other.fMaxStepSize;
@@ -201,9 +201,11 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fResetGlobalTime = other.fResetGlobalTime;
     fResetTimePrecision = other.fResetTimePrecision;
     fFullChainStopIsotopes = other.fFullChainStopIsotopes;
+		fFullChainStopIsotopesRegistry = other.fFullChainStopIsotopesRegistry;
     fSensitiveVolumes = other.fSensitiveVolumes;
     fRemoveUnwantedTracksVolumesToKeep = other.fRemoveUnwantedTracksVolumesToKeep;
     fKillVolumes = other.fKillVolumes;
+		fKillVolumesRegistry = other.fKillVolumesRegistry;
     fNEvents += other.fNEvents;  // Cumulative update on events count
     fNRequestedEntries += other.fNRequestedEntries;
     fSimulationMaxTimeSeconds = other.fSimulationMaxTimeSeconds;
@@ -228,7 +230,10 @@ void TRestGeant4Metadata::RemoveParticleSources() {
 
 /// \brief Append a newly declared target particle source generator.
 void TRestGeant4Metadata::AddParticleSource(TRestGeant4ParticleSource* src) {
-    if (src) fGeant4PrimaryGeneratorInfo.fParticleSources.push_back(src);
+    if (src) {
+        fGeant4PrimaryGeneratorInfo.fParticleSources.push_back(*src);
+        delete src;
+    }
 }
 
 /// \brief Parses the local Major configuration value from the semantic version string.
@@ -295,14 +300,3 @@ double TRestGeant4Metadata::GetCosmicFluxInCountsPerCm2PerSecond() const { retur
 double TRestGeant4Metadata::GetCosmicIntensityInCountsPerSecond() const { return 0.0; }
 double TRestGeant4Metadata::GetEquivalentSimulatedTime() const { return 0.0; }
 
-/// \brief Outputs the active parameters onto the standard framework streams log.
-void TRestGeant4Metadata::PrintMetadata() {
-    RESTMetadata << "=== TRestGeant4Metadata ===" << RESTendl;
-    RESTMetadata << " - Geant4 Version: " << fGeant4Version << RESTendl;
-    RESTMetadata << " - Generated Events: " << fNEvents << RESTendl;
-    RESTMetadata << " - Total Simulation Time (Wall): " << fSimulationTime << " s" << RESTendl;
-    if (fNode && !fNode.IsNull()) {
-        RESTMetadata << "=== Detailed Configuration Nodes ===" << RESTendl;
-        RESTMetadata << YAML::Dump(fNode) << RESTendl;
-    }
-}

@@ -3,9 +3,9 @@ readout:
   name: "IAXO_D1_Readout"
   decodingFile: "iaxo_d0_nominal.dec"
   readoutParameters:
-    nChannels: 120    # N_CHANNELS per axis
-    pitch: 0.5        # PITCH value in mm
-    thickness: 0.001
-    positionRelative: [0.0, 0.0, -15.0]
-    globalRotation: 45
+    nChannels: 120 
+    pitch: 0.5
+    thickness: 1 um
+    positionRelative: [0.0, 0.0, -1.50 cm]
+    globalRotation: 45 deg
 

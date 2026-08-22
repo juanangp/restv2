@@ -6,64 +6,19 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <random>
+#include <limits>
 
 // ROOT MathCore and Core dependencies
 #include <Math/Vector3D.h>
 #include <TF1.h>
 #include <TF2.h>
 
-namespace TRestGeant4PrimaryGeneratorTypes {
-
-enum class SpatialGeneratorTypes { CUSTOM, VOLUME, SURFACE, POINT, COSMIC, SOURCE };
-
-std::string SpatialGeneratorTypesToString(SpatialGeneratorTypes type);
-SpatialGeneratorTypes StringToSpatialGeneratorTypes(const std::string& typeStr);
-
-enum class SpatialGeneratorShapes { GDML, WALL, CIRCLE, BOX, SPHERE, CYLINDER };
-
-std::string SpatialGeneratorShapesToString(SpatialGeneratorShapes shape);
-SpatialGeneratorShapes StringToSpatialGeneratorShapes(const std::string& shapeStr);
-
-enum class EnergyDistributionTypes { TH1D, TH2D, FORMULA, FORMULA2, MONO, FLAT, LOG };
-
-std::string EnergyDistributionTypesToString(EnergyDistributionTypes type);
-EnergyDistributionTypes StringToEnergyDistributionTypes(const std::string& typeStr);
-
-enum class EnergyDistributionFormulas {
-    COSMIC_NEUTRONS,
-    COSMIC_GAMMAS,
-    FISSION_NEUTRONS_U238,
-    ENVIRONMENTAL_GAMMAS,
-    ENVIRONMENTAL_NEUTRONS
-};
-
-std::string EnergyDistributionFormulasToString(EnergyDistributionFormulas formula);
-EnergyDistributionFormulas StringToEnergyDistributionFormulas(const std::string& formulaStr);
-TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula);
-
-enum class AngularDistributionTypes { TH1D, TH2D, FORMULA, FORMULA2, ISOTROPIC, FLUX, BACK_TO_BACK };
-
-std::string AngularDistributionTypesToString(AngularDistributionTypes type);
-AngularDistributionTypes StringToAngularDistributionTypes(const std::string& typeStr);
-
-enum class AngularDistributionFormulas { COS2, COS3, SIN_2THETA };
-
-std::string AngularDistributionFormulasToString(AngularDistributionFormulas formula);
-AngularDistributionFormulas StringToAngularDistributionFormulas(const std::string& formulaStr);
-TF1 AngularDistributionFormulasToRootFormula(AngularDistributionFormulas formula);
-
-enum class EnergyAndAngularDistributionFormulas { COSMIC_MUONS };
-
-std::string EnergyAndAngularDistributionFormulasToString(EnergyAndAngularDistributionFormulas formula);
-EnergyAndAngularDistributionFormulas StringToEnergyAndAngularDistributionFormulas(
-    const std::string& formulaStr);
-TF2 EnergyAndAngularDistributionFormulasToRootFormula(EnergyAndAngularDistributionFormulas formula);
-
-}  // namespace TRestGeant4PrimaryGeneratorTypes
+#include "TRestGeant4ParticleSource.h"
+#include "TRestGeant4ParticleState.h"
+#include "TRestGeant4PrimaryGeneratorTypes.h"
 
 #include "TRestMetadata.h"
-
-class TRestGeant4ParticleSource;
 
 /// \class TRestGeant4PrimaryGeneratorInfo
 /// \brief Class to store global spatial parameters, geometry shapes, and boundaries for primary event
@@ -77,15 +32,19 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     std::string fSpatialGeneratorShape = "box";
     std::string fSpatialGeneratorFrom = "World";
 
-    std::array<double, 3> fSpatialGeneratorPosition = {0.0, 0.0, 0.0};
-    std::array<double, 3> fSpatialGeneratorRotationAxis = {0.0, 0.0, 1.0};
-    double fSpatialGeneratorRotationValue = 0.0;
-    std::array<double, 3> fSpatialGeneratorSize = {0.0, 0.0, 0.0};
-    std::array<double, 3> fSpatialGeneratorWorldSize = {0.0, 0.0, 0.0};
+    std::array<TRestWithUnits, 3> fSpatialGeneratorPosition = {0.0, 0.0, 0.0};
+    std::array<TRestWithUnits, 3> fSpatialGeneratorRotationAxis = {0.0, 0.0, 1.0};
+    TRestWithUnits fSpatialGeneratorRotationValue = 0.0;
+    std::array<TRestWithUnits, 3> fSpatialGeneratorSize = {0.0, 0.0, 0.0};
+    std::array<TRestWithUnits, 3> fSpatialGeneratorWorldSize = {0.0, 0.0, 0.0};
     std::string fSpatialGeneratorSpatialDensityFunction = "";
 
     // 2. COMPOSITION UNIFICATION: The particle sources now live inside the generator info!
-    std::vector<TRestGeant4ParticleSource*> fParticleSources;
+    std::vector<TRestGeant4ParticleSource> fParticleSources;  //! YAML-managed runtime sources
+    std::vector<std::vector<TRestGeant4ParticleState>> fGeneratedParticles;  //! Current runtime state
+    std::vector<std::vector<std::vector<TRestGeant4ParticleState>>> fGeneratedParticleTemplates;  //! DECAY0 templates
+    std::mt19937 fTemplateRandom;
+    long fSeed = 0;
 
     // Standard constructor definitions matching the pipeline
     TRestGeant4PrimaryGeneratorInfo();
@@ -95,6 +54,10 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     void LoadConfig() override;
     void Initialize() override {}
     void RemoveParticleSources();
+    void SetGeneratedParticleSeed(long seed);
+    void UpdateGeneratedParticles();
+    bool HasGeneratedParticleTemplates() const;
+    const std::vector<TRestGeant4ParticleState>& GetGeneratedParticles(size_t sourceIndex) const;
 
     void Print() const;
     // --- Inline analytical getters (explicit conversions from std::array to XYZVector) ---
@@ -103,22 +66,22 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     inline std::string GetSpatialGeneratorFrom() const { return fSpatialGeneratorFrom; }
 
     inline ROOT::Math::XYZVector GetSpatialGeneratorPosition() const {
-        return ROOT::Math::XYZVector(fSpatialGeneratorPosition[0], fSpatialGeneratorPosition[1],
-                                     fSpatialGeneratorPosition[2]);
+        return ROOT::Math::XYZVector(fSpatialGeneratorPosition[0].value, fSpatialGeneratorPosition[1].value,
+                                     fSpatialGeneratorPosition[2].value);
     }
     inline ROOT::Math::XYZVector GetSpatialGeneratorRotationAxis() const {
-        return ROOT::Math::XYZVector(fSpatialGeneratorRotationAxis[0], fSpatialGeneratorRotationAxis[1],
-                                     fSpatialGeneratorRotationAxis[2]);
+        return ROOT::Math::XYZVector(fSpatialGeneratorRotationAxis[0].value, fSpatialGeneratorRotationAxis[1].value,
+                                     fSpatialGeneratorRotationAxis[2].value);
     }
-    inline double GetSpatialGeneratorRotationValue() const { return fSpatialGeneratorRotationValue; }
+    inline double GetSpatialGeneratorRotationValue() const { return fSpatialGeneratorRotationValue.value; }
 
     inline ROOT::Math::XYZVector GetSpatialGeneratorSize() const {
-        return ROOT::Math::XYZVector(fSpatialGeneratorSize[0], fSpatialGeneratorSize[1],
-                                     fSpatialGeneratorSize[2]);
+        return ROOT::Math::XYZVector(fSpatialGeneratorSize[0].value, fSpatialGeneratorSize[1].value,
+                                     fSpatialGeneratorSize[2].value);
     }
     inline ROOT::Math::XYZVector GetSpatialGeneratorWorldSize() const {
-        return ROOT::Math::XYZVector(fSpatialGeneratorWorldSize[0], fSpatialGeneratorWorldSize[1],
-                                     fSpatialGeneratorWorldSize[2]);
+        return ROOT::Math::XYZVector(fSpatialGeneratorWorldSize[0].value, fSpatialGeneratorWorldSize[1].value,
+                                     fSpatialGeneratorWorldSize[2].value);
     }
 
     /// \brief Returns cosmic generator radius (mm) extracted from world size constraints.

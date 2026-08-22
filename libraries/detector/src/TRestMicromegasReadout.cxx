@@ -177,7 +177,7 @@ void TRestMicromegasReadout::BuildGeometry() {
     TGeoHMatrix* globalMatrix = new TGeoHMatrix();
     if (fGlobalRotation != 0.0) {
         TGeoRotation* globalRot = new TGeoRotation("globalRot");
-        globalRot->RotateZ(fGlobalRotation);
+        globalRot->RotateZ(fGlobalRotation * TMath::RadToDeg());
         globalMatrix->MultiplyLeft(globalRot);
     }
 

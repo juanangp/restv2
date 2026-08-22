@@ -6,6 +6,24 @@
 
 using namespace TRestTools;
 
+namespace {
+YAML::Node DetachYAMLNode(const YAML::Node& node) {
+    if (!node) return YAML::Node();
+    if (node.IsNull()) return YAML::Node(YAML::NodeType::Null);
+    if (node.IsScalar()) return YAML::Node(node.Scalar());
+
+    YAML::Node detached(node.Type());
+    if (node.IsSequence()) {
+        for (const auto& child : node) detached.push_back(DetachYAMLNode(child));
+    } else if (node.IsMap()) {
+        for (const auto& entry : node) {
+            detached[DetachYAMLNode(entry.first)] = DetachYAMLNode(entry.second);
+        }
+    }
+    return detached;
+}
+}  // namespace
+
 TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& node)
     : fName(instanceName), fNode(node) {
     if (fNode) {
@@ -32,6 +50,16 @@ void TRestMetadata::ReadYAMLVerbose(YAML::Node& node) {
     TRestTools::SetNodeParameter(node, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
 }
 
+void TRestMetadata::WriteMetadata(TFile* file){
+
+  std::type_index typeIdx(typeid(*this));
+
+  TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(typeIdx, this, fNode);
+
+  TRestMetadata::WriteMetadata(file, fName, fNode);
+
+}
+
 void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
                                   const YAML::Node& configNode) {
     if (!file || file->IsZombie()) {
@@ -54,7 +82,7 @@ void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
 
     metadataDir->cd();
 
-    std::string yamlDump = YAML::Dump(configNode);
+    std::string yamlDump = YAML::Dump(DetachYAMLNode(configNode));
 
     auto* rootYamlString = new TObjString(yamlDump.c_str());
 

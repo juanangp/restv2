@@ -5,9 +5,9 @@
 #include <iostream>
 #include <string>
 
-/// \class TRestGeant4Particle
+/// \class TRestGeant4ParticleState
 /// \brief Stores one primary/secondary particle state used by generators and track metadata.
-class TRestGeant4Particle {
+class TRestGeant4ParticleState {
    protected:
     std::string fParticleName;
     double fExcitationLevel = 0;
@@ -26,7 +26,7 @@ class TRestGeant4Particle {
     inline ROOT::Math::XYZVector GetDirection() const { return fDirection; }
 
     /// \brief Copies all particle fields from another particle instance.
-    void SetParticle(const TRestGeant4Particle& particle);
+    void SetParticle(const TRestGeant4ParticleState& particle);
 
     void SetParticleName(const std::string& particle) { fParticleName = particle; }
 
@@ -46,8 +46,8 @@ class TRestGeant4Particle {
 
     // Constructor
     /// \brief Constructor.
-    TRestGeant4Particle();
+    TRestGeant4ParticleState();
     // Destructor
     /// \brief Destructor.
-    virtual ~TRestGeant4Particle();
+    virtual ~TRestGeant4ParticleState();
 };

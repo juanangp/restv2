@@ -14,32 +14,32 @@ class TRestGeant4PhysicsLists : public TRestMetadata {
     std::vector<std::string> fPhysicsLists;
     std::vector<std::string> fPhysicsListOptions;
 
-    Double_t fCutForElectron = 1.0;
-    Double_t fCutForGamma = 0.01;
-    Double_t fCutForPositron = 1.0;
-    Double_t fCutForMuon = 1.0;
-    Double_t fCutForNeutron = 1.0;
-    Double_t fMinEnergyRangeProductionCuts = 1.0;
-    Double_t fMaxEnergyRangeProductionCuts = 1e6;
+    TRestWithUnits fCutForElectron = 1.0;
+    TRestWithUnits fCutForGamma = 0.01;
+    TRestWithUnits fCutForPositron = 1.0;
+    TRestWithUnits fCutForMuon = 1.0;
+    TRestWithUnits fCutForNeutron = 1.0;
+    TRestWithUnits fMinEnergyRangeProductionCuts = 1.0;
+    TRestWithUnits fMaxEnergyRangeProductionCuts = 1e6;
 
     std::vector<std::string> fIonLimitStepList;
 
    public:
-    inline Double_t GetCutForGamma() const { return fCutForGamma; }
-    inline Double_t GetCutForElectron() const { return fCutForElectron; }
-    inline Double_t GetCutForPositron() const { return fCutForPositron; }
-    inline Double_t GetCutForMuon() const { return fCutForMuon; }
-    inline Double_t GetCutForNeutron() const { return fCutForNeutron; }
+    inline double GetCutForGamma() const { return fCutForGamma.value; }
+    inline double GetCutForElectron() const { return fCutForElectron.value; }
+    inline double GetCutForPositron() const { return fCutForPositron.value; }
+    inline double GetCutForMuon() const { return fCutForMuon.value; }
+    inline double GetCutForNeutron() const { return fCutForNeutron.value; }
 
     std::vector<std::string> GetIonStepList() const { return fIonLimitStepList; }
 
-    inline Double_t GetMinimumEnergyProductionCuts() const { return fMinEnergyRangeProductionCuts; }
-    inline Double_t GetMaximumEnergyProductionCuts() const { return fMaxEnergyRangeProductionCuts; }
+    inline double GetMinimumEnergyProductionCuts() const { return fMinEnergyRangeProductionCuts.value; }
+    inline double GetMaximumEnergyProductionCuts() const { return fMaxEnergyRangeProductionCuts.value; }
 
     /// \brief Returns index of a physics list by name, or -1 when not found.
-    Int_t FindPhysicsList(const std::string& physicsListName) const;
+    int FindPhysicsList(const std::string& physicsListName) const;
     /// \brief Returns true if a given physics list name is configured.
-    Bool_t PhysicsListExists(const std::string& physicsListName) const;
+    bool PhysicsListExists(const std::string& physicsListName) const;
 
     /// \brief Retrieves one option value associated with a physics list (or defaultValue).
     std::string GetPhysicsListOptionValue(const std::string& physicsListName, const std::string& option,
@@ -49,8 +49,7 @@ class TRestGeant4PhysicsLists : public TRestMetadata {
     void LoadConfig() override;
     /// \brief No-op hook kept for REST metadata lifecycle compatibility.
     void Initialize() override {}
-    /// \brief Prints configured physics lists and cut settings.
-    void PrintMetadata() override;
+    std::string GetClassName() const override { return "TRestGeant4PhysicsLists"; }
 
     // Constructors & Destructors
     /// \brief Constructs an empty physics-list metadata container.

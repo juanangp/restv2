@@ -30,6 +30,7 @@ bool InitializeRestRuntimeFromRestPath() {
         if (!entry.is_regular_file()) continue;
         const auto fileName = entry.path().filename().string();
         if (fileName.rfind("libRest", 0) == 0 && entry.path().extension() == ".so") {
+            if (fileName == "libRestG4.so") continue; 
             libraries.push_back(entry.path());
         }
     }

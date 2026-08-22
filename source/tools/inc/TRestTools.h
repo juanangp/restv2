@@ -16,6 +16,8 @@ std::pair<std::string, std::string> SeparatePathAndName(const std::string& fulln
 bool StringToBool(std::string booleanString);
 std::string ToTimeStringLong(double seconds);
 std::vector<std::string> Split(const std::string& s, char delim);
+int GetRunNumberAuto();
+long GetRandomSeed();
 
 YAML::Node OpenConfigFile(const std::string& fileName);
 std::pair<std::string, YAML::Node> GetMetadataClass(const YAML::Node& cfg, const std::string& className);

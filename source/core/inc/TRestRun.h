@@ -178,7 +178,7 @@ class TRestRun : public TRestMetadata {
 
     /// \brief Sets end timestamp.
     /// \param v End time.
-    void SetEndTimeStamp(double v) { fEndTime = v; }
+    void SetEndTimeStamp(double v) { fEndTime  = v; }
 
     /// \brief Opens input ROOT file and initializes input tree bindings.
     /// \param filename Input file path.
@@ -274,6 +274,7 @@ class TRestRun : public TRestMetadata {
     /// \param className Metadata class name.
     /// \param configNode Metadata YAML node.
     void AddMetadata(const std::string& instanceName, const YAML::Node& configNode);
+    void AddMetadata(TRestMetadata* metadata);
 
     /// \brief Retrieves metadata YAML node by instance name.
     /// \param instanceName Metadata instance name.

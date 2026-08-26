@@ -1,0 +1,37 @@
+#!/bin/bash
+# Source this script to set up the REST v2 environment:
+#   source @CMAKE_INSTALL_PREFIX@/thisREST.sh
+
+# Determine the directory of this script (bash and zsh compatible)
+if [[ -n "${BASH_VERSION}" ]]; then
+    thisdir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+elif [[ -n "${ZSH_VERSION}" ]]; then
+    thisdir=$(cd "$(dirname "$0")" && pwd)
+else
+    echo "Invalid shell, source with bash or zsh."
+    return 1
+fi
+
+# Load the ROOT environment used at compile time
+if [[ -f "@thisROOT@" ]]; then
+    source "@thisROOT@"
+fi
+
+# Strip any previous REST entries from PATH / LD_LIBRARY_PATH
+if [[ -n "${REST_PATH}" ]]; then
+    _PATH=$(echo "$PATH"           | sed -e "s#${REST_PATH}/bin:##g")
+    _LD=$(echo  "$LD_LIBRARY_PATH" | sed -e "s#${REST_PATH}/lib:##g")
+else
+    _PATH="$PATH"
+    _LD="$LD_LIBRARY_PATH"
+fi
+
+export REST_SOURCE="@CMAKE_SOURCE_DIR@"
+export REST_PATH="${thisdir}"
+export ROOT_INCLUDE_PATH="$REST_PATH/include:$ROOT_INCLUDE_PATH"
+export PATH="$REST_PATH/bin:$_PATH"
+export LD_LIBRARY_PATH="$REST_PATH/lib:$_LD"
+export DYLD_LIBRARY_PATH="$REST_PATH/lib:$_LD"
+export LIBRARY_PATH="$REST_PATH/lib:$LIBRARY_PATH"
+
+echo "REST @PROJECT_VERSION@ loaded from ${thisdir}"

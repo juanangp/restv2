@@ -75,6 +75,13 @@ TRestRun::~TRestRun() {
         delete pair.second;
     }
     // Output event objects are owned by TRestManager (or the caller), not TRestRun.
+
+    for (auto* metadata : fMetadataStore) {
+        if (metadata) {
+            delete metadata;
+        }
+    }
+    fMetadataStore.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -186,25 +193,42 @@ void TRestRun::OpenInputFile(const std::string& filename) {
         if (metadataDir) {
             TList* keysInDir = metadataDir->GetListOfKeys();
             if (keysInDir) {
+                for (auto* meta : fMetadataStore) { if (meta) delete meta; }
+                fMetadataStore.clear();
+
                 for (int i = 0; i < keysInDir->GetEntries(); ++i) {
                     TKey* key = dynamic_cast<TKey*>(keysInDir->At(i));
                     if (!key) continue;
 
                     std::string keyName = key->GetName();
-
                     YAML::Node testConfig = GetMetadata(keyName);
 
-                    if (testConfig && !testConfig.IsNull()) {
-                        if (testConfig["class"] && testConfig["class"].as<std::string>() == "TRestRun") {
+                    if (testConfig && !testConfig.IsNull() && testConfig["class"]) {
+                        std::string className = testConfig["class"].as<std::string>();
+
+                        if (className == "TRestRun") {
                             SetName(keyName);
                             selfConfig = testConfig;
-                            break;
+                        } 
+                        else {
+                            try {
+                                std::unique_ptr<TRestMetadata> metadata =
+                                    MetadataClassRegistry::Instance().Create(className, keyName, testConfig);
+                                
+                                if (metadata) {
+                                    fMetadataStore.push_back(metadata.release());
+                                }
+                            } catch (const std::exception& e) {
+                                std::cerr << "[-] Error loading metadata '" << keyName 
+                                          << "' from: " << e.what() << std::endl;
+                            }
                         }
                     }
                 }
             }
         }
     }
+
     // =========================================================================
 
     if (selfConfig && !selfConfig.IsNull()) {
@@ -255,6 +279,16 @@ YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
     if (!fInputFile) return YAML::Node();
 
     return ReadMetadata(fInputFile.get(), instanceName);
+}
+
+TRestMetadata* TRestRun::GetMetadataClass(const std::string &className) const {
+    for (auto* metadata : fMetadataStore) {
+        if (metadata && metadata->GetClassName() == className) {
+            return metadata;
+        }
+    }
+
+    return nullptr;
 }
 
 TRestEvent& TRestRun::GetInputEvent(const std::string& treeName) {

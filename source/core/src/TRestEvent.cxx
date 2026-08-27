@@ -1,6 +1,7 @@
 #include "TRestEvent.h"
 
 #include "TRestLogManager.h"
+#include "TRestRun.h"
 #include "TRestTools.h"
 
 void TRestEvent::SetTime(double time) {
@@ -13,6 +14,11 @@ void TRestEvent::SetTime(double time) {
 void TRestEvent::SetEventInfo(const TRestEvent* eve) {
     if (!eve) return;
     fInfo = eve->fInfo;
+}
+
+void TRestEvent::InitializeReferences(TRestRun* run) {
+    SetRunOrigin(run->GetRunNumber());
+    SetSubRunOrigin(run->GetSubRunNumber());
 }
 
 void TRestEvent::PrintEvent() const {

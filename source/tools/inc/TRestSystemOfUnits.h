@@ -1,6 +1,7 @@
 #pragma once
 
 #include <TMath.h>
+#include <Math/Vector3D.h>
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -109,6 +110,81 @@ inline double ParseUnit(const std::string& UnitsExpr) {
     }
     return factor;
 }
+
+template <typename T>
+inline std::string FormatAs(T value, Physical_Unit quantity) {
+    double val = static_cast<double>(value);
+    if (val == 0.0) return "0";
+
+    std::string baseUnitSymbol; 
+    double factorToBase = 1.0;  
+
+    if (quantity == Energy) {
+        baseUnitSymbol = "eV";
+        factorToBase = 1.0 / REST_Units_Map["eV"].second; // keV -> eV
+    } 
+    else if (quantity == Time) {
+        baseUnitSymbol = "s";
+        factorToBase = 1.0 / REST_Units_Map["s"].second;  // us -> s
+    } 
+    else if (quantity == Length) {
+        baseUnitSymbol = "m";
+        factorToBase = 1.0 / REST_Units_Map["m"].second;  // mm -> m
+    } 
+    else if (quantity == Voltage) {
+        baseUnitSymbol = "V";
+        factorToBase = 1.0 / REST_Units_Map["V"].second;  // V -> V (1.0)
+    } 
+    else if (quantity == Mass) {
+        baseUnitSymbol = "g"; 
+        factorToBase = 1.0 / REST_Units_Map["g"].second;  // kg -> g
+    } 
+    else if (quantity == MagneticField) {
+        baseUnitSymbol = "T";
+        factorToBase = 1.0 / REST_Units_Map["T"].second;  // T -> T (1.0)
+    } 
+    else if (quantity == Pressure) {
+        baseUnitSymbol = "bar";
+        factorToBase = 1.0 / REST_Units_Map["bar"].second; // bar -> bar (1.0)
+    } 
+    else if (quantity == Angle) {
+        baseUnitSymbol = "rad";
+        factorToBase = 1.0 / REST_Units_Map["rad"].second; // rad -> rad (1.0)
+    } 
+    else {
+        return std::to_string(val);
+    }
+
+    double valueInSI = val * factorToBase;
+    const double absValue = std::abs(valueInSI);
+
+    std::string prefix = "";
+    double scaleFactor = 1.0;
+
+    if (absValue < 1e-6)       { prefix = "n"; scaleFactor = 1e9; }
+    else if (absValue < 1e-3)  { prefix = "u"; scaleFactor = 1e6; }
+    else if (absValue < 1.0)   { prefix = "m"; scaleFactor = 1e3; }
+    else if (absValue < 1e3)   { prefix = "";  scaleFactor = 1.0; }
+    else if (absValue < 1e6)   { prefix = "k"; scaleFactor = 1e-3; }
+    else if (absValue < 1e9)   { prefix = "M"; scaleFactor = 1e-6; }
+    else if (absValue < 1e12)  { prefix = "G"; scaleFactor = 1e-9; }
+    else                       { prefix = "T"; scaleFactor = 1e-12; }
+
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(2) << (valueInSI * scaleFactor) << " " << prefix << baseUnitSymbol;
+    return ss.str();
+}
+
+inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit quantity) {
+    std::ostringstream ss;
+    ss << "(" 
+       << FormatAs(vector.X(), quantity) << ", "
+       << FormatAs(vector.Y(), quantity) << ", "
+       << FormatAs(vector.Z(), quantity) << ")";
+    return ss.str();
+}
+
+
 }  // namespace REST_Units
 
 // ============================================================================
@@ -120,7 +196,6 @@ struct TRestWithUnits {
     TRestWithUnits() = default;
     TRestWithUnits(double v) : value(v) {}
 
-    // Implicit conversion to double makes it invisible in mathematics
     operator double&() { return value; }
     operator const double&() const { return value; }
     TRestWithUnits& operator=(double v) { value = v; return *this; }

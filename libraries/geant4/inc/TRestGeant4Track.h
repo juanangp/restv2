@@ -135,7 +135,7 @@ class TRestGeant4Track {
     /// \brief Prints track information restricted to the provided volume name set.
     void PrintTrackFilterVolumes(const std::set<std::string>& filterVolumes) const;
 
-    inline void RemoveHits() { fHits.RemoveHits(); }
+    inline void RemoveHits() { fHits.RemoveG4Hits(); }
 
     // Constructor
     TRestGeant4Track();

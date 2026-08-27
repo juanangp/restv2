@@ -96,8 +96,15 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesMatchingE
 
 /// \brief Compatibility wrapper translating alternative paths into Geant4 formatted ones.
 std::string TRestGeant4GeometryInfo::GetAlternativePathFromGeant4Path(const std::string& g4Path) const {
-    // We utilize the framework's string tooling to normalize path separators safely
-    return std::regex_replace(g4Path, std::regex("/"), fPathSeparator);
+    const auto firstSeparator = g4Path.find('/');
+    if (firstSeparator == std::string::npos) return g4Path;
+
+    std::string alternativePath = g4Path;
+    for (size_t pos = firstSeparator; pos != std::string::npos;
+         pos = alternativePath.find('/', pos + fPathSeparator.size())) {
+        alternativePath.replace(pos, 1, fPathSeparator);
+    }
+    return alternativePath;
 }
 
 std::string TRestGeant4GeometryInfo::GetAlternativeNameFromGeant4PhysicalName(

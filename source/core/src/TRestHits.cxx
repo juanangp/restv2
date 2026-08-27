@@ -222,3 +222,16 @@ double TRestHits::GetMeanPositionZ() const {
     }
     return totalEnergy > 0 ? mean / totalEnergy : 0;
 }
+
+void TRestHits::PrintHits(Int_t nHits) const {
+    int N = nHits;
+
+    if (N == -1) N = GetNumberOfHits();
+    if (N > (int)GetNumberOfHits()) N = GetNumberOfHits();
+
+    for (int n = 0; n < N; n++) {
+        std::cout << "Hit " << n << " X: " << GetX(n) << " Y: " << GetY(n) << " Z: " << GetZ(n)
+             << " Energy: " << GetEnergy(n) << " T: " << GetTime(n);
+        std::cout << std::endl;
+    }
+}

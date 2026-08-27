@@ -53,6 +53,10 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4Metadata>("magneticField", &TRestGeant4Metadata::fMagneticField);
 
     // Physics and simulation chains
+    reg.RegisterField<TRestGeant4Metadata>("volumeNameMap", &TRestGeant4Metadata::fVolumeNameMap);
+    reg.RegisterField<TRestGeant4Metadata>("processNamesMap", &TRestGeant4Metadata::fProcessNamesMap);
+    reg.RegisterField<TRestGeant4Metadata>("particleNamesMap", &TRestGeant4Metadata::fParticleNamesMap);
+    reg.RegisterField<TRestGeant4Metadata>("processTypesMap", &TRestGeant4Metadata::fProcessTypesMap);
     reg.RegisterField<TRestGeant4Metadata>("subEventTimeDelay", &TRestGeant4Metadata::fSubEventTimeDelay);
     reg.RegisterField<TRestGeant4Metadata>("fullChain", &TRestGeant4Metadata::fFullChain);
     reg.RegisterField<TRestGeant4Metadata>("resetGlobalTime", &TRestGeant4Metadata::fResetGlobalTime);
@@ -124,6 +128,10 @@ TRestGeant4Metadata::~TRestGeant4Metadata() { fGeant4PrimaryGeneratorInfo.Remove
 
 /// \brief Pre-allocation and basic environment state setups.
 void TRestGeant4Metadata::Clear() {
+    fVolumeNameMap.clear();
+    fProcessNamesMap.clear();
+    fParticleNamesMap.clear();
+    fProcessTypesMap.clear();
     fActiveVolumesMetadata.clear();
     fActiveVolumes.clear();
     fChance.clear();
@@ -139,9 +147,31 @@ void TRestGeant4Metadata::Clear() {
     fGeant4PrimaryGeneratorInfo.RemoveParticleSources();
 }
 
+void TRestGeant4Metadata::SyncRuntimeMapsFromMetadata() {
+    fGeant4GeometryInfo.fVolumeNameMap = fVolumeNameMap;
+    fGeant4GeometryInfo.fVolumeNameReverseMap.clear();
+    for (const auto& [id, name] : fVolumeNameMap) fGeant4GeometryInfo.fVolumeNameReverseMap[name] = id;
+
+    fGeant4PhysicsInfo.fProcessNamesMap = fProcessNamesMap;
+    fGeant4PhysicsInfo.fParticleNamesMap = fParticleNamesMap;
+    fGeant4PhysicsInfo.fProcessTypesMap = fProcessTypesMap;
+    fGeant4PhysicsInfo.fProcessNamesReverseMap.clear();
+    for (const auto& [id, name] : fProcessNamesMap) fGeant4PhysicsInfo.fProcessNamesReverseMap[name] = id;
+    fGeant4PhysicsInfo.fParticleNamesReverseMap.clear();
+    for (const auto& [id, name] : fParticleNamesMap) fGeant4PhysicsInfo.fParticleNamesReverseMap[name] = id;
+}
+
+void TRestGeant4Metadata::SyncMetadataMapsFromRuntime() {
+    fVolumeNameMap = fGeant4GeometryInfo.fVolumeNameMap;
+    fProcessNamesMap = fGeant4PhysicsInfo.fProcessNamesMap;
+    fParticleNamesMap = fGeant4PhysicsInfo.fParticleNamesMap;
+    fProcessTypesMap = fGeant4PhysicsInfo.fProcessTypesMap;
+}
+
 /// \brief Modern framework configuration entry point.
 void TRestGeant4Metadata::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4Metadata>(fNode);
+    SyncRuntimeMapsFromMetadata();
     ReadYAMLVerbose(fNode);
     if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
@@ -184,6 +214,10 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fIsMerge = true;
     fGeant4GeometryInfo = other.fGeant4GeometryInfo;
     fGeant4PhysicsInfo = other.fGeant4PhysicsInfo;
+    fVolumeNameMap = other.fVolumeNameMap;
+    fProcessNamesMap = other.fProcessNamesMap;
+    fParticleNamesMap = other.fParticleNamesMap;
+    fProcessTypesMap = other.fProcessTypesMap;
     fGeant4PrimaryGeneratorInfo = other.fGeant4PrimaryGeneratorInfo;
     fGeant4Version = other.fGeant4Version;
     fGeometryPath = other.fGeometryPath;

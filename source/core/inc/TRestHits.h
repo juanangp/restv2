@@ -164,7 +164,7 @@ class TRestHits {
     double GetTransversalProjection(ROOT::Math::XYZVector p0, ROOT::Math::XYZVector direction,
                                     ROOT::Math::XYZVector position) const;
 
-    virtual void PrintHits(int nHits = -1) const {}
+    virtual void PrintHits(int nHits = -1) const;
 
     TRestHits() = default;
     virtual ~TRestHits() = default;

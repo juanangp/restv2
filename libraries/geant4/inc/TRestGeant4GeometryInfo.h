@@ -149,4 +149,5 @@ class TRestGeant4GeometryInfo {
     void Print() const;
 
     friend class DetectorConstruction;
+    friend class TRestGeant4Metadata;
 };

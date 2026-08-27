@@ -19,6 +19,9 @@
 class TRestRun : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestRun)
 
+   private:
+    std::vector <TRestMetadata*> fMetadataStore;
+
    public:
     int fRunNumber = -1;
     int fSubRunNumber = 0;
@@ -280,6 +283,8 @@ class TRestRun : public TRestMetadata {
     /// \param instanceName Metadata instance name.
     /// \return YAML node (null node if not found).
     YAML::Node GetMetadata(const std::string& instanceName) const;
+
+    TRestMetadata* GetMetadataClass(const std::string &className) const;
 
     /// \brief Returns non-const reference to an input event by tree name.
     /// \param treeName Event tree/class name.

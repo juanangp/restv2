@@ -19,7 +19,7 @@ class TRestGeant4Event;
 /// \brief Stores Geant4 hit-level information and provides volume/process-based accessors.
 class TRestGeant4Hits : public TRestHits {
    protected:
-    TRestHitsData fStorage;
+    TRestHitsData fStorage; // Almacenamiento base (x, y, z, time, energy, type)
 
     std::vector<int> fProcessID = {};
     std::vector<int> fVolumeID = {};
@@ -30,38 +30,94 @@ class TRestGeant4Hits : public TRestHits {
     std::vector<int> fHadronicTargetIsotopeA = {};
     std::vector<int> fHadronicTargetIsotopeZ = {};
 
+    std::vector<int>* fMappedProcessID = nullptr;
+    std::vector<int>* fMappedVolumeID = nullptr;
+    std::vector<float>* fMappedKineticEnergy = nullptr;
+    std::vector<ROOT::Math::XYZVector>* fMappedMomentumDirection = nullptr;
+    std::vector<std::string>* fMappedHadronicTargetIsotopeName = nullptr;
+    std::vector<int>* fMappedHadronicTargetIsotopeA = nullptr;
+    std::vector<int>* fMappedHadronicTargetIsotopeZ = nullptr;
+
+    bool fIsView = false;
+
     TRestGeant4Track* fTrack = nullptr;  //!
     TRestGeant4Event* fEvent = nullptr;  //!
+    mutable TRestGeant4Metadata* fMetadata = nullptr;  //!
+
+    template<typename T>
+    inline const std::vector<T>& GetVec(const std::vector<T>& local, const std::vector<T>* mapped) const {
+        return fIsView && mapped ? *mapped : local;
+    }
 
    public:
     /// \brief Returns associated Geant4 metadata through the owning event/track context.
     TRestGeant4Metadata* GetGeant4Metadata() const;
 
     inline const TRestGeant4Track* GetTrack() const { return fTrack; }
-    inline void SetTrack(TRestGeant4Track* track) { fTrack = track; }
+    inline void SetTrack(TRestGeant4Track* track) {
+        fTrack = track;
+        fMetadata = nullptr;
+    }
 
     inline const TRestGeant4Event* GetEvent() const { return fEvent; }
-    inline void SetEvent(TRestGeant4Event* event) { fEvent = event; }
+    inline void SetEvent(TRestGeant4Event* event) {
+        fEvent = event;
+        fMetadata = nullptr;
+    }
 
-    inline ROOT::Math::XYZVector GetMomentumDirection(size_t n) const { return fMomentumDirection[n]; }
+    inline ROOT::Math::XYZVector GetMomentumDirection(size_t n) const { 
+      const auto& vec = fIsView && fMappedMomentumDirection ? *fMappedMomentumDirection : fMomentumDirection;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : ROOT::Math::XYZVector(0,0,0);
+    }
 
-    inline int GetProcessId(size_t n) const { return fProcessID[n]; }
+    inline int GetProcessId(size_t n) const { 
+      const auto& vec = fIsView && fMappedProcessID ? *fMappedProcessID : fProcessID;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : 0; // 0 = Init / ID seguro por defecto
+    }
     inline int GetProcess(size_t n) const { return GetProcessId(n); }
     inline int GetHitProcess(size_t n) const { return GetProcessId(n); }
     std::string GetProcessName(size_t n) const;
 
-    inline int GetVolumeId(size_t n) const { return fVolumeID[n]; }
+    inline int GetVolumeId(size_t n) const { 
+      const auto& vec = fIsView && fMappedVolumeID ? *fMappedVolumeID : fVolumeID;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : 0; 
+    }
     inline int GetHitVolume(size_t n) const { return GetVolumeId(n); }
     std::string GetVolumeName(size_t n) const;
-    inline bool GetHadronicOk() const { return fHadronicTargetIsotopeName.size() > 0; }
-    inline std::string GetHadronicTargetIsotopeName(size_t n) const { return fHadronicTargetIsotopeName[n]; }
-    inline int GetHadronicTargetIsotopeA(size_t n) const { return fHadronicTargetIsotopeA[n]; }
-    inline int GetHadronicTargetIsotopeZ(size_t n) const { return fHadronicTargetIsotopeZ[n]; }
+
+    inline bool GetHadronicOk() const { 
+      return (fIsView && fMappedHadronicTargetIsotopeName ? fMappedHadronicTargetIsotopeName->size() : fHadronicTargetIsotopeName.size()) > 0; 
+    }
+
+    inline std::string GetHadronicTargetIsotopeName(size_t n) const { 
+      const auto& vec = fIsView && fMappedHadronicTargetIsotopeName ? *fMappedHadronicTargetIsotopeName : fHadronicTargetIsotopeName;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : "";
+    }
+
+    inline int GetHadronicTargetIsotopeA(size_t n) const { 
+      const auto& vec = fIsView && fMappedHadronicTargetIsotopeA ? *fMappedHadronicTargetIsotopeA : fHadronicTargetIsotopeA;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : 0;
+    }
+
+    inline int GetHadronicTargetIsotopeZ(size_t n) const { 
+      const auto& vec = fIsView && fMappedHadronicTargetIsotopeZ ? *fMappedHadronicTargetIsotopeZ : fHadronicTargetIsotopeZ;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : 0;
+    }
 
     /// \brief Clears Geant4-specific hit attributes while preserving base hit container semantics.
     void RemoveG4Hits();
 
-    inline Double_t GetKineticEnergy(size_t n) const { return fKineticEnergy[n]; }
+    inline Double_t GetKineticEnergy(size_t n) const { 
+      const auto& vec = fIsView && fMappedKineticEnergy ? *fMappedKineticEnergy : fKineticEnergy;
+      size_t idx = fIsView ? (fStartIdx + n) : n;
+      return idx < vec.size() ? vec[idx] : 0.0;
+    }
 
     /// \brief Accumulates deposited energy for all hits matching a given volume id.
     Double_t GetEnergyInVolume(Int_t volumeID) const;
@@ -84,6 +140,18 @@ class TRestGeant4Hits : public TRestHits {
     TRestGeant4Hits();
     TRestGeant4Hits(const TRestGeant4Hits& other);
     TRestGeant4Hits& operator=(const TRestGeant4Hits& other);
+    TRestGeant4Hits(TRestHitsData* parentBaseData, 
+                std::vector<int>* proc, 
+                std::vector<int>* vol, 
+                std::vector<float>* kin, 
+                std::vector<ROOT::Math::XYZVector>* mom,
+                std::vector<std::string>* hadName,
+                std::vector<int>* hadA,
+                std::vector<int>* hadZ,
+                size_t start, 
+                size_t size);
+    
+    virtual void PrintHits(int nHits = -1) const override;
     // Destructor
     virtual ~TRestGeant4Hits();
 

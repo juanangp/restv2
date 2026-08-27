@@ -9,15 +9,13 @@
 #include <vector>
 
 #include "TRestEvent.h"
-#include "TRestGeant4Metadata.h"
+#include "TRestRun.h"
 #include "TRestGeant4Track.h"
-#include "TRestHits.h"
+#include "TRestGeant4Hits.h"
 
 class TTree;
-class TRestRun;
-class G4Event;
-class G4Track;
-class G4Step;
+class TRestGeant4Event;
+class TRestGeant4Metadata;
 class G4Event;
 class G4Track;
 class G4Step;
@@ -52,9 +50,18 @@ struct TRestGeant4EventData {
     std::vector<std::string> trackCreatorProcesses;
     std::vector<double> trackDepositedEnergy;
     std::vector<double> trackInitialEnergies;
-
     std::vector<int> trackStartIndices;
     std::vector<int> trackNHits;
+
+    std::vector<double> trackGlobalTimestamps;
+    std::vector<double> trackTimeOffsets;
+    std::vector<double> trackTimeLengths;
+    std::vector<double> trackLengths;
+    std::vector<double> trackWeights;
+    std::vector<int> trackSecondariesIDs;
+    std::vector<int> trackSecondariesOffsets;
+    std::vector<int> trackSecondariesIndices;  
+    std::vector<ROOT::Math::XYZVector> trackInitialPositions;
 
     std::vector<std::string> crossVolumeNames;
     std::vector<std::string> crossParticleNames;
@@ -63,12 +70,26 @@ struct TRestGeant4EventData {
 
     TRestHitsData hitsStorage;
 
+    std::vector<int> hitProcessID;
+    std::vector<int> hitVolumeID;
+    std::vector<float> hitKineticEnergy;
+    std::vector<ROOT::Math::XYZVector> hitMomentumDirection;
+
+    std::vector<std::string> hitHadronicTargetIsotopeName;
+    std::vector<int> hitHadronicTargetIsotopeA;
+    std::vector<int> hitHadronicTargetIsotopeZ;
+
     void clear() {
         auto clear_all = [](auto&... vecs) { (vecs.clear(), ...); };
+        
         clear_all(primaryParticleNames, primaryEnergies, primaryDirections, volumeStored, volumeStoredNames,
                   volumeDepositedEnergy, trackIDs, parentIDs, trackParticleNames, trackCreatorProcesses,
-                  trackDepositedEnergy, trackInitialEnergies, trackStartIndices, trackNHits, crossVolumeNames,
-                  crossParticleNames, crossProcessNames, crossDepositedEnergies);
+                  trackDepositedEnergy, trackInitialEnergies, trackStartIndices, trackNHits, 
+                  trackGlobalTimestamps, trackTimeOffsets, trackTimeLengths, trackLengths, trackWeights,
+                  trackSecondariesIDs, trackSecondariesOffsets, trackSecondariesIndices, trackInitialPositions,
+                  crossVolumeNames, crossParticleNames, crossProcessNames, crossDepositedEnergies,
+                  hitProcessID, hitVolumeID, hitKineticEnergy, hitMomentumDirection,
+                  hitHadronicTargetIsotopeName, hitHadronicTargetIsotopeA, hitHadronicTargetIsotopeZ);
 
         hitsStorage.clear();
         subEventParticleName.clear();
@@ -81,22 +102,58 @@ struct TRestGeant4EventData {
 // ============================================================================
 //  TRestGeant4TrackView
 // ============================================================================
-class TRestGeant4TrackView : public TRestHits {
-   public:
-    TRestGeant4EventData* fEventData = nullptr;
-    int fTrackIdx = -1;
-
-    TRestGeant4TrackView(TRestGeant4EventData* data, int idx)
-        : TRestHits(&(data->hitsStorage), data->trackStartIndices[idx], data->trackNHits[idx]),
+class TRestGeant4TrackView : public TRestGeant4Hits {
+    public:
+     TRestGeant4EventData* fEventData = nullptr;
+     int fTrackIdx = -1;
+ 
+     TRestGeant4TrackView(TRestGeant4EventData* data, TRestGeant4Event* event, int idx)
+        : TRestGeant4Hits(&(data->hitsStorage), 
+                           &(data->hitProcessID), 
+                           &(data->hitVolumeID), 
+                           &(data->hitKineticEnergy), 
+                           &(data->hitMomentumDirection),
+                           &(data->hitHadronicTargetIsotopeName),
+                           &(data->hitHadronicTargetIsotopeA),
+                           &(data->hitHadronicTargetIsotopeZ),
+                           data->trackStartIndices[idx], 
+                           data->trackNHits[idx]),
           fEventData(data),
-          fTrackIdx(idx) {}
+          fTrackIdx(idx) {
+        SetEvent(event);
+    }
 
     int GetTrackID() const { return fEventData->trackIDs[fTrackIdx]; }
     int GetParentID() const { return fEventData->parentIDs[fTrackIdx]; }
     
+    double GetLength() const { return fEventData->trackLengths[fTrackIdx]; }
+    double GetTimeLength() const { return fEventData->trackTimeLengths[fTrackIdx]; }
+    double GetWeight() const { return fEventData->trackWeights[fTrackIdx]; }
+    
+    ROOT::Math::XYZVector GetInitialPosition() const { 
+        return fEventData->trackInitialPositions[fTrackIdx]; 
+    }
+
+    std::string GetInitialVolume() const { return GetVolumeName(0); }
+
     std::string GetParticleName() const { return fEventData->trackParticleNames[fTrackIdx]; }
     std::string GetCreatorProcess() const { return fEventData->trackCreatorProcesses[fTrackIdx]; }
     double GetInitialEnergy() const { return fEventData->trackInitialEnergies[fTrackIdx]; }
+
+    std::vector<int> GetSecondaryTrackIDs() const {
+    std::vector<int> secondaries;
+        
+    int start = fEventData->trackSecondariesIndices[fTrackIdx];
+    int offset = fEventData->trackSecondariesOffsets[fTrackIdx];
+        
+      secondaries.reserve(offset);
+      for (int i = 0; i < offset; ++i) {
+          secondaries.push_back(fEventData->trackSecondariesIDs[start + i]);
+      }
+        
+     return secondaries;
+   }
+   
 };
 
 /// \class TRestGeant4Event
@@ -126,22 +183,41 @@ class TRestGeant4Event : public TRestEvent {
     std::vector<double>* fPtrTrackInitialEnergies = nullptr;
     std::vector<int>* fPtrTrackStartIndices = nullptr;
     std::vector<int>* fPtrTrackNHits = nullptr;
+    std::vector<double>* fPtrTrackGlobalTimestamp = nullptr;
+    std::vector<double>* fPtrTrackTimeOffset = nullptr;
+    std::vector<double>* fPtrTrackTimeLength = nullptr;
+    std::vector<double>* fPtrTrackLength = nullptr;
+    std::vector<double>* fPtrTrackWeight = nullptr;
+    std::vector<int>* fPtrTrackSecondariesIDs = nullptr;
+    std::vector<int>* fPtrTrackSecondariesIndex = nullptr;
+    std::vector<int>* fPtrTrackSecondariesOffsets = nullptr;
+    std::vector<ROOT::Math::XYZVector>* fPtrTrackInitialPosition = nullptr;
+    
     std::vector<float>* fPtrHitX = nullptr;
     std::vector<float>* fPtrHitY = nullptr;
     std::vector<float>* fPtrHitZ = nullptr;
     std::vector<float>* fPtrHitEnergy = nullptr;
     std::vector<float>* fPtrHitTime = nullptr;
     std::vector<int>* fPtrHitType = nullptr;
+    std::vector<int>* fPtrHitVolumeID = nullptr;
+    std::vector<int>* fPtrHitProcessID = nullptr;
+
     std::vector<std::string>* fPtrCrossVolumeNames = nullptr;
     std::vector<std::string>* fPtrCrossParticleNames = nullptr;
     std::vector<std::string>* fPtrCrossProcessNames = nullptr;
     std::vector<double>* fPtrCrossDepositedEnergies = nullptr;
+    std::vector<float>* fPtrHitKineticEnergy = nullptr;
+    std::vector<ROOT::Math::XYZVector>* fPtrHitMomentumDirection = nullptr;
+    std::vector<std::string>* fPtrHitHadronicTargetIsotopeName = nullptr;
+    std::vector<int>* fPtrHitHadronicTargetIsotopeA = nullptr;
+    std::vector<int>* fPtrHitHadronicTargetIsotopeZ = nullptr;
 
    public:
     using XYZVector = ROOT::Math::XYZVector;
 
     TRestGeant4EventData fEventData;
-    TRestGeant4Metadata* fMetadata = nullptr;
+    mutable const TRestGeant4Metadata* fMetadata = nullptr;
+    TRestRun *fRestRun = nullptr;
     mutable std::vector<TRestGeant4TrackView> fTracksViews;
 
     std::vector<TRestGeant4Track*> fTracks;
@@ -178,29 +254,11 @@ class TRestGeant4Event : public TRestEvent {
     const std::map<int, int>& GetTrackIDToTrackIndex() const { return fTrackIDToTrackIndex; }
 
     /// \brief Clears track caches and flat storage vectors while keeping event object reusable.
-    void ClearTracks() {
-        for (auto* track : fTracks) {
-          if (track) delete track;
-        }
-        fTracks.clear();
-        fTrackIDToTrackIndex.clear();
-        fEventData.trackIDs.clear();
-        fEventData.parentIDs.clear();
-        fEventData.trackParticleNames.clear();
-        fEventData.trackCreatorProcesses.clear();
-        fEventData.trackDepositedEnergy.clear();
-        fEventData.trackInitialEnergies.clear();
-        fEventData.trackStartIndices.clear();
-        fEventData.trackNHits.clear();
-        fEventData.hitsStorage.clear();
-        fVolumeEnergyCache.clear();
-        fCrossIndexMap.clear();
-        fTradVolumeIndexMap.clear();
-        RefreshViews();
-    }
+    void ClearTracks();
 
     /// \brief Synchronizes object-based tracks into flat AOD vectors and hit storage.
     void SyncTracksToEventData();
+    void MoveFrom(TRestGeant4Event&& source);
     void InitializeOnDetectorConstruction(const std::string&, const G4VPhysicalVolume*) {}
     /// \brief Populates detector-volume bookkeeping using the Geant4 world hierarchy.
     void PopulateFromGeant4World(const G4VPhysicalVolume* world);
@@ -219,30 +277,15 @@ class TRestGeant4Event : public TRestEvent {
     }
 
     void AddTrack(int trackID, int parentID, const std::string& pName, const std::string& process,
-                  double initialEnergy, const TRestHits& hits) {
-        fEventData.trackStartIndices.push_back((int)fEventData.hitsStorage.x.size());
-        fEventData.trackNHits.push_back((int)hits.GetNumberOfHits());
+              double initialEnergy, const TRestGeant4Hits& hits,
+              double globalTimestamp = 0.0, double timeOffset = 0.0, double timeLength = 0.0,
+              double length = 0.0, double weight = 1.0, 
+              const ROOT::Math::XYZVector& initialPos = ROOT::Math::XYZVector(),
+              const std::vector<int>& secondaryIDs = std::vector<int>());
 
-        fEventData.trackIDs.push_back(trackID);
-        fEventData.parentIDs.push_back(parentID);
-        fEventData.trackParticleNames.push_back(pName);
-        fEventData.trackCreatorProcesses.push_back(process);
-        fEventData.trackInitialEnergies.push_back(initialEnergy);
-        fEventData.trackDepositedEnergy.push_back(hits.GetTotalEnergy());
-
-        for (size_t i = 0; i < hits.GetNumberOfHits(); ++i) {
-            fEventData.hitsStorage.x.push_back(static_cast<float>(hits.GetX(i)));
-            fEventData.hitsStorage.y.push_back(static_cast<float>(hits.GetY(i)));
-            fEventData.hitsStorage.z.push_back(static_cast<float>(hits.GetZ(i)));
-            fEventData.hitsStorage.energy.push_back(static_cast<float>(hits.GetEnergy(i)));
-            fEventData.hitsStorage.time.push_back(static_cast<float>(hits.GetTime(i)));
-            fEventData.hitsStorage.type.push_back(static_cast<int>(hits.GetType(i)));
-        }
-        fTracksViews.clear();
-    }
-    
-    TRestGeant4Metadata* GetGeant4Metadata() const { return fMetadata; }
-    void SetGeant4Metadata(TRestGeant4Metadata* metadata) { fMetadata = metadata; }
+    const TRestGeant4Metadata* GetGeant4Metadata() const;
+    inline void SetGeant4Metadata(const TRestGeant4Metadata* metadata) { fMetadata = metadata; }
+    inline void SetRestRun(TRestRun* run) { fRestRun = run; }
 
     size_t GetNumberOfTracks() const { return fEventData.trackIDs.size(); }
     size_t GetNumberOfPrimaries() const { return fEventData.primaryParticleNames.size(); }
@@ -294,7 +337,8 @@ class TRestGeant4Event : public TRestEvent {
                                                 const std::string& particleName,
                                                 const std::string& processName);
 
-    void PrintEvent() const override {};
+    void PrintG4Event(int maxTracks = -1, int maxHits = -1) const;
+    void PrintEvent() const override {PrintG4Event();}
     TPad* DrawEvent(const TString& option = "") const override { return nullptr; };
 
     TRestGeant4Event() = default;

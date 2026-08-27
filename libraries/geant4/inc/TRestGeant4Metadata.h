@@ -64,6 +64,11 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// The filename of the GDML geometry
     std::string fGdmlFilename;  //!
 
+    std::map<int, std::string> fVolumeNameMap;
+    std::map<int, std::string> fProcessNamesMap;
+    std::map<int, std::string> fParticleNamesMap;
+    std::map<std::string, std::string> fProcessTypesMap;
+
     /// A pair storing the energy range, in keV, to decide if a particular event should be written to disk
     std::pair<TRestWithUnits, TRestWithUnits> fEnergyRangeStored = {0.0, 1.0E20};
 
@@ -179,6 +184,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// \brief Resets all metadata containers and cached lookup structures.
     void Clear();
     void SyncActiveVolumesFromMetadata();
+    void SyncRuntimeMapsFromMetadata();
+    void SyncMetadataMapsFromRuntime();
     /// \brief Merges another metadata object into this one for combined simulations.
     void Merge(const TRestGeant4Metadata& other);
 

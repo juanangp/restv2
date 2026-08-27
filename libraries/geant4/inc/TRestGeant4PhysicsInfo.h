@@ -63,4 +63,5 @@ class TRestGeant4PhysicsInfo {
 
     // Grants reflection registration macro privileges
     friend class TRestMetadataFieldRegistry;
+    friend class TRestGeant4Metadata;
 };

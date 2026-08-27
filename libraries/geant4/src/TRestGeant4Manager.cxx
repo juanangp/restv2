@@ -64,6 +64,7 @@ void TRestGeant4Manager::SaveMetadata() {
         throw std::runtime_error("TRestGeant4Manager::Run - no TRestRun configured under manager section.");
     }
 
+    fG4Metadata->SyncMetadataMapsFromRuntime();
     fConfiguredRun->AddMetadata(fConfiguredRun);
     if (fG4PhysicsLists) fConfiguredRun->AddMetadata(fG4PhysicsLists);
     if (fG4Metadata) fConfiguredRun->AddMetadata(fG4Metadata);

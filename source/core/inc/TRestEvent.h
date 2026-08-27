@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+class TRestRun;
+
 /// \struct TRestEventInfo
 /// \brief POD structure with generic event identity and timestamp fields.
 struct TRestEventInfo {
@@ -44,6 +46,8 @@ class TRestEvent {
 
     /// \brief Resets event to default state.
     virtual void Initialize() = 0;
+
+    virtual void InitializeReferences(TRestRun* run);
 
     /// \brief Draws event representation.
     /// \param option Draw option string.

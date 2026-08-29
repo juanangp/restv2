@@ -128,6 +128,8 @@ string EnergyDistributionTypesToString(EnergyDistributionTypes type) {
             return "Flat";
         case EnergyDistributionTypes::LOG:
             return "Log";
+        case EnergyDistributionTypes::COSMIC:
+            return "Cosmic";
     }
     cout << "EnergyDistributionTypesToString - Error - Unknown energy "
             "distribution type"
@@ -151,6 +153,8 @@ EnergyDistributionTypes StringToEnergyDistributionTypes(
         return EnergyDistributionTypes::FLAT;
     if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::LOG)))
         return EnergyDistributionTypes::LOG;
+    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::COSMIC)))
+        return EnergyDistributionTypes::COSMIC;
 
     cout << "StringToEnergyDistributionTypes - Error - Unknown "
             "EnergyDistributionTypes: "
@@ -274,6 +278,8 @@ string AngularDistributionTypesToString(AngularDistributionTypes type) {
             return "Flux";
         case AngularDistributionTypes::BACK_TO_BACK:
             return "Back to back";
+        case AngularDistributionTypes::COSMIC:
+            return "Cosmic";
     }
     cout << "AngularDistributionTypesToString - Error - Unknown "
             "AngularDistributionTypes"
@@ -298,6 +304,9 @@ AngularDistributionTypes StringToAngularDistributionTypes(
     if (CaseInsensitiveCompare(type,
                                AngularDistributionTypesToString(AngularDistributionTypes::BACK_TO_BACK)))
         return AngularDistributionTypes::BACK_TO_BACK;
+    if (CaseInsensitiveCompare(type,
+                               AngularDistributionTypesToString(AngularDistributionTypes::COSMIC)))
+        return AngularDistributionTypes::COSMIC;
 
     cout << "StringToAngularDistributionTypes - Error - Unknown "
             "AngularDistributionTypes: "

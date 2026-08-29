@@ -39,7 +39,6 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     std::array<TRestWithUnits, 3> fSpatialGeneratorWorldSize = {0.0, 0.0, 0.0};
     std::string fSpatialGeneratorSpatialDensityFunction = "";
 
-    // 2. COMPOSITION UNIFICATION: The particle sources now live inside the generator info!
     std::vector<TRestGeant4ParticleSource> fParticleSources;  //! YAML-managed runtime sources
     std::vector<std::vector<TRestGeant4ParticleState>> fGeneratedParticles;  //! Current runtime state
     std::vector<std::vector<std::vector<TRestGeant4ParticleState>>> fGeneratedParticleTemplates;  //! DECAY0 templates

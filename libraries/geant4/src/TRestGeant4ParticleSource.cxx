@@ -125,6 +125,9 @@ TRestGeant4ParticleSource::TRestGeant4ParticleSource(const TRestGeant4ParticleSo
       fEnergyAndAngularDistributionFunction(other.fEnergyAndAngularDistributionFunction
                                                 ? new TF2(*other.fEnergyAndAngularDistributionFunction)
                                                 : nullptr),
+       fCosmicHistogramsTransformed(other.fCosmicHistogramsTransformed
+                                          ? new TH2D(*other.fCosmicHistogramsTransformed) 
+                                          : nullptr),
       fGenFilename(other.fGenFilename),
       fParticleName(other.fParticleName),
       fParticleExcitationLevel(other.fParticleExcitationLevel),
@@ -146,6 +149,7 @@ TRestGeant4ParticleSource::TRestGeant4ParticleSource(TRestGeant4ParticleSource&&
       fAngularDistributionFunction(other.fAngularDistributionFunction),
       fEnergyDistributionFunction(other.fEnergyDistributionFunction),
       fEnergyAndAngularDistributionFunction(other.fEnergyAndAngularDistributionFunction),
+      fCosmicHistogramsTransformed(other.fCosmicHistogramsTransformed),
       fGenFilename(std::move(other.fGenFilename)),
       fParticleName(std::move(other.fParticleName)),
       fParticleExcitationLevel(other.fParticleExcitationLevel),
@@ -155,6 +159,7 @@ TRestGeant4ParticleSource::TRestGeant4ParticleSource(TRestGeant4ParticleSource&&
     other.fEnergyDistributionFunction = nullptr;
     other.fEnergyAndAngularDistributionFunction = nullptr;
     other.fDecayRandomMethod = nullptr;
+    other.fCosmicHistogramsTransformed = nullptr;
 }
 
 /// \brief Operador de asignación por movimiento (Move Assignment Operator).
@@ -164,6 +169,7 @@ TRestGeant4ParticleSource& TRestGeant4ParticleSource::operator=(TRestGeant4Parti
     delete fAngularDistributionFunction;
     delete fEnergyDistributionFunction;
     delete fEnergyAndAngularDistributionFunction;
+    delete fCosmicHistogramsTransformed;
 
     TRestMetadata::operator=(std::move(other));
     fAngularDistribution = std::move(other.fAngularDistribution);
@@ -171,6 +177,7 @@ TRestGeant4ParticleSource& TRestGeant4ParticleSource::operator=(TRestGeant4Parti
     fAngularDistributionFunction = other.fAngularDistributionFunction;
     fEnergyDistributionFunction = other.fEnergyDistributionFunction;
     fEnergyAndAngularDistributionFunction = other.fEnergyAndAngularDistributionFunction;
+    fCosmicHistogramsTransformed = other.fCosmicHistogramsTransformed;
     fGenFilename = std::move(other.fGenFilename);
     fParticleName = std::move(other.fParticleName);
     fParticleExcitationLevel = other.fParticleExcitationLevel;
@@ -180,6 +187,7 @@ TRestGeant4ParticleSource& TRestGeant4ParticleSource::operator=(TRestGeant4Parti
     other.fAngularDistributionFunction = nullptr;
     other.fEnergyDistributionFunction = nullptr;
     other.fEnergyAndAngularDistributionFunction = nullptr;
+    other.fCosmicHistogramsTransformed=nullptr;
     other.fDecayRandomMethod = nullptr;
 
     return *this;
@@ -187,6 +195,7 @@ TRestGeant4ParticleSource& TRestGeant4ParticleSource::operator=(TRestGeant4Parti
 
 TRestGeant4ParticleSource::~TRestGeant4ParticleSource() {
     delete fEnergyAndAngularDistributionFunction;
+    delete fCosmicHistogramsTransformed;
 }
 
 /// \brief Modern framework configuration pipeline loader.
@@ -194,11 +203,74 @@ void TRestGeant4ParticleSource::LoadConfig() {
     delete fAngularDistributionFunction;
     delete fEnergyDistributionFunction;
     delete fEnergyAndAngularDistributionFunction;
+    delete fCosmicHistogramsTransformed;
     fAngularDistributionFunction = nullptr;
     fEnergyDistributionFunction = nullptr;
     fEnergyAndAngularDistributionFunction = nullptr;
+    fCosmicHistogramsTransformed = nullptr;
 
     UpdateParamsFromYAML<TRestGeant4ParticleSource>(fNode);
     ReadYAMLVerbose(fNode);
     UpdateYAMLFromParams<TRestGeant4ParticleSource>(fNode);
+}
+
+void TRestGeant4ParticleSource::InitializeCosmics() {
+
+    std::string rootFilename = fAngularDistribution.fFilename;
+    if (rootFilename.empty()) {
+        rootFilename = fEnergyDistribution.fFilename;
+    }
+
+    if (rootFilename.empty()) {
+        throw std::runtime_error("TRestGeant4ParticleSource::InitializeCosmics - No cosmic root filename found in YAML config.");
+    }
+
+    std::string particleKey = fEnergyDistribution.fNameInFile;
+    if (particleKey.empty()) particleKey = fAngularDistribution.fNameInFile;
+    
+    auto keyIt = cosmicParticleNames.find(particleKey);
+    if (keyIt == cosmicParticleNames.end()) {
+        throw std::runtime_error("TRestGeant4ParticleSource::InitializeCosmics - Particle key '" + particleKey + "' not found in cosmicParticleNames translation map.");
+    }
+
+    fParticleName = keyIt->second;
+
+    TFile* file = TFile::Open(rootFilename.c_str(), "READ");
+    if (!file || file->IsZombie()) {
+        if (file) file->Close();
+        throw std::runtime_error("TRestGeant4ParticleSource::InitializeCosmics - File '" + rootFilename + "' not found or corrupted.");
+    }
+
+    std::string histogramName = particleKey + "_energy_zenith";
+    auto histogramFromFile = file->Get<TH2D>(histogramName.c_str());
+    if (!histogramFromFile) {
+        file->Close();
+        delete file;
+        throw std::runtime_error("TRestGeant4ParticleSource::InitializeCosmics - Histogram '" + histogramName + "' not found in file '" + rootFilename + "'.");
+    }
+
+    if (fCosmicHistogramsTransformed != nullptr) {
+        delete fCosmicHistogramsTransformed;
+    }
+    
+    fCosmicHistogramsTransformed = new TH2D(*histogramFromFile);
+    fCosmicHistogramsTransformed->SetDirectory(nullptr);
+
+    for (int i = 1; i <= fCosmicHistogramsTransformed->GetNbinsX(); i++) {
+        for (int j = 1; j <= fCosmicHistogramsTransformed->GetNbinsY(); j++) {
+            const double zenith = fCosmicHistogramsTransformed->GetYaxis()->GetBinCenter(j);
+            
+            double cosZenith = TMath::Cos(zenith * TMath::DegToRad());
+            if (std::abs(cosZenith) > 1e-6) {
+                const double value = fCosmicHistogramsTransformed->GetBinContent(i, j) / cosZenith;
+                fCosmicHistogramsTransformed->SetBinContent(i, j, value);
+            }
+        }
+    }
+
+    file->Close();
+    delete file;
+
+    RESTInfo << "TRestGeant4ParticleSource::InitializeCosmics - Successfully loaded and transformed cosmic spectrum for particle: " 
+             << fParticleName << " from file: " << rootFilename << RESTendl;
 }

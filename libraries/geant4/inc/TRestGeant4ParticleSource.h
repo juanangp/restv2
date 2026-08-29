@@ -13,6 +13,7 @@ class TRandom;
 #include <Math/Vector3D.h>
 #include <TF1.h>
 #include <TF2.h>
+#include <TH2D.h>
 #include <TMath.h>
 
 #include "TRestGeant4PrimaryGeneratorTypes.h"
@@ -56,6 +57,7 @@ class TRestGeant4ParticleEnergyDistribution : public TRestMetadata {
 class TRestGeant4ParticleSource : public TRestMetadata {
 
    public:
+
     TRandom* fDecayRandomMethod = nullptr;  //! External RNG for decay template selection
     inline void SetRandomMethod(TRandom* random) { fDecayRandomMethod = random; }
     inline TRandom* GetRandomMethod() const { return fDecayRandomMethod; }
@@ -67,11 +69,12 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     TF1* fEnergyDistributionFunction = nullptr;
     // --- Combined Dimensional Distributions ---
     TF2* fEnergyAndAngularDistributionFunction = nullptr;
+    TH2D* fCosmicHistogramsTransformed = nullptr;
     std::string fGenFilename="";
     std::string fParticleName="";
-    double fParticleExcitationLevel = 0.0;
+    TRestWithUnits fParticleExcitationLevel = 0.0;
     int fParticleCharge = 0;
-    ROOT::Math::XYZVector fParticleOrigin = {0.0, 0.0, 0.0};
+    std::array<TRestWithUnits, 3> fParticleOrigin = {0.0, 0.0, 0.0};
 
     /// Generated particle state is owned by TRestGeant4PrimaryGeneratorInfo.
 
@@ -96,11 +99,11 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     inline std::string GetParticleName() const { return fParticleName; }
     inline double GetExcitationLevel() const { return fParticleExcitationLevel; }
     inline int GetParticleCharge() const { return fParticleCharge; }
-    inline ROOT::Math::XYZVector GetOrigin() const { return fParticleOrigin; }
+    inline ROOT::Math::XYZVector GetOrigin() const { return ROOT::Math::XYZVector(fParticleOrigin[0].value, fParticleOrigin[1].value, fParticleOrigin[2].value);}
     inline void SetParticleName(const std::string& name) { fParticleName = name; }
     inline void SetExcitationLevel(double energy) { fParticleExcitationLevel = energy < 0.0 ? 0.0 : energy; }
     inline void SetParticleCharge(int charge) { fParticleCharge = charge; }
-    inline void SetOrigin(const ROOT::Math::XYZVector& pos) { fParticleOrigin = pos; }
+    inline void SetOrigin(const ROOT::Math::XYZVector& pos) { fParticleOrigin = { pos.X(), pos.Y(), pos.Z() };}
 
     /// \brief Returns a sampled direction vector based on the active angular model.
     // --- Energy & Angular Getters/Setters ---
@@ -128,6 +131,11 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     inline const TF2* GetEnergyAndAngularDistributionFunction() const {
         return fEnergyAndAngularDistributionFunction;
     }
+
+    inline const TH2D* GetCosmicHistogramsTransformed() const {
+        return fCosmicHistogramsTransformed;
+    }
+
     inline std::string GetGenFilename() const { return fGenFilename; }
 
     inline void SetAngularDistributionIsotropicConeHalfAngle(double angle) {
@@ -202,6 +210,15 @@ class TRestGeant4ParticleSource : public TRestMetadata {
 
     inline void SetGenFilename(const std::string& name) { fGenFilename = name; }
     // --- Framework and Identification Overrides ---
+
+    inline static const std::map<std::string, std::string> cosmicParticleNames = {
+    {"neutron", "neutron"}, {"proton", "proton"}, {"gamma", "gamma"},
+    {"electron_minus", "e-"}, {"electron_plus", "e+"}, {"muon_minus", "mu-"}, {"muon_plus", "mu+"},
+    {"neutron_below_1MeV", "neutron"}, {"neutron_above_10GeV", "neutron"}, {"neutron_between_1MeV_and_10GeV", "neutron"},
+    };
+
+    void InitializeCosmics();
+    
     std::string GetClassName() const override { return "TRestGeant4ParticleSource"; }
     /// \brief Loads source configuration from the current YAML metadata node.
     void LoadConfig() override;

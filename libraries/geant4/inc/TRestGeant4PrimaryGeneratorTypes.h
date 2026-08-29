@@ -15,7 +15,7 @@ enum class SpatialGeneratorShapes { GDML, WALL, CIRCLE, BOX, SPHERE, CYLINDER };
 std::string SpatialGeneratorShapesToString(SpatialGeneratorShapes shape);
 SpatialGeneratorShapes StringToSpatialGeneratorShapes(const std::string& shapeStr);
 
-enum class EnergyDistributionTypes { TH1D, TH2D, FORMULA, FORMULA2, MONO, FLAT, LOG };
+enum class EnergyDistributionTypes { TH1D, TH2D, FORMULA, FORMULA2, MONO, FLAT, LOG, COSMIC };
 std::string EnergyDistributionTypesToString(EnergyDistributionTypes type);
 EnergyDistributionTypes StringToEnergyDistributionTypes(const std::string& typeStr);
 
@@ -30,7 +30,7 @@ std::string EnergyDistributionFormulasToString(EnergyDistributionFormulas formul
 EnergyDistributionFormulas StringToEnergyDistributionFormulas(const std::string& formulaStr);
 TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula);
 
-enum class AngularDistributionTypes { TH1D, TH2D, FORMULA, FORMULA2, ISOTROPIC, FLUX, BACK_TO_BACK };
+enum class AngularDistributionTypes { TH1D, TH2D, FORMULA, FORMULA2, ISOTROPIC, FLUX, BACK_TO_BACK, COSMIC };
 std::string AngularDistributionTypesToString(AngularDistributionTypes type);
 AngularDistributionTypes StringToAngularDistributionTypes(const std::string& typeStr);
 

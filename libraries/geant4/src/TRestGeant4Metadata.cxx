@@ -176,6 +176,7 @@ void TRestGeant4Metadata::LoadConfig() {
     if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
     SyncActiveVolumesFromMetadata();
+    LoadGeometryFromActiveFile();
 }
 
 
@@ -328,9 +329,26 @@ double TRestGeant4Metadata::GetMaxStepSize(const std::string& volume) const {
     return 0.0;
 }
 
-/// \brief Computes cosmic tracking exposure parameters (Placeholder implementations).
-double TRestGeant4Metadata::GetGeneratorSurfaceCm2() const { return 1.0; }
-double TRestGeant4Metadata::GetCosmicFluxInCountsPerCm2PerSecond() const { return 0.0; }
-double TRestGeant4Metadata::GetCosmicIntensityInCountsPerSecond() const { return 0.0; }
-double TRestGeant4Metadata::GetEquivalentSimulatedTime() const { return 0.0; }
+//Automatic load of Geometry info in case a root file is opened
+void TRestGeant4Metadata::LoadGeometryFromActiveFile() {
+    if (gFile && !gFile->IsZombie()) {
+        TGeoManager* geo = nullptr;
+        
+        gFile->GetObject("Geometry", geo);
+        
+        if (geo) {
+            fGeant4GeometryInfo.LoadGeometry(geo);
+            RESTInfo << "Geometry automatically loaded from ROOT file" << RESTendl;
+            return;
+        }
+    }
+    
+    if (gGeoManager) {
+        fGeant4GeometryInfo.LoadGeometry(gGeoManager);
+    }
+}
 
+// Returns the computed generation surface area for cosmic run in cm^2
+double TRestGeant4Metadata::GetCosmicGeneratorSurfaceCm2() const {
+    return fGeant4PrimaryGeneratorInfo.GetSpatialGeneratorCosmicSurfaceTermCm2();
+}

@@ -80,6 +80,8 @@ class TRestGeant4GeometryInfo {
         return (vol && vol->GetMaterial()) ? vol->GetMaterial()->GetName() : "";
     }
 
+    inline TGeoManager* GetGeometry() const { return fGeoManager; }
+
     // --- Structural Interfaces & ID Maps ---
     inline bool IsAssembly() const { return fIsAssembly; }
     inline std::string GetPathSeparator() const { return fPathSeparator; }
@@ -116,7 +118,7 @@ class TRestGeant4GeometryInfo {
     std::vector<std::string> GetAllAlternativePhysicalVolumes() const;
 
     void InitializeOnDetectorConstruction(const std::string& gdmlFilename, const G4VPhysicalVolume* world) {
-        if (fGeoManager == nullptr && !gdmlFilename.empty()) {
+        if (/*fGeoManager == nullptr &&*/ !gdmlFilename.empty()) {
             LoadGeometryFromGdml(gdmlFilename);
         }
         PopulateFromGeant4World(world);

@@ -21,7 +21,11 @@ set(ROOT_REQUIRED_LIBRARIES
     Graf
     Hist
     Physics
-    Geom)
+    Geom
+    Gui 
+    Eve
+    RGL
+    TreePlayer)
 
 find_package(ROOT 6.24 REQUIRED COMPONENTS ${ROOT_REQUIRED_LIBRARIES})
 include(${ROOT_USE_FILE})

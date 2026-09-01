@@ -121,7 +121,7 @@ YAML::Node TRestMetadata::ReadMetadata(TFile* file, const std::string& instanceN
     return node;
 }
 
-void TRestMetadata::PrintMetadata() {
+void TRestMetadata::PrintMetadata() const {
     if (fNode && !fNode.IsNull()) {
         RESTMetadata << "===" << GetClassName() << "===" << RESTendl;
         RESTMetadata << YAML::Dump(fNode) << RESTendl;

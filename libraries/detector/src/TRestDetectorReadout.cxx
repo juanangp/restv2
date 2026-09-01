@@ -91,12 +91,6 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
     return (linesParsed > 0);
 }
 
-/// \brief Prints metadata summary for this detector readout.
-void TRestDetectorReadout::PrintMetadata() {
-    RESTMetadata << "=== TRestDetectorReadout ===" << RESTendl;
-    if (fNode && !fNode.IsNull()) RESTMetadata << YAML::Dump(fNode) << RESTendl;
-}
-
 /// \brief Opens a graphical window to visualize the readout geometry.
 /// \param option Drawing option passed to ROOT (e.g., "ogl" for OpenGL).
 void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const {

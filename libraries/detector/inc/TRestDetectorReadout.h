@@ -54,9 +54,6 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Metadata initialization hook.
     void Initialize() override {}
 
-    /// \brief Prints basic metadata information.
-    void PrintMetadata() override;
-
     /// \brief Builds the technology-specific readout geometry.
     /// \param readoutNode YAML node with geometry parameters.
     virtual void BuildGeometry() = 0;

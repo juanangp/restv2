@@ -91,7 +91,7 @@ class TRestMetadata {
     virtual void Initialize() = 0;
 
     /// \brief Prints metadata summary.
-    virtual void PrintMetadata();
+    virtual void PrintMetadata() const;
 
     static void WriteMetadata(TFile* file, const std::string& instanceName, const YAML::Node& configNode);
     void WriteMetadata(TFile* file);

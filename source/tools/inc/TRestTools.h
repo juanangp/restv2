@@ -16,6 +16,9 @@ std::pair<std::string, std::string> SeparatePathAndName(const std::string& fulln
 bool StringToBool(std::string booleanString);
 std::string ToTimeStringLong(double seconds);
 std::vector<std::string> Split(const std::string& s, char delim);
+int CountString(const std::string& in, const std::string& substring);
+bool isANumber(const std::string& str);
+int StringToInteger(const std::string& in);
 int GetRunNumberAuto();
 long GetRandomSeed();
 

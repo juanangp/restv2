@@ -302,12 +302,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// \brief Returns configured Geant4 max step size for a given active volume.
     double GetMaxStepSize(const std::string& volume) const;
 
-    // --- Cosmic Ray Analysis Methods ---
     /// \brief Computes effective source generation surface in cm2 when available.
-    double GetGeneratorSurfaceCm2() const;
-    double GetCosmicFluxInCountsPerCm2PerSecond() const;
-    double GetCosmicIntensityInCountsPerSecond() const;
-    double GetEquivalentSimulatedTime() const;
+    double GetCosmicGeneratorSurfaceCm2() const;
     inline double GetSimulationWallTime() const { return fSimulationTime; }
     inline void SetSimulationWallTime(double time) { fSimulationTime = time; }
 
@@ -321,6 +317,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline ROOT::Math::XYZVector GetMagneticField() const {
         return ROOT::Math::XYZVector(fMagneticField[0], fMagneticField[1], fMagneticField[2]);
     }
+
+    void LoadGeometryFromActiveFile();
 
     friend class SteppingAction;
     friend class DetectorConstruction;

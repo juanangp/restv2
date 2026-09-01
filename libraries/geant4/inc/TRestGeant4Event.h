@@ -217,7 +217,6 @@ class TRestGeant4Event : public TRestEvent {
 
     TRestGeant4EventData fEventData;
     mutable const TRestGeant4Metadata* fMetadata = nullptr;
-    TRestRun *fRestRun = nullptr;
     mutable std::vector<TRestGeant4TrackView> fTracksViews;
 
     std::vector<TRestGeant4Track*> fTracks;
@@ -259,7 +258,7 @@ class TRestGeant4Event : public TRestEvent {
     /// \brief Synchronizes object-based tracks into flat AOD vectors and hit storage.
     void SyncTracksToEventData();
     void MoveFrom(TRestGeant4Event&& source);
-    void InitializeOnDetectorConstruction(const std::string&, const G4VPhysicalVolume*) {}
+    //void InitializeOnDetectorConstruction(const std::string&, const G4VPhysicalVolume*) {}
     /// \brief Populates detector-volume bookkeeping using the Geant4 world hierarchy.
     void PopulateFromGeant4World(const G4VPhysicalVolume* world);
 
@@ -285,7 +284,6 @@ class TRestGeant4Event : public TRestEvent {
 
     const TRestGeant4Metadata* GetGeant4Metadata() const;
     inline void SetGeant4Metadata(const TRestGeant4Metadata* metadata) { fMetadata = metadata; }
-    inline void SetRestRun(TRestRun* run) { fRestRun = run; }
 
     size_t GetNumberOfTracks() const { return fEventData.trackIDs.size(); }
     size_t GetNumberOfPrimaries() const { return fEventData.primaryParticleNames.size(); }

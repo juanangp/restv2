@@ -32,7 +32,7 @@ class TRestGeant4Manager : public TRestMetadata {
     /// \brief No-op for this manager: initialization is done during config loading.
     void Initialize() override {}
     /// \brief Prints discovered Geant4 metadata and physics list associations.
-    void PrintMetadata() override;
+    void PrintMetadata() const override;
     /// \brief Persists loaded metadata state back to the configured output run.
     void SaveMetadata();
 };

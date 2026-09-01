@@ -2,6 +2,8 @@
 
 #include <TKey.h>
 #include <TList.h>
+#include <TTreeReader.h>
+#include <TTreeReaderValue.h>
 
 #include <algorithm>
 #include <cctype>
@@ -123,7 +125,7 @@ void TRestRun::LoadConfig() {
         fOutputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName", fOutputFileName);
         fMainDataPath = GetFullPath(ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath));
         fInputFormat = ReadYAMLParamOrDefault<std::string>(fNode, "inputFormat", fInputFormat);
-        fEntriesSaved = ReadYAMLParamOrDefault<int>(fNode, "entriesSaved", fEntriesSaved);
+        fEntriesSaved = ReadYAMLParamOrDefault<Long64_t>(fNode, "entriesSaved", fEntriesSaved);
         fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
 
         fIsInitializedFromConfig = true;
@@ -209,19 +211,17 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                         if (className == "TRestRun") {
                             SetName(keyName);
                             selfConfig = testConfig;
-                        } 
-                        else {
-                            try {
-                                std::unique_ptr<TRestMetadata> metadata =
-                                    MetadataClassRegistry::Instance().Create(className, keyName, testConfig);
-                                
-                                if (metadata) {
-                                    fMetadataStore.push_back(metadata.release());
-                                }
-                            } catch (const std::exception& e) {
-                                std::cerr << "[-] Error loading metadata '" << keyName 
-                                          << "' from: " << e.what() << std::endl;
+                        }
+                        try {
+                            std::unique_ptr<TRestMetadata> metadata =
+                                MetadataClassRegistry::Instance().Create(className, keyName, testConfig);
+                              
+                            if (metadata) {
+                                fMetadataStore.push_back(metadata.release());
                             }
+                        } catch (const std::exception& e) {
+                            std::cerr << "[-] Error loading metadata '" << keyName 
+                                      << "' from: " << e.what() << std::endl;
                         }
                     }
                 }
@@ -263,6 +263,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                 }
 
                 fInputEvents[className] = eventObj.release();
+                fInputEvent = fInputEvents[className];
             }
         }
     }
@@ -293,10 +294,19 @@ TRestMetadata* TRestRun::GetMetadataClass(const std::string &className) const {
 
 TRestEvent& TRestRun::GetInputEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
-    if (it != fInputEvents.end()) {
-        return *(it->second);
+    if (it == fInputEvents.end()) {
+        throw std::runtime_error("TRestRun: Tree '" + treeName + "' does not exist.");
     }
-    throw std::runtime_error("TRestRun: Event tree '" + treeName + "' does not exist");
+    fInputEvent = it->second;
+    return *(fInputEvent);
+}
+
+void TRestRun::SetInputEvent(const std::string& treeName) {
+    auto it = fInputEvents.find(treeName);
+    if (it == fInputEvents.end()) {
+        throw std::runtime_error("TRestRun: Tree '" + treeName + "' does not exist.");
+    }
+    fInputEvent = it->second;
 }
 
 bool TRestRun::GetEntry(Long64_t entry) {
@@ -314,8 +324,66 @@ bool TRestRun::GetEntry(Long64_t entry) {
             eventObj->RefreshViews();
         }
     }
+    fEntry = entry;
     return success;
 }
+
+bool TRestRun::GetNextEntry(){
+  return GetEntry(fEntry++);
+
+}
+
+Long64_t TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string& tag) {
+    if (!fAnalysisTree) return -1;
+
+    TTreeReader reader(fAnalysisTree);
+
+    if (!fAnalysisTree->GetBranch("eventID") || !fAnalysisTree->GetBranch("subEventID")) {
+        RESTError << "Branches 'eventID' o 'subEventID' not found in AnalysisTree." << RESTendl;
+        return -1;
+    }
+
+    if (!tag.empty() && !fAnalysisTree->GetBranch("subEventTag")) {
+        RESTError << "Branch 'subEventTag' not found in AnalysisTree" << RESTendl;
+        return -1;
+    }
+
+    TTreeReaderValue<int> rvEventID(reader, "eventID");
+    TTreeReaderValue<int> rvSubEventID(reader, "subEventID");
+    
+    std::unique_ptr<TTreeReaderValue<std::string>> rvSubEventTag = nullptr;
+    if (fAnalysisTree->GetBranch("subEventTag")) {
+        rvSubEventTag = std::make_unique<TTreeReaderValue<std::string>>(reader, "subEventTag");
+    }
+
+    while (reader.Next()) {
+        if (*rvEventID == eventID) {
+            if (subEventID != -1 && *rvSubEventID != subEventID) {
+                continue;
+            }
+            if (!tag.empty() && rvSubEventTag) {
+                if (**rvSubEventTag != tag) {
+                    continue;
+                }
+            }
+
+            Long64_t currentEntry = reader.GetCurrentEntry();
+            this->GetEntry(currentEntry); 
+            return currentEntry;
+        }
+    }
+
+    return -1;
+}
+
+void TRestRun::PrintObservables() {
+    if (!fAnalysisTree) return;
+
+    RESTInfo << "--- Analysis Tree Observables for Current Entry ---" << RESTendl;
+
+    fAnalysisTree->Show(fEntry);
+}
+
 
 bool TRestRun::HasEvent(const std::string& treeName) const {
     return fInputEvents.find(treeName) != fInputEvents.end();
@@ -373,12 +441,17 @@ void TRestRun::CloseFiles() {
 }
 
 // ---------------------------------------------------------------------------
-void TRestRun::PrintMetadata() {
+void TRestRun::PrintMetadata() const {
     RESTMetadata << "=== TRestRun ===" << RESTendl;
     if (fNode && !fNode.IsNull())
         RESTMetadata << YAML::Dump(fNode) << RESTendl;
     else if (fInputFileNode && !fInputFileNode.IsNull())
         RESTMetadata << YAML::Dump(fInputFileNode) << RESTendl;
+}
+
+void TRestRun::PrintAllMetadata() const {
+  for (auto* metadata : fMetadataStore)
+     metadata->PrintMetadata();
 }
 
 std::string TRestRun::ResolveFilePattern(const std::string& pattern) const {

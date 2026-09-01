@@ -81,8 +81,6 @@ void TRestMicromegasReadout::BuildGeometry() {
             "TRestMicromegasReadout: 'readoutParameters' section is missing or fNode is not initialized!");
     }
 
-    PrintMetadata();
-
     InitializeReadout();
 
     double pixelSize = fPitch / std::sqrt(2.0);

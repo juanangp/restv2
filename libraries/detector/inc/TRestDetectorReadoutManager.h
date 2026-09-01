@@ -36,7 +36,7 @@ class TRestDetectorReadoutManager : public TRestMetadata {
     /// \brief Imports requested readouts into the internal lookup map.
     virtual void Initialize() override;
     /// \brief Prints a summary of configured and loaded readouts.
-    virtual void PrintMetadata() override;
+    virtual void PrintMetadata() const override;
 
     /// \brief Returns true when a readout instance with the given name exists.
     bool HasReadout(const std::string& name) const { return fReadoutMap.find(name) != fReadoutMap.end(); }

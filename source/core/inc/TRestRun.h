@@ -37,7 +37,9 @@ class TRestRun : public TRestMetadata {
     std::string fInputFormat = "";
     double fStartTime = 0;
     double fEndTime = 0;
-    int fEntriesSaved = 0;
+    Long64_t fEntriesSaved = 0;
+
+    Long64_t fEntry=0;
 
     YAML::Node fInputFileNode;
 
@@ -50,6 +52,8 @@ class TRestRun : public TRestMetadata {
 
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
+
+    TRestEvent *fInputEvent = nullptr;
 
     std::string fConfigRunNumber = "";
     std::string fConfigSubRunNumber = "";
@@ -200,10 +204,19 @@ class TRestRun : public TRestMetadata {
         return fAnalysisTree->GetEntries();
     }
 
+    Long64_t GetEntryWithID(int eventID, int subEventID = -1, const std::string& tag = "");
+
+    void PrintObservables( );
+
     /// \brief Loads one entry from input trees.
     /// \param entry Entry index.
     /// \return `true` if entry was loaded.
     bool GetEntry(Long64_t entry);
+    bool GetNextEntry();
+
+    Long64_t GetCurrentEntry() const{
+        return fEntry;
+    }
 
     /// \brief Checks whether an input event tree exists.
     /// \param treeName Event tree/class name.
@@ -291,6 +304,14 @@ class TRestRun : public TRestMetadata {
     /// \return Input event reference.
     TRestEvent& GetInputEvent(const std::string& treeName);
 
+    TRestEvent* GetInputEvent( ) {
+      return fInputEvent;
+    }
+
+    void SetInputEvent(const std::string& treeName);
+
+    std::map<std::string, TRestEvent*> GetInputEventMap() const {return fInputEvents;}
+
     /// \brief Fills all registered output trees for current event.
     void Fill();
 
@@ -301,5 +322,7 @@ class TRestRun : public TRestMetadata {
     void Initialize() override {}
 
     /// \brief Prints run metadata summary.
-    void PrintMetadata() override;
+    void PrintMetadata() const override;
+
+    void PrintAllMetadata() const;
 };

@@ -23,7 +23,7 @@ struct TRestEventInfo {
     long long timeSeconds = 0;
     int timeNanoSeconds = 0;
     bool ok = true;
-    char subEventTag[256] = "";
+    std::string subEventTag;
 };
 
 /// \class TRestEvent
@@ -35,6 +35,8 @@ class TRestEvent {
    protected:
     /// Logical event class/instance name.
     std::string fName = "";
+    std::string* fPtrSubEventTag = nullptr; 
+    TRestRun *fRestRun = nullptr;
 
    public:
     /// Generic event metadata block.
@@ -48,7 +50,7 @@ class TRestEvent {
     virtual void Initialize() = 0;
 
     virtual void InitializeReferences(TRestRun* run);
-
+    void SetRestRun(TRestRun* run);
     /// \brief Draws event representation.
     /// \param option Draw option string.
     /// \return Pointer to generated pad.
@@ -81,8 +83,7 @@ class TRestEvent {
     /// \brief Sets subevent tag.
     /// \param tag Subevent label.
     void SetSubEventTag(const std::string& tag) {
-        strncpy(fInfo.subEventTag, tag.c_str(), sizeof(fInfo.subEventTag) - 1);
-        fInfo.subEventTag[sizeof(fInfo.subEventTag) - 1] = '\0';
+        fInfo.subEventTag = tag;
     }
 
     /// \brief Sets event validity state.
@@ -119,7 +120,7 @@ class TRestEvent {
 
     /// \brief Returns subevent tag.
     /// \return Subevent tag string.
-    std::string GetSubEventTag() const { return std::string(fInfo.subEventTag); }
+    std::string GetSubEventTag() const { return fInfo.subEventTag; }
 
     /// \brief Returns run origin.
     /// \return Run number.
@@ -151,7 +152,7 @@ class TRestEvent {
         tree->Branch("timeSeconds", &fInfo.timeSeconds, "timeSeconds/L");
         tree->Branch("timeNanoSecs", &fInfo.timeNanoSeconds, "timeNanoSecs/I");
         tree->Branch("ok", &fInfo.ok, "ok/O");
-        tree->Branch("subEventTag", fInfo.subEventTag, "subEventTag/C");
+        tree->Branch("subEventTag", &fInfo.subEventTag);
     }
 
     /// \brief Binds common ROOT branch addresses for event metadata.
@@ -164,7 +165,8 @@ class TRestEvent {
         tree->SetBranchAddress("timeSeconds", &fInfo.timeSeconds);
         tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
         tree->SetBranchAddress("ok", &fInfo.ok);
-        tree->SetBranchAddress("subEventTag", fInfo.subEventTag);
+        fPtrSubEventTag = &fInfo.subEventTag;
+        tree->SetBranchAddress("subEventTag", &fPtrSubEventTag);
     }
 
     /// \brief Refreshes cached views after ROOT read operations.
@@ -172,7 +174,10 @@ class TRestEvent {
 
     /// \brief Copies generic event content from another event.
     /// \param other Source event pointer.
-    virtual void CopyFrom(const TRestEvent* other) { this->SetEventInfo(other); }
+    virtual void CopyFrom(const TRestEvent* other) {
+      this->SetEventInfo(other);
+      this->fPtrSubEventTag = &this->fInfo.subEventTag;
+    }
 
     /// \brief Prints event summary.
     virtual void PrintEvent() const;

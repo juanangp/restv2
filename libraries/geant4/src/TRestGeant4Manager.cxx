@@ -71,7 +71,7 @@ void TRestGeant4Manager::SaveMetadata() {
 }
 
 /// \brief Prints manager-level metadata and its effective YAML configuration.
-void TRestGeant4Manager::PrintMetadata() {
+void TRestGeant4Manager::PrintMetadata() const{
     RESTMetadata << "=== TRestGeant4Manager ===" << RESTendl;
     if(fConfiguredRun)fConfiguredRun->PrintMetadata();
     if (fG4Metadata) fG4Metadata->PrintMetadata();

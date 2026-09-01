@@ -19,6 +19,9 @@
 #include <string_view>
 #include <random>
 #include <limits>
+#include <cstdlib>
+#include <cctype>
+
 
 
 #include "TRestLogManager.h"
@@ -57,7 +60,7 @@ std::vector<std::string> TRestTools::GetFilesMatchingPattern(const std::string& 
     return outputFileNames;
 }
 
-Bool_t TRestTools::StringToBool(std::string booleanString) {
+bool TRestTools::StringToBool(std::string booleanString) {
     // Convert the full string to uppercase in a single pass.
     std::transform(booleanString.begin(), booleanString.end(), booleanString.begin(), ::toupper);
 
@@ -214,6 +217,52 @@ std::vector<std::string> TRestTools::Split(const std::string& s, char delim) {
     std::string item;
     while (std::getline(ss, item, delim)) tokens.push_back(item);
     return tokens;
+}
+
+int TRestTools::CountString(const std::string& in, const std::string& substring) {
+    if (substring.empty() || in.empty()) {
+        return 0;
+    }
+
+    int count = 0;
+    size_t nPos = in.find(substring, 0);
+    
+    while (nPos != std::string::npos) {
+        count++;
+        nPos = in.find(substring, nPos + substring.length());
+    }
+
+    return count;
+}
+
+bool TRestTools::isANumber(const std::string& str) {
+    if (str.empty()) return false;
+
+    size_t first = str.find_first_not_of(" \t\n\r");
+    if (first == std::string::npos) return false;
+    size_t last = str.find_last_not_of(" \t\n\r");
+    std::string cleanStr = str.substr(first, (last - first + 1));
+
+    char* endptr = nullptr;
+    std::strtod(cleanStr.c_str(), &endptr);
+
+    return (endptr != nullptr && *endptr == '\0');
+}
+
+int TRestTools::StringToInteger(const std::string& in) {
+    if (in.empty()) return 0;
+
+    try {
+        if (in.find("0x") != std::string::npos) {
+            return static_cast<int>(std::stoul(in, nullptr, 16));
+        }
+
+        return static_cast<int>(std::stod(in));
+    }
+    catch (const std::exception& e) {
+        RESTError << "StringToInteger - Error '" << in << "': " << e.what() << RESTendl;
+        return 0;
+    }
 }
 
 YAML::Node TRestTools::OpenConfigFile(const std::string& fileName) {

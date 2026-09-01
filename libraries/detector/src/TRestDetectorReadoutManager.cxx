@@ -32,7 +32,7 @@ TRestDetectorReadoutManager::~TRestDetectorReadoutManager() {
     fReadoutMap.clear();
 }
 
-void TRestDetectorReadoutManager::PrintMetadata() {
+void TRestDetectorReadoutManager::PrintMetadata() const {
     RESTInfo << "Detector readout manager (Automated Selective Loader): " << fName << RESTendl;
     RESTInfo << "Source ROOT Geometry File: " << fInputFileName << RESTendl;
     RESTInfo << "Readouts requested/loaded: " << fRequestedReadouts.size() << "/" << fReadoutMap.size()

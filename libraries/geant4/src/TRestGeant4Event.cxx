@@ -499,14 +499,16 @@ void TRestGeant4Event::PrintG4Event(int maxTracks, int maxHits) const {
 
     for (int i = 0; i < nTracks; ++i) {
         const auto &trackView = GetTrack(i);
-        
         std::cout << "   -----------------------------------------------------" << std::endl;
         std::cout << " * TrackID: " << trackView.GetTrackID() 
                   << " - Particle: " << trackView.GetParticleName() 
                   << " - ParentID: " << trackView.GetParentID()
+                  << " - Parent particle: '" << trackView.GetParentParticleName() << "'"
                   << " - Created by '" << trackView.GetCreatorProcess() << "'"
                   << " in volume '" << trackView.GetInitialVolume() << "'" 
-                  << " with initial KE of " << REST_Units::FormatAs(trackView.GetInitialEnergy(), REST_Units::Energy) << std::endl;
+                  << " with initial KE of " << REST_Units::FormatAs(trackView.GetInitialEnergy(), REST_Units::Energy)
+                  << " Deposited E: " << REST_Units::FormatAs(trackView.GetDepositedEnergy(), REST_Units::Energy)
+                  << std::endl;
                   
         std::cout << "      Length: " << REST_Units::FormatAs(trackView.GetLength(), REST_Units::Length)
                   << " | Time Length: " << REST_Units::FormatAs(trackView.GetTimeLength(), REST_Units::Time)

@@ -109,21 +109,38 @@ std::string TRestGeant4GeometryInfo::GetAlternativePathFromGeant4Path(const std:
 
 std::string TRestGeant4GeometryInfo::GetAlternativeNameFromGeant4PhysicalName(
     const std::string& g4Name) const {
-    return g4Name;  // Simplified fallback mapping since TGeoManager references the true unique node paths
+    auto it = fG4ToAltNames.find(g4Name);
+    if (it != fG4ToAltNames.end() && !it->second.empty()) {
+        return *(it->second.begin());
+    }
+    return g4Name; 
 }
 
 std::set<std::string> TRestGeant4GeometryInfo::GetAlternativeNamesFromGeant4PhysicalName(
     const std::string& g4Name) const {
+    auto it = fG4ToAltNames.find(g4Name);
+    if (it != fG4ToAltNames.end()) {
+        return it->second;
+    }
     return {g4Name};
 }
 
 std::string TRestGeant4GeometryInfo::GetGeant4PhysicalNameFromAlternativeName(
     const std::string& altName) const {
+    auto it = fAltToG4Name.find(altName);
+    if (it != fAltToG4Name.end()) {
+        return it->second;
+    }
     return altName;
 }
 
 std::vector<std::string> TRestGeant4GeometryInfo::GetAllAlternativePhysicalVolumes() const {
-    return GetAllPhysicalVolumes();
+    std::vector<std::string> altVolumes;
+    altVolumes.reserve(fAltToG4Name.size());
+    for (const auto& pair : fAltToG4Name) {
+        altVolumes.push_back(pair.first);
+    }
+    return altVolumes.empty() ? GetAllPhysicalVolumes() : altVolumes;
 }
 
 /// \brief Prints structural layout summaries retrieved dynamically from the active geometry manager.

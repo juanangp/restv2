@@ -175,8 +175,8 @@ void TRestGeant4Metadata::LoadConfig() {
     ReadYAMLVerbose(fNode);
     if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
-    SyncActiveVolumesFromMetadata();
     LoadGeometryFromActiveFile();
+    SyncActiveVolumesFromMetadata();
 }
 
 
@@ -204,6 +204,10 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
         if (volume.fVolumeName.empty()) continue;
         SetActiveVolume(volume.fVolumeName, volume.fChance, volume.fMaxStep);
     }
+    // Tracks with hits in active/sensitive volumes must survive removeUnwantedTracks
+    fRemoveUnwantedTracksVolumesToKeep.clear();
+    fRemoveUnwantedTracksVolumesToKeep.insert(fActiveVolumes.begin(), fActiveVolumes.end());
+    fRemoveUnwantedTracksVolumesToKeep.insert(fSensitiveVolumes.begin(), fSensitiveVolumes.end());
     fKillVolumes.clear();
     fKillVolumes.insert(fKillVolumesRegistry.begin(), fKillVolumesRegistry.end());
     fFullChainStopIsotopes.clear();

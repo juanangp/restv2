@@ -88,7 +88,6 @@ size_t TRestGeant4Track::GetNumberOfPhysicalHits(Int_t volID) const {
 
 /// \brief Prints a detailed textual summary of the track and its hits.
 void TRestGeant4Track::PrintTrack(size_t maxHits) const {
-    // COMPATIBILITY: Evaluates the TString content natively inside cout print streams
     cout << " * TrackID: " << fTrackID << " - Particle: " << fParticleName << " - ParentID: " << fParentID;
     if (GetParentTrack() != nullptr) {
         cout << " - Parent particle: " << GetParentTrack()->GetParticleName();

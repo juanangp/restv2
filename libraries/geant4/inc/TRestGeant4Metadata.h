@@ -311,6 +311,22 @@ class TRestGeant4Metadata : public TRestMetadata {
     bool isVolumeStored(const std::string& volume) const;
     void SetActiveVolume(const std::string& name, double chance, double maxStep = 0.0);
 
+    /// \brief Registers the resolved Geant4 physical volume name as an alias of a user-declared
+    /// (active/sensitive) volume name, so runtime lookups by physical name succeed directly.
+    inline void RegisterVolumeAlias(const std::string& originalName, const std::string& physicalName) {
+        if (originalName == physicalName) return;
+        if (IsActiveVolume(originalName)) {
+            SetActiveVolume(physicalName, GetStorageChance(originalName), GetMaxStepSize(originalName));
+        }
+        if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), originalName) !=
+            fSensitiveVolumes.end()) {
+            InsertSensitiveVolume(physicalName);
+        }
+        if (fRemoveUnwantedTracksVolumesToKeep.count(originalName) > 0) {
+            fRemoveUnwantedTracksVolumesToKeep.insert(physicalName);
+        }
+    }
+
     // --- Geometric and Field Getters ---
     inline double GetMinimumEnergyStored() const { return fEnergyRangeStored.first; }
     inline double GetMaximumEnergyStored() const { return fEnergyRangeStored.second; }

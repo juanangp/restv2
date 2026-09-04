@@ -43,6 +43,7 @@ const bool kEnergyDistributionRegistered = []() {
 static const bool TRestGeant4ParticleAngularDistribution_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestGeant4ParticleAngularDistribution>("type", &TRestGeant4ParticleAngularDistribution::fType);
+    reg.RegisterField<TRestGeant4ParticleAngularDistribution>("formula", &TRestGeant4ParticleAngularDistribution::fFormula);
     reg.RegisterField<TRestGeant4ParticleAngularDistribution>("filename", &TRestGeant4ParticleAngularDistribution::fFilename);
     reg.RegisterField<TRestGeant4ParticleAngularDistribution>("nameInFile", &TRestGeant4ParticleAngularDistribution::fNameInFile);
     reg.RegisterField<TRestGeant4ParticleAngularDistribution>("formulaNPoints", &TRestGeant4ParticleAngularDistribution::fFormulaNPoints);
@@ -55,6 +56,7 @@ static const bool TRestGeant4ParticleAngularDistribution_FieldsRegistered = []()
 static const bool TRestGeant4ParticleEnergyDistribution_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestGeant4ParticleEnergyDistribution>("type", &TRestGeant4ParticleEnergyDistribution::fType);
+    reg.RegisterField<TRestGeant4ParticleEnergyDistribution>("formula", &TRestGeant4ParticleEnergyDistribution::fFormula);
     reg.RegisterField<TRestGeant4ParticleEnergyDistribution>("filename", &TRestGeant4ParticleEnergyDistribution::fFilename);
     reg.RegisterField<TRestGeant4ParticleEnergyDistribution>("nameInFile", &TRestGeant4ParticleEnergyDistribution::fNameInFile);
     reg.RegisterField<TRestGeant4ParticleEnergyDistribution>("formulaNPoints", &TRestGeant4ParticleEnergyDistribution::fFormulaNPoints);
@@ -155,11 +157,12 @@ TRestGeant4ParticleSource::TRestGeant4ParticleSource(TRestGeant4ParticleSource&&
       fParticleExcitationLevel(other.fParticleExcitationLevel),
       fParticleCharge(other.fParticleCharge),
       fParticleOrigin(other.fParticleOrigin) {
-    other.fAngularDistributionFunction = nullptr;
-    other.fEnergyDistributionFunction = nullptr;
-    other.fEnergyAndAngularDistributionFunction = nullptr;
-    other.fDecayRandomMethod = nullptr;
-    other.fCosmicHistogramsTransformed = nullptr;
+      other.fAngularDistributionFunction = nullptr;
+      other.fEnergyDistributionFunction = nullptr;
+      other.fEnergyAndAngularDistributionFunction = nullptr;
+      other.fDecayRandomMethod = nullptr;
+      other.fCosmicHistogramsTransformed = nullptr;
+      other.InitializeDistributions();
 }
 
 /// \brief Operador de asignación por movimiento (Move Assignment Operator).
@@ -189,11 +192,14 @@ TRestGeant4ParticleSource& TRestGeant4ParticleSource::operator=(TRestGeant4Parti
     other.fEnergyAndAngularDistributionFunction = nullptr;
     other.fCosmicHistogramsTransformed=nullptr;
     other.fDecayRandomMethod = nullptr;
+    other.InitializeDistributions();
 
     return *this;
 }
 
 TRestGeant4ParticleSource::~TRestGeant4ParticleSource() {
+    delete fAngularDistributionFunction;
+    delete fEnergyDistributionFunction;
     delete fEnergyAndAngularDistributionFunction;
     delete fCosmicHistogramsTransformed;
 }
@@ -212,7 +218,78 @@ void TRestGeant4ParticleSource::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4ParticleSource>(fNode);
     ReadYAMLVerbose(fNode);
     UpdateYAMLFromParams<TRestGeant4ParticleSource>(fNode);
+    InitializeDistributions();
 }
+
+void TRestGeant4ParticleSource::InitializeDistributions(){
+
+  if (StringToAngularDistributionTypes(fAngularDistribution.fType )  ==
+      TRestGeant4PrimaryGeneratorTypes::AngularDistributionTypes::FORMULA) {
+        SetAngularDistributionFormula(fAngularDistribution.fFormula);
+        // We cannot use an angular range bigger than the range of the formula
+        const auto function = GetAngularDistributionFunction();
+        if (GetAngularDistributionRangeMin() < function->GetXaxis()->GetXmin()) {
+            SetAngularDistributionRange({function->GetXaxis()->GetXmin(), GetAngularDistributionRangeMax()});
+        }
+        if (GetAngularDistributionRangeMax() > function->GetXaxis()->GetXmax()) {
+            SetAngularDistributionRange({GetAngularDistributionRangeMin(), function->GetXaxis()->GetXmax()});
+        }
+  }
+
+  if (StringToEnergyDistributionTypes(fEnergyDistribution.fType )  ==
+      TRestGeant4PrimaryGeneratorTypes::EnergyDistributionTypes::FORMULA) {
+        SetEnergyDistributionFormula(fEnergyDistribution.fFormula);
+        // We cannot use an energy range bigger than the range of the formula
+        const auto function = GetEnergyDistributionFunction();
+        if (GetEnergyDistributionRangeMin() < function->GetXaxis()->GetXmin()) {
+            SetEnergyDistributionRange({function->GetXaxis()->GetXmin(), GetEnergyDistributionRangeMax()});
+        }
+        if (GetEnergyDistributionRangeMax() > function->GetXaxis()->GetXmax()) {
+            SetEnergyDistributionRange({GetEnergyDistributionRangeMin(), function->GetXaxis()->GetXmax()});
+        }
+  }
+
+  if (StringToAngularDistributionTypes(fAngularDistribution.fType )  ==
+      AngularDistributionTypes::FORMULA2 && 
+      StringToEnergyDistributionTypes(fEnergyDistribution.fType )  ==
+      EnergyDistributionTypes::FORMULA2) {
+        if(fAngularDistribution.fFormula.empty() && fEnergyDistribution.fFormula.empty()){
+          RESTError << "No name specified for energy and angular distribution" << RESTendl;
+          exit(1);
+        }
+        std::string formula;
+        if(!fAngularDistribution.fFormula.empty() && fEnergyDistribution.fFormula.empty()){
+          formula = fAngularDistribution.fFormula;
+        } else if (fAngularDistribution.fFormula.empty() &&!fEnergyDistribution.fFormula.empty()){
+          formula = fEnergyDistribution.fFormula;
+        } else if (fAngularDistribution.fFormula.empty() != fEnergyDistribution.fFormula){
+          RESTError << "When using 'formula2' the name of energy and angular dist must match" << RESTendl;
+          exit(1);
+        } else {
+          formula = fAngularDistribution.fFormula;
+        }
+        
+        SetEnergyAndAngularDistributionFormula(formula);
+
+        const auto function = GetEnergyAndAngularDistributionFunction();
+        // We cannot use an energy range bigger than the range of the formula
+        if (GetEnergyDistributionRangeMin() < function->GetXaxis()->GetXmin()) {
+            SetEnergyDistributionRange({function->GetXaxis()->GetXmin(), GetEnergyDistributionRangeMax()});
+        }
+        if (GetEnergyDistributionRangeMax() > function->GetXaxis()->GetXmax()) {
+            SetEnergyDistributionRange({GetEnergyDistributionRangeMin(), function->GetXaxis()->GetXmax()});
+        }
+        // We cannot use an angular range bigger than the range of the formula
+        if (GetAngularDistributionRangeMin() < function->GetYaxis()->GetXmin()) {
+            SetAngularDistributionRange({function->GetYaxis()->GetXmin(), GetAngularDistributionRangeMax()});
+        }
+        if (GetAngularDistributionRangeMax() > function->GetYaxis()->GetXmax()) {
+            SetAngularDistributionRange({GetAngularDistributionRangeMin(), function->GetYaxis()->GetXmax()});
+        }
+  }
+
+}
+
 
 void TRestGeant4ParticleSource::InitializeCosmics() {
 

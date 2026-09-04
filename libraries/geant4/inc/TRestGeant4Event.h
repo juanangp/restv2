@@ -139,6 +139,7 @@ class TRestGeant4TrackView : public TRestGeant4Hits {
     std::string GetParticleName() const { return fEventData->trackParticleNames[fTrackIdx]; }
     std::string GetCreatorProcess() const { return fEventData->trackCreatorProcesses[fTrackIdx]; }
     double GetInitialEnergy() const { return fEventData->trackInitialEnergies[fTrackIdx]; }
+    double GetDepositedEnergy() const { return fEventData->trackDepositedEnergy[fTrackIdx]; }
 
     std::vector<int> GetSecondaryTrackIDs() const {
     std::vector<int> secondaries;
@@ -152,6 +153,19 @@ class TRestGeant4TrackView : public TRestGeant4Hits {
       }
         
      return secondaries;
+   }
+   std::string GetParentParticleName() const {
+       int parentID = GetParentID();
+       if (parentID == 0)
+           return "PrimaryGenerator";
+
+       auto it = std::find(fEventData->trackIDs.begin(), fEventData->trackIDs.end(), parentID);
+       if (it != fEventData->trackIDs.end()) {
+           size_t parentIdx = std::distance(fEventData->trackIDs.begin(), it);
+           return fEventData->trackParticleNames[parentIdx];
+       }
+
+       return "Not found (ID: " + std::to_string(parentID) + ")";
    }
    
 };

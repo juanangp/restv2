@@ -22,12 +22,13 @@ class TRandom;
 class TRestGeant4ParticleAngularDistribution : public TRestMetadata {
    public:
     std::string fType = "Flux";
+    std::string fFormula = "";
     std::string fFilename="";
     std::string fNameInFile="";
     size_t fFormulaNPoints = 500;
     std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};
     TRestWithUnits fIsotropicConeHalfAngle = 0.0;
-    std::array<double, 3> fDirection = {1.0, 0.0, 0.0};
+    std::array<double, 3> fDirection = {0.0, -1.0, 0.0};
 
     TRestGeant4ParticleAngularDistribution();
     TRestGeant4ParticleAngularDistribution(const std::string& name, const YAML::Node& node);
@@ -40,6 +41,7 @@ class TRestGeant4ParticleEnergyDistribution : public TRestMetadata {
    public:
     std::string fType = "Mono";
     std::string fFilename="";
+    std::string fFormula="";
     std::string fNameInFile="";
     size_t fFormulaNPoints = 5000;
     std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, 1.0E20};
@@ -207,6 +209,8 @@ class TRestGeant4ParticleSource : public TRestMetadata {
                 TRestGeant4PrimaryGeneratorTypes::StringToEnergyAndAngularDistributionFormulas(formula))
                 .Clone());
     }
+
+    void InitializeDistributions();
 
     inline void SetGenFilename(const std::string& name) { fGenFilename = name; }
     // --- Framework and Identification Overrides ---

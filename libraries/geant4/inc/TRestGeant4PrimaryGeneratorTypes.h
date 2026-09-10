@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4PRIMARYGENERATORTYPES_H
+#define TRESTGEANT4PRIMARYGENERATORTYPES_H
 
 #include <string>
 
@@ -45,3 +46,5 @@ EnergyAndAngularDistributionFormulas StringToEnergyAndAngularDistributionFormula
 TF2 EnergyAndAngularDistributionFormulasToRootFormula(EnergyAndAngularDistributionFormulas formula);
 
 }  // namespace TRestGeant4PrimaryGeneratorTypes
+
+#endif

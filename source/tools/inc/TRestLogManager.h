@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTLOGMANAGER_H
+#define TRESTLOGMANAGER_H
 
 #include <chrono>
 #include <ctime>
@@ -235,3 +236,5 @@ inline TRestLogStream RESTInfo(TRestLogManager::REST_Verbose_Level::REST_Info, T
                                " INFO ");
 inline TRestLogStream RESTDebug(TRestLogManager::REST_Verbose_Level::REST_Debug, TRestLogger::COLOR_RESET,
                                 " DEBUG ");
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4PRIMARYGENERATORINFO_H
+#define TRESTGEANT4PRIMARYGENERATORINFO_H
 
 #include <array>
 #include <cmath>
@@ -106,3 +107,5 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     friend class DetectorConstruction;
     friend class TRestMetadataFieldRegistry;
 };
+
+#endif

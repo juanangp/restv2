@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTPROCESSMANAGER_H
+#define TRESTPROCESSMANAGER_H
 
 #include <map>
 #include <memory>
@@ -51,3 +52,5 @@ class TRestProcessManager : public TRestMetadata {
 
     void Initialize() override {}
 };
+
+#endif

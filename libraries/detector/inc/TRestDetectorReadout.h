@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTDETECTORREADOUT_H
+#define TRESTDETECTORREADOUT_H
 
 #include <map>
 #include <string>
@@ -127,3 +128,5 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \return Pointer to the geometry manager.
     TGeoManager* GetGeoManager() const { return fGeoManager; }
 };
+
+#endif

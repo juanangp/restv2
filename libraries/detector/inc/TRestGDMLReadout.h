@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGDMLREADOUT_H
+#define TRESTGDMLREADOUT_H
 
 #include "TRestDetectorReadout.h"
 
@@ -26,3 +27,5 @@ class TRestGDMLReadout : public TRestDetectorReadout {
 
     // inline void SetGDMLFile(const std::string& gdlmFile){fGDMLFilePath = gdmlFile;}
 };
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTSYSTEMOFUNITS_H
+#define TRESTSYSTEMOFUNITS_H
 
 #include <TMath.h>
 #include <Math/Vector3D.h>
@@ -268,3 +269,5 @@ struct convert<TRestWithUnits> {
     }
 };
 } // namespace YAML
+
+#endif

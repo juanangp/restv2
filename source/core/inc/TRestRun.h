@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTRUN_H
+#define TRESTRUN_H
 
 #include <TFile.h>
 #include <TTree.h>
@@ -326,3 +327,5 @@ class TRestRun : public TRestMetadata {
 
     void PrintAllMetadata() const;
 };
+
+#endif

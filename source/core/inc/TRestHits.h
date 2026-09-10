@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTHITS_H
+#define TRESTHITS_H
 
 #include <cmath>
 #include <iostream>
@@ -169,3 +170,5 @@ class TRestHits {
     TRestHits() = default;
     virtual ~TRestHits() = default;
 };
+
+#endif

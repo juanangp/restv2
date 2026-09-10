@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4EVENT_H
+#define TRESTGEANT4EVENT_H
 
 #include <algorithm>
 #include <map>
@@ -356,3 +357,5 @@ class TRestGeant4Event : public TRestEvent {
     TRestGeant4Event() = default;
     ~TRestGeant4Event() = default;
 };
+
+#endif

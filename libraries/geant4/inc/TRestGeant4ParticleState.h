@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4PARTICLESTATE_H
+#define TRESTGEANT4PARTICLESTATE_H
 
 #include <Math/Vector3D.h>
 
@@ -51,3 +52,5 @@ class TRestGeant4ParticleState {
     /// \brief Destructor.
     virtual ~TRestGeant4ParticleState();
 };
+
+#endif

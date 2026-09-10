@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTRAWFEMDAQTOSIGNALPROCESS_H
+#define TRESTRAWFEMDAQTOSIGNALPROCESS_H
 
 #include <TFile.h>
 #include <TTree.h>
@@ -51,3 +52,5 @@ class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
 
     std::string GetClassName() const override { return "TRestRawFemDAQToSignalProcess"; }
 };
+
+#endif

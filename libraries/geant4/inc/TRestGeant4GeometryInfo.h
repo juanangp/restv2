@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4GEOMETRYINFO_H
+#define TRESTGEANT4GEOMETRYINFO_H
 
 #include <map>
 #include <memory>
@@ -157,3 +158,5 @@ class TRestGeant4GeometryInfo {
     friend class DetectorConstruction;
     friend class TRestGeant4Metadata;
 };
+
+#endif

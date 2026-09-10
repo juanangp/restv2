@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4BIASINGVOLUME_H
+#define TRESTGEANT4BIASINGVOLUME_H
 
 #include <iostream>
 #include <string>
@@ -77,3 +78,5 @@ class TRestGeant4BiasingVolume : public TRestMetadata {
     /// \brief Destructor.
     virtual ~TRestGeant4BiasingVolume();
 };
+
+#endif

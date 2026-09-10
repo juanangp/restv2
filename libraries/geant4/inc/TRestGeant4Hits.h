@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4HITS_H
+#define TRESTGEANT4HITS_H
 
 #include <TRestHits.h>
 
@@ -160,3 +161,5 @@ class TRestGeant4Hits : public TRestHits {
     /// \brief Inserts one Geant4 step as a hit entry in the current hit container.
     void InsertStep(const G4Step*);
 };
+
+#endif

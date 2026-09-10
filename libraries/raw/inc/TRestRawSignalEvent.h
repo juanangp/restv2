@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTRAWSIGNALEVENT_H
+#define TRESTRAWSIGNALEVENT_H
 
 #include <algorithm>
 #include <numeric>
@@ -190,3 +191,5 @@ class TRestRawSignalEvent : public TRestEvent {
     TRestRawSignalEvent() = default;
     ~TRestRawSignalEvent() = default;
 };
+
+#endif

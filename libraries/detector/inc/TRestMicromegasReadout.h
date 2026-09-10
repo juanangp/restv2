@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTMICROMEGASREADOUT_H
+#define TRESTMICROMEGASREADOUT_H
 
 #include "TRestDetectorReadout.h"
 
@@ -35,3 +36,5 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     /// \brief Returns the geometric centroid of a Micromegas DAQ channel.
     ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const override;
 };
+
+#endif

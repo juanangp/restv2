@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTMETADATA_H
+#define TRESTMETADATA_H
 
 #include <TFile.h>
 #include <yaml-cpp/yaml.h>
@@ -316,3 +317,5 @@ inline void TRestMetadata::UpdateYAMLFromParams(TNode& nodeToUpdate) {
     auto typeIdx = std::type_index(typeid(ClassName));
     TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(typeIdx, this, nodeToUpdate);
 }
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTPULSESHAPEANALYSIS_H
+#define TRESTPULSESHAPEANALYSIS_H
 
 #include <TGraph.h>
 #include <TMath.h>
@@ -103,3 +104,5 @@ std::pair<double, double> GetMaxLandau(TGraph& signal);
 std::pair<double, double> GetMaxAget(TGraph& signal);
 
 }  // namespace TRestPulseShapeAnalysis
+
+#endif

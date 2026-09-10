@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4PHYSICSINFO_H
+#define TRESTGEANT4PHYSICSINFO_H
 
 #include <map>
 #include <set>
@@ -65,3 +66,5 @@ class TRestGeant4PhysicsInfo {
     friend class TRestMetadataFieldRegistry;
     friend class TRestGeant4Metadata;
 };
+
+#endif

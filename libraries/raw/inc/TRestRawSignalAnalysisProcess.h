@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTRAWSIGNALANALYSISPROCESS_H
+#define TRESTRAWSIGNALANALYSISPROCESS_H
 
 #include <TFile.h>
 #include <TTree.h>
@@ -117,3 +118,5 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     std::string GetClassName() const override { return "TRestRawSignalAnalysisProcess"; }
     // void PrintMetadata() override;
 };
+
+#endif

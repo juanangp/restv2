@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4TRACK_H
+#define TRESTGEANT4TRACK_H
 
 #include <Math/Vector3D.h>
 #include <TColor.h>
@@ -155,3 +156,5 @@ class TRestGeant4Track {
     void InsertStep(const G4Step*);  //!
 };
 
+
+#endif

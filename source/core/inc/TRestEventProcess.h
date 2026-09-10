@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTEVENTPROCESS_H
+#define TRESTEVENTPROCESS_H
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
@@ -70,3 +71,5 @@ class TRestEventProcess : public TRestMetadata {
         }
     }
 };
+
+#endif

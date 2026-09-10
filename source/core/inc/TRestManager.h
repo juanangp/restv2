@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTMANAGER_H
+#define TRESTMANAGER_H
 
 #include <memory>
 #include <vector>
@@ -33,3 +34,5 @@ class TRestManager : public TRestMetadata {
     void Initialize() override {}
     void SaveMetadata();
 };
+
+#endif

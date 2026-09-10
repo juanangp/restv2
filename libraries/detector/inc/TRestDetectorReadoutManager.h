@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTDETECTORREADOUTMANAGER_H
+#define TRESTDETECTORREADOUTMANAGER_H
 
 #include <map>
 #include <string>
@@ -43,3 +44,5 @@ class TRestDetectorReadoutManager : public TRestMetadata {
     /// \brief Retrieves a readout by instance name, or nullptr when absent.
     TRestDetectorReadout* GetReadout(const std::string& name) const;
 };
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4METADATA_H
+#define TRESTGEANT4METADATA_H
 
 #include <algorithm>
 #include <map>
@@ -337,3 +338,5 @@ class TRestGeant4Metadata : public TRestMetadata {
     friend class DetectorConstruction;
     friend class TRestGeant4Hits;
 };
+
+#endif

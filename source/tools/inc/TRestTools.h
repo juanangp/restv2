@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTTOOLS_H
+#define TRESTTOOLS_H
 
 #include <yaml-cpp/yaml.h>
 
@@ -80,3 +81,5 @@ inline void SetNodeParameter(YAML::Node& node, const std::string& key, const T& 
 }
 
 }  // namespace TRestTools
+
+#endif

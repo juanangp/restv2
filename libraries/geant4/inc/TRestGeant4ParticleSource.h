@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4PARTICLESOURCE_H
+#define TRESTGEANT4PARTICLESOURCE_H
 
 class TRandom;
 
@@ -229,3 +230,5 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     /// \brief No-op hook kept for REST metadata lifecycle compatibility.
     void Initialize() override {};
 };
+
+#endif

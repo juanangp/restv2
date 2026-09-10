@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTEVENT_H
+#define TRESTEVENT_H
 
 #include <TPad.h>
 #include <TString.h>
@@ -246,3 +247,5 @@ class EventRegistry {
     EventRegistry() = default;
     std::map<std::string, Creator> creators;
 };
+
+#endif

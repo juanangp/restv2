@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TRESTGEANT4MANAGER_H
+#define TRESTGEANT4MANAGER_H
 
 #include <memory>
 #include <vector>
@@ -36,3 +37,5 @@ class TRestGeant4Manager : public TRestMetadata {
     /// \brief Persists loaded metadata state back to the configured output run.
     void SaveMetadata();
 };
+
+#endif

@@ -87,8 +87,9 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterNestedField<TRestGeant4Metadata>("generator", &TRestGeant4Metadata::fGeant4PrimaryGeneratorInfo);
     reg.RegisterField<TRestGeant4Metadata>("sensitiveVolumes", &TRestGeant4Metadata::fSensitiveVolumes);
     reg.RegisterField<TRestGeant4Metadata>("killVolumes", &TRestGeant4Metadata::fKillVolumesRegistry);
-    reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes",
-                                           &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
+    reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes", &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
+    reg.RegisterField<TRestGeant4Metadata>("biasingVolumes", &TRestGeant4Metadata::fBiasingVolumes);
+
 
     return true;
 }();
@@ -232,7 +233,6 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fActiveVolumes = other.fActiveVolumes;
     fChance = other.fChance;
     fMaxStepSize = other.fMaxStepSize;
-    fNBiasingVolumes = other.fNBiasingVolumes;
     fBiasingVolumes = other.fBiasingVolumes;
     fMaxTargetStepSize = other.fMaxTargetStepSize;
     fSubEventTimeDelay = other.fSubEventTimeDelay;

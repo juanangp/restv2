@@ -224,9 +224,11 @@ class TRestMetadataFieldRegistry {
                 auto& values = object->*memberPtr;
                 values.clear();
                 if (sourceNode.IsSequence()) {
-                    for (const auto& child : sourceNode) values.emplace_back("source", YAML::Node(child));
+                    // Reemplazado "source" por yamlKey
+                    for (const auto& child : sourceNode) values.emplace_back(yamlKey, YAML::Node(child));
                 } else if (sourceNode.IsMap()) {
-                    values.emplace_back("source", YAML::Node(sourceNode));
+                    // Reemplazado "source" por yamlKey
+                    values.emplace_back(yamlKey, YAML::Node(sourceNode));
                 }
             } catch (const std::exception& error) {
                 std::cerr << "Error al leer campo compuesto '" << yamlKey << "': " << error.what() << std::endl;

@@ -1,7 +1,5 @@
 #include "TRestGeant4BiasingVolume.h"
 
-#include "TRestMetadata.h"
-
 // Modern REST v3 field registry reflection hook
 static const bool TRestGeant4BiasingVolume_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -13,25 +11,21 @@ static const bool TRestGeant4BiasingVolume_FieldsRegistered = []() {
     return true;
 }();
 
-/// \brief Default constructor.
-TRestGeant4BiasingVolume::TRestGeant4BiasingVolume() {
-    fVolumeType = "virtualBox";
-    fBiasingVolumeType = "virtualBox";
+TRestGeant4BiasingVolume::TRestGeant4BiasingVolume() : TRestMetadata() { fName = "TRestGeant4BiasingVolume"; }
+
+TRestGeant4BiasingVolume::TRestGeant4BiasingVolume(const std::string& configFilename, const std::string& name)
+    : TRestMetadata(configFilename, name) {
+    LoadConfig();
 }
 
-/// \brief Destructor.
-TRestGeant4BiasingVolume::~TRestGeant4BiasingVolume() {}
+TRestGeant4BiasingVolume::TRestGeant4BiasingVolume(const std::string& instanceName, const YAML::Node& node)
+    : TRestMetadata(instanceName, node) {
+    LoadConfig();
+}
 
-/// \brief Outputs the biasing fields configuration data summary.
-void TRestGeant4BiasingVolume::PrintBiasingVolume() const {
-    std::cout << "-----------------------------" << std::endl;
-    std::cout << "Biasing volume" << std::endl;
-    std::cout << "-----------------------------" << std::endl;
-    std::cout << "volume size : " << GetBiasingVolumeSize() << " mm" << std::endl;
-    std::cout << "volume type : " << GetBiasingVolumeType() << std::endl;
-    std::cout << "volume factor : " << GetBiasingFactor() << std::endl;
-    std::cout << "volume position : ( " << fVolumePosition[0] << " , " << fVolumePosition[1] << " , "
-              << fVolumePosition[2] << " ) mm" << std::endl;
-    std::cout << "Energy range : ( " << GetMinEnergy() << " , " << GetMaxEnergy() << " ) keV" << std::endl;
-    std::cout << "-----------------------------" << std::endl;
+TRestGeant4BiasingVolume::~TRestGeant4BiasingVolume() = default;
+
+void TRestGeant4BiasingVolume::LoadConfig() {
+    UpdateParamsFromYAML<TRestGeant4BiasingVolume>(fNode);
+    UpdateYAMLFromParams<TRestGeant4BiasingVolume>(fNode);
 }

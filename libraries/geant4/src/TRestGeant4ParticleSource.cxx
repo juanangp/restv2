@@ -12,6 +12,63 @@
 using namespace std;
 using namespace TRestGeant4PrimaryGeneratorTypes;
 
+template <>
+void TRestMetadata::UpdateYAMLFromParams<TRestGeant4ParticleEnergyDistribution>(YAML::Node& nodeToUpdate) {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+    auto typeIdx = std::type_index(typeid(TRestGeant4ParticleEnergyDistribution));
+
+    reg.ApplyFieldsToYAML(typeIdx, this, nodeToUpdate);
+
+    std::vector<std::string> keysToClear;
+    for (auto it = nodeToUpdate.begin(); it != nodeToUpdate.end(); ++it) {
+        keysToClear.push_back(it->first.as<std::string>());
+    }
+
+    auto* dist = static_cast<TRestGeant4ParticleEnergyDistribution*>(this);
+    EnergyDistributionTypes currentType = StringToEnergyDistributionTypes(dist->fType);
+
+    std::vector<std::string> keysToKeep = {"type"};
+    bool shouldFilter = true;
+
+    switch (currentType) {
+        case EnergyDistributionTypes::MONO:
+            keysToKeep.push_back("energy");
+            break;
+
+        case EnergyDistributionTypes::FORMULA:
+        case EnergyDistributionTypes::FORMULA2:
+            keysToKeep.push_back("formula");
+            keysToKeep.push_back("formulaNPoints");
+            keysToKeep.push_back("range");
+            break;
+
+        case EnergyDistributionTypes::TH1D:
+        case EnergyDistributionTypes::TH2D:
+        case EnergyDistributionTypes::COSMIC:
+            keysToKeep.push_back("filename");
+            keysToKeep.push_back("nameInFile");
+            break;
+
+        case EnergyDistributionTypes::FLAT:
+        case EnergyDistributionTypes::LOG:
+             keysToKeep.push_back("range");
+            break;
+
+        default:
+            shouldFilter = false;
+            break;
+    }
+
+    if (shouldFilter) {
+        for (const auto& key : keysToClear) {
+            if (std::find(keysToKeep.begin(), keysToKeep.end(), key) == keysToKeep.end()) {
+                nodeToUpdate.remove(key); 
+            }
+        }
+    }
+}
+
+
 namespace {
 const bool kParticleSourceRegistered = []() {
     MetadataClassRegistry::Instance().Register(
@@ -68,8 +125,8 @@ static const bool TRestGeant4ParticleEnergyDistribution_FieldsRegistered = []() 
 static const bool TRestGeant4ParticleSource_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
-    reg.RegisterNestedField("angular", &TRestGeant4ParticleSource::fAngularDistribution);
-    reg.RegisterNestedField("energy", &TRestGeant4ParticleSource::fEnergyDistribution);
+    reg.RegisterNestedField<TRestGeant4ParticleSource>("angular", &TRestGeant4ParticleSource::fAngularDistribution);
+    reg.RegisterNestedField<TRestGeant4ParticleSource>("energy", &TRestGeant4ParticleSource::fEnergyDistribution);
     reg.RegisterField<TRestGeant4ParticleSource>("use", &TRestGeant4ParticleSource::fGenFilename);
     reg.RegisterField<TRestGeant4ParticleSource>("particle", &TRestGeant4ParticleSource::fParticleName);
 

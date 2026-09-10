@@ -82,9 +82,6 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// A vector to store the maximum step size at a particular volume
     std::vector<TRestWithUnits> fMaxStepSize;
 
-    /// The number of biasing volumes used in the simulation. If zero, no biasing technique is used.
-    int fNBiasingVolumes = 0;
-
     /// A vector containing the biasing volume properties
     std::vector<TRestGeant4BiasingVolume> fBiasingVolumes;
 

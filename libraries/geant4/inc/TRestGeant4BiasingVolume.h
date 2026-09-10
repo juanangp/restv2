@@ -11,19 +11,13 @@
 
 /// \class TRestGeant4BiasingVolume
 /// \brief Class containing properties and geometry tests for Geant4 biasing techniques.
-class TRestGeant4BiasingVolume {
+class TRestGeant4BiasingVolume : public TRestMetadata {
    public:
-    std::array<double, 3> fVolumePosition = {0.0, 0.0, 0.0};
-    double fVolumeSize = 0.0;
-    std::string fBiasingVolumeType = "virtualBox";  // Obsolete duplicate field kept for compatibility
+    std::array<TRestWithUnits, 3> fVolumePosition = {0.0, 0.0, 0.0};
+    TRestWithUnits fVolumeSize = 0.0;
     double fBiasingFactor = 1.0;
-    std::pair<double, double> fEnergyRange = {0.0, 1.0E20};
+    std::pair<TRestWithUnits, TRestWithUnits> fEnergyRange = {0.0, 1.0E20};
     std::string fVolumeType = "virtualBox";
-
-    /// \brief Constructs a biasing-volume descriptor with default neutral parameters.
-    TRestGeant4BiasingVolume();
-    /// \brief Destructor.
-    virtual ~TRestGeant4BiasingVolume();
 
     // --- Getters ---
     inline double GetBiasingFactor() const { return fBiasingFactor; }
@@ -38,10 +32,7 @@ class TRestGeant4BiasingVolume {
 
     // --- Setters ---
     inline void SetBiasingVolumeSize(double size) { fVolumeSize = size; }
-    inline void SetBiasingVolumeType(const std::string& type) {
-        fVolumeType = type;
-        fBiasingVolumeType = type;
-    }
+    inline void SetBiasingVolumeType(const std::string& type) { fVolumeType = type; }
     inline void SetBiasingVolumePosition(const ROOT::Math::XYZVector& pos) {
         fVolumePosition = {pos.X(), pos.Y(), pos.Z()};
     }
@@ -70,9 +61,19 @@ class TRestGeant4BiasingVolume {
         return 0;
     }
 
-    /// \brief Prints the configured volume geometry, biasing factor and energy range.
-    void PrintBiasingVolume() const;
+    /// \brief Loads physics lists, options and production cuts from YAML.
+    void LoadConfig() override;
+    /// \brief No-op hook kept for REST metadata lifecycle compatibility.
+    void Initialize() override {}
+    std::string GetClassName() const override { return "TRestGeant4BiasingVolume"; }
 
-    // Grants reflection registration macro privileges
-    friend class TRestMetadataFieldRegistry;
+    // Constructors & Destructors
+    /// \brief Constructs an empty physics-list metadata container.
+    TRestGeant4BiasingVolume();
+    /// \brief Loads physics list metadata from an RML/YAML configuration file section.
+    TRestGeant4BiasingVolume(const std::string& configFilename, const std::string& name = "");
+    /// \brief Builds metadata directly from REST v3 YAML node content.
+    TRestGeant4BiasingVolume(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Destructor.
+    virtual ~TRestGeant4BiasingVolume();
 };

@@ -21,6 +21,7 @@ bool isANumber(const std::string& str);
 int StringToInteger(const std::string& in);
 int GetRunNumberAuto();
 long GetRandomSeed();
+std::string CleanExpression(const std::string& expr);
 
 YAML::Node OpenConfigFile(const std::string& fileName);
 std::pair<std::string, YAML::Node> GetMetadataClass(const YAML::Node& cfg, const std::string& className);
@@ -29,7 +30,6 @@ YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node);
 void OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val);
 YAML::Node ResolveAllRefs(const YAML::Node& root);
 std::string PatternToRegex(const std::string& pattern);
-double ReadYAMLParamWithUnits(const YAML::Node& node);
 std::vector<std::string> ReadYALMObservables(const YAML::Node& node);
 std::string CleanString(const std::string& str);
 void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
@@ -40,12 +40,6 @@ void ReplaceAll(std::string& str, const std::string& from, const std::string& to
 template <typename T>
 inline T ReadYAMLParam(const YAML::Node& node) {
     return node.as<T>();
-}
-
-/// \brief Specialization for `double` values with units.
-template <>
-inline double ReadYAMLParam<double>(const YAML::Node& node) {
-    return TRestTools::ReadYAMLParamWithUnits(node);
 }
 
 /// \brief Specialization for `std::pair<T, T>`.

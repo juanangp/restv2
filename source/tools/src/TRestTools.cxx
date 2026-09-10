@@ -374,18 +374,6 @@ std::string TRestTools::PatternToRegex(const std::string& pattern) {
     return regex_pattern;
 }
 
-double TRestTools::ReadYAMLParamWithUnits(const YAML::Node& node) {
-    double value = 0;
-    if (node.IsScalar()) {
-        value = node.as<double>();
-    } else if (node.IsMap()) {
-        value = node["value"].as<double>();
-        std::string units = node["units"].as<std::string>();
-        value *= REST_Units::ParseUnit(units);
-    }
-    return value;
-}
-
 std::vector<std::string> TRestTools::ReadYALMObservables(const YAML::Node& node) {
     std::vector<std::string> observables;
 
@@ -449,3 +437,10 @@ std::string TRestTools::ToTimeStringLong(double seconds) {
     return "0.00 seconds";
 }
 
+std::string TRestTools::CleanExpression(const std::string& expr) {
+    std::string clean = expr;
+    clean.erase(std::remove_if(clean.begin(), clean.end(), [](unsigned char c) { 
+        return std::isspace(c); 
+    }), clean.end());
+    return clean;
+}

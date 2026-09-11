@@ -1,12 +1,16 @@
 #include <TRint.h>
 #include <TStyle.h>
 #include <TSystem.h>
+#include <TROOT.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include <TRestLogManager.h>
+#include <TRestTools.h>
 
 namespace {
 bool InitializeRestRuntimeFromRestPath() {
@@ -39,13 +43,14 @@ bool InitializeRestRuntimeFromRestPath() {
 
     bool loadedAny = false;
     for (const auto& lib : libraries) {
+        std::cout<<"Loading "<<lib<<std::endl;
         if (gSystem->Load(lib.string().c_str()) >= 0) {
             loadedAny = true;
         }
     }
 
     if (!loadedAny) {
-        std::cerr << "restRoot: no REST shared libraries could be loaded from " << libDir << "\n";
+        RESTError << "restRoot: no REST shared libraries could be loaded from " << libDir << RESTendl;
         return false;
     }
 
@@ -53,8 +58,24 @@ bool InitializeRestRuntimeFromRestPath() {
         gSystem->AddIncludePath(TString::Format(" -I%s", includeDir.string().c_str()));
     }
 
+    const std::filesystem::path macrosDir = restPath / "macros";
+    if (std::filesystem::exists(macrosDir) && std::filesystem::is_directory(macrosDir)) {
+        TString currentMacroPath = gROOT->GetMacroPath();
+        gROOT->SetMacroPath(currentMacroPath + TString::Format(":%s", macrosDir.string().c_str()));
+
+        for (const auto& entry : std::filesystem::directory_iterator(macrosDir)) {
+            if (!entry.is_regular_file()) continue;
+            
+            if (entry.path().extension() == ".C") {
+                gROOT->LoadMacro(entry.path().string().c_str());
+            }
+        }
+    }
+
+
     return true;
 }
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -64,11 +85,36 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    std::string fileToOpen = "";
+    std::vector<char*> cleanArgv;
+
+    for (int i = 0; i < argc; ++i) {
+        std::string arg = argv[i];
+        std::string fullPath = TRestTools::GetFullPath(arg);
+
+        if (TRestTools::isValidTRestRun(fullPath)) {
+            fileToOpen = fullPath; // Guardamos la ruta absoluta para nuestra macro
+            continue;
+        }
+        
+        cleanArgv.push_back(argv[i]);
+    }
+
+    cleanArgv.push_back(nullptr);
+
+    int cleanArgc = static_cast<int>(cleanArgv.size()) - 1;
+    char** cleanArgvPtr = cleanArgv.data();
+
     gStyle->SetPalette(1);
     gStyle->SetTimeOffset(0);
 
-    TRint theApp("App", &argc, argv);
-    theApp.Run();
+    TRint theApp("App", &cleanArgc, cleanArgvPtr);
 
+    if (!fileToOpen.empty()) {
+            std::string command = "REST_OpenInputFile(\"" + fileToOpen + "\");";
+            gROOT->ProcessLine(command.c_str());
+    }
+
+    theApp.Run();
     return 0;
 }

@@ -12,6 +12,8 @@ std::vector<std::string> GetFilesMatchingPattern(const std::string& filePattern)
 std::string GetTimeStampFromUnixTime(const double tm);
 std::string GetFullPath(const std::string& filename);
 bool fileExists(const std::string& filename);
+bool isRootFile(const std::string& filename);
+bool isValidTRestRun(const std::string& filename);
 std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
 std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);
 bool StringToBool(std::string booleanString);

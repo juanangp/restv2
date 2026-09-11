@@ -1,6 +1,6 @@
 
 
-#include "TRestTools.h"
+
 
 #include <chrono>
 #include <filesystem>
@@ -22,8 +22,12 @@
 #include <cstdlib>
 #include <cctype>
 
+#include <TFile.h>
+#include <TObject.h>
+#include <TObjString.h>
+#include <TKey.h>
 
-
+#include "TRestTools.h"
 #include "TRestLogManager.h"
 #include "TRestSystemOfUnits.h"
 
@@ -98,6 +102,82 @@ std::string TRestTools::GetFullPath(const std::string& filename) {
         // For now, it returns an empty string if an unexpected filesystem error occurs
         return "";
     }
+}
+
+bool TRestTools::isRootFile(const std::string& filename) {
+    if (!TRestTools::fileExists(filename)) {
+        return false;
+    }
+
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    char magic[4];
+    file.read(magic, 4);
+
+    if (!file) {
+        return false;
+    }
+
+    return (magic[0] == 'r' && magic[1] == 'o' && magic[2] == 'o' && magic[3] == 't');
+}
+
+bool TRestTools::isValidTRestRun(const std::string& filename) {
+    if (!TRestTools::isRootFile(filename)) {
+        return false;
+    }
+
+    std::unique_ptr<TFile> file(TFile::Open(filename.c_str(), "READ"));
+    if (!file || file->IsZombie()) {
+        return false;
+    }
+
+    TObject* analysisTree = file->Get("AnalysisTree");
+    if (!analysisTree) {
+        file->Close();
+        return false;
+    }
+
+    TDirectory* metadataDir = file->GetDirectory("RESTMetadataStore");
+    if (!metadataDir) {
+        file->Close();
+        return false;
+    }
+
+    metadataDir->cd();
+
+     TList* keysInDir = metadataDir->GetListOfKeys();
+    bool hasRestRunMetadata = false;
+
+    if (keysInDir) {
+        for (int i = 0; i < keysInDir->GetEntries(); ++i) {
+            TKey* key = dynamic_cast<TKey*>(keysInDir->At(i));
+            if (!key) continue;
+
+            std::string instanceName = key->GetName();
+
+            TObjString* yamlObj = nullptr;
+            metadataDir->GetObject(instanceName.c_str(), yamlObj);
+
+            if (yamlObj) {
+                YAML::Node testConfig = YAML::Load(yamlObj->GetString().Data());
+
+                if (testConfig && !testConfig.IsNull() && testConfig["class"]) {
+                    std::string className = testConfig["class"].as<std::string>();
+
+                    if (className == "TRestRun") {
+                        hasRestRunMetadata = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    file->Close();
+    return hasRestRunMetadata;
 }
 
 int TRestTools::GetRunNumberAuto() {

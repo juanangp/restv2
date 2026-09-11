@@ -185,6 +185,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     if (!fAnalysisTree) {
         RESTError << filename << " is not a valid TRestRun " << RESTendl;
+        fInputFile.reset(); 
         return;
     }
 
@@ -329,7 +330,7 @@ bool TRestRun::GetEntry(Long64_t entry) {
 }
 
 bool TRestRun::GetNextEntry(){
-  return GetEntry(fEntry++);
+  return GetEntry(++fEntry);
 
 }
 

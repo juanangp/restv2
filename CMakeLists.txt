@@ -160,3 +160,41 @@ message(STATUS "  ${GEANT4_LIB}: ${${GEANT4_LIB}}")
 message(STATUS "  REST_G4 : ${REST_G4}")
 message(STATUS "")
 
+# ---------------------------------------------------------------------------
+# Compile macros
+# ---------------------------------------------------------------------------
+file(GLOB_RECURSE MACROS_SOURCE "${CMAKE_SOURCE_DIR}/source/macros/*.C")
+file(GLOB_RECURSE MACROS_LIBRARIES "${CMAKE_SOURCE_DIR}/libraries/**/macros/*.C")
+set(ALL_REPOSITORY_MACROS ${MACROS_SOURCE} ${MACROS_LIBRARIES})
+
+if(ALL_REPOSITORY_MACROS)
+  install(FILES ${ALL_REPOSITORY_MACROS} DESTINATION macros COMPONENT install)
+
+  file(GLOB_RECURSE ALL_INC_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/**/inc")
+
+  set(ALL_REST_TARGETS RestCore RestTools ${RAW_LIB} ${DETECTOR_LIB} ${GEANT4_LIB})
+
+  foreach(MACRO_PATH IN LISTS ALL_REPOSITORY_MACROS)
+    get_filename_component(MACRO_WE ${MACRO_PATH} NAME_WE)
+    set(MACRO_LIB_NAME "${MACRO_WE}_C")
+
+    add_library(${MACRO_LIB_NAME} SHARED ${MACRO_PATH})
+
+    target_include_directories(${MACRO_LIB_NAME} PRIVATE ${ALL_INC_DIRS})
+
+    set_target_properties(${MACRO_LIB_NAME} PROPERTIES
+      PREFIX ""
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/macros_build"
+    )
+
+    target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${ROOT_TARGET_LIBRARIES} yaml-cpp)
+
+    foreach(REST_TARGET ${ALL_REST_TARGETS})
+      if(TARGET ${REST_TARGET})
+        target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${REST_TARGET})
+      endif()
+    endforeach()
+
+    install(TARGETS ${MACRO_LIB_NAME} LIBRARY DESTINATION macros COMPONENT install)
+  endforeach()
+endif()

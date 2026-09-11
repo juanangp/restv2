@@ -305,8 +305,20 @@ class TRestRun : public TRestMetadata {
     /// \return Input event reference.
     TRestEvent& GetInputEvent(const std::string& treeName);
 
-    TRestEvent* GetInputEvent( ) {
-      return fInputEvent;
+    TRestEvent* GetInputEvent() {
+        return fInputEvent;
+    }
+
+    template <typename T>
+    T* GetInputEvent() {
+        if (!fInputEvent) {
+            return nullptr;
+        }
+        T* castedEvent = dynamic_cast<T*>(fInputEvent);
+        if (!castedEvent) {
+            throw std::runtime_error("TRestRun: The current input event is not of the requested type.");
+        }
+        return castedEvent;
     }
 
     void SetInputEvent(const std::string& treeName);

@@ -4,157 +4,106 @@
 #include <Math/Vector3D.h>
 #include <TColor.h>
 
-#include <iostream>
+#include <cstddef>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "TRestGeant4Hits.h"
+#include "TRestHits.h"
 
 class TRestGeant4Event;
 class TRestGeant4Metadata;
-class G4Track;
-class G4Step;
 
-/// \class TRestGeant4Track
-/// \brief Holds one Geant4 particle track and its associated step-level hit history.
 class TRestGeant4Track {
    protected:
-    int fTrackID;
-    int fParentID;
+    TRestGeant4Event* fEvent = nullptr; //!
+    std::size_t fTrackIndex = 0;        //!
 
-    std::string fParticleName; 
-
-    TRestGeant4Hits fHits;
-
-    std::string fCreatorProcess;
-
-    std::vector<int> fSecondaryTrackIDs;
-
-    double fGlobalTimestamp;
-    double fTimeOffset = 0;
-    double fTimeLength;
-
-    double fInitialKineticEnergy;
-    double fLength;
-
-    ROOT::Math::XYZVector fInitialPosition;
-
-    double fWeight = 1;
-
-    TRestGeant4Event* fEvent = nullptr;  //!
+    bool IsValid() const;
+    std::size_t GetHitStart() const;
+    std::size_t GetHitCount() const;
 
    public:
-    inline const TRestGeant4Hits& GetHits() const { return fHits; }
-    inline TRestGeant4Hits* GetHitsPointer() { return &fHits; }
-    inline const TRestGeant4Event* GetEvent() const { return fEvent; }
-    /// \brief Returns Geant4 metadata associated with the parent event.
+    TRestGeant4Track() = default;
+    TRestGeant4Track(TRestGeant4Event* event, std::size_t index);
+    ~TRestGeant4Track() = default;
+
+    const TRestGeant4Event* GetEvent() const { return fEvent; }
     const TRestGeant4Metadata* GetGeant4Metadata() const;
+    void SetEvent(TRestGeant4Event* event);
 
-    inline void SetEvent(TRestGeant4Event* event) {
-        fEvent = event;
-        fHits.SetEvent(event);
-    }
-    inline void SetHits(const TRestGeant4Hits& hits) {
-        fHits = hits;
-        fHits.SetTrack(this);
-    }
+    TRestHits GetHits() const;
 
-    inline void SetTimeOffset(const double tOffset) { fTimeOffset = tOffset; }
+    Int_t GetTrackID() const;
+    Int_t GetParentID() const;
+    const std::string& GetParticleName() const;
+    const std::string& GetCreatorProcess() const;
+    Double_t GetGlobalTime() const;
+    Double_t GetTimeOffset() const;
+    Double_t GetTimeLength() const;
+    Double_t GetInitialKineticEnergy() const;
+    Double_t GetInitialEnergy() const { return GetInitialKineticEnergy(); }
+    ROOT::Math::XYZVector GetInitialPosition() const;
+    Double_t GetWeight() const;
+    Double_t GetTotalEnergy() const;
+    Double_t GetDepositedEnergy() const;
+    Double_t GetLength() const;
 
-    inline const std::string& GetCreatorProcess() const { return fCreatorProcess; }
-
-    inline void AddSecondaryTrackID(Int_t trackID) { fSecondaryTrackIDs.push_back(trackID); }
-
-    /// \brief Returns total hits, optionally filtered by volume id.
-    size_t GetNumberOfHits(Int_t volID = -1) const;
-    /// \brief Returns non-zero energy hits, optionally filtered by volume id.
-    size_t GetNumberOfPhysicalHits(Int_t volID = -1) const;
-
-    inline Int_t GetTrackID() const { return fTrackID; }
-    inline Int_t GetParentID() const { return fParentID; }
-    inline const std::string& GetParticleName() const { return fParticleName; }
-    inline Double_t GetGlobalTime() const { return fGlobalTimestamp; }
-    inline Double_t GetTimeOffset() const { return fTimeOffset; }
-    inline Double_t GetTimeLength() const { return fTimeLength; }
-    inline Double_t GetInitialKineticEnergy() const { return fInitialKineticEnergy; }
-    inline ROOT::Math::XYZVector GetInitialPosition() const { return fInitialPosition; }
-    inline Double_t GetWeight() const { return fWeight; }
-    inline Double_t GetTotalEnergy() const { return fHits.GetTotalEnergy(); }
-    inline Double_t GetLength() const { return fLength; }
-    /// \brief Returns the volume name where the track starts.
     std::string GetInitialVolume() const;
-    /// \brief Returns the volume name where the track ends.
     std::string GetFinalVolume() const;
 
-    inline std::vector<Int_t> GetSecondaryTrackIDs() const { return fSecondaryTrackIDs; }
-    std::vector<const TRestGeant4Track*> GetSecondaryTracks() const;
-    inline std::vector<const TRestGeant4Track*> GetChildrenTracks() const { return GetSecondaryTracks(); }
+    std::vector<Int_t> GetSecondaryTrackIDs() const;
+    std::vector<TRestGeant4Track> GetSecondaryTracks() const;
+    std::vector<TRestGeant4Track> GetChildrenTracks() const { return GetSecondaryTracks(); }
+    std::optional<TRestGeant4Track> GetParentTrack() const;
 
-    /// \brief Resolves and returns the parent track from the owning event.
-    TRestGeant4Track* GetParentTrack() const;
-
-    inline ROOT::Math::XYZVector GetTrackOrigin() const {
-        return GetInitialPosition();
-    }  // Migrated to XYZVector
-
+    ROOT::Math::XYZVector GetTrackOrigin() const { return GetInitialPosition(); }
     EColor GetParticleColor() const;
 
-    inline Double_t GetEnergyInVolume(Int_t volID) const { return fHits.GetEnergyInVolume(volID); }
-    inline ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volID) const {  // Migrated to XYZVector
-        return fHits.GetMeanPositionInVolume(volID);
-    }
-    inline ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volID) const {  // Migrated to XYZVector
-        return fHits.GetFirstPositionInVolume(volID);
-    }
-    inline ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volID) const {  // Migrated to XYZVector
-        return fHits.GetLastPositionInVolume(volID);
-    }
+    size_t GetNumberOfHits(Int_t volID = -1) const;
+    size_t GetNumberOfPhysicalHits(Int_t volID = -1) const;
 
-    /// \brief Resolves process id from process name.
+    Double_t GetEnergyInVolume(Int_t volID) const;
+    ROOT::Math::XYZVector GetMeanPositionInVolume(Int_t volID) const;
+    ROOT::Math::XYZVector GetFirstPositionInVolume(Int_t volID) const;
+    ROOT::Math::XYZVector GetLastPositionInVolume(Int_t volID) const;
+
+    Int_t GetHitProcess(size_t hit) const;
+    Int_t GetHitVolumeID(size_t hit) const;
+    std::string GetHitVolumeName(size_t hit) const;
+    Double_t GetHitKineticEnergy(size_t hit) const;
+    ROOT::Math::XYZVector GetHitMomentumDirection(size_t hit) const;
+    ROOT::Math::XYZVector GetHitPosition(size_t hit) const;
+    std::string GetHitHadronicTargetIsotopeName(size_t hit) const;
+    Int_t GetHitHadronicTargetIsotopeA(size_t hit) const;
+    Int_t GetHitHadronicTargetIsotopeZ(size_t hit) const;
+    Double_t GetHitEnergy(size_t hit) const;
+
     Int_t GetProcessID(const std::string& processName) const;
-    /// \brief Resolves process name from process id.
     std::string GetProcessName(Int_t id) const;
 
-    Bool_t ContainsProcessInVolume(Int_t processID, Int_t volumeID = -1) const;
-    inline Bool_t ContainsProcess(Int_t processID) const { return ContainsProcessInVolume(processID, -1); }
+    void SetHitEnergy(size_t hit, Double_t energy);
 
-    /// \brief Returns true if a named process appears in the selected volume.
+    Bool_t GetHadronicOk() const;
+    Bool_t ContainsProcessInVolume(Int_t processID, Int_t volumeID = -1) const;
+    Bool_t ContainsProcess(Int_t processID) const {
+        return ContainsProcessInVolume(processID, -1);
+    }
+
     Bool_t ContainsProcessInVolume(const std::string& processName, Int_t volumeID = -1) const;
-    inline Bool_t ContainsProcess(const std::string& processName) const {
+    Bool_t ContainsProcess(const std::string& processName) const {
         return ContainsProcessInVolume(processName, -1);
     }
 
-    /// \brief Returns deposited energy in a named volume (optionally including daughters).
     Double_t GetEnergyInVolume(const std::string& volumeName, bool children = false) const;
-
-    /// \brief Returns the process name recorded in the last hit of this track.
     std::string GetLastProcessName() const;
 
-    /// Prints the track information. N number of hits to print, 0 = all
-    void PrintTrack(size_t maxHits = 0) const;
-    /// \brief Prints track information restricted to the provided volume name set.
+    void PrintTrack(int maxHits = -1) const;
     void PrintTrackFilterVolumes(const std::set<std::string>& filterVolumes) const;
+    void RemoveHits();
 
-    inline void RemoveHits() { fHits.RemoveG4Hits(); }
-
-    // Constructor
-    TRestGeant4Track();
-
-    // Destructor
-    virtual ~TRestGeant4Track();
-
-    friend class TRestGeant4Event;  // allows TRestGeant4Event to access private members
-
-    // restG4
-   public:
-    /// \brief Constructs a REST track from a Geant4 track object.
-    explicit TRestGeant4Track(const G4Track*);  //!
-    /// \brief Updates scalar track properties from Geant4 runtime state.
-    void UpdateTrack(const G4Track*);  //!
-    /// \brief Adds one Geant4 step to the internal hit collection.
-    void InsertStep(const G4Step*);  //!
+    friend class TRestGeant4Event;
 };
-
 
 #endif

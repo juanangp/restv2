@@ -42,6 +42,8 @@ class TRestRun : public TRestMetadata {
 
     Long64_t fEntry=0;
 
+    Long64_t fInputEntries = 0;
+
     YAML::Node fInputFileNode;
 
     std::unique_ptr<TFile> fInputFile;
@@ -50,6 +52,7 @@ class TRestRun : public TRestMetadata {
     std::map<std::string, TTree*> fInputEventTrees;
     std::map<std::string, TTree*> fOutputEventTrees;
     TTree* fAnalysisTree = nullptr;
+    TTree* fOutputAnalysisTree = nullptr;
 
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
@@ -201,8 +204,14 @@ class TRestRun : public TRestMetadata {
     /// \brief Returns number of entries in analysis tree.
     /// \return Entry count or `0` when analysis tree is missing.
     Long64_t GetEntries() const {
-        if (!fAnalysisTree) return 0;
-        return fAnalysisTree->GetEntries();
+      if (fInputEntries > 0) return fInputEntries;
+      if (!fAnalysisTree) return 0;
+      return fAnalysisTree->GetEntries();
+    }
+
+    Long64_t GetSavedEntries() const {
+      if (!fOutputAnalysisTree) return 0;
+      return fOutputAnalysisTree->GetEntries();
     }
 
     Long64_t GetEntryWithID(int eventID, int subEventID = -1, const std::string& tag = "");
@@ -240,30 +249,29 @@ class TRestRun : public TRestMetadata {
     /// \brief Registers an output event object and creates its output tree if needed.
     /// \tparam T Event type.
     /// \param className Output tree/class name.
-    /// \param eventObject Event instance to bind.
-    template <typename T>
-    void RegisterEvent(const std::string& className, T& eventObject) {
-        static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
+template <typename T>
+void RegisterEvent(const std::string& className, T& eventObject) {
+    static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
 
-        if (!fOutputFile) {
-            throw std::runtime_error("TRestRun: No output file added");
-        }
-
-        if (fOutputEventTrees.find(className) == fOutputEventTrees.end()) {
-            fOutputFile->cd();
-            auto* tree = new TTree(className.c_str(), (className + " AOD Event Tree").c_str());
-            tree->SetAutoSave(0);
-            fOutputEventTrees[className] = tree;
-        }
-
-        fOutputEvents[className] = &eventObject;
-
-        eventObject.CreateBranches(fOutputEventTrees[className]);
-
-        if (fOutputEvents.size() > 0 && fAnalysisTree) {
-            eventObject.TRestEvent::CreateBranches(fAnalysisTree);
-        }
+    if (!fOutputFile) {
+        throw std::runtime_error("TRestRun: No output file added");
     }
+
+    if (fOutputEventTrees.find(className) == fOutputEventTrees.end()) {
+        fOutputFile->cd();
+        auto* tree = new TTree(className.c_str(), (className + " AOD Event Tree").c_str());
+        tree->SetAutoSave(0);
+        fOutputEventTrees[className] = tree;
+    }
+
+    fOutputEvents[className] = &eventObject;
+
+    eventObject.CreateBranches(fOutputEventTrees[className]);
+
+    if (fOutputEvents.size() > 0 && fOutputAnalysisTree) {
+        eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
+    }
+}
 
     /// \brief Registers an observable branch in analysis tree.
     /// \tparam T Observable value type.
@@ -271,8 +279,8 @@ class TRestRun : public TRestMetadata {
     /// \param variable Variable bound to branch.
     template <typename T>
     void SetObservable(const std::string& name, T& variable) {
-        if (!fAnalysisTree) throw std::runtime_error("TRestRun: Output file not open");
-        fAnalysisTree->Branch(name.c_str(), &variable);
+        if (!fOutputAnalysisTree) throw std::runtime_error("TRestRun: Output file not open");
+        fOutputAnalysisTree->Branch(name.c_str(), &variable);
     }
 
     /// \brief Binds an observable branch for reading.
@@ -290,8 +298,8 @@ class TRestRun : public TRestMetadata {
     /// \param instanceName Metadata instance name.
     /// \param className Metadata class name.
     /// \param configNode Metadata YAML node.
-    void AddMetadata(const std::string& instanceName, const YAML::Node& configNode);
     void AddMetadata(TRestMetadata* metadata);
+    void AddHistoricMetadata();
 
     /// \brief Retrieves metadata YAML node by instance name.
     /// \param instanceName Metadata instance name.
@@ -324,6 +332,8 @@ class TRestRun : public TRestMetadata {
     void SetInputEvent(const std::string& treeName);
 
     std::map<std::string, TRestEvent*> GetInputEventMap() const {return fInputEvents;}
+
+    bool inputEventExist(const std::string& treeName);
 
     /// \brief Fills all registered output trees for current event.
     void Fill();

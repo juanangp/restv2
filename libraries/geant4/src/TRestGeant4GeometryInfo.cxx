@@ -67,7 +67,9 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumes() const 
 /// \brief Helper method to filter logical volume structures matching an explicit regular expression pattern.
 std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingExpression(
     const std::string& expression) const {
+    
     std::vector<std::string> matched;
+    
     std::vector<std::string> allLogical = GetAllLogicalVolumes();
     TPRegexp regex(expression.c_str());
 
@@ -76,13 +78,28 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingEx
             matched.push_back(volName);
         }
     }
+
+    if (matched.empty()) {
+        std::set<std::string> uniqueLogicalNames;
+        for (const auto& pair : fG4ToAltNames) {
+            uniqueLogicalNames.insert(pair.second.begin(), pair.second.end());
+        }
+        
+        for (const auto& volName : uniqueLogicalNames) {
+            if (regex.MatchB(volName.c_str())) {
+                matched.push_back(volName);
+            }
+        }
+    }
+
     return matched;
 }
 
-/// \brief Helper method to filter physical volume structures matching an explicit regular expression pattern.
 std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesMatchingExpression(
     const std::string& expression) const {
+    
     std::vector<std::string> matched;
+    
     std::vector<std::string> allPhysical = GetAllPhysicalVolumes();
     TPRegexp regex(expression.c_str());
 
@@ -91,6 +108,19 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesMatchingE
             matched.push_back(nodeName);
         }
     }
+
+    if (matched.empty()) {
+        for (const auto& pair : fG4ToAltNames) {
+            const std::string& physName = pair.first;
+            
+            std::string cleanName = (!pair.second.empty()) ? *(pair.second.begin()) : physName;
+
+            if (regex.MatchB(cleanName.c_str()) || regex.MatchB(physName.c_str())) {
+                matched.push_back(physName);
+            }
+        }
+    }
+
     return matched;
 }
 
@@ -107,13 +137,27 @@ std::string TRestGeant4GeometryInfo::GetAlternativePathFromGeant4Path(const std:
     return alternativePath;
 }
 
+std::string TRestGeant4GeometryInfo::GetGeant4NameFiltered(const std::string& g4Name) {
+    if (g4Name.find("av_") != std::string::npos && g4Name.find("_impr_") != std::string::npos) {
+        size_t imprPos = g4Name.find("_impr_");
+        size_t startPos = g4Name.find("_", imprPos + 6);
+        size_t endPos = g4Name.rfind("_pv_");
+        
+        if (startPos != std::string::npos && endPos != std::string::npos && endPos > startPos) {
+            return g4Name.substr(startPos + 1, endPos - startPos - 1);
+        }
+    }
+    return g4Name;
+}
+
 std::string TRestGeant4GeometryInfo::GetAlternativeNameFromGeant4PhysicalName(
     const std::string& g4Name) const {
+
     auto it = fG4ToAltNames.find(g4Name);
     if (it != fG4ToAltNames.end() && !it->second.empty()) {
         return *(it->second.begin());
     }
-    return g4Name; 
+    return g4Name;
 }
 
 std::set<std::string> TRestGeant4GeometryInfo::GetAlternativeNamesFromGeant4PhysicalName(

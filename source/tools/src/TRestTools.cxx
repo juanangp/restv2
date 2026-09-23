@@ -1,7 +1,3 @@
-
-
-
-
 #include <chrono>
 #include <filesystem>
 #include <stdexcept>
@@ -126,22 +122,26 @@ bool TRestTools::isRootFile(const std::string& filename) {
 
 bool TRestTools::isValidTRestRun(const std::string& filename) {
     if (!TRestTools::isRootFile(filename)) {
+        //std::cout<<filename<<" is not a valid root file"<<std::endl;
         return false;
     }
 
     std::unique_ptr<TFile> file(TFile::Open(filename.c_str(), "READ"));
     if (!file || file->IsZombie()) {
+        std::cout<<filename<<" is zombie or invalid"<<std::endl;
         return false;
     }
 
     TObject* analysisTree = file->Get("AnalysisTree");
     if (!analysisTree) {
+        std::cout<<filename<<" analysisTree not found"<<std::endl;
         file->Close();
         return false;
     }
 
     TDirectory* metadataDir = file->GetDirectory("RESTMetadataStore");
     if (!metadataDir) {
+        std::cout<<filename<<" no TRestMetadata"<<std::endl;
         file->Close();
         return false;
     }
@@ -175,6 +175,7 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
             }
         }
     }
+    if(!hasRestRunMetadata) std::cout<<filename<<" no valid TRestRun metadata"<<std::endl;
 
     file->Close();
     return hasRestRunMetadata;
@@ -519,8 +520,10 @@ std::string TRestTools::ToTimeStringLong(double seconds) {
 
 std::string TRestTools::CleanExpression(const std::string& expr) {
     std::string clean = expr;
+    
     clean.erase(std::remove_if(clean.begin(), clean.end(), [](unsigned char c) { 
-        return std::isspace(c); 
+        return std::isspace(c) || c == '\r' || c == '\n'; 
     }), clean.end());
+    
     return clean;
 }

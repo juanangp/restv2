@@ -5,6 +5,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <iostream>
 #include <vector>
 #include <unordered_map>
 
@@ -86,6 +87,8 @@ class TRestGeant4GeometryInfo {
     }
 
     inline TGeoManager* GetGeometry() const { return fGeoManager; }
+
+    static std::string GetGeant4NameFiltered (const std::string& g4Name);
 
     // --- Structural Interfaces & ID Maps ---
     inline bool IsAssembly() const { return fIsAssembly; }

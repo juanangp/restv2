@@ -41,7 +41,7 @@ class TRestEventProcess : public TRestMetadata {
 
     /// \brief Returns expected input event count when known.
     /// \return Number of input events or `-1` if unknown.
-    virtual Long64_t GetInputEventCount() const { return -1; }
+    virtual Long64_t GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
 
     /// \brief No-op configuration loader for process instances.
     virtual void LoadConfig() override;

@@ -119,6 +119,11 @@ endfunction()
 add_subdirectory(source/tools)
 add_subdirectory(source/core)
 
+option(${GEANT4_LIB} "Build the geant4 library" ON)
+if(${GEANT4_LIB})
+  add_subdirectory(libraries/geant4)
+endif()
+
 option(${RAW_LIB} "Build the raw-signal library" ON)
 if(${RAW_LIB})
   add_subdirectory(libraries/raw)
@@ -129,12 +134,6 @@ if(${DETECTOR_LIB})
   add_subdirectory(libraries/detector)
 endif()
 
-option(${GEANT4_LIB} "Build the geant4 library" ON)
-if(${GEANT4_LIB})
-  add_subdirectory(libraries/geant4)
-endif()
-
-# Nuevo Flag para el paquete de simulación ejecutable restG4
 option(REST_G4 "Build the optional restG4 package application" ON)
 if(REST_G4)
   add_subdirectory(packages/restG4)

@@ -20,6 +20,11 @@ foreach(src ${BIN_SOURCES})
     target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" ${RAW_LIB} "-Wl,--as-needed")
   endif()
 
+  if(TARGET ${GEANT4_LIB})
+    target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" ${GEANT4_LIB} "-Wl,--as-needed")
+  endif()
+
+
   # Link all configured ROOT libraries in every executable.
   if(ROOT_TARGET_LIBRARIES)
     target_link_libraries(${exe_name} PRIVATE ${ROOT_TARGET_LIBRARIES})

@@ -137,7 +137,7 @@ void TRestRun::LoadConfig() {
     ResolveInputFormat();
 
     // In case inputFormat is empty we get preserve variables fron input file
-    if (fInputFormat.empty()) {
+    if (fInputFile) {
         if (fInputFileNode && !fInputFileNode.IsNull()) {
             if (fConfigRunNumber == "preserve")
                 fRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "runNumber", fRunNumber);
@@ -154,9 +154,7 @@ void TRestRun::LoadConfig() {
                 fExperimentName =
                     ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", fExperimentName);
         }
-    }
-
-    if (fInputFileName.empty() || fInputFileName == "Null") {
+    } else {
       if(fInputFormat.empty()){
         //In case no input is provided we perform the automatic run numbering
         if (fConfigRunNumber == "auto") fRunNumber = GetRunNumberAuto();
@@ -176,6 +174,15 @@ void TRestRun::LoadConfig() {
 
 void TRestRun::OpenInputFile(const std::string& filename) {
     fInputFileName = GetFullPath(filename);
+    
+    if(!isValidTRestRun(fInputFileName)){
+       RESTError << filename << " is not a valid TRestRun " << RESTendl;
+        delete fAnalysisTree;
+        fAnalysisTree = nullptr;
+        fInputFile.reset(); 
+        return;
+    }
+    
     fInputFile = std::make_unique<TFile>(fInputFileName.c_str(), "READ");
     if (!fInputFile || fInputFile->IsZombie()) {
         throw std::runtime_error("TRestRun: Cannot open file " + filename);
@@ -183,15 +190,10 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     fInputFile->GetObject("AnalysisTree", fAnalysisTree);
 
-    if (!fAnalysisTree) {
-        RESTError << filename << " is not a valid TRestRun " << RESTendl;
-        fInputFile.reset(); 
-        return;
-    }
+    fInputEntries = fAnalysisTree->GetEntries();
 
-    YAML::Node selfConfig = GetMetadata(GetName());
+    YAML::Node selfConfig;
 
-    if (!selfConfig || selfConfig.IsNull()) {
         TDirectory* metadataDir = fInputFile->GetDirectory("RESTMetadataStore");
         if (metadataDir) {
             TList* keysInDir = metadataDir->GetListOfKeys();
@@ -228,7 +230,6 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                 }
             }
         }
-    }
 
     // =========================================================================
 
@@ -258,6 +259,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                 auto eventObj = EventRegistry::Instance().Create(className, className);
                 eventObj->Initialize();
                 eventObj->SetBranchAddresses(tree);
+                eventObj->SetRestRun(this);
 
                 if (fAnalysisTree && fInputEvents.empty()) {
                     eventObj->TRestEvent::SetBranchAddresses(fAnalysisTree);
@@ -275,6 +277,14 @@ void TRestRun::AddMetadata(TRestMetadata* metadata) {
         throw std::runtime_error("TRestRun::AddMetadata: NULL metadata object");
     }
     metadata->WriteMetadata(fOutputFile.get());
+}
+
+void TRestRun::AddHistoricMetadata() {
+    for (auto* metadata : fMetadataStore) {
+        if (metadata && metadata->GetClassName() != "TRestRun") {
+          metadata->WriteMetadata(fOutputFile.get());
+        }
+    }
 }
 
 YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
@@ -300,6 +310,14 @@ TRestEvent& TRestRun::GetInputEvent(const std::string& treeName) {
     }
     fInputEvent = it->second;
     return *(fInputEvent);
+}
+
+bool TRestRun::inputEventExist(const std::string& treeName) {
+    auto it = fInputEvents.find(treeName);
+    if (it == fInputEvents.end()) {
+        return false;
+    }
+    return true;
 }
 
 void TRestRun::SetInputEvent(const std::string& treeName) {
@@ -405,18 +423,30 @@ void TRestRun::OpenOutputFile() {
     if (!fOutputFile || fOutputFile->IsZombie()) {
         throw std::runtime_error("TRestRun: Cannot open output file.");
     }
-
+ 
     fOutputFile->cd();
-    fAnalysisTree = new TTree("AnalysisTree", "REST Generic Analysis Observables");
-    fAnalysisTree->SetAutoSave(0);
+
+    if (fAnalysisTree) {
+        fOutputAnalysisTree = fAnalysisTree->CloneTree(0);
+        
+        fAnalysisTree->CopyAddresses(fOutputAnalysisTree);
+    } else {
+        fOutputAnalysisTree = new TTree("AnalysisTree", "REST Generic Analysis Observables");
+    }
+
+    fOutputAnalysisTree->SetAutoSave(0);
 }
 
 void TRestRun::Fill() {
     if (fOutputFile) fOutputFile->cd();
-    for (auto& [treeName, tree] : fOutputEventTrees) {
-        if (tree) tree->Fill();
+    
+    for (auto& [treeName, tree] : fOutputEventTrees)
+            tree->Fill();
+    
+    if (fOutputAnalysisTree) {
+        fOutputAnalysisTree->Fill();
     }
-    if (fAnalysisTree) fAnalysisTree->Fill();
+
     ++fEntriesSaved;
 }
 
@@ -426,12 +456,12 @@ void TRestRun::CloseFiles() {
         for (auto& [treeName, tree] : fOutputEventTrees) {
             if (tree) tree->Write("", TObject::kOverwrite);
         }
-        if (fAnalysisTree) fAnalysisTree->Write("", TObject::kOverwrite);
+        if (fOutputAnalysisTree) fOutputAnalysisTree->Write("", TObject::kOverwrite);
 
         fOutputFile->Close();
         fOutputFile.reset();
         fOutputEventTrees.clear();
-        fAnalysisTree = nullptr;
+        fOutputAnalysisTree = nullptr;
     }
     if (fInputFile) {
         fInputFile->Close();

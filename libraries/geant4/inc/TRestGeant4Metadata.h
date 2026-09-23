@@ -51,7 +51,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     TRestGeant4GeometryInfo fGeant4GeometryInfo;
 
     /// Class used to store and retrieve physics info such as process names or particle names
-    TRestGeant4PhysicsInfo fGeant4PhysicsInfo;
+    mutable TRestGeant4PhysicsInfo fGeant4PhysicsInfo;
 
     /// Class used to store and retrieve Geant4 primary generator info
     TRestGeant4PrimaryGeneratorInfo fGeant4PrimaryGeneratorInfo;
@@ -254,7 +254,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline int isBiasingActive() const { return static_cast<int>(fBiasingVolumes.size()); }
 
     // --- Sensitive Volumes Management ---
-    inline std::string GetSensitiveVolume(int n = 0) const { return fSensitiveVolumes.at(n); }
+    inline std::string GetSensitiveVolume(int n ) const { return fSensitiveVolumes.at(n); }
     inline size_t GetNumberOfSensitiveVolumes() const { return fSensitiveVolumes.size(); }
     inline const std::vector<std::string>& GetSensitiveVolumes() const { return fSensitiveVolumes; }
     inline void InsertSensitiveVolume(const std::string& volume) {
@@ -263,6 +263,8 @@ class TRestGeant4Metadata : public TRestMetadata {
             fSensitiveVolumes.push_back(volume);
         }
     }
+
+    bool IsSensitiveVolume( const std::string &volumeName ) { return std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), volumeName) != fSensitiveVolumes.end();}
 
     // --- Fast Lookup and Modernized Volume Properties ---
     inline unsigned int GetNumberOfActiveVolumes() const {

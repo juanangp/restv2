@@ -31,7 +31,7 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
    public:
     std::string fSpatialGeneratorType = "point";
     std::string fSpatialGeneratorShape = "box";
-    std::string fSpatialGeneratorFrom = "World";
+    std::string fSpatialGeneratorFrom = "";
 
     std::array<TRestWithUnits, 3> fSpatialGeneratorPosition = {0.0, 0.0, 0.0};
     std::array<TRestWithUnits, 3> fSpatialGeneratorRotationAxis = {0.0, 0.0, 1.0};

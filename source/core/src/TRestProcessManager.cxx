@@ -189,10 +189,10 @@ void TRestProcessManager::Run() {
 
             TRestEvent* inputEventPtr = nullptr;
             if (inputName != "None" && !inputName.empty()) {
-                if (fEventPool.find(inputName) != fEventPool.end()) {
-                    inputEventPtr = fEventPool[inputName].get();
-                } else {
+                if (fRunInfo->inputEventExist(inputName)) {
                     inputEventPtr = &fRunInfo->GetInputEvent(inputName);
+                } else if (fEventPool.find(inputName) != fEventPool.end()) {
+                    inputEventPtr = fEventPool[inputName].get();
                 }
             }
 

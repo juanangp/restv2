@@ -69,6 +69,8 @@ void TRestManager::SaveMetadata() {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
 
+    fConfiguredRun->AddHistoricMetadata();
+
     for (const auto& meta : fMetaObjects) {
         fConfiguredRun->AddMetadata(meta.get());
     }

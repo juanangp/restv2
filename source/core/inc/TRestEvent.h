@@ -180,6 +180,12 @@ class TRestEvent {
       this->fPtrSubEventTag = &this->fInfo.subEventTag;
     }
 
+    virtual void MoveFrom(TRestEvent* other) {
+    if (!other) return;
+    this->SetEventInfo(other);
+    this->fPtrSubEventTag = &this->fInfo.subEventTag;
+   }
+
     /// \brief Prints event summary.
     virtual void PrintEvent() const;
 

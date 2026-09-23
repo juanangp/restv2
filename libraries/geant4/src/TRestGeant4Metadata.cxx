@@ -201,10 +201,40 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     fChance.clear();
     fMaxStepSize.clear();
     fActiveVolumesSet.clear();
+    const auto& geometryInfo = GetGeant4GeometryInfo();
+
     for (const auto& volume : fActiveVolumesMetadata) {
         if (volume.fVolumeName.empty()) continue;
-        SetActiveVolume(volume.fVolumeName, volume.fChance, volume.fMaxStep);
+
+        std::vector<std::string> matchedPhysicals = geometryInfo.GetAllPhysicalVolumesMatchingExpression(volume.fVolumeName);
+        if (!matchedPhysicals.empty()) {
+            for (const auto& physVol : matchedPhysicals) {
+                SetActiveVolume(physVol, volume.fChance, volume.fMaxStep);
+                RegisterVolumeAlias(volume.fVolumeName, physVol);
+            }
+        } else {
+            SetActiveVolume(volume.fVolumeName, volume.fChance, volume.fMaxStep);
+        }
     }
+
+    std::vector<std::string> sensitiveExpressions = fSensitiveVolumes;
+    fSensitiveVolumes.clear();
+
+    for (const auto& sensExpr : sensitiveExpressions) {
+        std::vector<std::string> matchedPhysicals = geometryInfo.GetAllPhysicalVolumesMatchingExpression(sensExpr);
+        
+        if (!matchedPhysicals.empty()) {
+            for (const auto& physVol : matchedPhysicals) {
+                if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), physVol) == fSensitiveVolumes.end()) {
+                    fSensitiveVolumes.push_back(physVol);
+                }
+                RegisterVolumeAlias(sensExpr, physVol);
+            }
+        } else {
+            fSensitiveVolumes.push_back(sensExpr);
+        }
+    }
+
     // Tracks with hits in active/sensitive volumes must survive removeUnwantedTracks
     fRemoveUnwantedTracksVolumesToKeep.clear();
     fRemoveUnwantedTracksVolumesToKeep.insert(fActiveVolumes.begin(), fActiveVolumes.end());

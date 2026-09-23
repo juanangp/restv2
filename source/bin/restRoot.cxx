@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
         std::string fullPath = TRestTools::GetFullPath(arg);
 
         if (TRestTools::isValidTRestRun(fullPath)) {
-            fileToOpen = fullPath; // Guardamos la ruta absoluta para nuestra macro
+            fileToOpen = fullPath;
             continue;
         }
         

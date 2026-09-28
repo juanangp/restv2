@@ -1,0 +1,16 @@
+readout:
+  class: "TRestGDMLReadout"
+  name: "Veto_Readout"
+  title: "Veto geometry from GDML file"
+  decodingFile: "veto.dec"
+  readoutParameters:
+    gdmlFileName: "/home/juanan/restv2/packages/restG4/examples/13.IAXO/geometry/setup.gdml"
+    readoutInfo:
+      - channelPrefix: .*scintillatorVolume-*
+        offset: 288
+
+
+#      - channelPrefix: .*assembly-([0-9]+).*veto([0-9]+).*scintillatorVolume-1500\.0mm.*
+#        offset: 0
+#      - channelPrefix: ..*assembly-([0-9]+).*veto([0-9]+).*scintillatorVolume-800\.0mm.*
+#        offset: 200

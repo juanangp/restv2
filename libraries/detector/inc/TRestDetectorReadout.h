@@ -12,6 +12,7 @@
 
 class TFile;
 
+
 /// \class TRestDetectorReadout
 /// \brief Abstract base class to describe detector readout geometry and decoding.
 ///
@@ -25,8 +26,7 @@ class TRestDetectorReadout : public TRestMetadata {
     /// ROOT geometry manager used for geometry navigation and position lookup.
     TGeoManager* fGeoManager = nullptr;
 
-    /// Top-level logical assembly that owns all readout nodes.
-    TGeoVolumeAssembly* fTopAssembly = nullptr;
+    mutable TGeoManager* fViewGeo = nullptr;
 
     /// Decoding map from geometry physical ID to DAQ channel ID.
     std::map<int, int> fPhysicalToDAQMap;
@@ -34,6 +34,18 @@ class TRestDetectorReadout : public TRestMetadata {
    public:
     /// \brief Default decoding file name used when none is provided by configuration.
     std::string fDecodingFile = "default_decoding.dec";
+    std::map<std::string, int> fPathToPhysicalIDMap;
+
+    struct ViewItem {
+        TGeoShape* shape = nullptr;
+        TGeoMedium* medium = nullptr;
+        std::unique_ptr<TGeoHMatrix> matrix;
+        Color_t color = kGray;
+        Char_t transparency = 0;
+        std::string name;
+    };
+
+    static constexpr double kMMtoCM = 0.1;   // REST in mm but GeoManager in cm
 
     /// \brief Constructs a detector readout metadata object.
     TRestDetectorReadout();
@@ -120,6 +132,11 @@ class TRestDetectorReadout : public TRestMetadata {
         return false;
     }
 
+    void GetViewItems(std::vector<ViewItem>& items, const std::vector<int>& activeChannels = {}) const;
+
+    static void DrawViewItems(std::vector<ViewItem>& items, TGeoManager*& viewGeo,
+                              const std::string& option = "ogl");
+
     /// \brief Sets the geometry manager used by this readout.
     /// \param geo Geometry manager pointer.
     void SetGeoManager(TGeoManager* geo);
@@ -127,6 +144,10 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Returns the current geometry manager.
     /// \return Pointer to the geometry manager.
     TGeoManager* GetGeoManager() const { return fGeoManager; }
+
+   protected:
+    virtual void CollectViewItems(const std::set<int>& activeIDs, std::vector<ViewItem>& items) const;
+
 };
 
 #endif

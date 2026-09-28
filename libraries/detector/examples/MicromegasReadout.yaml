@@ -6,6 +6,7 @@ readout:
     nChannels: 120 
     pitch: 0.5
     thickness: 1 um
+    gasThickness: 30 mm
     positionRelative: [0.0, 0.0, -1.50 cm]
     globalRotation: 45 deg
 

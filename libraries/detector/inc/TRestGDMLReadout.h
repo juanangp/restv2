@@ -3,13 +3,37 @@
 
 #include "TRestDetectorReadout.h"
 
+class TRestGDMLReadoutInfo : public TRestMetadata {
+   public:
+    std::string fChannelPrefix = "";
+    int fMultiplier = 10;
+    int fOffset = 0;
+
+    TRestGDMLReadoutInfo();
+    TRestGDMLReadoutInfo(const std::string& name, const YAML::Node& node);
+    void LoadConfig() override;
+    void Initialize() override {}
+    std::string GetClassName() const override { return "TRestGDMLReadoutInfo"; }
+};
+
+class TRestGDMLReadoutParameters : public TRestMetadata {
+   public:
+    std::string fGDMLFileName = "";   ///< Path to the input external GDML file
+    std::vector<TRestGDMLReadoutInfo> fReadoutInfo;
+
+    TRestGDMLReadoutParameters();
+    TRestGDMLReadoutParameters(const std::string& name, const YAML::Node& node);
+    void LoadConfig() override;
+    void Initialize() override {}
+    std::string GetClassName() const override { return "TRestGDMLReadoutParameters"; }
+};
+
 /// \class TRestGDMLReadout
 /// \brief Detector readout implementation that imports geometry and channels from GDML naming rules.
 class TRestGDMLReadout : public TRestDetectorReadout {
    public:
-    YAML::Node fReadoutNode;
-    std::string fGDMLFileName = "";   ///< Path to the input external GDML file
-    std::string fChannelPrefix = "";  ///< Prefix token to parse inside volume names (e.g., "strip_")
+
+    TRestGDMLReadoutParameters fReadoutParams;
 
     /// \brief Constructor.
     TRestGDMLReadout();

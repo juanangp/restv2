@@ -4,12 +4,18 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <algorithm> 
 
 #include "TDirectory.h"
 #include "TError.h"
 #include "TFile.h"
-#include "TGeoMatrix.h"
-#include "TGeoNode.h"
+#include <TGeoBBox.h>
+#include <TGeoMatrix.h>
+#include <TGeoVolume.h>
+#include <TGeoNode.h>
+#include <TGeoManager.h>
+#include <TGeoMaterial.h>
+#include <TGeoMedium.h>
 #include "TObjString.h"
 #include "TRestConstants.h"
 
@@ -18,6 +24,7 @@ using namespace TRestConstants;
 static const bool TRestDetectorReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestDetectorReadout>("decodingFile", &TRestDetectorReadout::fDecodingFile);
+     reg.RegisterField<TRestDetectorReadout>("volumeToPhysicalIDMap", &TRestDetectorReadout::fPathToPhysicalIDMap);
     return true;
 }();
 
@@ -54,14 +61,13 @@ void TRestDetectorReadout::LoadConfig() {
 }
 
 void TRestDetectorReadout::InitializeReadout() {
-    // Initialize an isolated, silent TGeoManager instance
-    if (fGeoManager) delete fGeoManager;
+    if (fGeoManager) { delete fGeoManager; fGeoManager = nullptr; }
+    gGeoManager = nullptr;   // el constructor no debe borrar la geometría de otro readout
     fGeoManager = new TGeoManager(fName.c_str(), fName.c_str());
     TGeoManager::SetVerboseLevel(0);
 
-    // Create a logical Assembly as Top Volume (no physical materials or vacuum setup required)
-    fTopAssembly = fGeoManager->MakeVolumeAssembly("READOUT_TOP");
-    fGeoManager->SetTopVolume(fTopAssembly);
+    TGeoVolume* top = fGeoManager->MakeVolumeAssembly("READOUT_TOP");
+    fGeoManager->SetTopVolume(top);
 }
 
 /// \brief Parses decoding text with `physicalID readoutChannel` rows.
@@ -91,72 +97,197 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
     return (linesParsed > 0);
 }
 
-/// \brief Opens a graphical window to visualize the readout geometry.
-/// \param option Drawing option passed to ROOT (e.g., "ogl" for OpenGL).
 void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const {
-    if (!fGeoManager || !fTopAssembly) {
-        RESTError << "Cannot visualize readout: Geometry is not initialized!" << RESTendl;
-        return;
-    }
-
-    RESTInfo << "Opening visualizer for readout geometry: " << GetName() << RESTendl;
-
-    // Set visibility settings for the logical assembly container so it doesn't
-    // obstruct the view of the internal sensitive channels/pixels
-    fTopAssembly->SetVisibility(kFALSE);
-    fTopAssembly->VisibleDaughters(kTRUE);
-
-    fGeoManager->SetVisLevel(10);
-    fGeoManager->SetVisOption(0);
-
-    // Tell ROOT to draw the top assembly volume containing all the physical nodes
-    // If option is "ogl", it spawns the standalone high-performance OpenGL viewer
-    fTopAssembly->Draw(option.c_str());
+    std::vector<ViewItem> items;
+    GetViewItems(items);
+    if (items.empty()) { RESTError << "Nothing to draw for readout " << GetName() << RESTendl; return; }
+    DrawViewItems(items, fViewGeo, option);
 }
 
-/// \brief Visualizes the geometry highlighting a specific set of active DAQ channels.
-/// \param activeChannels Vector containing the DAQ channel IDs that fired in the event.
 void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannels) const {
-    if (!fTopAssembly) return;
+    std::vector<ViewItem> items;
+    GetViewItems(items, activeChannels);
+    if (items.empty()) { RESTError << "Nothing to draw for readout " << GetName() << RESTendl; return; }
+    DrawViewItems(items, fViewGeo);
+}
 
-    // 1. Access the intermediate assembly volume (first child of fTopAssembly)
-    if (fTopAssembly->GetNdaughters() == 0) return;
-    TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
-    TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();
+void TRestDetectorReadout::GetViewItems(std::vector<ViewItem>& items,
+                                        const std::vector<int>& activeChannels) const {
+    if (!fGeoManager) return;
 
-    // The node count now matches the number of physical pixels.
-    int nNodes = subAssemblyVol->GetNdaughters();
+    const std::set<int> activeDAQ(activeChannels.begin(), activeChannels.end());
+    std::set<int> activeIDs;
+    for (const auto& [physID, daqID] : fPhysicalToDAQMap)
+        if (activeDAQ.count(daqID)) activeIDs.insert(physID);
 
-    // 2. Analyze which DAQ channels were activated in the event.
-    for (int daqID : activeChannels) {
-        int targetPhysicalID = -1;
+    CollectViewItems(activeIDs, items);  
+}
 
-        for (const auto& [physicalID, readoutChannel] : fPhysicalToDAQMap) {
-            if (readoutChannel == daqID) {
-                targetPhysicalID = physicalID;
-                break;
-            }
+void TRestDetectorReadout::CollectViewItems(const std::set<int>& activeIDs,
+                                            std::vector<ViewItem>& items) const {
+    const bool usePathNavigation = !fPathToPhysicalIDMap.empty();
+
+    auto add = [&](TGeoNode* n, const TGeoMatrix* m, int physID) {
+        if (!n || !m || !n->GetVolume() || !n->GetVolume()->GetShape()) return;
+        if (n->GetVolume()->IsAssembly()) return;
+
+        TGeoVolume* vol = n->GetVolume();
+        const bool active = activeIDs.count(physID) > 0;
+
+        ViewItem item;
+        item.shape = vol->GetShape();
+        item.medium = vol->GetMedium();
+        item.matrix = std::make_unique<TGeoHMatrix>(*m);
+        item.color = active ? static_cast<Color_t>(kRed) : vol->GetLineColor();
+        item.transparency = active ? 0 : vol->GetTransparency();
+        item.name = n->GetName();
+        items.push_back(std::move(item));
+    };
+
+    if (usePathNavigation) {
+        for (const auto& [path, physID] : fPathToPhysicalIDMap) {
+            if (!fGeoManager->cd(path.c_str())) continue;
+            add(fGeoManager->GetCurrentNode(), fGeoManager->GetCurrentMatrix(), physID);
         }
-
-        if (targetPhysicalID == -1) continue;
-
-        // 3. Find the pixel among the intermediate assembly children.
-        for (int i = 0; i < nNodes; ++i) {
-            TGeoNode* node = subAssemblyVol->GetNode(i);
-            int combinedID = node->GetUniqueID();
-
-            if (combinedID == targetPhysicalID) {
-                // Highlight the active channel pixel volume in red.
-                node->GetVolume()->SetLineColor(kRed);
-            }
+    } else {
+        TGeoIterator it(fGeoManager->GetTopVolume());
+        while (TGeoNode* node = it()) {
+            add(node, it.GetCurrentMatrix(), static_cast<int>(node->GetUniqueID()));
         }
     }
+}
 
-    fGeoManager->SetVisLevel(10);
-    fGeoManager->SetVisOption(0);
+void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManager*& viewGeo,
+                                         const std::string& option) {
+    if (items.empty()) return;
 
-    // 4. Redraw the interactive OpenGL canvas with the full rotated structure.
-    fTopAssembly->Draw("ogl");
+    TGeoMedium* topMedium = nullptr;
+    for (const auto& item : items)
+        if (item.medium) { topMedium = item.medium; break; }
+    if (!topMedium) return;
+
+    double half = 0.0;
+    for (const auto& item : items) {
+        auto* bbox = dynamic_cast<TGeoBBox*>(item.shape);
+        if (!bbox) continue;
+        const double* org = bbox->GetOrigin();
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sy = -1; sy <= 1; sy += 2)
+                for (int sz = -1; sz <= 1; sz += 2) {
+                    double local[3] = {org[0] + sx * bbox->GetDX(), org[1] + sy * bbox->GetDY(),
+                                       org[2] + sz * bbox->GetDZ()};
+                    double global[3];
+                    item.matrix->LocalToMaster(local, global);
+                    half = std::max<double>(
+                        {half, std::abs(global[0]), std::abs(global[1]), std::abs(global[2])});
+                }
+    }
+    half = (half > 0.0) ? 1.1 * half : 1.e5;
+
+    TGeoManager* prevGeo = gGeoManager;
+    if (viewGeo) {
+        if (prevGeo == viewGeo) prevGeo = nullptr;
+        delete viewGeo;
+        viewGeo = nullptr;
+    }
+
+    gGeoManager = nullptr;   // el constructor borraría la geometría global existente
+    viewGeo = new TGeoManager("activeEventView", "Active event view");
+
+    TGeoVolume* top = viewGeo->MakeBox("TOP", topMedium, half, half, half);
+    viewGeo->SetTopVolume(top);
+
+    int i = 0;
+    for (auto& item : items) {
+        TGeoMedium* med = item.medium ? item.medium : topMedium;
+        auto* copy = new TGeoVolume(Form("%s_v%d", item.name.c_str(), i), item.shape, med);
+        copy->SetLineColor(item.color);
+        copy->SetVisibility(kTRUE);
+        top->AddNode(copy, i++, item.matrix.release());
+    }
+
+    viewGeo->CloseGeometry();
+    viewGeo->SetVisLevel(2);
+    viewGeo->SetVisOption(0);
+    top->SetVisibility(kFALSE);
+    top->VisibleDaughters(kTRUE);
+    top->Draw(option.c_str());
+
+    gGeoManager = prevGeo;
+}
+
+ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
+    if (!fGeoManager) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+
+    int targetPhysicalID = -1;
+    for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {
+        if (channelID == daqID) { targetPhysicalID = physicalID; break; }
+    }
+    if (targetPhysicalID < 0) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+
+    bool usePathNavigation = !fPathToPhysicalIDMap.empty();
+
+    if (usePathNavigation) {
+        std::string targetPath = "";
+        for (const auto& [path, id] : fPathToPhysicalIDMap) {
+            if (id == targetPhysicalID) { targetPath = path; break; }
+        }
+        if (targetPath.empty()) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+
+        if (!fGeoManager->cd(targetPath.c_str())) {
+            return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+        }
+
+        const TGeoMatrix* currentGlobalMatrix = fGeoManager->GetCurrentMatrix();
+        if (!currentGlobalMatrix) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+
+        double localOrigin[] = {0.0, 0.0, 0.0};
+        double globalMasterOrigin[] = {0.0, 0.0, 0.0};
+        currentGlobalMatrix->LocalToMaster(localOrigin, globalMasterOrigin);
+
+        return ROOT::Math::XYZVector(globalMasterOrigin[0] / kMMtoCM,
+                                     globalMasterOrigin[1] / kMMtoCM,
+                                     globalMasterOrigin[2] / kMMtoCM);
+    }
+
+    TGeoIterator it(fGeoManager->GetTopVolume());
+    TGeoNode* node = nullptr;
+    while ((node = it())) {
+        if (static_cast<int>(node->GetUniqueID()) == targetPhysicalID) {
+            const TGeoMatrix* currentGlobalMatrix = it.GetCurrentMatrix();
+            if (!currentGlobalMatrix) continue;
+
+            double localOrigin[] = {0.0, 0.0, 0.0};
+            double globalMasterOrigin[] = {0.0, 0.0, 0.0};
+            currentGlobalMatrix->LocalToMaster(localOrigin, globalMasterOrigin);
+
+            return ROOT::Math::XYZVector(globalMasterOrigin[0] / kMMtoCM,
+                                         globalMasterOrigin[1] / kMMtoCM,
+                                         globalMasterOrigin[2] / kMMtoCM);
+        }
+    }
+    return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
+}
+
+int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) const {
+    if (!fGeoManager || fPhysicalToDAQMap.empty()) return -1;
+
+    TGeoNode* node = fGeoManager->FindNode(x * kMMtoCM, y * kMMtoCM, z * kMMtoCM);
+    if (!node || node == fGeoManager->GetTopNode()) return -1;
+
+    int physicalID = -1;
+
+    if (!fPathToPhysicalIDMap.empty()) {
+        std::string nodePath = fGeoManager->GetPath();
+        auto it = fPathToPhysicalIDMap.find(nodePath);
+        if (it != fPathToPhysicalIDMap.end()) physicalID = it->second;
+    } else {
+        physicalID = static_cast<int>(node->GetUniqueID());
+    }
+
+    if (physicalID < 0) return -1;
+    auto daqIt = fPhysicalToDAQMap.find(physicalID);
+    return (daqIt != fPhysicalToDAQMap.end()) ? daqIt->second : -1;
 }
 
 /// \brief Loads decoding from a text file.
@@ -211,14 +342,20 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
     TDirectory* geoDir = fIn->GetDirectory("Geometries");
     if (!geoDir) return false;
 
+    TGeoManager* prevGeo = gGeoManager;
+    gGeoManager = nullptr;
+
     TGeoManager* geo = nullptr;
     geoDir->GetObject(resolvedGeometryName.c_str(), geo);
-    if (!geo) return false;
+
+    if (!geo) {
+        gGeoManager = prevGeo;
+        return false;
+    }
 
     SetGeoManager(geo);
 
     fNode = ReadMetadata(fIn, geometryName);
-
     return true;
 }
 
@@ -297,84 +434,8 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
     return true;
 }
 
-/// \brief Returns the DAQ channel associated with a spatial point.
-/// \param x X coordinate.
-/// \param y Y coordinate.
-/// \param z Z coordinate.
-/// \return DAQ channel ID, or `-1` when no channel is mapped.
-int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) const {
-    if (!fGeoManager) {
-        RESTError << "Geometry not initialized " << RESTendl;
-        return -1;
-    }
-
-    if (fPhysicalToDAQMap.empty()) {
-        RESTError << "Decoding not initialazed " << RESTendl;
-        return -1;
-    }
-
-    // ROOT high-speed navigation tree lookup over RAM voxel cells
-    TGeoNode* node = fGeoManager->FindNode(x, y, z);
-    if (!node || node == fGeoManager->GetTopNode()) return -1;
-
-    const int physicalID = static_cast<int>(node->GetUniqueID());
-
-    // Translate physical node layout ID into routing electronic ID
-    auto it = fPhysicalToDAQMap.find(physicalID);
-    return (it != fPhysicalToDAQMap.end()) ? it->second : -1;
-}
-
-/// \brief Returns spatial position associated with a DAQ channel.
-/// \param daqID DAQ channel identifier.
-/// \return Channel position, or `(nan,nan,nan)` when not found.
-ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) const {
-    if (!fTopAssembly) {
-        RESTError << "Geometry not initialized " << RESTendl;
-        return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
-    }
-
-    int targetPhysicalID = -1;
-    for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {
-        if (channelID == daqID) {
-            targetPhysicalID = physicalID;
-            break;
-        }
-    }
-    if (targetPhysicalID < 0) {
-        RESTError << "DaqID " << daqID << " not found" << RESTendl;
-        return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
-    }
-
-    if (fTopAssembly->GetNdaughters() == 0) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
-    TGeoNode* subAssemblyNode = fTopAssembly->GetNode(0);
-    TGeoVolume* subAssemblyVol = subAssemblyNode->GetVolume();
-
-    int nNodes = subAssemblyVol->GetNdaughters();
-    for (int i = 0; i < nNodes; ++i) {
-        TGeoNode* node = subAssemblyVol->GetNode(i);
-
-        if (static_cast<int>(node->GetUniqueID()) == targetPhysicalID) {
-            const TGeoMatrix* matrix = node->GetMatrix();
-            if (!matrix) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
-
-            const double* localTrans = matrix->GetTranslation();
-
-            const TGeoMatrix* globalMatrix = subAssemblyNode->GetMatrix();
-            if (!globalMatrix) return ROOT::Math::XYZVector(localTrans[0], localTrans[1], localTrans[2]);
-
-            double masterTrans[3];
-            globalMatrix->LocalToMaster(localTrans, masterTrans);
-
-            return ROOT::Math::XYZVector(masterTrans[0], masterTrans[1], masterTrans[2]);
-        }
-    }
-
-    return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
-}
-
 /// \brief Sets the geometry manager and updates top assembly pointer.
 /// \param geo Geometry manager pointer.
 void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) {
-    fGeoManager = geo;
-    if (fGeoManager) fTopAssembly = (TGeoVolumeAssembly*)fGeoManager->GetTopVolume();
+    fGeoManager = geo; 
 }

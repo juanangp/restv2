@@ -311,29 +311,29 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     /// \brief Returns non-const reference to an input event by tree name.
     /// \param treeName Event tree/class name.
     /// \return Input event reference.
-    TRestEvent& GetInputEvent(const std::string& treeName);
+    TRestEvent* GetInputEvent(const std::string& treeName);
 
     TRestEvent* GetInputEvent() {
         return fInputEvent;
     }
 
     template <typename T>
-    T* GetInputEvent() {
-        if (!fInputEvent) {
-            return nullptr;
-        }
-        T* castedEvent = dynamic_cast<T*>(fInputEvent);
+    T* GetInputEvent(const std::string& treeName) {
+      TRestEvent* baseEvent = GetInputEvent(treeName);
+      if (!baseEvent) return nullptr;
+
+      T* castedEvent = dynamic_cast<T*>(baseEvent);
         if (!castedEvent) {
-            throw std::runtime_error("TRestRun: The current input event is not of the requested type.");
+          RESTError << "TRestRun: The input event in tree '" << treeName 
+                    << "' is not of the requested type." << RESTendl;
+          return nullptr;
         }
-        return castedEvent;
+      return castedEvent;
     }
 
     void SetInputEvent(const std::string& treeName);
 
     std::map<std::string, TRestEvent*> GetInputEventMap() const {return fInputEvents;}
-
-    bool inputEventExist(const std::string& treeName);
 
     /// \brief Fills all registered output trees for current event.
     void Fill();

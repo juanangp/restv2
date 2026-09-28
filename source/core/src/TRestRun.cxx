@@ -303,27 +303,21 @@ TRestMetadata* TRestRun::GetMetadataClass(const std::string &className) const {
     return nullptr;
 }
 
-TRestEvent& TRestRun::GetInputEvent(const std::string& treeName) {
+TRestEvent* TRestRun::GetInputEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
     if (it == fInputEvents.end()) {
-        throw std::runtime_error("TRestRun: Tree '" + treeName + "' does not exist.");
+        RESTError<< "TRestRun: Tree '" << treeName << "' does not exist."<<RESTendl;
+        return nullptr;
     }
     fInputEvent = it->second;
-    return *(fInputEvent);
-}
-
-bool TRestRun::inputEventExist(const std::string& treeName) {
-    auto it = fInputEvents.find(treeName);
-    if (it == fInputEvents.end()) {
-        return false;
-    }
-    return true;
+    return fInputEvent;
 }
 
 void TRestRun::SetInputEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
     if (it == fInputEvents.end()) {
-        throw std::runtime_error("TRestRun: Tree '" + treeName + "' does not exist.");
+        RESTError<< "TRestRun: Tree '" << treeName << "' does not exist."<<RESTendl;
+        return;
     }
     fInputEvent = it->second;
 }

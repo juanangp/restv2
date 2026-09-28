@@ -1,0 +1,10 @@
+readoutManager:
+  class: "TRestDetectorReadoutManager"
+  readouts:
+    - inputFileName: "iaxo_readout_output.root"
+      instanceName: "IAXO_D1_Readout"
+      decodingName: "iaxo_d0_nominal.dec"
+    - inputFileName: "veto_readout_output.root"
+      instanceName: "Veto_Readout"
+      decodingName: "veto_decoding"
+

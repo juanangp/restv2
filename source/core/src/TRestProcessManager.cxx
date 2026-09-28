@@ -119,14 +119,9 @@ void TRestProcessManager::Run() {
         const std::string& outputName = fPipelineConnections[i].second;
         const std::string procClassName = fProcessChain[i]->GetClassName();
 
-        if (inputName != "None" && !inputName.empty()) {
-            try {
-                fRunInfo->GetInputEvent(inputName);
-            } catch (...) {
-                if (fEventPool.find(inputName) == fEventPool.end()) {
-                    throw std::runtime_error("TRestProcessManager::Run - Branch name '" + inputName +
-                                             "' not found in input events or pool.");
-                }
+        if ((inputName != "None" && !inputName.empty()) && i ==0 ) {
+            if(!fRunInfo->HasEvent(inputName)){
+              RESTError <<"Input event "<<inputName<<" not found in file" <<RESTendl;
             }
         }
 
@@ -135,7 +130,7 @@ void TRestProcessManager::Run() {
             if (inputName != "None" && !inputName.empty()) {
                 inputClassName = (fEventPool.find(inputName) != fEventPool.end())
                                      ? fEventPool[inputName]->GetClassName()
-                                     : fRunInfo->GetInputEvent(inputName).GetClassName();
+                                     : fRunInfo->GetInputEvent(inputName)->GetClassName();
             } else {
                 inputClassName = fPipelineOutputClasses[i];
                 if (inputClassName.empty()) {
@@ -189,8 +184,8 @@ void TRestProcessManager::Run() {
 
             TRestEvent* inputEventPtr = nullptr;
             if (inputName != "None" && !inputName.empty()) {
-                if (fRunInfo->inputEventExist(inputName)) {
-                    inputEventPtr = &fRunInfo->GetInputEvent(inputName);
+                if (fRunInfo->HasEvent(inputName)) {
+                    inputEventPtr = fRunInfo->GetInputEvent(inputName);
                 } else if (fEventPool.find(inputName) != fEventPool.end()) {
                     inputEventPtr = fEventPool[inputName].get();
                 }

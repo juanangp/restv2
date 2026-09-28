@@ -3,6 +3,24 @@
 
 #include "TRestDetectorReadout.h"
 
+
+class TRestMicromegasReadoutParameters : public TRestMetadata {
+   public:
+    std::array<TRestWithUnits, 3> fPositionRelative = {0.0, 0.0, 0.0};
+    TRestWithUnits fGlobalRotation = 0;
+    int fNChannels = 0;
+    TRestWithUnits fPitch = 0;
+    TRestWithUnits fThickness = 0;
+    TRestWithUnits fGasThickness = 0;
+
+    TRestMicromegasReadoutParameters();
+    TRestMicromegasReadoutParameters(const std::string& name, const YAML::Node& node);
+    void LoadConfig() override;
+    void Initialize() override {}
+    std::string GetClassName() const override { return "TRestMicromegasReadoutParameters"; }
+};
+
+
 /// \class TRestMicromegasReadout
 /// \brief Micromegas-specific implementation of a detector readout geometry.
 ///
@@ -11,12 +29,7 @@
 /// physical identifier.
 class TRestMicromegasReadout : public TRestDetectorReadout {
    public:
-    YAML::Node fReadoutNode;
-    std::array<TRestWithUnits, 3> fPositionRelative = {0.0, 0.0, 0.0};
-    TRestWithUnits fGlobalRotation = 0;
-    int fNChannels = 0;
-    TRestWithUnits fPitch = 0;
-    TRestWithUnits fThickness = 0;
+    TRestMicromegasReadoutParameters fReadoutParams;
 
     /// \brief Constructor.
     TRestMicromegasReadout();

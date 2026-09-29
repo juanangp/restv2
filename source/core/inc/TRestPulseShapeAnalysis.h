@@ -86,8 +86,8 @@ double GetRiseTime(const std::vector<std::pair<T, float>>& signal);
 template <typename T>
 double GetRiseTime(const std::vector<std::pair<T, float>>& signal);
 
-template <typename T>
-TGraph GetGraphPair(const std::vector<std::pair<T, float>>& points, const std::string& title = "");
+template <typename T, typename U>
+TGraph GetGraphPair(const std::vector<std::pair<T, U>>& points,const std::string& title="");
 
 template <typename T>
 TGraph GetGraph(const std::vector<T>& signal, const std::string& title = "");

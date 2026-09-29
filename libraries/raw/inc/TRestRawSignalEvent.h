@@ -130,8 +130,19 @@ class TRestRawSignalEvent : public TRestEvent {
         }
     }
 
+    bool SignalExists(int id) const {
+        return std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id) 
+               != fSignalData.signalIDs.end();
+    }
+
     /// \brief Appends a new signal waveform associated with a detector channel ID.
     void AddSignal(int sID, const std::vector<short>& samples) {
+         if (SignalExists(sID)) {
+            std::cout << "Warning. Signal ID : " << sID
+                      << " already exists. Signal will not be added to signal event" << std::endl;
+            return;
+        }
+
         fSignalData.offsets.push_back((int)fSignalData.allSamples.size());
         fSignalData.signalIDs.push_back(sID);
         fSignalData.allSamples.insert(fSignalData.allSamples.end(), samples.begin(), samples.end());

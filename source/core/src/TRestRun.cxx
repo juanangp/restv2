@@ -173,16 +173,18 @@ void TRestRun::LoadConfig() {
 }
 
 void TRestRun::OpenInputFile(const std::string& filename) {
+    if (fInputFile) return;
+
     fInputFileName = GetFullPath(filename);
-    
-    if(!isValidTRestRun(fInputFileName)){
-       RESTError << filename << " is not a valid TRestRun " << RESTendl;
+
+    if (!isValidTRestRun(fInputFileName)) {
+        RESTError << filename << " is not a valid TRestRun " << RESTendl;
         delete fAnalysisTree;
         fAnalysisTree = nullptr;
-        fInputFile.reset(); 
+        fInputFile.reset();
         return;
     }
-    
+
     fInputFile = std::make_unique<TFile>(fInputFileName.c_str(), "READ");
     if (!fInputFile || fInputFile->IsZombie()) {
         throw std::runtime_error("TRestRun: Cannot open file " + filename);
@@ -194,44 +196,44 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     YAML::Node selfConfig;
 
-        TDirectory* metadataDir = fInputFile->GetDirectory("RESTMetadataStore");
-        if (metadataDir) {
-            TList* keysInDir = metadataDir->GetListOfKeys();
-            if (keysInDir) {
-                for (auto* meta : fMetadataStore) { if (meta) delete meta; }
-                fMetadataStore.clear();
+    TDirectory* metadataDir = fInputFile->GetDirectory("RESTMetadataStore");
+    if (metadataDir) {
+        TList* keysInDir = metadataDir->GetListOfKeys();
+        if (keysInDir) {
+            for (auto* meta : fMetadataStore) { if (meta) delete meta; }
+            fMetadataStore.clear();
 
-                for (int i = 0; i < keysInDir->GetEntries(); ++i) {
-                    TKey* key = dynamic_cast<TKey*>(keysInDir->At(i));
-                    if (!key) continue;
+            for (int i = 0; i < keysInDir->GetEntries(); ++i) {
+                TKey* key = dynamic_cast<TKey*>(keysInDir->At(i));
+                if (!key) continue;
 
-                    std::string keyName = key->GetName();
-                    YAML::Node testConfig = GetMetadata(keyName);
+                std::string keyName = key->GetName();
+                YAML::Node testConfig = GetMetadata(keyName);
 
-                    if (testConfig && !testConfig.IsNull() && testConfig["class"]) {
-                        std::string className = testConfig["class"].as<std::string>();
+                if (testConfig && !testConfig.IsNull() && testConfig["class"]) {
+                    std::string className = testConfig["class"].as<std::string>();
 
-                        if (className == "TRestRun") {
-                            SetName(keyName);
-                            selfConfig = testConfig;
+                    if (className == "TRestRun") {
+                        SetName(keyName);
+                        selfConfig = testConfig;
+                        continue;
+                    }
+
+                    try {
+                        std::unique_ptr<TRestMetadata> metadata =
+                            MetadataClassRegistry::Instance().Create(className, keyName, testConfig);
+
+                        if (metadata) {
+                            fMetadataStore.push_back(metadata.release());
                         }
-                        try {
-                            std::unique_ptr<TRestMetadata> metadata =
-                                MetadataClassRegistry::Instance().Create(className, keyName, testConfig);
-                              
-                            if (metadata) {
-                                fMetadataStore.push_back(metadata.release());
-                            }
-                        } catch (const std::exception& e) {
-                            std::cerr << "[-] Error loading metadata '" << keyName 
-                                      << "' from: " << e.what() << std::endl;
-                        }
+                    } catch (const std::exception& e) {
+                        std::cerr << "[-] Error loading metadata '" << keyName
+                                  << "' from: " << e.what() << std::endl;
                     }
                 }
             }
         }
-
-    // =========================================================================
+    }
 
     if (selfConfig && !selfConfig.IsNull()) {
         fInputFileNode = selfConfig;
@@ -239,7 +241,6 @@ void TRestRun::OpenInputFile(const std::string& filename) {
         RESTWarning << "Not valid TRestRun Metadata in " << filename << RESTendl;
     }
 
-    // Auto-discover: any key in the file that is registered in EventRegistry
     TList* keys = fInputFile->GetListOfKeys();
     if (keys) {
         for (int i = 0; i < keys->GetEntries(); ++i) {

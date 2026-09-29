@@ -451,8 +451,8 @@ template TGraph TRestPulseShapeAnalysis::GetGraph<short>(const std::vector<short
 template TGraph TRestPulseShapeAnalysis::GetGraph<float>(const std::vector<float>& signal,
                                                          const std::string& title);
 
-template <typename T>
-TGraph TRestPulseShapeAnalysis::GetGraphPair(const std::vector<std::pair<T, float>>& points,
+template <typename T, typename U>
+TGraph TRestPulseShapeAnalysis::GetGraphPair(const std::vector<std::pair<T, U>>& points,
                                              const std::string& title) {
     size_t nPoints = points.size();
     if (nPoints <= 0) return TGraph();  // return empty TGraph
@@ -466,10 +466,14 @@ TGraph TRestPulseShapeAnalysis::GetGraphPair(const std::vector<std::pair<T, floa
     return graph;
 }
 
-template TGraph TRestPulseShapeAnalysis::GetGraphPair<int>(const std::vector<std::pair<int, float>>& points,
-                                                           const std::string& title);
-template TGraph TRestPulseShapeAnalysis::GetGraphPair<float>(
+template TGraph TRestPulseShapeAnalysis::GetGraphPair<int, float>(
+    const std::vector<std::pair<int, float>>& points, const std::string& title);
+
+template TGraph TRestPulseShapeAnalysis::GetGraphPair<float, float>(
     const std::vector<std::pair<float, float>>& points, const std::string& title);
+
+template TGraph TRestPulseShapeAnalysis::GetGraphPair<double, double>(
+    const std::vector<std::pair<double, double>>& points, const std::string& title);
 
 ///////////////////////////////////////////////
 /// \brief It returns the width of the pulses

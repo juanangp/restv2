@@ -198,7 +198,7 @@ class TRestRun : public TRestMetadata {
     bool IsOpen() const { return fInputFile && !fInputFile->IsZombie(); }
 
     /// \brief Opens output ROOT file and creates output trees.
-    void OpenOutputFile();
+    void OpenOutputFile(std::string fileName = "", const std::string& option = "RECREATE");
 
     /// \brief Closes open input/output files.
     void CloseFiles();
@@ -271,7 +271,7 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     eventObject.CreateBranches(fOutputEventTrees[className]);
 
     if (fOutputEvents.size() > 0 && fOutputAnalysisTree) {
-        eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
+        if(!fAnalysisTree)eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
     }
 }
 
@@ -282,9 +282,20 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     template <typename T>
     void SetObservable(const std::string& name, T& variable) {
         if (!fOutputAnalysisTree) throw std::runtime_error("TRestRun: Output file not open");
-        fOutputAnalysisTree->Branch(name.c_str(), &variable);
-    }
+        TBranch* branch = fOutputAnalysisTree->GetBranch(name.c_str());
 
+        if constexpr (std::is_fundamental_v<T>) {
+            if (!branch) fOutputAnalysisTree->Branch(name.c_str(), &variable);
+            else fOutputAnalysisTree->SetBranchAddress(name.c_str(), &variable);
+        } else {
+            T** ptr = new T*(&variable);
+            if (!branch) {
+              fOutputAnalysisTree->Branch(name.c_str(), ptr);
+            } else {
+              fOutputAnalysisTree->SetBranchAddress(name.c_str(), ptr);
+            }
+        }
+    }
     /// \brief Binds an observable branch for reading.
     /// \tparam T Observable value type.
     /// \param name Observable branch name.
@@ -292,9 +303,18 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     template <typename T>
     void GetObservable(const std::string& name, T& variable) {
         if (!fAnalysisTree) throw std::runtime_error("TRestRun: Input file missing");
-
-        fAnalysisTree->SetBranchAddress(name.c_str(), &variable);
+        TBranch* branch = fAnalysisTree->GetBranch(name.c_str());
+        if (branch) {
+            if constexpr (std::is_fundamental_v<T>) {
+                fAnalysisTree->SetBranchAddress(name.c_str(), &variable);
+            } else {
+                T** ptr = new T*(&variable);
+                fAnalysisTree->SetBranchAddress(name.c_str(), ptr);
+            }
+        }
     }
+
+    void SyncAnalysisTreeBranches();
 
     /// \brief Adds metadata object description into run store.
     /// \param instanceName Metadata instance name.

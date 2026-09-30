@@ -5,6 +5,8 @@
 #include "TRestMetadata.h"
 #include "TRestRun.h"
 
+class TRestManager;
+
 /// \class TRestEventProcess
 /// \brief Abstract base for event-processing pipeline stages.
 ///
@@ -26,6 +28,11 @@ class TRestEventProcess : public TRestMetadata {
 
     /// Pointer to run context shared with this process.
     TRestRun* fRunInfo = nullptr;
+
+    /// Pointer to the owning manager, giving access to sibling metadata
+    /// (readouts, calibrations, etc.) loaded alongside this process's pipeline.
+    /// May be nullptr if the process runs outside a TRestManager context.
+    TRestManager* fManager = nullptr;
 
     /// \brief Initializes process resources before event loop.
     virtual void InitProcess() = 0;
@@ -52,6 +59,10 @@ class TRestEventProcess : public TRestMetadata {
     /// \brief Sets run context pointer.
     /// \param r Run context.
     inline void SetRunInfo(TRestRun* r) { fRunInfo = r; }
+
+    /// \brief Sets the owning manager, for access to sibling metadata.
+    /// \param mgr Owning manager, or nullptr.
+    inline void SetManager(TRestManager* mgr) { fManager = mgr; }
 
     template <typename T>
     void RegisterObservable(const std::string& name, T& variable) {

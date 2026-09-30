@@ -24,7 +24,7 @@ struct TRestEventInfo {
     long long timeSeconds = 0;
     int timeNanoSeconds = 0;
     bool ok = true;
-    std::string subEventTag;
+    std::string subEventTag="";
 };
 
 /// \class TRestEvent

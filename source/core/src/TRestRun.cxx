@@ -413,23 +413,58 @@ void TRestRun::FormOutputFile() {
     OpenOutputFile();
 }
 
-void TRestRun::OpenOutputFile() {
-    fOutputFile = std::make_unique<TFile>(fOutputFileName.c_str(), "RECREATE");
+void TRestRun::OpenOutputFile(std::string fileName, const std::string& option) {
+    if (fileName.empty()) fileName = fOutputFileName;
+    fOutputFileName = fileName;
+
+    fOutputFile = std::make_unique<TFile>(fOutputFileName.c_str(), option.c_str());
     if (!fOutputFile || fOutputFile->IsZombie()) {
-        throw std::runtime_error("TRestRun: Cannot open output file.");
+        throw std::runtime_error("TRestRun: Cannot open output file: " + fOutputFileName);
     }
- 
+
     fOutputFile->cd();
+
+    if (option == "UPDATE") {
+        return;
+    }
 
     if (fAnalysisTree) {
         fOutputAnalysisTree = fAnalysisTree->CloneTree(0);
-        
         fAnalysisTree->CopyAddresses(fOutputAnalysisTree);
+        SyncAnalysisTreeBranches();
     } else {
         fOutputAnalysisTree = new TTree("AnalysisTree", "REST Generic Analysis Observables");
     }
 
     fOutputAnalysisTree->SetAutoSave(0);
+}
+
+void TRestRun::SyncAnalysisTreeBranches() {
+    if (!fAnalysisTree || !fOutputAnalysisTree) return;
+
+    TObjArray* inputBranches = fAnalysisTree->GetListOfBranches();
+
+    for (int i = 0; i < inputBranches->GetEntries(); ++i) {
+        auto* inputBranch =
+            dynamic_cast<TBranch*>(inputBranches->At(i));
+
+        if (!inputBranch) continue;
+
+        const char* branchName = inputBranch->GetName();
+
+        TBranch* outputBranch =
+            fOutputAnalysisTree->GetBranch(branchName);
+
+        if (!outputBranch) {
+            continue;
+        }
+
+        if (outputBranch->GetAddress() != nullptr) {
+            continue;
+        }
+
+        outputBranch->SetAddress(inputBranch->GetAddress());
+    }
 }
 
 void TRestRun::Fill() {
@@ -449,9 +484,14 @@ void TRestRun::CloseFiles() {
     if (fOutputFile) {
         fOutputFile->cd();
         for (auto& [treeName, tree] : fOutputEventTrees) {
-            if (tree) tree->Write("", TObject::kOverwrite);
+            if (tree) {
+                tree->Write("", TObject::kOverwrite);
+            }
         }
-        if (fOutputAnalysisTree) fOutputAnalysisTree->Write("", TObject::kOverwrite);
+        
+        if (fOutputAnalysisTree) {
+            fOutputAnalysisTree->Write("", TObject::kOverwrite);
+        }
 
         fOutputFile->Close();
         fOutputFile.reset();
@@ -459,12 +499,14 @@ void TRestRun::CloseFiles() {
         fOutputAnalysisTree = nullptr;
     }
     if (fInputFile) {
+        
         fInputFile->Close();
         fInputFile.reset();
         fInputEventTrees.clear();
         fAnalysisTree = nullptr;
     }
 }
+
 
 // ---------------------------------------------------------------------------
 void TRestRun::PrintMetadata() const {

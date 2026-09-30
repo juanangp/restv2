@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "TRestRun.h"
+#include "TRestManager.h"
 #include "TRestTools.h"
 
 using namespace TRestTools;
@@ -16,6 +17,7 @@ static const bool TRestProcessManager_FieldsRegistered = []() {
     reg.RegisterField<TRestProcessManager>("inputEventStorage", &TRestProcessManager::fInputEventStorage);
     reg.RegisterField<TRestProcessManager>("outputEventStorage", &TRestProcessManager::fOutputEventStorage);
     reg.RegisterField<TRestProcessManager>("eventsToProcess", &TRestProcessManager::fEventsToProcess);
+    reg.RegisterField<TRestProcessManager>("nThreads", &TRestProcessManager::fNThreads);
     return true;
 }();
 
@@ -111,6 +113,7 @@ void TRestProcessManager::Run() {
 
     for (auto& proc : fProcessChain) {
         proc->SetRunInfo(fRunInfo);
+        proc->SetManager(fManager);
         proc->Initialize();
     }
 
@@ -119,9 +122,9 @@ void TRestProcessManager::Run() {
         const std::string& outputName = fPipelineConnections[i].second;
         const std::string procClassName = fProcessChain[i]->GetClassName();
 
-        if ((inputName != "None" && !inputName.empty()) && i ==0 ) {
-            if(!fRunInfo->HasEvent(inputName)){
-              RESTError <<"Input event "<<inputName<<" not found in file" <<RESTendl;
+        if ((inputName != "None" && !inputName.empty()) && i == 0) {
+            if (!fRunInfo->HasEvent(inputName)) {
+                RESTError << "Input event " << inputName << " not found in file" << RESTendl;
             }
         }
 
@@ -161,23 +164,43 @@ void TRestProcessManager::Run() {
         }
     }
 
-    Long64_t entriesToRun = fEventsToProcess > 0 ? fEventsToProcess : totalEntries;
-    if (totalEntries > 0 && fEventsToProcess > 0) {
-        entriesToRun = std::min(static_cast<Long64_t>(fEventsToProcess), totalEntries);
-    } else if (totalEntries == 0 && fEventsToProcess == 0) {
-        entriesToRun = std::numeric_limits<Long64_t>::max();
+    Long64_t loopStart = 0;
+    Long64_t loopEnd = totalEntries;
+
+    if (fEntryStart != -1) loopStart = fEntryStart;
+    if (fEntryEnd != -1)   loopEnd = fEntryEnd;
+
+    if (fEntryEnd == -1 && fEventsToProcess > 0) {
+        loopEnd = loopStart + fEventsToProcess;
+        if (totalEntries > 0) {
+            loopEnd = std::min(loopEnd, totalEntries);
+        }
     }
 
-    RESTInfo << "TRestProcessManager: Starting event loop. Entries to process: " << entriesToRun << RESTendl;
+    const bool showProgress = (fEntryStart <= 0);
 
-    RESTProgress.Reset(entriesToRun);
+    RESTInfo << "TRestProcessManager: Starting event loop. Entries [" << loopStart << ", " << loopEnd << ")"
+             << RESTendl;
 
-    for (Long64_t entry = 0; entry < entriesToRun; ++entry) {
-        if (totalEntries > 0) {
+    if (showProgress) RESTProgress.Reset(loopEnd - loopStart);
+
+    Long64_t acceptedCount = 0;
+    Long64_t rejectedCount = 0;
+
+    const bool hasInputTree = (totalEntries > 0);
+
+    for (Long64_t entry = loopStart; entry < loopEnd; ++entry) {
+        if (TRestManager::StopRequested()) {
+          RESTWarning << "TRestProcessManager: stop requested, breaking event loop at entry "
+                    << entry << RESTendl;
+          break;
+        }
+
+        if (hasInputTree) {
             fRunInfo->GetEntry(entry);
         }
 
-        bool processOk = true;
+        bool eventAccepted = true;
         for (size_t i = 0; i < fProcessChain.size(); ++i) {
             const std::string& inputName = fPipelineConnections[i].first;
             const std::string& outputName = fPipelineConnections[i].second;
@@ -195,22 +218,22 @@ void TRestProcessManager::Run() {
             const TRestEvent& inputEvent = inputEventPtr ? *inputEventPtr : outputEvent;
 
             if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent)) {
-                processOk = false;
+                eventAccepted = false;
                 break;
             }
         }
 
-        if (!processOk) {
-            RESTInfo << "TRestProcessManager: Process returned false, stopping loop." << RESTendl;
-            break;
+        if (eventAccepted) {
+            acceptedCount++;
+            if (fOutputEventStorage) {
+                fRunInfo->Fill();
+            }
+        } else {
+            rejectedCount++;
         }
 
-        if (fOutputEventStorage) {
-            fRunInfo->Fill();
-        }
-
-        if (entry % 10 == 0 || entry == entriesToRun - 1) {
-            RESTProgress.Update(entry + 1);
+        if (showProgress && ((entry - loopStart) % 10 == 0 || entry == loopEnd - 1)) {
+            RESTProgress.Update(entry - loopStart + 1);
         }
     }
 
@@ -220,5 +243,6 @@ void TRestProcessManager::Run() {
         proc->EndProcess();
     }
 
-    RESTInfo << "TRestProcessManager: Pipeline run succeeded." << RESTendl;
+    RESTInfo << "TRestProcessManager: Pipeline run finished. Accepted: " << acceptedCount
+             << ", Rejected: " << rejectedCount << RESTendl;
 }

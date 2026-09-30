@@ -20,6 +20,7 @@ class TRestManager : public TRestMetadata {
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
     TRestProcessManager* fProcessManager = nullptr;
     TRestRun* fConfiguredRun = nullptr;
+    static std::atomic<bool> fStopRequested;
 
    public:
     TRestManager(const std::string& instanceName, const YAML::Node& node);
@@ -33,6 +34,23 @@ class TRestManager : public TRestMetadata {
     void LoadConfig() override;
     void Initialize() override {}
     void SaveMetadata();
-};
 
+    TRestMetadata* GetMetadataClass(const std::string& className) const {
+        for (const auto& meta : fMetaObjects) {
+            if (meta && meta->GetClassName() == className) return meta.get();
+        }
+        return nullptr;
+    }
+
+    TRestRun* GetRunInfo() const { return fConfiguredRun; }
+
+    static void RequestStop() { fStopRequested.store(true, std::memory_order_relaxed); }
+
+    static bool StopRequested() { return fStopRequested.load(std::memory_order_relaxed); }
+
+    static void ResetStopRequest() { fStopRequested.store(false, std::memory_order_relaxed); }
+
+   private:
+    void RunMultithreaded(unsigned int nThreads);
+};
 #endif

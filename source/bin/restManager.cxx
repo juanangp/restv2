@@ -4,19 +4,45 @@
 ///                     [--o|--output <output.root>] [--v|--verbose <level>]
 ///                     [--e|--events <n>]
 
+#include <TROOT.h>
+
 #include <iostream>
 #include <string>
+#include <csignal>
+#include <cstdlib>
+#include <thread>
 
 #include "TRestManager.h"
 #include "TRestTools.h"
 #include "TRestLogManager.h"
 
+void SignalWaiterThread(sigset_t waitSet) {
+    int signum = 0;
+    sigwait(&waitSet, &signum);   // se bloquea aquí hasta que llegue la señal
+    std::cout << "\n[SignalWaiter] señal " << signum << " recibida, solicitando parada..." << std::endl;
+    TRestManager::RequestStop();
+}
+
 int main(int argc, char** argv) {
+    // 1. Construir el conjunto de señales a capturar
+    sigset_t blockSet;
+    sigemptyset(&blockSet);
+    sigaddset(&blockSet, SIGINT);
+    sigaddset(&blockSet, SIGTERM);
+    sigaddset(&blockSet, SIGHUP);
+    sigaddset(&blockSet, SIGQUIT);
+
+    pthread_sigmask(SIG_BLOCK, &blockSet, nullptr);
+
+    std::thread signalThread(SignalWaiterThread, blockSet);
+    signalThread.detach();
+
     std::string configPath;
     std::string inputPath;
     std::string outputPath;
     std::string verboseLevel;
     std::string eventsToProcess;
+    std::string threadNumber;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -30,7 +56,9 @@ int main(int argc, char** argv) {
             verboseLevel = argv[++i];
         } else if ((arg == "--e" || arg == "--events") && i + 1 < argc) {
             eventsToProcess = argv[++i];
-        } else {
+        } else if ((arg == "--j" || arg == "--threads") && i + 1 < argc) {
+            threadNumber = argv[++i];
+        }else {
             std::cerr << "Usage: " << argv[0]
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
@@ -48,8 +76,7 @@ int main(int argc, char** argv) {
     }
 
     try {
-        YAML::Node raw = YAML::LoadFile(configPath);
-        YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
+        YAML::Node cfg = TRestTools::OpenConfigFile(configPath);
 
         auto [managerKey, managerNode] = TRestTools::GetMetadataClass(cfg, "TRestManager");
         if (!managerNode || managerNode.IsNull()) {
@@ -59,26 +86,47 @@ int main(int argc, char** argv) {
 
         auto [runKey, runNode] = TRestTools::GetMetadataClass(managerNode, "TRestRun");
         if (runNode && !runNode.IsNull()) {
-            if (!inputPath.empty()) TRestTools::OverrideYAMLParam(runNode, "inputFileName", inputPath);
-            if (!outputPath.empty()) TRestTools::OverrideYAMLParam(runNode, "outputFileName", outputPath);
+            if (!inputPath.empty())
+              runNode["inputFileName"] = inputPath;
+            if (!outputPath.empty())
+              runNode["outputFileName"] = outputPath;
         }
 
         auto [pipelineKey, pipelineNode] = TRestTools::GetMetadataClass(managerNode, "TRestProcessManager");
         if (pipelineNode && !pipelineNode.IsNull()) {
             if (!eventsToProcess.empty())
-                TRestTools::OverrideYAMLParam(pipelineNode, "eventsToProcess", eventsToProcess);
+              pipelineNode["eventsToProcess"] = eventsToProcess;
+            if (!threadNumber.empty())
+              pipelineNode["nThreads"] = threadNumber;
         }
 
-        if (!verboseLevel.empty()) {
-          TRestLogManager::setGlobalVerboseLevel(
-          TRestLogManager::GetVerboseLevelFromString(verboseLevel));
-        }
+        unsigned int effectiveThreads = 1;
+        if (pipelineNode && !pipelineNode.IsNull()) {
+          YAML::Node nThreadsNode = pipelineNode["nThreads"];
+          if (nThreadsNode && nThreadsNode.IsDefined() && !nThreadsNode.IsNull()) {
+            try {
+              effectiveThreads = nThreadsNode.as<unsigned int>();
+            } catch (const std::exception&) {
+              RESTWarning << "restManager: invalid thread number" << RESTendl;
+              effectiveThreads = 1;
+            }
+          }
+       }
 
-        RESTLog << "\n--- TRestManager ---" << RESTendl;
-        TRestManager mgr(managerKey, managerNode);
-        mgr.PrintMetadata();
-        mgr.Run();
-        mgr.SaveMetadata();
+       if (effectiveThreads > 1) {
+         ROOT::EnableThreadSafety();
+       }
+
+       if (!verboseLevel.empty()) {
+         TRestLogManager::setGlobalVerboseLevel(
+         TRestLogManager::GetVerboseLevelFromString(verboseLevel));
+       }
+
+       RESTLog << "\n--- TRestManager ---" << RESTendl;
+       TRestManager mgr(managerKey, managerNode);
+       mgr.PrintMetadata();
+       mgr.Run();
+       mgr.SaveMetadata();
 
     } catch (const std::exception& ex) {
         std::cerr << "[ERROR] " << ex.what() << "\n";

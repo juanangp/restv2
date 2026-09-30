@@ -14,6 +14,8 @@ class TRestRun;
 
 /// \class TRestProcessManager
 /// \brief Handles event-process pipeline loading and execution.
+class TRestManager;
+
 class TRestProcessManager : public TRestMetadata {
     DECLARE_LOG_CLASS(TRestProcessManager)
 
@@ -26,9 +28,14 @@ class TRestProcessManager : public TRestMetadata {
     std::vector<std::string> fPipelineOutputClasses;
 
     TRestRun* fRunInfo = nullptr;
+    TRestManager* fManager = nullptr;
+
+    Long64_t fEntryStart = -1;
+    Long64_t fEntryEnd = -1;
 
    public:
     int fEventsToProcess = 0;
+    unsigned int fNThreads = 1;
     bool fInputAnalysisStorage = true;
     bool fInputEventStorage = false;
     bool fOutputEventStorage = true;
@@ -44,6 +51,9 @@ class TRestProcessManager : public TRestMetadata {
     void LoadProcesses();
 
     void SetRunInfo(TRestRun* runInfo) { fRunInfo = runInfo; }
+    void SetManager(TRestManager* mgr) { fManager = mgr; }
+    void SetEntryRange(Long64_t start, Long64_t end) { fEntryStart = start; fEntryEnd = end; }
+
     void Run();
     void Run(TRestRun& restRun) {
         SetRunInfo(&restRun);
@@ -52,5 +62,4 @@ class TRestProcessManager : public TRestMetadata {
 
     void Initialize() override {}
 };
-
 #endif

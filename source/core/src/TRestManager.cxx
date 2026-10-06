@@ -173,7 +173,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     fConfiguredRun->OpenOutputFile(baseOutput, "UPDATE");
 
     if (StopRequested()){
-      RESTError<<"TRestManager::RunMultithreaded: Stop requested, output file may miss data"<<RESTendl;
+      RESTError<<"TRestManager::RunMultithreaded: Stop requested, output file may be cropped"<<RESTendl;
     }
 
     RESTLog << "TRestManager: " << nThreads << " file merged in " << baseOutput

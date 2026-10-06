@@ -2,10 +2,6 @@
 
 #include <TMath.h>
 
-#include <algorithm>
-
-#include "Math/GenVector/VectorUtil.h"
-#include "TRestLogManager.h"
 
 using REST_HitType = TRestHitsData::REST_HitType;
 
@@ -154,6 +150,25 @@ void TRestHits::RemoveHit(int n) {
     fNHits--;
 }
 
+void TRestHits::Shuffle(int NLoop) {
+    if (!fData || fNHits < 2) return;
+
+    auto order = TRestHitsUtils::BuildShuffleOrder(fNHits, NLoop);
+
+    TRestHitsUtils::ApplyPermutation(order, fStartIdx, fData->x, fData->y, fData->z, fData->time,
+                                     fData->energy, fData->type);
+}
+
+void TRestHits::Sort(std::function<bool(int, int)> compareCondition) {
+    if (!fData || fNHits < 2) return;
+
+    auto order = TRestHitsUtils::BuildSortOrder(
+        fNHits, compareCondition, [this](int a, int b) { return GetEnergy(a) < GetEnergy(b); });
+
+    TRestHitsUtils::ApplyPermutation(order, fStartIdx, fData->x, fData->y, fData->z, fData->time,
+                                     fData->energy, fData->type);
+}
+
 ROOT::Math::XYZVector TRestHits::GetPosition(int n) const {
     int idx = GetGlobalIdx(n);
     const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[idx]);
@@ -221,6 +236,212 @@ double TRestHits::GetMeanPositionZ() const {
         }
     }
     return totalEnergy > 0 ? mean / totalEnergy : 0;
+}
+
+// --- Sigma / skewness ---
+
+double TRestHits::GetSigmaX2() const {
+    const double meanX = GetMeanPositionX();
+    double sigma2 = 0, totalEnergy = 0;
+    for (int i = 0; i < fNHits; ++i) {
+        int idx = GetGlobalIdx(i);
+        if (fData->type[idx] % TRestHitsData::X == 0) {
+            sigma2 += fData->energy[idx] * (meanX - fData->x[idx]) * (meanX - fData->x[idx]);
+            totalEnergy += fData->energy[idx];
+        }
+    }
+    return totalEnergy > 0 ? sigma2 / totalEnergy : 0;
+}
+
+double TRestHits::GetSigmaY2() const {
+    const double meanY = GetMeanPositionY();
+    double sigma2 = 0, totalEnergy = 0;
+    for (int i = 0; i < fNHits; ++i) {
+        int idx = GetGlobalIdx(i);
+        if (fData->type[idx] % TRestHitsData::Y == 0) {
+            sigma2 += fData->energy[idx] * (meanY - fData->y[idx]) * (meanY - fData->y[idx]);
+            totalEnergy += fData->energy[idx];
+        }
+    }
+    return totalEnergy > 0 ? sigma2 / totalEnergy : 0;
+}
+
+double TRestHits::GetSigmaZ2() const {
+    const double meanZ = GetMeanPositionZ();
+    double sigma2 = 0, totalEnergy = 0;
+    for (int i = 0; i < fNHits; ++i) {
+        int idx = GetGlobalIdx(i);
+        if (fData->type[idx] % TRestHitsData::Z == 0) {
+            sigma2 += fData->energy[idx] * (meanZ - fData->z[idx]) * (meanZ - fData->z[idx]);
+            totalEnergy += fData->energy[idx];
+        }
+    }
+    return totalEnergy > 0 ? sigma2 / totalEnergy : 0;
+}
+
+double TRestHits::GetSigmaXY2() const { return GetSigmaX2() + GetSigmaY2(); }
+
+double TRestHits::GetSkewXY() const {
+    const double totalEnergy = GetTotalEnergy();
+    const double sigmaXY = std::sqrt(GetSigmaXY2());
+    if (totalEnergy <= 0 || sigmaXY <= 0) return 0;
+
+    const double meanX = GetMeanPositionX();
+    const double meanY = GetMeanPositionY();
+    double skew = 0;
+    for (int i = 0; i < fNHits; ++i) {
+        int idx = GetGlobalIdx(i);
+        if (fData->type[idx] % TRestHitsData::X == 0)
+            skew += fData->energy[idx] * std::pow(meanX - fData->x[idx], 3);
+        if (fData->type[idx] % TRestHitsData::Y == 0)
+            skew += fData->energy[idx] * std::pow(meanY - fData->y[idx], 3);
+    }
+    return skew / (totalEnergy * sigmaXY * sigmaXY * sigmaXY);
+}
+
+double TRestHits::GetSkewZ() const {
+    const double totalEnergy = GetTotalEnergy();
+    const double sigmaZ = std::sqrt(GetSigmaZ2());
+    if (totalEnergy <= 0 || sigmaZ <= 0) return 0;
+
+    const double meanZ = GetMeanPositionZ();
+    double skew = 0;
+    for (int i = 0; i < fNHits; ++i) {
+        int idx = GetGlobalIdx(i);
+        if (fData->type[idx] % TRestHitsData::Z == 0)
+            skew += fData->energy[idx] * std::pow(meanZ - fData->z[idx], 3);
+    }
+    return skew / (totalEnergy * sigmaZ * sigmaZ * sigmaZ);
+}
+
+// --- Distance / geometry ---
+
+double TRestHits::GetDistance2(int n, int m) const {
+    double dx = GetX(n) - GetX(m);
+    double dy = GetY(n) - GetY(m);
+    double dz = GetZ(n) - GetZ(m);
+    if (areXY()) return dx * dx + dy * dy;
+    if (areXZ()) return dx * dx + dz * dz;
+    if (areYZ()) return dy * dy + dz * dz;
+    return dx * dx + dy * dy + dz * dz;
+}
+
+double TRestHits::GetTotalDistance() const {
+    double distance = 0;
+    for (int i = 0; i + 1 < fNHits; ++i) distance += std::sqrt(GetDistance2(i, i + 1));
+    return distance;
+}
+
+double TRestHits::GetHitsPathLength(int n, int m) const {
+    if (n < 0) n = 0;
+    if (m > fNHits - 1) m = fNHits - 1;
+
+    double distance = 0;
+    for (int i = n; i < m; ++i) distance += std::sqrt(GetDistance2(i, i + 1));
+    return distance;
+}
+
+double TRestHits::GetDistanceToNode(int n) {
+    if (n > fNHits - 1) n = fNHits - 1;
+
+    double distance = 0;
+    for (int hit = 0; hit < n; ++hit) distance += GetVector(hit + 1, hit).R();
+    return distance;
+}
+
+double TRestHits::GetMaximumHitDistance2() const {
+    if (fNHits < 2) return 0;
+
+
+    constexpr int kExactThreshold = 500;
+    if (fNHits <= kExactThreshold) {
+        double maxDistance = 0;
+        for (int n = 0; n < fNHits; ++n) {
+            for (int m = n + 1; m < fNHits; ++m) {
+                double d = GetDistance2(n, m);
+                if (d > maxDistance) maxDistance = d;
+            }
+        }
+        return maxDistance;
+    }
+
+    // Heuristic "farthest-point" O(n)
+    auto farthestFrom = [this](int from) {
+        int best = from;
+        double bestDist = 0;
+        for (int i = 0; i < fNHits; ++i) {
+            double d = GetDistance2(from, i);
+            if (d > bestDist) { bestDist = d; best = i; }
+        }
+        return std::pair<int, double>{best, bestDist};
+    };
+
+    auto [a, _] = farthestFrom(0);
+    auto [b, maxDistance] = farthestFrom(a);
+
+    return maxDistance;
+}
+
+double TRestHits::GetMaximumHitDistance() const { return std::sqrt(GetMaximumHitDistance2()); }
+
+int TRestHits::GetMostEnergeticHitInRange(int n, int m) const {
+    double maxEnergy = 0;
+    int hit = -1;
+    for (int i = n; i < m; ++i) {
+        if (GetEnergy(i) > maxEnergy) {
+            maxEnergy = GetEnergy(i);
+            hit = i;
+        }
+    }
+    return hit;
+}
+
+int TRestHits::GetClosestHit(ROOT::Math::XYZVector position) {
+    int closestHit = 0;
+    double minDistance = 1.e30;
+    for (int n = 0; n < fNHits; ++n) {
+        double distance = (position - GetPosition(n)).Mag2();
+        if (distance < minDistance) {
+            closestHit = n;
+            minDistance = distance;
+        }
+    }
+    return closestHit;
+}
+
+std::pair<double, double> TRestHits::GetProjection(int n, int m, ROOT::Math::XYZVector position) {
+    auto nodesSegment = GetVector(n, m);
+    auto origin = position - GetPosition(m);
+
+    if (origin.Mag2() == 0) return {0, 0};
+
+    double segmentMag = std::sqrt(nodesSegment.Mag2());
+    double longitudinal = (segmentMag > 0) ? (nodesSegment.Dot(origin) / segmentMag) : 0;
+
+    if (origin == nodesSegment) return {longitudinal, 0};
+
+    double transversal = std::sqrt(origin.Mag2() - longitudinal * longitudinal);
+    return {longitudinal, transversal};
+}
+
+double TRestHits::GetTransversalProjection(ROOT::Math::XYZVector p0, ROOT::Math::XYZVector direction,
+                                           ROOT::Math::XYZVector position) const {
+    auto oX = position - p0;
+    if (oX.Mag2() == 0) return 0;
+
+    double dirMag = std::sqrt(direction.Mag2());
+    double longitudinal = (dirMag > 0) ? (direction.Dot(oX) / dirMag) : 0;
+
+    return std::sqrt(oX.Mag2() - longitudinal * longitudinal);
+}
+
+// --- Misc ---
+
+bool TRestHits::isSortedByEnergy() const {
+    for (int i = 0; i + 1 < fNHits; ++i) {
+        if (GetEnergy(i + 1) > GetEnergy(i)) return false;
+    }
+    return true;
 }
 
 void TRestHits::PrintHits(Int_t nHits) const {

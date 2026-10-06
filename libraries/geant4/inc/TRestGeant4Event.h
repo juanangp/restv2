@@ -14,11 +14,11 @@
 
 #include "TRestGeant4Metadata.h"
 #include "TRestEvent.h"
-#include "TRestGeant4Track.h"
-#include "TRestRun.h"
+#include "TRestHits.h"
 
 class TTree;
 class TRestGeant4Event;
+class TRestGeant4Track;
 class G4Event;
 class G4Track;
 class G4Step;

@@ -1,4 +1,6 @@
 #include "TRestGeant4Event.h"
+#include "TRestRun.h"
+#include "TRestGeant4Track.h"
 
 #include <iostream>
 #include <memory>

@@ -1,5 +1,5 @@
 #include "TRestGeant4QuenchingProcess.h"
-
+#include "TRestGeant4Track.h"
 
 #include <algorithm>
 #include <cctype>

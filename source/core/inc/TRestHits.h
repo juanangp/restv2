@@ -2,12 +2,59 @@
 #define TRESTHITS_H
 
 #include <cmath>
+#include <functional>
 #include <iostream>
+#include <numeric>
 #include <limits>
 #include <vector>
 
-#include "Math/GenVector/DisplacementVector3D.h"
-#include "Math/Vector3Dfwd.h"
+#include <TRandom.h>
+
+#include "Math/Vector3D.h"
+#include "Math/GenVector/VectorUtil.h"
+
+namespace TRestHitsUtils {
+
+/// \brief Reorders each of the given parallel arrays, in place, over the range
+/// [start, start+order.size()), according to `order` (order[i] = index,
+/// relative to `start`, of the element that ends up at position i).
+template <typename... Arrays>
+void ApplyPermutation(const std::vector<int>& order, int start, Arrays&... arrays) {
+    const int n = (int)order.size();
+    auto permuteOne = [&order, n, start](auto& values) {
+        using T = typename std::decay_t<decltype(values)>::value_type;
+        std::vector<T> sorted(n);
+        for (int i = 0; i < n; ++i) sorted[i] = values[start + order[i]];
+        for (int i = 0; i < n; ++i) values[start + i] = sorted[i];
+    };
+    (permuteOne(arrays), ...);
+}
+
+/// \brief Builds an identity-then-sorted index order over [0, n), using
+/// `compareCondition` if given, or `defaultCompare` otherwise.
+inline std::vector<int> BuildSortOrder(int n, std::function<bool(int, int)> compareCondition,
+                                       std::function<bool(int, int)> defaultCompare) {
+    std::vector<int> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), compareCondition ? compareCondition : defaultCompare);
+    return order;
+}
+
+/// \brief Builds an index order obtained by applying NLoop random swaps to
+/// the identity order over [0, n).
+inline std::vector<int> BuildShuffleOrder(int n, int NLoop) {
+    std::vector<int> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    for (int k = 0; k < NLoop; ++k) {
+        int i = (int)(n * gRandom->Uniform(0, 1));
+        int j = (int)(n * gRandom->Uniform(0, 1));
+        std::swap(order[i], order[j]);
+    }
+    return order;
+}
+
+}  // namespace TRestHitsUtils
+
 
 /// \struct TRestHitsData
 /// \brief Shared storage container for hit coordinates, time and energy arrays.
@@ -99,6 +146,13 @@ class TRestHits {
     virtual void SwapHits(int i, int j);
     virtual void RemoveHit(int n);
 
+    /// \brief Reorders the hits in-place, by default ascending in energy.
+    /// Usage: hits.Sort([&hits](int a, int b) { return hits.GetEnergy(a) > hits.GetEnergy(b); });
+    virtual void Sort(std::function<bool(int, int)> compareCondition = nullptr);
+
+    /// \brief Randomly permutes the hits in-place.
+    virtual void Shuffle(int NLoop);
+
     virtual bool areXY() const;
     virtual bool areXZ() const;
     virtual bool areYZ() const;
@@ -140,6 +194,7 @@ class TRestHits {
     double GetSigmaY2() const;
     inline double GetSigmaX() const { return std::sqrt(GetSigmaX2()); }
     inline double GetSigmaY() const { return std::sqrt(GetSigmaY2()); }
+    inline double GetSigmaZ() const { return std::sqrt(GetSigmaZ2()); }
     double GetSigmaZ2() const;
     double GetSkewXY() const;
     double GetSkewZ() const;

@@ -243,6 +243,6 @@ void TRestProcessManager::Run() {
         proc->EndProcess();
     }
 
-    RESTInfo << "TRestProcessManager: Pipeline run finished. Accepted: " << acceptedCount
-             << ", Rejected: " << rejectedCount << RESTendl;
+    RESTInfo << "TRestProcessManager: Pipeline finished. Accepted: " << acceptedCount
+             << "events, Rejected: " << rejectedCount << " events" << RESTendl;
 }

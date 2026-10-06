@@ -1,5 +1,6 @@
 #include "TRestGeant4EventViewer.h"
 #include "TRestGeant4Metadata.h"
+#include "TRestGeant4Track.h"
 
 #include <TRestTools.h>
 

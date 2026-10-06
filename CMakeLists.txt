@@ -10,6 +10,7 @@ project(
 set(RAW_LIB RestRaw)
 set(GEANT4_LIB RestGeant4)
 set(DETECTOR_LIB RestDetector)
+set(TRACK_LIB RestTrack)
 
 # ---------------------------------------------------------------------------
 # C++ standard - honour whatever ROOT was compiled with (17 minimum)
@@ -134,6 +135,11 @@ if(${DETECTOR_LIB})
   add_subdirectory(libraries/detector)
 endif()
 
+option(${TRACK_LIB} "Build the track library" ON)
+if(${TRACK_LIB})
+  add_subdirectory(libraries/track)
+endif()
+
 option(REST_G4 "Build the optional restG4 package application" ON)
 if(REST_G4)
   add_subdirectory(packages/restG4)
@@ -155,6 +161,7 @@ message(STATUS "  Standard: C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  ROOT    : ${ROOT_VERSION}")
 message(STATUS "  ${RAW_LIB}: ${${RAW_LIB}}")
 message(STATUS "  ${DETECTOR_LIB}: ${${DETECTOR_LIB}}")
+message(STATUS "  ${TRACK_LIB}: ${${TRACK_LIB}}")
 message(STATUS "  ${GEANT4_LIB}: ${${GEANT4_LIB}}")
 message(STATUS "  REST_G4 : ${REST_G4}")
 message(STATUS "")
@@ -171,7 +178,7 @@ if(ALL_REPOSITORY_MACROS)
 
   file(GLOB_RECURSE ALL_INC_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/**/inc")
 
-  set(ALL_REST_TARGETS RestCore RestTools ${RAW_LIB} ${DETECTOR_LIB} ${GEANT4_LIB})
+  set(ALL_REST_TARGETS RestCore RestTools ${RAW_LIB} ${DETECTOR_LIB} ${TRACK_LIB} ${GEANT4_LIB})
 
   foreach(MACRO_PATH IN LISTS ALL_REPOSITORY_MACROS)
     get_filename_component(MACRO_WE ${MACRO_PATH} NAME_WE)

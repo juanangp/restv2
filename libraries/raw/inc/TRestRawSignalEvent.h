@@ -130,6 +130,21 @@ class TRestRawSignalEvent : public TRestEvent {
         }
     }
 
+    void MoveFrom(TRestEvent* other) override {
+        TRestEvent::MoveFrom(other);
+        auto source = dynamic_cast<TRestRawSignalEvent*>(other);
+        if (source) {
+            this->fSignalData.allSamples = std::move(source->fSignalData.allSamples);
+            this->fSignalData.signalIDs  = std::move(source->fSignalData.signalIDs);
+            this->fSignalData.offsets    = std::move(source->fSignalData.offsets);
+
+            source->fSignalData.clear();
+            source->fSignalsViews.clear();
+
+            this->RefreshViews();
+        }
+    }
+
     bool SignalExists(int id) const {
         return std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id) 
                != fSignalData.signalIDs.end();
@@ -191,6 +206,12 @@ class TRestRawSignalEvent : public TRestEvent {
     }
 
     inline TRestRawSignal& GetSignalByID(int id) {
+        auto it = std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id);
+        if (it == fSignalData.signalIDs.end()) throw std::runtime_error("Signal ID not found");
+        return GetSignal(std::distance(fSignalData.signalIDs.begin(), it));
+    }
+
+    inline const TRestRawSignal& GetSignalByID(int id) const {
         auto it = std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id);
         if (it == fSignalData.signalIDs.end()) throw std::runtime_error("Signal ID not found");
         return GetSignal(std::distance(fSignalData.signalIDs.begin(), it));

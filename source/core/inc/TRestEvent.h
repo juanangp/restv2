@@ -13,6 +13,7 @@
 #include <vector>
 
 class TRestRun;
+class TPad;
 
 /// \struct TRestEventInfo
 /// \brief POD structure with generic event identity and timestamp fields.
@@ -38,6 +39,7 @@ class TRestEvent {
     std::string fName = "";
     std::string* fPtrSubEventTag = nullptr; 
     TRestRun *fRestRun = nullptr;
+    mutable TPad* fPad = nullptr;
 
    public:
     /// Generic event metadata block.
@@ -193,7 +195,12 @@ class TRestEvent {
     TRestEvent() = default;
 
     /// \brief Virtual destructor.
-    virtual ~TRestEvent() = default;
+    virtual ~TRestEvent() {
+        if (fPad != nullptr) {
+            delete fPad;
+            fPad = nullptr;
+        }
+    }
 };
 
 /// \class EventRegistry

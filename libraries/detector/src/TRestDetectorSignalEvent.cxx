@@ -1,5 +1,7 @@
 #include "TRestDetectorSignalEvent.h"
 
+#include "TMultiGraph.h"
+
 #include <iostream>
 
 // ---------------------------------------------------------------------------
@@ -147,10 +149,47 @@ void TRestDetectorSignal::SignalAddition(const TRestDetectorSignal* inSignal) {
     }
 }
 
-TPad* TRestDetectorSignalEvent::DrawEvent(const TString& /*option*/) const {
-    // Placeholder – actual drawing would create a TPad with TGraphs
-    RESTWarning << "TRestDetectorSignalEvent::DrawEvent not yet implemented" << RESTendl;
-    return nullptr;
+TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
+    const int nSignals = static_cast<int>(fSignalData.signalIDs.size());
+    if (nSignals == 0) {
+        std::cout << "Empty event " << std::endl;
+        return nullptr;
+    }
+
+    if (fPad == nullptr) {
+        TString padName = Form("pad_detector_event_%d", this->GetID());
+        fPad = new TPad(padName, "REST Detector Signal Viewer", 0, 0, 1, 1);
+    }
+
+    TVirtualPad* safePad = gPad; 
+    
+    fPad->cd();
+    fPad->Clear();
+
+    TMultiGraph* mg = new TMultiGraph();
+    TString title = Form("Event ID %d;Time;Amplitude / Charge", this->GetID());
+    mg->SetTitle(title.Data());
+
+    for (int n = 0; n < nSignals; ++n) {
+            const auto& signal = GetSignal(n);
+            int sID = signal.GetSignalID();
+            
+            TGraph* g = (TGraph*)signal.GetGraph().Clone();
+            
+            int color = (sID % 72) + 1;
+            g->SetLineColor(color);
+            g->SetLineWidth(1);
+
+            mg->Add(g, "L");
+    }
+
+    mg->Draw("A");
+    
+    fPad->Modified();
+    
+    if (safePad) safePad->cd(); 
+
+    return fPad;
 }
 
 void TRestDetectorSignalEvent::PrintEvent() const {

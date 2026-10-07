@@ -260,6 +260,12 @@ class TRestDetectorSignalEvent : public TRestEvent {
         return GetSignal(std::distance(fSignalData.signalIDs.begin(), it));
     }
 
+    inline const TRestDetectorSignal& GetSignalByID(int id) const {
+        auto it = std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id);
+        if (it == fSignalData.signalIDs.end()) throw std::runtime_error("Signal ID not found");
+        return GetSignal(std::distance(fSignalData.signalIDs.begin(), it));
+    }
+
     void PrintEvent() const override;
     TPad* DrawEvent(const TString& option = "") const override;
 

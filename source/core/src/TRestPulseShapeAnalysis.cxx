@@ -2,21 +2,144 @@
 #include <TFitResult.h>
 #include <TRestPulseShapeAnalysis.h>
 
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+
+namespace {
+
+template <typename T>
+std::vector<float> SubtractBaseline(const std::vector<T>& signal, double baseLine) {
+    std::vector<float> data(signal.size());
+    for (size_t i = 0; i < signal.size(); i++) data[i] = signal[i] - baseLine;
+    return data;
+}
+
+///////////////////////////////////////////////
+/// \brief This method is used to determine the value
+/// of the baseline as average (arithmetic mean) of the
+/// data in the range defined between startBin and endBin.
+/// The baseline sigma is determined as the standard deviation
+/// of the baseline in range provided.
+template <typename T>
+bool BaselineSigmaSD(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
+                     double& baseLineSigma) {
+    baseLine = 0;
+    baseLineSigma = 0;
+
+    double sum = 0, sum2 = 0;
+    int nPoints = 0;
+    for (int i = startBin; i < endBin; i++) {
+        if (i < 0 || i >= (int)signal.size()) continue;
+        const double v = signal[i];
+        sum += v;
+        sum2 += v * v;
+        nPoints++;
+    }
+
+    if (nPoints > 0) {
+        baseLine = sum / nPoints;
+        baseLineSigma = std::sqrt(std::max(0.0, sum2 / nPoints - baseLine * baseLine));
+    }
+    return true;
+}
+
+///////////////////////////////////////////////
+/// \brief This method is used to determine the value
+/// of the baseline as the median of the data in
+/// the range defined between startBin and endBin.
+/// The baseline sigma is determined as the interquartile
+/// range (IQR) in the baseline range provided. The IQR
+/// is more robust towards outliers than the standard deviation.
+template <typename T>
+bool BaselineSigmaIQR(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
+                      double& baseLineSigma) {
+    baseLine = 0;
+    baseLineSigma = 0;
+
+    if (signal.empty()) return false;
+    if (startBin < 0) startBin = 0;
+    if (startBin >= (int)signal.size()) return false;
+    if (endBin >= (int)signal.size()) endBin = signal.size() - 1;
+    if (endBin < startBin) return false;
+
+    std::vector<T> v(signal.begin() + startBin, signal.begin() + endBin + 1);
+    if (v.empty()) return false;
+
+    baseLine = TMath::Median((int)v.size(), v.data());
+
+    std::sort(v.begin(), v.end());
+    const size_t q1 = static_cast<size_t>(0.25 * (v.size() - 1));
+    const size_t q3 = static_cast<size_t>(0.75 * (v.size() - 1));
+    baseLineSigma = (v[q3] - v[q1]) / 1.349;  // IQR/1.349 = sigma for gaussian data
+    return true;
+}
+
+
+template <typename T>
+bool BaselineSigmaExcludeOutliers(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
+                                  double& baseLineSigma) {
+    baseLine = 0;
+    baseLineSigma = 0;
+
+    if (signal.empty()) return false;
+    if (startBin < 0) startBin = 0;
+    if (startBin >= (int)signal.size()) return false;
+    if (endBin >= (int)signal.size()) endBin = signal.size() - 1;
+    if (endBin < startBin) return false;
+
+    std::vector<double> v;
+    for (int i = startBin; i <= endBin; ++i) v.emplace_back(signal[i]);
+
+    if (v.empty()) return false;
+
+    std::sort(v.begin(), v.end());
+    const size_t q1 = static_cast<size_t>(0.25 * (v.size() - 1));
+    const size_t q3 = static_cast<size_t>(0.75 * (v.size() - 1));
+
+    std::vector<double> filteredData;
+    for (const auto& value : v) {
+        if (value >= v[q1] && value <= v[q3]) filteredData.emplace_back(value);
+    }
+
+    if (filteredData.empty()) return false;
+
+    baseLine = TMath::Median(filteredData.size(), filteredData.data());
+
+    double mean = std::accumulate(filteredData.begin(), filteredData.end(), 0.0) / filteredData.size();
+    double variance = 0.0;
+    for (const auto& value : filteredData) variance += std::pow(value - mean, 2);
+    baseLineSigma = std::sqrt(variance / filteredData.size());
+
+    return true;
+}
+
+}  // namespace
+
+template <typename T>
+bool TRestPulseShapeAnalysis::GetBaselineSigma(const std::vector<T>& signal, int startBin, int endBin,
+                                               double& baseLine, double& baseLineSigma,
+                                               std::string option) {
+    if (option == "robust") return BaselineSigmaIQR(signal, startBin, endBin, baseLine, baseLineSigma);
+    if (option == "outliers")
+        return BaselineSigmaExcludeOutliers(signal, startBin, endBin, baseLine, baseLineSigma);
+    return BaselineSigmaSD(signal, startBin, endBin, baseLine, baseLineSigma);
+}
+
+template bool TRestPulseShapeAnalysis::GetBaselineSigma<short>(const std::vector<short>& signal,
+                                                               int startBin, int endBin, double& baseLine,
+                                                               double& baseLineSigma, std::string option);
+template bool TRestPulseShapeAnalysis::GetBaselineSigma<float>(const std::vector<float>& signal,
+                                                               int startBin, int endBin, double& baseLine,
+                                                               double& baseLineSigma, std::string option);
+
 template <typename T>
 std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigma(const std::vector<T>& signal,
                                                                       int startBin, int endBin,
                                                                       double& baseLine, double& baseLineSigma,
                                                                       std::string option) {
-    if (option == "robust") {
-        return TRestPulseShapeAnalysis::CalculateBaselineAndSigmaIQR(signal, startBin, endBin, baseLine,
-                                                                     baseLineSigma);
-    } else if (option == "outliers") {
-        return TRestPulseShapeAnalysis::CalculateBaselineAndSigmaExcludeOutliers(signal, startBin, endBin,
-                                                                                 baseLine, baseLineSigma);
-    } else {
-        return TRestPulseShapeAnalysis::CalculateBaselineAndSigmaSD(signal, startBin, endBin, baseLine,
-                                                                    baseLineSigma);
-    }
+    if (!GetBaselineSigma(signal, startBin, endBin, baseLine, baseLineSigma, option)) return {};
+    return SubtractBaseline(signal, baseLine);
 }
 
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigma<short>(
@@ -26,84 +149,28 @@ template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigma<f
     const std::vector<float>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma,
     std::string option);
 
-///////////////////////////////////////////////
-/// \brief This method is used to determine the value
-/// of the baseline as average (arithmetic mean) of the
-/// data in the range defined between startBin and endBin.
-/// The baseline sigma is determined as the standard deviation
-/// of the baseline in range provided.
+
 template <typename T>
 std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaSD(const std::vector<T>& signal,
                                                                         int startBin, int endBin,
                                                                         double& baseLine,
                                                                         double& baseLineSigma) {
-    baseLine = 0;
-    baseLineSigma = 0;
-
-    int nPoints = 0;
-
-    for (int i = startBin; i < endBin; i++) {
-        if (i < 0 || i >= (int)signal.size()) continue;
-        baseLine += signal[i];
-        baseLineSigma += signal[i] * signal[i];
-        nPoints++;
-    }
-
-    if (nPoints > 0) {
-        baseLine /= (double)nPoints;
-        baseLineSigma = TMath::Sqrt(baseLineSigma / (double)nPoints - baseLine * baseLine);
-    }
-
-    std::vector<float> data(signal.size());
-    for (size_t i = 0; i < signal.size(); i++) data[i] = signal[i] - baseLine;
-
-    return data;
+    BaselineSigmaSD(signal, startBin, endBin, baseLine, baseLineSigma);
+    return SubtractBaseline(signal, baseLine);
 }
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaSD<short>(
     const std::vector<short>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma);
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaSD<float>(
     const std::vector<float>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma);
-///////////////////////////////////////////////
-/// \brief This method is used to determine the value
-/// of the baseline as the median of the data in
-/// the range defined between startBin and endBin.
-/// The baseline sigma is determined as the interquartile
-/// range (IQR) in the baseline range provided. The IQR
-/// is more robust towards outliers than the standard deviation.
+
 template <typename T>
 std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaIQR(const std::vector<T>& signal,
                                                                          int startBin, int endBin,
                                                                          double& baseLine,
                                                                          double& baseLineSigma) {
-    baseLine = 0;
-    baseLineSigma = 0;
-
-    if (signal.empty()) return {};
-    if (startBin < 0) startBin = 0;
-    if (startBin >= (int)signal.size()) return {};
-    if (endBin >= (int)signal.size()) endBin = signal.size() - 1;
-
-    if (endBin < startBin) return {};
-
-    auto first = signal.begin() + startBin;
-    auto last = signal.begin() + endBin + 1;
-    std::vector<T> v(first, last);
-    if (v.empty()) return {};
-
-    baseLine = TMath::Median((int)v.size(), v.data());
-
-    std::sort(v.begin(), v.end());
-    const size_t q1 = static_cast<size_t>(0.25 * (v.size() - 1));
-    const size_t q3 = static_cast<size_t>(0.75 * (v.size() - 1));
-    baseLineSigma = (v[q3] - v[q1]) /
-                    1.349;  // IQR/1.349 equals the standard deviation in case of normally distributed data
-
-    std::vector<float> data(signal.size());
-    for (size_t i = 0; i < signal.size(); i++) data[i] = signal[i] - baseLine;
-
-    return data;
+    if (!BaselineSigmaIQR(signal, startBin, endBin, baseLine, baseLineSigma)) return {};
+    return SubtractBaseline(signal, baseLine);
 }
-
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaIQR<short>(
     const std::vector<short>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma);
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaIQR<float>(
@@ -112,51 +179,9 @@ template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaIQ
 template <typename T>
 std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaExcludeOutliers(
     const std::vector<T>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma) {
-    baseLine = 0;
-    baseLineSigma = 0;
-
-    if (signal.empty()) return {};
-    if (startBin < 0) startBin = 0;
-    if (startBin >= (int)signal.size()) return {};
-    if (endBin >= (int)signal.size()) endBin = signal.size() - 1;
-
-    if (endBin < startBin) return {};
-
-    auto first = signal.begin() + startBin;
-    auto last = signal.begin() + endBin + 1;
-    std::vector<T> v(first, last);
-    if (v.empty()) return {};
-
-    std::sort(v.begin(), v.end());
-    const size_t q1 = static_cast<size_t>(0.25 * (v.size() - 1));
-    const size_t q3 = static_cast<size_t>(0.75 * (v.size() - 1));
-
-    std::vector<Short_t> filteredData;
-    for (const auto& value : signal) {
-        if (value >= v[q1] && value <= v[q3]) {
-            filteredData.emplace_back(value);
-        }
-    }
-
-    if (filteredData.empty()) {
-        baseLine = TMath::Median(signal.size(), &signal[0]);
-        baseLineSigma = 0;
-    } else {
-        baseLine = TMath::Median(filteredData.size(), &filteredData[0]);
-        double mean = std::accumulate(filteredData.begin(), filteredData.end(), 0.0) / filteredData.size();
-        double variance = 0.0;
-        for (const auto& value : filteredData) {
-            variance += std::pow(value - mean, 2);
-        }
-        baseLineSigma = std::sqrt(variance / filteredData.size());
-    }
-
-    std::vector<float> data(signal.size());
-    for (size_t i = 0; i < signal.size(); i++) data[i] = signal[i] - baseLine;
-
-    return data;
+    if (!BaselineSigmaExcludeOutliers(signal, startBin, endBin, baseLine, baseLineSigma)) return {};
+    return SubtractBaseline(signal, baseLine);
 }
-
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaExcludeOutliers<short>(
     const std::vector<short>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma);
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaExcludeOutliers<float>(
@@ -253,7 +278,7 @@ std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers(co
 
     if (pulseDepth == 0) return smoothed;
 
-    if (baseLine == 0) CalculateBaselineAndSigmaIQR(signal, 5, int(pulseDepth - 5), baseLine, baseLineSigma);
+    CalculateBaselineAndSigmaIQR(signal, 5, int(pulseDepth - 5), baseLine, baseLineSigma);
 
     averagingPoints = std::max(1, averagingPoints);
     if (averagingPoints > pulseDepth) averagingPoints = pulseDepth;
@@ -600,11 +625,11 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMaxAget(TGraph& signal) {
     double upperLimit = maxTime + maxTime * 0.35;  // us
 
     // 1.1664 is the x value where the maximum of the base function (i.e. without parameters)
-    TF1* aget =
-        new TF1("aget",
-                "[&](double *x, double *p){ double arg = (x[0] - par[1] + 1.1664) / par[2]; return par[0] / "
-                "0.0440895 * exp(-3 * (arg)) * (arg) * (arg) *               (arg)*sin(arg);}",
-                lowerLimit, upperLimit, 3);
+     TF1* aget = new TF1(
+         "aget",
+         "[0]/0.0440895*exp(-3*((x-[1]+1.1664)/[2]))*"
+         "pow((x-[1]+1.1664)/[2],3)*sin((x-[1]+1.1664)/[2])",
+         lowerLimit, upperLimit, 3);
     TFitResultPtr fitResult = signal.Fit(aget, "QNRS");
 
     if (fitResult->IsValid()) {

@@ -18,13 +18,12 @@
 
 void SignalWaiterThread(sigset_t waitSet) {
     int signum = 0;
-    sigwait(&waitSet, &signum);   // se bloquea aquí hasta que llegue la señal
-    std::cout << "\n[SignalWaiter] señal " << signum << " recibida, solicitando parada..." << std::endl;
+    sigwait(&waitSet, &signum);
+    std::cout << "\n[SignalWaiter] signal " << signum << " captured, stopping..." << std::endl;
     TRestManager::RequestStop();
 }
 
 int main(int argc, char** argv) {
-    // 1. Construir el conjunto de señales a capturar
     sigset_t blockSet;
     sigemptyset(&blockSet);
     sigaddset(&blockSet, SIGINT);

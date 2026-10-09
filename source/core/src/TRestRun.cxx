@@ -131,9 +131,14 @@ void TRestRun::LoadConfig() {
         fIsInitializedFromConfig = true;
     }
 
-    if (!fInputFileName.empty() && fInputFileName != "Null") OpenInputFile(fInputFileName);
+    if ((fInputFileName.empty() || fInputFileName =="Null" ) && !fInputFormat.empty()) {
+        fInputFileName = ResolveFilePattern(fInputFormat);
+    }
 
-    // Input format is resolved if we have fInputFileName and fInputFormat
+    if (!fInputFileName.empty() && fInputFileName != "Null") {
+        OpenInputFile(fInputFileName);
+    }
+
     ResolveInputFormat();
 
     // In case inputFormat is empty we get preserve variables fron input file
@@ -155,13 +160,9 @@ void TRestRun::LoadConfig() {
                     ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", fExperimentName);
         }
     } else {
-      if(fInputFormat.empty()){
-        //In case no input is provided we perform the automatic run numbering
-        if (fConfigRunNumber == "auto") fRunNumber = GetRunNumberAuto();
-      } else {
-        // In case inputFormat is not empty we generate the variables from the input file name
-        fInputFileName = ResolveFilePattern(fInputFormat);
-      }
+        if (fInputFormat.empty() && fConfigRunNumber == "auto") {
+            fRunNumber = GetRunNumberAuto();
+        }
     }
 
     fOutputFileName = PrefixMainDataPath(ResolveFilePattern(fOutputFileName));

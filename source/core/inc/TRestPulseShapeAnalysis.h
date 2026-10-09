@@ -15,6 +15,10 @@
 namespace TRestPulseShapeAnalysis {
 
 template <typename T>
+bool GetBaselineSigma(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
+                      double& baseLineSigma, std::string option = "");
+
+template <typename T>
 std::vector<float> CalculateBaselineAndSigma(const std::vector<T>& signal, int startBin, int endBin,
                                              double& baseLine, double& baseLineSigma,
                                              std::string option = "");

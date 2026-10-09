@@ -16,10 +16,7 @@ target_link_libraries(RestTools PUBLIC yaml-cpp::yaml-cpp ${ROOT_TARGET_LIBRARIE
 rest_attach_dictionary(RestTools
   HEADERS ${TOOLS_HEADERS}
   INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/inc
-    ${CMAKE_SOURCE_DIR}/source/core/inc
-    ${CMAKE_SOURCE_DIR}/libraries/raw/inc
-    ${CMAKE_SOURCE_DIR}/libraries/detector/inc)
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 install(
   TARGETS RestTools

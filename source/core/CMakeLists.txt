@@ -18,8 +18,7 @@ rest_attach_dictionary(RestCore
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_SOURCE_DIR}/source/tools/inc
-    ${CMAKE_SOURCE_DIR}/libraries/raw/inc
-    ${CMAKE_SOURCE_DIR}/libraries/detector/inc)
+    ${CMAKE_SOURCE_DIR}/source/analysis/inc)
 
 install(
   TARGETS RestCore

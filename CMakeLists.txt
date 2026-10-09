@@ -118,6 +118,7 @@ endfunction()
 # Subdirectories activation via unifed flags
 # ---------------------------------------------------------------------------
 add_subdirectory(source/tools)
+add_subdirectory(source/analysis)
 add_subdirectory(source/core)
 
 option(${GEANT4_LIB} "Build the geant4 library" ON)
@@ -178,7 +179,7 @@ if(ALL_REPOSITORY_MACROS)
 
   file(GLOB_RECURSE ALL_INC_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/**/inc")
 
-  set(ALL_REST_TARGETS RestCore RestTools ${RAW_LIB} ${DETECTOR_LIB} ${TRACK_LIB} ${GEANT4_LIB})
+  set(ALL_REST_TARGETS RestCore RestTools RestAnalysis ${RAW_LIB} ${DETECTOR_LIB} ${TRACK_LIB} ${GEANT4_LIB})
 
   foreach(MACRO_PATH IN LISTS ALL_REPOSITORY_MACROS)
     get_filename_component(MACRO_WE ${MACRO_PATH} NAME_WE)

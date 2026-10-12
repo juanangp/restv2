@@ -1,6 +1,8 @@
 #include <TF1.h>
 #include <TFitResult.h>
-#include <TRestPulseShapeAnalysis.h>
+#include <TRandom.h>
+
+#include "TRestPulseShapeAnalysis.h"
 
 #include <algorithm>
 #include <cmath>
@@ -849,3 +851,47 @@ double TRestPulseShapeAnalysis::GetRiseTime(const std::vector<std::pair<T, float
 }
 template double TRestPulseShapeAnalysis::GetRiseTime(const std::vector<std::pair<int, float>>& signal);
 template double TRestPulseShapeAnalysis::GetRiseTime(const std::vector<std::pair<float, float>>& signal);
+
+
+template <typename T>
+void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<T>& noise, double amplitude) {
+    const size_t size = noise.size();
+    for (size_t i = 0; i < size; ++i) {
+        noise[i] = static_cast<T>(gRandom->Gaus(0.0, amplitude));
+    }
+}
+
+template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<short>& noise, double amplitude);
+template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<float>& noise, double amplitude);
+template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<double>& noise, double amplitude);
+
+    template <typename T>
+    void TRestPulseShapeAnalysis::GetSinNoise(std::vector<T>& noise, double maxAmplitude, int period, double phase) {
+        const size_t size = noise.size();
+        if (size == 0 || period <= 0 || maxAmplitude <= 0.0) {
+            if (size > 0) std::fill(noise.begin(), noise.end(), static_cast<T>(0));
+            return;
+        }
+
+        double uBase = gRandom->Uniform(0.0, 1.0);
+        double sinBase = std::sin(uBase * TMath::Pi() / 2.0);
+        double baseAmplitude = maxAmplitude * (sinBase * sinBase);
+
+        double slowFreq = period * gRandom->Uniform(4.0, 8.0);
+        double slowPhase = gRandom->Uniform(0.0, 2.0 * TMath::Pi());
+
+        for (size_t i = 0; i < size; ++i) {
+            double angle = (2.0 * TMath::Pi() * i / period) + phase;
+            
+            double slowAngle = (2.0 * TMath::Pi() * i / slowFreq) + slowPhase;
+            double dynamicAmp = baseAmplitude * std::abs(std::sin(slowAngle));
+
+            if (dynamicAmp > maxAmplitude) dynamicAmp = maxAmplitude;
+
+            noise[i] = static_cast<T>(dynamicAmp * std::sin(angle));
+        }
+    }
+
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<short>& noise, double maxAmplitude, int period, double phase);
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<float>& noise, double maxAmplitude, int period, double phase);
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<double>& noise, double maxAmplitude, int period, double phase);

@@ -96,6 +96,12 @@ TGraph GetGraphPair(const std::vector<std::pair<T, U>>& points,const std::string
 template <typename T>
 TGraph GetGraph(const std::vector<T>& signal, const std::string& title = "");
 
+template <typename T>
+void GetWhiteNoise(std::vector<T>& noise, double amplitude);
+
+template <typename T>
+void GetSinNoise(std::vector<T>& noise, double maxAmplitude, int period, double phase = 0);
+
 std::vector<std::pair<double, double>> GetIntWindow(TGraph& signal, double intWindow);
 std::array<std::pair<double, double>, 3> GetTripleMax(TGraph& signal);
 std::pair<double, double> GetMin(TGraph& signal);

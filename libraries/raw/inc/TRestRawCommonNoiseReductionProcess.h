@@ -58,13 +58,13 @@ class TRestRawCommonNoiseReductionProcess : public TRestEventProcess {
     /// Parameters used for the single implicit block when fBlocks is empty.
     TRestCommonNoiseBlock fDefaultBlock;
 
+   public:
     /// \brief Applies common-noise subtraction to the signals of one block,
     /// filtering by baseline sigma first, and writes the result (corrected or
     /// passed-through) into `outEvent`.
-    void ProcessBlock(const TRestRawSignalEvent& inEvent, TRestRawSignalEvent& outEvent,
-                      const TRestCommonNoiseBlock& block) const;
+    static void ProcessBlock(TRestRawSignalEvent& signalEvent,
+                      const TRestCommonNoiseBlock& block);
 
-   public:
     /// User-defined noise blocks (YAML key: "channels"). Empty means "treat
     /// the whole event as a single block" using fDefaultBlock's parameters.
     std::vector<TRestCommonNoiseBlock> fBlocks;

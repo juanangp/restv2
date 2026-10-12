@@ -110,19 +110,18 @@ void TRestRawCommonNoiseReductionProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawCommonNoiseReductionProcess>(fNode);
 }
 
-/// \brief Corrects one block's signals in place inside outEvent: computes each
+/// \brief Corrects one block's signals in place inside signalEvent: computes each
 /// signal's baseline, keeps only the ones above the sigma threshold as "to be
 /// corrected" (the rest are passed through untouched), and for each time bin
 /// estimates the common-mode value from the block's own signals (median, or an
 /// average window around it) and subtracts it.
-void TRestRawCommonNoiseReductionProcess::ProcessBlock(const TRestRawSignalEvent& inEvent,
-                                                       TRestRawSignalEvent& outEvent,
-                                                       const TRestCommonNoiseBlock& block) const {
+void TRestRawCommonNoiseReductionProcess::ProcessBlock(TRestRawSignalEvent& signalEvent,
+                                                       const TRestCommonNoiseBlock& block) {
 
     std::vector<int> members;
     int nBins = -1;
-    for (int s = 0; s < inEvent.GetNumberOfSignals(); s++) {
-        const auto& sig = inEvent.GetSignal(s);
+    for (int s = 0; s < signalEvent.GetNumberOfSignals(); s++) {
+        const auto& sig = signalEvent.GetSignal(s);
         if (!block.ContainsID(sig.GetSignalID())) continue;
         const int n = sig.GetNPoints();
         if (nBins < 0) nBins = n;
@@ -137,7 +136,7 @@ void TRestRawCommonNoiseReductionProcess::ProcessBlock(const TRestRawSignalEvent
     std::vector<size_t> cleanIdx;
 
     for (int pos : members) {
-        std::vector<short> data = inEvent.GetSignal(pos).GetData();
+        std::vector<short> data = signalEvent.GetSignal(pos).GetData();
 
         double baseline = 0, sigma = 0;
         GetBaselineSigma(data, block.fBaselineRange.first, block.fBaselineRange.second, baseline, sigma);
@@ -203,7 +202,7 @@ void TRestRawCommonNoiseReductionProcess::ProcessBlock(const TRestRawSignalEvent
     }
 
     for (int pos : active) {
-        auto& sig = outEvent.GetSignal(pos);
+        auto& sig = signalEvent.GetSignal(pos);
         for (int b = 0; b < nBins; b++) sig.IncreaseBinBy(b, deltas[b]);
     }
 }
@@ -219,10 +218,10 @@ bool TRestRawCommonNoiseReductionProcess::ProcessEvent(const TRestEvent& input, 
     }
 
     if (fBlocks.empty()) {
-        ProcessBlock(*inEvent, *outEvent, fDefaultBlock);
+        ProcessBlock(*outEvent, fDefaultBlock);
     } else {
         for (const auto& block : fBlocks) {
-            ProcessBlock(*inEvent, *outEvent, block);
+            ProcessBlock(*outEvent, block);
         }
     }
 

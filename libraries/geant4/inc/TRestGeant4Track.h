@@ -2,7 +2,6 @@
 #define TRESTGEANT4TRACK_H
 
 #include <Math/Vector3D.h>
-#include <TColor.h>
 
 #include <cstddef>
 #include <optional>

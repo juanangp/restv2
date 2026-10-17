@@ -1,6 +1,5 @@
 #include "TRestGeant4PhysicsInfo.h"
 
-#include <algorithm>
 #include <iostream>
 #include <mutex>
 

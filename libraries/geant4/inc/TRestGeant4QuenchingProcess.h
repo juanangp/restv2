@@ -2,7 +2,8 @@
 #define TRESGEANT4QUENCHINGPROCESS_H
 
 #include "TRestEventProcess.h"
-#include "TRestGeant4Event.h"
+class TRestGeant4Event;
+class TRestGeant4Metadata;
 
 class TRestGeant4QuenchingInfo : public TRestMetadata {
    public:

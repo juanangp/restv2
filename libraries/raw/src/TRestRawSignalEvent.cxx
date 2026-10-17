@@ -1,11 +1,10 @@
 #include "TRestRawSignalEvent.h"
+#include "TRestLogManager.h"
 #include "TRestTools.h"
 
 #include <iostream>
 
 #include <TPad.h>
-#include <TStyle.h>
-#include <TList.h>
 #include <TObjString.h>
 #include <TMultiGraph.h>
 

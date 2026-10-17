@@ -1,10 +1,8 @@
 #include "TRestGeant4ParticleSource.h"
 
-#include <TClass.h>
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 
 #include "TRestGeant4Metadata.h"
 #include "TRestTools.h"

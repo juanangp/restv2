@@ -5,8 +5,10 @@
 #include <string>
 #include <vector>
 
-#include "TRestDetectorReadout.h"
 #include "TRestMetadata.h"
+
+class TGeoManager;
+class TRestDetectorReadout;
 
 /// \brief Describes one readout import request declared in configuration.
 class TRestReadoutInfo : public TRestMetadata {

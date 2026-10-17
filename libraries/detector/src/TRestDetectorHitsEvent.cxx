@@ -1,9 +1,7 @@
 #include "TRestDetectorHitsEvent.h"
 #include "TRestSystemOfUnits.h"
 
-#include "TRandom.h"
 
-#include <numeric>
 
 namespace {
 const bool kRegistered = []() {

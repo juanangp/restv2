@@ -9,12 +9,12 @@
 #include <iostream>
 #include <string>
 #include <csignal>
-#include <cstdlib>
 #include <thread>
 
 #include "TRestManager.h"
 #include "TRestTools.h"
 #include "TRestLogManager.h"
+#include "TRestSystemOfUnits.h"
 
 void SignalWaiterThread(sigset_t waitSet) {
     int signum = 0;
@@ -24,6 +24,8 @@ void SignalWaiterThread(sigset_t waitSet) {
 }
 
 int main(int argc, char** argv) {
+    REST_Units::SetGeoManagerDefaultUnits();
+
     sigset_t blockSet;
     sigemptyset(&blockSet);
     sigaddset(&blockSet, SIGINT);

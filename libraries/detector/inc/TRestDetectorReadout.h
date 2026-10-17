@@ -2,15 +2,19 @@
 #define TRESTDETECTORREADOUT_H
 
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "Math/Vector3D.h"
-#include "TGeoManager.h"
-#include "TGeoVolume.h"
+#include "TGeoMatrix.h"
 #include "TRestMetadata.h"
-#include "TRestTools.h"
 
 class TFile;
+class TGeoManager;
+class TGeoMedium;
+class TGeoShape;
 
 
 /// \class TRestDetectorReadout

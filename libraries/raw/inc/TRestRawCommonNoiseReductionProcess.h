@@ -6,7 +6,7 @@
 
 #include "TRestEventProcess.h"
 #include "TRestMetadata.h"
-#include "TRestRawSignalEvent.h"
+class TRestRawSignalEvent;
 
 /// \brief Describes one group of signals that share the same common-mode
 /// noise source, and the parameters used to correct it.

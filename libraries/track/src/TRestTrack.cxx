@@ -1,9 +1,5 @@
 #include "TRestTrack.h"
 #include "TRestTrackEvent.h"
-#include <algorithm>
-#include <limits>
-#include <numeric>
-#include <iostream>
 
 TRestTrack::TRestTrack(TRestTrackEvent* event, std::size_t index) 
     : fEvent(event), fTrackIndex(index) {}

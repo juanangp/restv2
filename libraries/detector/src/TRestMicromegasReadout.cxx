@@ -1,9 +1,9 @@
 #include "TRestMicromegasReadout.h"
 
 #include <stdexcept>
-#include <vector>
 
 #include "TGeoBBox.h"
+#include "TGeoManager.h"
 #include "TGeoMatrix.h"
 #include "TGeoNode.h"
 #include "TGeoVolume.h"

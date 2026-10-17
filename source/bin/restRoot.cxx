@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <TRestLogManager.h>
+#include <TRestSystemOfUnits.h>
 #include <TRestTools.h>
 
 namespace {
@@ -80,6 +81,8 @@ bool InitializeRestRuntimeFromRestPath() {
 
 int main(int argc, char* argv[]) {
     std::cout << "---------------------Welcome to RESTRoot--------------------\n";
+
+    REST_Units::SetGeoManagerDefaultUnits();
 
     if (!InitializeRestRuntimeFromRestPath()) {
         return 1;

@@ -6,7 +6,7 @@
 
 #include "TRestEventProcess.h"
 #include "TRestMetadata.h"
-#include "TRestRawSignalEvent.h"
+class TRestRawSignalEvent;
 
 class TRestNoiseParameters : public TRestMetadata {
    public:

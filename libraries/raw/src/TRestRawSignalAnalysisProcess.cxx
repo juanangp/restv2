@@ -1,8 +1,8 @@
 #include "TRestRawSignalAnalysisProcess.h"
+#include "TRestRawSignalEvent.h"
+#include "TRestRun.h"
 
-#include <TObjString.h>
 
-#include <iostream>
 #include <limits>
 
 #include "TRestPulseShapeAnalysis.h"

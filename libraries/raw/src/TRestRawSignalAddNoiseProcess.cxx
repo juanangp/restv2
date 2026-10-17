@@ -1,8 +1,7 @@
 #include "TRestRawSignalAddNoiseProcess.h"
+#include "TRestRawSignalEvent.h"
 #include "TRestPulseShapeAnalysis.h"
 
-#include <algorithm>
-#include <cmath>
 #include <vector>
 
 #include <TRandom.h>

@@ -12,8 +12,6 @@
 
 // ROOT MathCore and Core dependencies
 #include <Math/Vector3D.h>
-#include <TF1.h>
-#include <TF2.h>
 
 #include "TRestGeant4ParticleSource.h"
 #include "TRestGeant4ParticleState.h"

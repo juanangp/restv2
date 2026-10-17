@@ -1,10 +1,10 @@
 #include "TRestGeant4GeometryInfo.h"
 
+#include <TGeoManager.h>
+#include <TGeoNode.h>
+#include <TGeoVolume.h>
 #include <TPRegexp.h>
 
-#include <algorithm>
-#include <iostream>
-#include <regex>
 
 using namespace std;
 
@@ -198,4 +198,52 @@ void TRestGeant4GeometryInfo::Print() const {
     cout << " - Path Separator Token: '" << fPathSeparator << "'" << endl;
     cout << " - Total Registered Logical Volumes: " << fGeoManager->GetListOfVolumes()->GetEntries() << endl;
     cout << " - Total Registered Physical Nodes:   " << fGeoManager->GetListOfNodes()->GetEntries() << endl;
+}
+
+bool TRestGeant4GeometryInfo::IsValidLogicalVolume(const std::string& volume) const {
+    return fGeoManager ? (fGeoManager->GetVolume(volume.c_str()) != nullptr) : false;
+}
+
+bool TRestGeant4GeometryInfo::IsValidPhysicalVolume(const std::string& volume) const {
+    return fGeoManager ? (fGeoManager->FindNode(volume.c_str()) != nullptr) : false;
+}
+
+ROOT::Math::XYZVector TRestGeant4GeometryInfo::GetPosition(const std::string& physicalVolumeName) const {
+    if (!fGeoManager) return {0.0, 0.0, 0.0};
+    TGeoNode* node = fGeoManager->FindNode(physicalVolumeName.c_str());
+    if (!node || !node->GetMatrix()) return {0.0, 0.0, 0.0};
+
+    const double* translation = node->GetMatrix()->GetTranslation();
+    return ROOT::Math::XYZVector(translation[0], translation[1], translation[2]);
+}
+
+ROOT::Math::Rotation3D TRestGeant4GeometryInfo::GetRotation(const std::string& physicalVolumeName) const {
+    if (!fGeoManager) return {};
+    TGeoNode* node = fGeoManager->FindNode(physicalVolumeName.c_str());
+    if (!node || !node->GetMatrix()) return {};
+
+    const double* r = node->GetMatrix()->GetRotationMatrix();
+    // Construct standard MathCore 3D rotation from raw matrix elements array directly
+    return ROOT::Math::Rotation3D(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]);
+}
+
+std::string TRestGeant4GeometryInfo::GetMaterialNameOfLogical(const std::string& logicalVolumeName) const {
+    if (!fGeoManager) return "";
+    TGeoVolume* vol = fGeoManager->GetVolume(logicalVolumeName.c_str());
+    return (vol && vol->GetMaterial()) ? vol->GetMaterial()->GetName() : "";
+}
+
+std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesFromLogical(const std::string& logicalVolumeName) const {
+    std::vector<std::string> result;
+    if (!fGeoManager) return result;
+    auto* nodes = fGeoManager->GetListOfNodes();
+    if (!nodes) return result;
+    for (int i = 0; i < nodes->GetEntries(); ++i) {
+        auto* node = dynamic_cast<TGeoNode*>(nodes->At(i));
+        if (!node || !node->GetVolume()) continue;
+        if (logicalVolumeName == node->GetVolume()->GetName()) {
+            result.emplace_back(node->GetName());
+        }
+    }
+    return result;
 }

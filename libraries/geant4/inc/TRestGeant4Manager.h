@@ -4,10 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "TRestGeant4Metadata.h"
-#include "TRestGeant4PhysicsLists.h"
-#include "TRestLogManager.h"
-#include "TRestRun.h"
+#include "TRestMetadata.h"
+
+class TRestGeant4Metadata;
+class TRestGeant4PhysicsLists;
+class TRestRun;
 
 /// \class TRestGeant4Manager
 /// \brief Top-level orchestrator that loads configured metadata classes.

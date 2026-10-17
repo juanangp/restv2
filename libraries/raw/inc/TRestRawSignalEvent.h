@@ -8,7 +8,6 @@
 
 #include "TGraph.h"
 #include "TRestEvent.h"
-#include "TRestLogManager.h"
 #include "TRestPulseShapeAnalysis.h"
 
 // ============================================================

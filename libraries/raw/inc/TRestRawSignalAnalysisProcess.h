@@ -1,15 +1,12 @@
 #ifndef TRESTRAWSIGNALANALYSISPROCESS_H
 #define TRESTRAWSIGNALANALYSISPROCESS_H
 
-#include <TFile.h>
-#include <TTree.h>
 
 #include <limits>
 #include <vector>
 
 #include "TRestEventProcess.h"
-#include "TRestRawSignalEvent.h"
-#include "TRestRun.h"
+class TRestRawSignalEvent;
 
 /// \class TRestRawSignalAnalysisProcess
 /// \brief Computes pulse-shape observables for each signal inside a raw signal event.

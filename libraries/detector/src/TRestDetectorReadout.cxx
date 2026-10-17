@@ -2,19 +2,16 @@
 
 #include <fstream>
 #include <iostream>
-#include <limits>
 #include <sstream>
 #include <algorithm> 
 
 #include "TDirectory.h"
-#include "TError.h"
 #include "TFile.h"
 #include <TGeoBBox.h>
 #include <TGeoMatrix.h>
 #include <TGeoVolume.h>
 #include <TGeoNode.h>
 #include <TGeoManager.h>
-#include <TGeoMaterial.h>
 #include <TGeoMedium.h>
 #include "TObjString.h"
 #include "TRestConstants.h"

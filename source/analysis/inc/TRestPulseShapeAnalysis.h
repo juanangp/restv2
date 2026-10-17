@@ -2,7 +2,6 @@
 #define TRESTPULSESHAPEANALYSIS_H
 
 #include <TGraph.h>
-#include <TMath.h>
 
 #include <algorithm>
 #include <array>

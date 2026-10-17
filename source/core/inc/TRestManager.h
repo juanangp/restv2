@@ -4,9 +4,9 @@
 #include <memory>
 #include <vector>
 
-#include "TRestLogManager.h"
-#include "TRestRun.h"
-#include "TRestTools.h"
+#include "TRestMetadata.h"
+
+class TRestRun;
 
 class TRestProcessManager;
 

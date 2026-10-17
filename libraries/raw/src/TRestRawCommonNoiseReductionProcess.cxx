@@ -1,4 +1,5 @@
 #include "TRestRawCommonNoiseReductionProcess.h"
+#include "TRestRawSignalEvent.h"
 
 #include <algorithm>
 #include <cmath>

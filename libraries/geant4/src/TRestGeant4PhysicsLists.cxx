@@ -1,5 +1,4 @@
 #include "TRestGeant4PhysicsLists.h"
-#include <iostream>
 
 const std::set<std::string> TRestGeant4PhysicsLists::fValidPhysicsLists = {
     "G4DecayPhysics", "G4RadioactiveDecayPhysics", "G4RadioactiveDecay",

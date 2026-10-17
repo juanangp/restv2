@@ -1,15 +1,14 @@
 #ifndef TRESTRAWFEMDAQTOSIGNALPROCESS_H
 #define TRESTRAWFEMDAQTOSIGNALPROCESS_H
 
-#include <TFile.h>
-#include <TTree.h>
+class TFile;
+class TTree;
 
 #include <limits>
 #include <vector>
 
 #include "TRestEventProcess.h"
-#include "TRestRawSignalEvent.h"
-#include "TRestRun.h"
+class TRestRawSignalEvent;
 
 /// \class TRestRawFemDAQToSignalProcess
 /// \brief Converts FemDAQ ROOT tree entries into REST raw signal events.

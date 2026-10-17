@@ -1,9 +1,8 @@
 #include "TRestGDMLReadout.h"
 
-#include <cctype>
-#include <iostream>
 #include <regex> 
 
+#include "TGeoManager.h"
 #include "TGeoNode.h"
 #include "TGeoVolume.h"
 #include "TRestTools.h"

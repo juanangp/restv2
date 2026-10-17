@@ -6,7 +6,10 @@
 
 #include <TFileMerger.h>
 
+#include "TRestLogManager.h"
 #include "TRestProcessManager.h"
+#include "TRestRun.h"
+#include "TRestTools.h"
 
 using namespace TRestTools;
 

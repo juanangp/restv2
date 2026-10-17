@@ -15,11 +15,11 @@
 #include "TRestGeant4GeometryInfo.h"
 #include "TRestGeant4PhysicsInfo.h"
 #include "TRestGeant4PrimaryGeneratorInfo.h"
-#include "TRestGeant4ParticleSource.h"
 #include "TRestMetadata.h"
-#include "TRestTools.h"
 
 // Forward declarations for framework friend classes
+class TRestGeant4ParticleSource;
+
 class SteppingAction;
 class DetectorConstruction;
 

@@ -5,7 +5,6 @@
 #include <TMath.h>
 
 #include <fstream>
-#include <iostream>
 
 #include "TRestMetadata.h"
 #include "TRestTools.h"

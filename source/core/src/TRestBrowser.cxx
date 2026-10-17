@@ -24,6 +24,8 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "TRestBrowser.h"
+
+#include <TGeoManager.h>
 #include <TRestEventViewer.h>
 #include <TRestRun.h>
 #include <TRestTools.h>

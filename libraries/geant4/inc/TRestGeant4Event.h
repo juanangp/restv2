@@ -12,9 +12,10 @@
 #include <utility>
 #include <vector>
 
-#include "TRestGeant4Metadata.h"
 #include "TRestEvent.h"
 #include "TRestHits.h"
+
+class TRestGeant4Metadata;
 
 class TTree;
 class TRestGeant4Event;

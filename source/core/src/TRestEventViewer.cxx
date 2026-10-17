@@ -16,34 +16,19 @@
 ///
 ///_______________________________________________________________________________
 
-#include <iostream>
-#include <map>
 
+#include "TRestEvent.h"
 #include "TRestTools.h"
 #include "TRestEventViewer.h"
 #include "TRestEveEventViewer.h"
 #include "TRestBrowser.h"
 #include "TRestLogManager.h"
 
-#include <TString.h>
 #include <TPad.h>
 #include <TCanvas.h>
 #include <TBrowser.h>
-#include <TGeoManager.h>
 
-#include <TEveManager.h>
-#include <TEveBrowser.h>
-#include <TEveWindow.h>
-#include <TEveEventManager.h>
-#include <TEveViewer.h>
-#include <TEveScene.h>
-#include <TEveProjectionManager.h>
-#include <TEvePointSet.h>
-#include <TEveGeoNode.h>
 
-#include <TGLViewer.h>
-#include <TGLRnrCtx.h>
-#include <TGLUtil.h>
 
 
 using namespace std;

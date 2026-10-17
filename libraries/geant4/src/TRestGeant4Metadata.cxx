@@ -1,14 +1,8 @@
 #include "TRestGeant4Metadata.h"
 
-#include <fstream>
-#include <iostream>
-#include <limits>
-#include <sstream>
+#include <TGeoManager.h>
 
-#include "TDirectory.h"
-#include "TError.h"
-#include "TFile.h"
-#include "TObjString.h"
+
 #include "TRestConstants.h"
 
 using namespace TRestConstants;

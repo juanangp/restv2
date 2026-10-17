@@ -1,5 +1,6 @@
 #include "TRestEventProcess.h"
 
+#include "TRestRun.h"
 #include "TRestTools.h"
 
 static const bool TRestEventProcess_FieldsRegistered = []() {
@@ -27,4 +28,15 @@ void TRestEventProcess::LoadConfig() {
     ReadYAMLVerbose(fNode);
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestEventProcess>(fNode);
+}
+
+Long64_t TRestEventProcess::GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
+
+bool TRestEventProcess::ShouldRegisterObservable(const std::string& name) const {
+    if (!fRunInfo) return false;
+    for (const auto& obs : fObservables) {
+        if (obs == "none") return false;
+        if (obs == "all" || obs == name) return true;
+    }
+    return false;
 }

@@ -1,10 +1,11 @@
 #include "TRestGeant4QuenchingProcess.h"
+#include "TRestRun.h"
+#include "TRestGeant4Event.h"
+#include "TRestGeant4Metadata.h"
 #include "TRestGeant4Track.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <limits>
 
 using namespace std;
 

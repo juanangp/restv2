@@ -16,7 +16,6 @@
 #include "TRestTools.h"
 #include "TRestLogManager.h"
 
-#include <iostream>
 #include <map>
 #include <TString.h>
 #include <TGeoManager.h>

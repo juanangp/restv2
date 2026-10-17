@@ -22,11 +22,12 @@
 #include <TGButton.h>
 #include <TGLabel.h>
 #include <TGTextEntry.h>
-#include <TGeoManager.h>
 #include <TObject.h>
 
-#include "TRestEvent.h"
 
+class TRestEvent;
+
+class TGeoManager;
 class TRestBrowser;
 class TPad;
 class TCanvas;

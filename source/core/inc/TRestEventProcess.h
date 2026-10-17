@@ -3,9 +3,9 @@
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
-#include "TRestRun.h"
 
 class TRestManager;
+class TRestRun;
 
 /// \class TRestEventProcess
 /// \brief Abstract base for event-processing pipeline stages.
@@ -48,7 +48,7 @@ class TRestEventProcess : public TRestMetadata {
 
     /// \brief Returns expected input event count when known.
     /// \return Number of input events or `-1` if unknown.
-    virtual Long64_t GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
+    virtual Long64_t GetInputEventCount() const;
 
     /// \brief No-op configuration loader for process instances.
     virtual void LoadConfig() override;
@@ -64,23 +64,18 @@ class TRestEventProcess : public TRestMetadata {
     /// \param mgr Owning manager, or nullptr.
     inline void SetManager(TRestManager* mgr) { fManager = mgr; }
 
-    template <typename T>
+    /// \brief Registers a variable as analysis observable if enabled in the configuration.
+    /// The `Run` parameter defers the TRestRun lookup to the point of instantiation,
+    /// where TRestRun.h must be included.
+    template <typename T, typename Run = TRestRun>
     void RegisterObservable(const std::string& name, T& variable) {
-        if (!fRunInfo) return;
-
-        bool shouldRegister = false;
-        for (const auto& obs : fObservables) {
-            if (obs == "none") return;
-            if (obs == "all" || obs == name) {
-                shouldRegister = true;
-                break;
-            }
-        }
-
-        if (shouldRegister) {
-            fRunInfo->SetObservable(name, variable);
-        }
+        if (!ShouldRegisterObservable(name)) return;
+        Run* run = fRunInfo;
+        run->SetObservable(name, variable);
     }
+
+   private:
+    bool ShouldRegisterObservable(const std::string& name) const;
 };
 
 #endif

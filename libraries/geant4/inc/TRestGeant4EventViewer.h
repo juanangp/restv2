@@ -1,8 +1,11 @@
 #ifndef RestCore_TRestGeant4EventViewer
 #define RestCore_TRestGeant4EventViewer
 
+#include <Math/Vector3D.h>
+
 #include "TRestEveEventViewer.h"
-#include "TRestGeant4Event.h"
+class TRestGeant4Event;
+class TRestGeant4Metadata;
 
 class TEveLine;
 

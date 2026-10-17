@@ -1,11 +1,12 @@
 #include "TRestDetectorReadoutManager.h"
+
+
+#include "TRestDetectorReadout.h"
 #include "TRestTools.h"
 
 #include <iostream>
 
-#include "TDirectory.h"
 #include "TFile.h"
-#include "TObjString.h"
 
 // Anonymous namespace to avoid global name pollution during compilation
 namespace {

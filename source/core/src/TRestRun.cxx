@@ -5,13 +5,10 @@
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
 
-#include <algorithm>
-#include <cctype>
 #include <filesystem>
 #include <regex>
 #include <stdexcept>
 
-#include "TObjString.h"
 #include "TRestTools.h"
 
 using namespace TRestTools;

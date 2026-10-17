@@ -1,4 +1,8 @@
 #include "TRestGeant4Manager.h"
+#include "TRestGeant4Metadata.h"
+#include "TRestGeant4PhysicsLists.h"
+#include "TRestLogManager.h"
+#include "TRestRun.h"
 
 using namespace TRestTools;
 

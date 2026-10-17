@@ -78,7 +78,9 @@ struct TRestGeant4EventData {
     std::vector<int> hitProcessID;
     std::vector<int> hitVolumeID;
     std::vector<float> hitKineticEnergy;
-    std::vector<ROOT::Math::XYZVector> hitMomentumDirection;
+    std::vector<float> hitMomentumDirectionX;
+    std::vector<float> hitMomentumDirectionY;
+    std::vector<float> hitMomentumDirectionZ;
 
     std::vector<std::string> hitHadronicTargetIsotopeName;
     std::vector<int> hitHadronicTargetIsotopeA;
@@ -94,7 +96,8 @@ struct TRestGeant4EventData {
                    trackWeights, trackSecondariesIDs, trackSecondariesOffsets, trackSecondariesIndices,
                    trackInitialPositions, crossVolumeNames, crossParticleNames, crossProcessNames,
                    crossDepositedEnergies, hitProcessID, hitVolumeID, hitKineticEnergy,
-                   hitMomentumDirection, hitHadronicTargetIsotopeName, hitHadronicTargetIsotopeA,
+                   hitMomentumDirectionX, hitMomentumDirectionY, hitMomentumDirectionZ,
+                   hitHadronicTargetIsotopeName, hitHadronicTargetIsotopeA,
                    hitHadronicTargetIsotopeZ);
 
         hitsStorage.clear();
@@ -163,7 +166,9 @@ class TRestGeant4Event : public TRestEvent {
     std::vector<int>* fPtr_hitProcessID = nullptr;
     std::vector<int>* fPtr_hitVolumeID = nullptr;
     std::vector<float>* fPtr_hitKineticEnergy = nullptr;
-    std::vector<ROOT::Math::XYZVector>* fPtr_hitMomentumDirection = nullptr;
+    std::vector<float>* fPtr_hitMomentumDirectionX = nullptr;
+    std::vector<float>* fPtr_hitMomentumDirectionY = nullptr;
+    std::vector<float>* fPtr_hitMomentumDirectionZ = nullptr;
     std::vector<std::string>* fPtr_hitHadronicTargetIsotopeName = nullptr;
     std::vector<int>* fPtr_hitHadronicTargetIsotopeA = nullptr;
     std::vector<int>* fPtr_hitHadronicTargetIsotopeZ = nullptr;

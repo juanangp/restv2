@@ -110,7 +110,9 @@ void TRestGeant4Event::CreateBranches(TTree* tree) {
     tree->Branch("fHitProcessID", &fEventData.hitProcessID);
     tree->Branch("fHitVolumeID", &fEventData.hitVolumeID);
     tree->Branch("fHitKineticEnergy", &fEventData.hitKineticEnergy);
-    tree->Branch("fHitMomentumDirection", &fEventData.hitMomentumDirection);
+    tree->Branch("fHitMomentumDirectionX", &fEventData.hitMomentumDirectionX);
+    tree->Branch("fHitMomentumDirectionY", &fEventData.hitMomentumDirectionY);
+    tree->Branch("fHitMomentumDirectionZ", &fEventData.hitMomentumDirectionZ);
     tree->Branch("fHitHadronicTargetIsotopeName", &fEventData.hitHadronicTargetIsotopeName);
     tree->Branch("fHitHadronicTargetIsotopeA", &fEventData.hitHadronicTargetIsotopeA);
     tree->Branch("fHitHadronicTargetIsotopeZ", &fEventData.hitHadronicTargetIsotopeZ);
@@ -166,7 +168,9 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     fPtr_hitProcessID = &fEventData.hitProcessID;
     fPtr_hitVolumeID = &fEventData.hitVolumeID;
     fPtr_hitKineticEnergy = &fEventData.hitKineticEnergy;
-    fPtr_hitMomentumDirection = &fEventData.hitMomentumDirection;
+    fPtr_hitMomentumDirectionX = &fEventData.hitMomentumDirectionX;
+    fPtr_hitMomentumDirectionY = &fEventData.hitMomentumDirectionY;
+    fPtr_hitMomentumDirectionZ = &fEventData.hitMomentumDirectionZ;
     fPtr_hitHadronicTargetIsotopeName = &fEventData.hitHadronicTargetIsotopeName;
     fPtr_hitHadronicTargetIsotopeA = &fEventData.hitHadronicTargetIsotopeA;
     fPtr_hitHadronicTargetIsotopeZ = &fEventData.hitHadronicTargetIsotopeZ;
@@ -211,7 +215,9 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     tree->SetBranchAddress("fHitProcessID", &fPtr_hitProcessID);
     tree->SetBranchAddress("fHitVolumeID", &fPtr_hitVolumeID);
     tree->SetBranchAddress("fHitKineticEnergy", &fPtr_hitKineticEnergy);
-    tree->SetBranchAddress("fHitMomentumDirection", &fPtr_hitMomentumDirection);
+    tree->SetBranchAddress("fHitMomentumDirectionX", &fPtr_hitMomentumDirectionX);
+    tree->SetBranchAddress("fHitMomentumDirectionY", &fPtr_hitMomentumDirectionY);
+    tree->SetBranchAddress("fHitMomentumDirectionZ", &fPtr_hitMomentumDirectionZ);
     tree->SetBranchAddress("fHitHadronicTargetIsotopeName", &fPtr_hitHadronicTargetIsotopeName);
     tree->SetBranchAddress("fHitHadronicTargetIsotopeA", &fPtr_hitHadronicTargetIsotopeA);
     tree->SetBranchAddress("fHitHadronicTargetIsotopeZ", &fPtr_hitHadronicTargetIsotopeZ);
@@ -369,7 +375,9 @@ void TRestGeant4Event::ClearTracks() {
     fEventData.hitProcessID.clear();
     fEventData.hitVolumeID.clear();
     fEventData.hitKineticEnergy.clear();
-    fEventData.hitMomentumDirection.clear();
+    fEventData.hitMomentumDirectionX.clear();
+    fEventData.hitMomentumDirectionY.clear();
+    fEventData.hitMomentumDirectionZ.clear();
     fEventData.hitHadronicTargetIsotopeName.clear();
     fEventData.hitHadronicTargetIsotopeA.clear();
     fEventData.hitHadronicTargetIsotopeZ.clear();
@@ -404,7 +412,9 @@ void TRestGeant4Event::RemoveTrackHits(std::size_t trackIndex) {
     eraseRange(fEventData.hitProcessID);
     eraseRange(fEventData.hitVolumeID);
     eraseRange(fEventData.hitKineticEnergy);
-    eraseRange(fEventData.hitMomentumDirection);
+    eraseRange(fEventData.hitMomentumDirectionX);
+    eraseRange(fEventData.hitMomentumDirectionY);
+    eraseRange(fEventData.hitMomentumDirectionZ);
     eraseRange(fEventData.hitHadronicTargetIsotopeName);
     eraseRange(fEventData.hitHadronicTargetIsotopeA);
     eraseRange(fEventData.hitHadronicTargetIsotopeZ);

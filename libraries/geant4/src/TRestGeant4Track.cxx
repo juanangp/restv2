@@ -138,7 +138,9 @@ Double_t TRestGeant4Track::GetHitKineticEnergy(size_t hit) const {
 }
 
 ROOT::Math::XYZVector TRestGeant4Track::GetHitMomentumDirection(size_t hit) const {
-    return fEvent->fEventData.hitMomentumDirection.at(GetHitStart() + hit);
+    const auto idx = GetHitStart() + hit;
+    return {fEvent->fEventData.hitMomentumDirectionX.at(idx), fEvent->fEventData.hitMomentumDirectionY.at(idx),
+            fEvent->fEventData.hitMomentumDirectionZ.at(idx)};
 }
 
 ROOT::Math::XYZVector TRestGeant4Track::GetHitPosition(size_t hit) const {

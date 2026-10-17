@@ -128,6 +128,8 @@ void TRestRun::LoadConfig() {
         fEntriesSaved = ReadYAMLParamOrDefault<Long64_t>(fNode, "entriesSaved", fEntriesSaved);
         fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
 
+        fOutputBasketSize = ReadYAMLParamOrDefault<int>(fNode, "outputBasketSize", fOutputBasketSize);
+
         fIsInitializedFromConfig = true;
     }
 

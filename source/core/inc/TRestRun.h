@@ -67,6 +67,7 @@ class TRestRun : public TRestMetadata {
     std::string fConfigRunDescription = "Null";
     std::string fConfigExperimentName = "Null";
     bool fIsInitializedFromConfig = false;
+    int fOutputBasketSize = 1024*1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
 
     /// \brief Resolves placeholders in file patterns.
     /// \param pattern Input filename pattern.
@@ -269,6 +270,8 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     fOutputEvents[className] = &eventObject;
 
     eventObject.CreateBranches(fOutputEventTrees[className]);
+    // Larger baskets mean fewer, bigger writes, which helps a lot on network filesystems
+    if (fOutputBasketSize > 0) fOutputEventTrees[className]->SetBasketSize("*", fOutputBasketSize);
 
     if (fOutputEvents.size() > 0 && fOutputAnalysisTree) {
         if(!fAnalysisTree)eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);

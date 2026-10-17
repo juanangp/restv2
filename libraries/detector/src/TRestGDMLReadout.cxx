@@ -5,7 +5,6 @@
 #include "TGeoManager.h"
 #include "TGeoNode.h"
 #include "TGeoVolume.h"
-#include "TRestTools.h"
 
 static const bool TRestGDMLReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();

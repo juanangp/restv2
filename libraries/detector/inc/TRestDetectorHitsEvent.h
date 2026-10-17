@@ -1,7 +1,6 @@
 #ifndef TRESTDETECTORHITSEVENT_H
 #define TRESTDETECTORHITSEVENT_H
 
-#include <TPad.h>
 
 #include <vector>
 

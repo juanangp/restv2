@@ -1,7 +1,6 @@
 #include "TRestEventProcess.h"
 
 #include "TRestRun.h"
-#include "TRestTools.h"
 
 static const bool TRestEventProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();

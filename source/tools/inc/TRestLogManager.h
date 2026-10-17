@@ -2,7 +2,6 @@
 #define TRESTLOGMANAGER_H
 
 #include <chrono>
-#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <map>

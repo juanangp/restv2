@@ -3,7 +3,6 @@
 
 #include <Math/Vector3D.h>
 
-#include <iostream>
 #include <string>
 
 /// \class TRestGeant4ParticleState

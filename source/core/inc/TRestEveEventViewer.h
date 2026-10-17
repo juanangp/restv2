@@ -16,7 +16,6 @@
 #define RestCore_TRestEveEventViewer
 
 #include <TObject.h>
-#include <TVector3.h>
 #include "TRestEventViewer.h"
 
 class TEveManager;

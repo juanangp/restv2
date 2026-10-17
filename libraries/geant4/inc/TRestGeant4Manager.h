@@ -1,8 +1,6 @@
 #ifndef TRESTGEANT4MANAGER_H
 #define TRESTGEANT4MANAGER_H
 
-#include <memory>
-#include <vector>
 
 #include "TRestMetadata.h"
 

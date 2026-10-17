@@ -18,11 +18,7 @@
 
 
 #include "TRestEvent.h"
-#include "TRestTools.h"
 #include "TRestEventViewer.h"
-#include "TRestEveEventViewer.h"
-#include "TRestBrowser.h"
-#include "TRestLogManager.h"
 
 #include <TPad.h>
 #include <TCanvas.h>

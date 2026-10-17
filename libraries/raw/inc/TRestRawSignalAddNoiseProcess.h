@@ -1,7 +1,6 @@
 #ifndef TRESTRAWSIGNALADDNOISPROCESS_H
 #define TRESTRAWSIGNALADDNOISPROCESS_H
 
-#include <utility>
 #include <vector>
 
 #include "TRestEventProcess.h"

@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include "TRestGeant4Metadata.h"
-#include "TRestTools.h"
 
 using namespace std;
 using namespace TRestGeant4PrimaryGeneratorTypes;

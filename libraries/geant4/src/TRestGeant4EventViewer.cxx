@@ -1,17 +1,14 @@
 #include "TRestGeant4EventViewer.h"
 #include "TRestGeant4Event.h"
 #include "TRestGeant4Metadata.h"
-#include "TRestGeant4Metadata.h"
 #include "TRestGeant4Track.h"
 
-#include <TRestTools.h>
 
 #include <TEveStraightLineSet.h>
 #include <TEveManager.h>
 #include <TEvePointSet.h>
 #include <TEveText.h>
 #include <TEveLine.h>
-#include <TEveEventManager.h>
 
 using namespace std;
 using XYZVector = ROOT::Math::XYZVector;

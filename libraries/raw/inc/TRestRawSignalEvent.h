@@ -2,7 +2,6 @@
 #define TRESTRAWSIGNALEVENT_H
 
 #include <algorithm>
-#include <numeric>
 #include <stdexcept>
 #include <vector>
 

@@ -1,6 +1,5 @@
 #include "TRestRawSignalEvent.h"
 #include "TRestLogManager.h"
-#include "TRestTools.h"
 
 #include <iostream>
 

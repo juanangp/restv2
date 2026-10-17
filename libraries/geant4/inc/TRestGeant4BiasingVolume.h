@@ -1,7 +1,6 @@
 #ifndef TRESTGEANT4BIASINGVOLUME_H
 #define TRESTGEANT4BIASINGVOLUME_H
 
-#include <iostream>
 #include <string>
 #include <utility>
 

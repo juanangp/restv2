@@ -1,7 +1,6 @@
 #include <TRandom.h>
 #include "TRestGeant4PrimaryGeneratorInfo.h"
 
-#include <TAxis.h>
 #include <TMath.h>
 
 #include <fstream>

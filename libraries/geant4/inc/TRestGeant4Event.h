@@ -1,11 +1,7 @@
 #ifndef TRESTGEANT4EVENT_H
 #define TRESTGEANT4EVENT_H
 
-#include <algorithm>
 #include <map>
-#include <optional>
-#include <set>
-#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <unordered_map>

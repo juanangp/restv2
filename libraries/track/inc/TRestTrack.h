@@ -4,7 +4,6 @@
 #include <Math/Vector3D.h>
 #include <Rtypes.h>
 #include <vector>
-#include <functional>
 #include "TRestHits.h"
 
 class TRestTrackEvent;

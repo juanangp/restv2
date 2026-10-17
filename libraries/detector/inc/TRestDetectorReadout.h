@@ -45,8 +45,6 @@ class TRestDetectorReadout : public TRestMetadata {
         std::string name;
     };
 
-    static constexpr double kMMtoCM = 0.1;   // REST in mm but GeoManager in cm
-
     /// \brief Constructs a detector readout metadata object.
     TRestDetectorReadout();
     /// \brief Constructs a readout from an in-memory YAML node section.

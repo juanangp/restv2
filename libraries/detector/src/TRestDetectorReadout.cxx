@@ -245,9 +245,7 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
         double globalMasterOrigin[] = {0.0, 0.0, 0.0};
         currentGlobalMatrix->LocalToMaster(localOrigin, globalMasterOrigin);
 
-        return ROOT::Math::XYZVector(globalMasterOrigin[0] / kMMtoCM,
-                                     globalMasterOrigin[1] / kMMtoCM,
-                                     globalMasterOrigin[2] / kMMtoCM);
+        return ROOT::Math::XYZVector(globalMasterOrigin[0], globalMasterOrigin[1], globalMasterOrigin[2]);
     }
 
     TGeoIterator it(fGeoManager->GetTopVolume());
@@ -261,9 +259,8 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
             double globalMasterOrigin[] = {0.0, 0.0, 0.0};
             currentGlobalMatrix->LocalToMaster(localOrigin, globalMasterOrigin);
 
-            return ROOT::Math::XYZVector(globalMasterOrigin[0] / kMMtoCM,
-                                         globalMasterOrigin[1] / kMMtoCM,
-                                         globalMasterOrigin[2] / kMMtoCM);
+            return ROOT::Math::XYZVector(globalMasterOrigin[0], globalMasterOrigin[1],
+                                         globalMasterOrigin[2]);
         }
     }
     return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
@@ -272,7 +269,7 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
 int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) const {
     if (!fGeoManager || fPhysicalToDAQMap.empty()) return -1;
 
-    TGeoNode* node = fGeoManager->FindNode(x * kMMtoCM, y * kMMtoCM, z * kMMtoCM);
+    TGeoNode* node = fGeoManager->FindNode(x, y, z);
     if (!node || node == fGeoManager->GetTopNode()) return -1;
 
     int physicalID = -1;

@@ -19,8 +19,6 @@
 #include <TVector3.h>
 #include "TRestEventViewer.h"
 
-#define GEOM_SCALE 0.1
-
 class TEveManager;
 class TEveWindowSlot;
 class TEveWindowPack;

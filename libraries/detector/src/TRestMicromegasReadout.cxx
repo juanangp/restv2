@@ -93,12 +93,11 @@ void TRestMicromegasReadout::BuildGeometry() {
 
     InitializeReadout();
 
-    const auto pitch = fReadoutParams.fPitch * kMMtoCM;
+    const auto pitch = fReadoutParams.fPitch;
     const auto nChannels = fReadoutParams.fNChannels;
-    double visibleThickness = fReadoutParams.fThickness * kMMtoCM;
-    const double posRel[3] = {fReadoutParams.fPositionRelative[0] * kMMtoCM,
-                          fReadoutParams.fPositionRelative[1] * kMMtoCM,
-                          fReadoutParams.fPositionRelative[2] * kMMtoCM};
+    double visibleThickness = fReadoutParams.fThickness;
+    const double posRel[3] = {fReadoutParams.fPositionRelative[0], fReadoutParams.fPositionRelative[1],
+                              fReadoutParams.fPositionRelative[2]};
 
     double pixelSize = pitch / std::sqrt(2.0);
 
@@ -189,7 +188,7 @@ void TRestMicromegasReadout::BuildGeometry() {
     }
 
     const int gasID = 2 * nChannels;
-     const double gasH = fReadoutParams.fGasThickness * kMMtoCM;
+    const double gasH = fReadoutParams.fGasThickness;
 
     if (gasH > 0.0) {
         TGeoMedium* gasMedium = fGeoManager->GetMedium("gas_medium");

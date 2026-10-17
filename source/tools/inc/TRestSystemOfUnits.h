@@ -1,6 +1,7 @@
 #ifndef TRESTSYSTEMOFUNITS_H
 #define TRESTSYSTEMOFUNITS_H
 
+#include <TGeoManager.h>
 #include <TMath.h>
 #include <Math/Vector3D.h>
 #include <algorithm>
@@ -219,6 +220,17 @@ inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit q
     return ss.str();
 }
 
+
+/// Sets the TGeoManager default units (mm, MeV, ns) before any geometry is created.
+inline bool SetGeoManagerDefaultUnits() {
+    TGeoManager::LockDefaultUnits(kFALSE);
+    TGeoManager::SetDefaultUnits(TGeoManager::kG4Units);
+    TGeoManager::LockDefaultUnits(kTRUE);
+    return true;
+}
+
+// Inline variable: initialized once per process, whenever this header is used.
+inline const bool GeoManagerDefaultUnitsSet = SetGeoManagerDefaultUnits();
 
 }  // namespace REST_Units
 

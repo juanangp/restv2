@@ -29,6 +29,11 @@ class TRestRawSignalShapingProcess : public TRestEventProcess {
     /// Factor applied to the kernel. The kernel integral is normalized to `gain`.
     double fShapingGain = 1.0;
 
+    /// Range [first, second) used to estimate the baseline before convolving. The baseline
+    /// is removed, the signal convolved, and the baseline added back. If second <= first
+    /// the baseline is not handled (legacy behaviour, valid for zero-baseline signals).
+    std::pair<int, int> fBaselineRange = {5, 55};
+
     TRestRawSignalShapingProcess();
     TRestRawSignalShapingProcess(const std::string& instanceName, const YAML::Node& node);
     TRestRawSignalShapingProcess(const std::string& fileName, const std::string& sectionName);
@@ -48,8 +53,8 @@ class TRestRawSignalShapingProcess : public TRestEventProcess {
                                              int& center);
 
     /// \brief Convolves `in` with `response` (same length as `in`). Negative samples are ignored.
-    static std::vector<double> Convolve(const std::vector<short>& in, const std::vector<double>& response,
-                                        int center);
+    static std::vector<double> Convolve(const std::vector<double>& in, const std::vector<double>& response,
+                                    int center, bool ignoreNegative);
 };
 
 #endif

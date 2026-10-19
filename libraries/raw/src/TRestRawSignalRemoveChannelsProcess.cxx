@@ -103,5 +103,7 @@ bool TRestRawSignalRemoveChannelsProcess::ProcessEvent(const TRestEvent& input, 
 
     outEvent->RefreshViews();
 
+    if(outEvent->GetNumberOfSignals() == 0)return false;
+
     return true;
 }

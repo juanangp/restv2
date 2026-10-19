@@ -13,6 +13,8 @@ static const bool TRestRawSignalShapingProcess_FieldsRegistered = []() {
     reg.RegisterField<TRestRawSignalShapingProcess>("shapingTime",
                                                     &TRestRawSignalShapingProcess::fShapingTime);
     reg.RegisterField<TRestRawSignalShapingProcess>("gain", &TRestRawSignalShapingProcess::fShapingGain);
+    reg.RegisterField<TRestRawSignalShapingProcess>("baselineRange",
+                                                &TRestRawSignalShapingProcess::fBaselineRange);
     return true;
 }();
 
@@ -90,16 +92,16 @@ std::vector<double> TRestRawSignalShapingProcess::BuildResponse(const std::strin
     return r;
 }
 
-std::vector<double> TRestRawSignalShapingProcess::Convolve(const std::vector<short>& in,
-                                                           const std::vector<double>& response,
-                                                           int center) {
+std::vector<double> TRestRawSignalShapingProcess::Convolve(const std::vector<double>& in,
+                                                           const std::vector<double>& response, int center,
+                                                           bool ignoreNegative) {
     const int nBins = (int)in.size();
     const int nr = (int)response.size();
     std::vector<double> out(nBins, 0.0);
 
     for (int m = 0; m < nBins; ++m) {
         const double v = in[m];
-        if (v <= 0) continue;
+        if (v == 0 || (ignoreNegative && v < 0)) continue;
 
         const int kMin = std::max(0, center - m);
         const int kMax = std::min(nr, nBins - m + center);
@@ -137,19 +139,29 @@ bool TRestRawSignalShapingProcess::ProcessEvent(const TRestEvent& input, TRestEv
     constexpr long kMin = std::numeric_limits<short>::min();
     constexpr long kMax = std::numeric_limits<short>::max();
 
+    const bool useBaseline = fBaselineRange.second > fBaselineRange.first;
+
     for (int s = 0; s < nSignals; ++s) {
-        const auto& inSig = inEvent->GetSignal(s);
-        
-        const std::vector<double> shaped = Convolve(inSig.GetData(), fResponse, fResponseCenter);
+        const std::vector<short> data = inEvent->GetSignal(s).GetData();
+
+        double baseline = 0, sigma = 0;
+        std::vector<double> centered(data.begin(), data.end());
+        if (useBaseline) {
+            TRestPulseShapeAnalysis::GetBaselineSigma(data, fBaselineRange.first, fBaselineRange.second,
+                                                  baseline, sigma);
+            for (double& v : centered) v -= baseline;
+        }
+
+        std::vector<double> shaped = Convolve(centered, fResponse, fResponseCenter, !useBaseline);
+        if (useBaseline) {
+            for (double& v : shaped) v += baseline;
+        }
 
         auto& outSig = outEvent->GetSignal(s);
-        int nPoints = std::min((int)shaped.size(), outSig.GetNPoints());
-
+        const int nPoints = std::min((int)shaped.size(), outSig.GetNPoints());
         for (int b = 0; b < nPoints; ++b) {
-            short newSample = static_cast<short>(std::clamp(std::lround(shaped[b]), kMin, kMax));
-            
-            short delta = newSample - outSig.GetPoint(b);
-            outSig.IncreaseBinBy(b, delta);
+            const short newSample = static_cast<short>(std::clamp(std::lround(shaped[b]), kMin, kMax));
+            outSig.IncreaseBinBy(b, newSample - outSig.GetPoint(b));
         }
     }
 

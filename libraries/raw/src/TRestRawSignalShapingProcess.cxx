@@ -1,5 +1,6 @@
 #include "TRestRawSignalShapingProcess.h"
 #include "TRestRawSignalEvent.h"
+#include "TRestPulseShapeAnalysis.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -77,10 +78,8 @@ std::vector<double> TRestRawSignalShapingProcess::BuildResponse(const std::strin
             const double c = (double)i / shapingTime;
             if (type == "exponential")
                 r[i] = std::exp(-c);
-            else if (type == "shaper")
-                r[i] = std::exp(-3. * c) * c * c * c;
             else
-                r[i] = std::exp(-3. * c) * c * c * c * std::sin(c);
+                r[i] = TRestPulseShapeAnalysis::AgetShape(c, type == "shaperSin");
         }
     } else {
         return {};

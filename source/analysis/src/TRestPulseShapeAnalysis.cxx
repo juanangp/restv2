@@ -6,9 +6,40 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <iostream>
+#include <memory>
 #include <numeric>
 
 namespace {
+
+constexpr double kAgetPeakU = 1.1664;         // u where u^3 e^{-3u} sin(u) is maximum
+constexpr double kAgetPeakValue = 0.0440895;  // value of the shape at that point
+
+using TF1Maker = std::function<std::unique_ptr<TF1>(double lower, double upper)>;
+
+/// Fits the function (parameter 0 = amplitude, parameter 1 = position) in a window around the maximum
+/// of the graph. Returns {position, amplitude}, or {-1, -1} if the fit fails.
+std::pair<double, double> FitAroundMaximum(TGraph& signal, const char* label, double lowFrac,
+                                           double highFrac, const TF1Maker& make) {
+    constexpr double kFailed = -1;
+    if (signal.GetN() == 0) return {kFailed, kFailed};
+
+    const int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
+    const double maxTime = signal.GetPointX(maxBin);
+
+    std::unique_ptr<TF1> f = make(maxTime - maxTime * lowFrac, maxTime + maxTime * highFrac);
+    TFitResultPtr fitResult = signal.Fit(f.get(), "QNRS");
+
+    if (!fitResult.Get() || !fitResult->IsValid()) {
+        std::cout << "WARNING: bad " << label << " fit with maximum at time = " << maxTime
+                  << ". Failed parameters:";
+        for (int i = 0; i < f->GetNpar(); i++) std::cout << " " << f->GetParameter(i);
+        std::cout << ". Assigned fit parameters: " << kFailed << std::endl;
+        return {kFailed, kFailed};
+    }
+    return {f->GetParameter(1), f->GetParameter(0)};
+}
 
 template <typename T>
 std::vector<float> SubtractBaseline(const std::vector<T>& signal, double baseLine) {
@@ -538,38 +569,9 @@ template double TRestPulseShapeAnalysis::GetMaxPeakWidth(const std::vector<float
 /// gaussian fit
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxGauss(TGraph& signal) {
-    int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
-    double maxTime = signal.GetPointX(maxBin);
-    double gaussMax = -1, gaussMean = -1;
-    double lowerLimit = maxTime - maxTime * 0.1;  // us
-    double upperLimit = maxTime + maxTime * 0.2;  // us
-
-    TF1* gaus = new TF1("gaus", "gaus", lowerLimit, upperLimit);
-    TFitResultPtr fitResult = signal.Fit(gaus, "QNRS");
-
-    if (fitResult->IsValid()) {
-        gaussMax = gaus->GetParameter(0);
-        gaussMean = gaus->GetParameter(1);
-    } else {
-        // the fit failed, return -1 to indicate failure
-        std::cout << std::endl
-                  << "WARNING: bad fit with maximum at time = " << maxTime
-                  << "Failed fit parameters = " << gaus->GetParameter(0) << " || " << gaus->GetParameter(1)
-                  << " || " << gaus->GetParameter(2) << "\n"
-                  << "Assigned fit parameters : energy = " << gaussMax << ", time = " << gaussMean
-                  << std::endl;
-        /*
-        TCanvas* c2 = new TCanvas("c2", "Signal fit", 200, 10, 1280, 720);
-        signal.Draw();
-        c2->Update();
-        getchar();
-        delete c2;
-        */
-    }
-
-    delete gaus;
-
-    return std::make_pair(gaussMean, gaussMax);
+    return FitAroundMaximum(signal, "gaussian", 0.1, 0.2, [](double lo, double hi) {
+        return std::make_unique<TF1>("gaus", "gaus", lo, hi);
+    });
 }
 
 ///////////////////////////////////////////////
@@ -579,83 +581,84 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMaxGauss(TGraph& signal) {
 /// landau fit
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxLandau(TGraph& signal) {
-    int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
-    double maxTime = signal.GetPointX(maxBin);
-    double landauMax = -1, landauMean = -1;
-    double lowerLimit = maxTime - maxTime * 0.1;  // us
-    double upperLimit = maxTime + maxTime * 0.2;  // us
-
-    TF1* landau = new TF1("landau", "landau", lowerLimit, upperLimit);
-    TFitResultPtr fitResult = signal.Fit(landau, "QNRS");
-
-    if (fitResult->IsValid()) {
-        landauMax = landau->GetParameter(0);
-        landauMean = landau->GetParameter(1);
-    } else {
-        // the fit failed, return -1 to indicate failure
-        std::cout << std::endl
-                  << "WARNING: bad fit with maximum at time = " << maxTime
-                  << "Failed fit parameters = " << landau->GetParameter(0) << " || "
-                  << landau->GetParameter(1) << " || " << landau->GetParameter(2) << "\n"
-                  << "Assigned fit parameters : energy = " << landauMax << ", time = " << landauMean
-                  << std::endl;
-        /*
-        TCanvas* c2 = new TCanvas("c2", "Signal fit", 200, 10, 1280, 720);
-        signal.Draw();
-        c2->Update();
-        getchar();
-        delete c2;
-        */
-    }
-
-    delete landau;
-
-    return std::make_pair(landauMean, landauMax);
+    return FitAroundMaximum(signal, "landau", 0.1, 0.2, [](double lo, double hi) {
+        return std::make_unique<TF1>("landau", "landau", lo, hi);
+    });
 }
 
 ///////////////////////////////////////////////
-/// \brief It performs a fit of the signal to a
-/// the aget response function. It returns a
-/// TVector 2 with the maximum and the mean of the
-/// gaussian fit
+/// \brief Fits the AGET response to all the points of the graph. Initial values are taken from the graph
+/// itself: the maximum point and the half-maximum point of the rise.
+///
+std::unique_ptr<TF1> TRestPulseShapeAnalysis::FitAget(TGraph& signal, bool withSine,
+                                                      std::optional<double> fixedBaseline, bool verbose) {
+    const int n = signal.GetN();
+    if (n < 4) return nullptr;
+
+    const double peakU = withSine ? kAgetPeakU : 1.0;
+    const double baseline0 = fixedBaseline.value_or(0.0);
+    const int maxBin = TMath::LocMax(n, signal.GetY());
+    const double maxTime = signal.GetPointX(maxBin);
+    const double maxAbove = std::max(1.0, signal.GetPointY(maxBin) - baseline0);
+    const double xMin = signal.GetPointX(0), xMax = signal.GetPointX(n - 1);
+
+    // The half maximum of the rise is ~0.4 widths before the maximum
+    double width = (xMax - xMin) * 0.2;
+    for (int i = 0; i < maxBin; i++) {
+        if (signal.GetPointY(i) - baseline0 > maxAbove / 2) {
+            if (maxTime > signal.GetPointX(i)) width = (maxTime - signal.GetPointX(i)) / 0.4;
+            break;
+        }
+    }
+    width = std::max(width, 1e-3);
+
+    auto f = std::make_unique<TF1>(
+        "agetFit",
+        [withSine, peakU](const double* x, const double* p) {
+            const double u = (x[0] - p[2]) / p[3] + peakU;
+            if (u <= 0) return p[0];
+            return p[0] + p[1] * AgetShape(u, withSine) / AgetShape(peakU, withSine);
+        },
+        xMin, xMax, 4);
+    f->SetParNames("Baseline", "Amplitude", "Time", "Width");
+    if (fixedBaseline) {
+        f->FixParameter(0, *fixedBaseline);
+    } else {
+        f->SetParameter(0, 0);
+         f->SetParLimits(0, -100, 350.0);
+    }
+    f->SetParameter(1, maxAbove);
+    f->SetParLimits(1, 0, maxAbove * 100);
+    f->SetParameter(2, maxTime);
+    f->SetParLimits(2, xMin, xMax + (xMax - xMin));
+    f->SetParameter(3, width);
+    f->SetParLimits(3, width * 1e-3, width * 1e3);
+
+    TFitResultPtr fitResult = signal.Fit(f.get(), verbose ? "RS" : "RNQS");
+    if (!fitResult.Get() || !fitResult->IsValid()) return nullptr;
+    return f;
+}
+
+///////////////////////////////////////////////
+/// \brief Fits the AGET response (baseline 0) to the points in a window around the maximum. Returns
+/// {time of the maximum, amplitude}, or {-1, -1} if the fit fails.
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxAget(TGraph& signal) {
-    int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
-    double maxTime = signal.GetPointX(maxBin);
-    double agetMax = -1, agetMean = -1;
-    double lowerLimit = maxTime - maxTime * 0.25;  // us
-    double upperLimit = maxTime + maxTime * 0.35;  // us
+    if (signal.GetN() == 0) return {-1, -1};
+    const double maxTime = signal.GetPointX(TMath::LocMax(signal.GetN(), signal.GetY()));
 
-    // 1.1664 is the x value where the maximum of the base function (i.e. without parameters)
-     TF1* aget = new TF1(
-         "aget",
-         "[0]/0.0440895*exp(-3*((x-[1]+1.1664)/[2]))*"
-         "pow((x-[1]+1.1664)/[2],3)*sin((x-[1]+1.1664)/[2])",
-         lowerLimit, upperLimit, 3);
-    TFitResultPtr fitResult = signal.Fit(aget, "QNRS");
-
-    if (fitResult->IsValid()) {
-        agetMax = aget->GetParameter(0);
-        agetMean = aget->GetParameter(1);
-    } else {
-        // the fit failed, return -1 to indicate failure
-        std::cout << std::endl
-                  << "WARNING: bad fit with maximum at time = " << maxTime
-                  << "Failed fit parameters = " << aget->GetParameter(0) << " || " << aget->GetParameter(1)
-                  << " || " << aget->GetParameter(2) << "\n"
-                  << "Assigned fit parameters : energy = " << agetMax << ", time = " << agetMean << std::endl;
-        /*
-        TCanvas* c2 = new TCanvas("c2", "Signal fit", 200, 10, 1280, 720);
-        signal.Draw();
-        c2->Update();
-        getchar();
-        delete c2;
-        */
+    TGraph window;
+    for (int i = 0; i < signal.GetN(); i++) {
+        const double x = signal.GetPointX(i);
+        if (x >= maxTime * 0.75 && x <= maxTime * 1.35) window.AddPoint(x, signal.GetPointY(i));
     }
 
-    delete aget;
-
-    return std::make_pair(agetMean, agetMax);
+    const auto fit = FitAget(window, true, 0.0);
+    if (!fit) {
+        std::cout << "WARNING: bad AGET fit with maximum at time = " << maxTime << std::endl;
+        return {-1, -1};
+    }
+    return {fit->GetParameter(2), fit->GetParameter(1)};
 }
 
 ///////////////////////////////////////////////

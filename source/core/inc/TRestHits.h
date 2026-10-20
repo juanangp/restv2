@@ -1,6 +1,7 @@
 #ifndef TRESTHITS_H
 #define TRESTHITS_H
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <numeric>

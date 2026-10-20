@@ -31,9 +31,11 @@ macro(ADD_LIBRARY_TEST)
     add_executable(${TESTING_EXECUTABLE} ${SOURCES})
 
     target_link_libraries(
-      ${TESTING_EXECUTABLE} PUBLIC ${LIBRARY_NAME} gtest_main RestFramework
-                                   stdc++fs # <filesystem>
-    )
+      ${TESTING_EXECUTABLE} PUBLIC ${LIBRARY_NAME} gtest_main RestFramework)
+    # <filesystem> needs libstdc++fs only before GCC 9
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+      target_link_libraries(${TESTING_EXECUTABLE} PUBLIC stdc++fs)
+    endif()
 
     include(GoogleTest)
 

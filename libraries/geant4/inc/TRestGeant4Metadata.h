@@ -2,6 +2,7 @@
 #define TRESTGEANT4METADATA_H
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>

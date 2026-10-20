@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # source/bin  –  Executables Each .cxx file here becomes a separate executable
-# linked against RestCore (and optionally RestRaw if the target is built).
+# linked against RestCore and every REST library that is built.
 # ---------------------------------------------------------------------------
 
 file(GLOB BIN_SOURCES *.cxx)
@@ -10,20 +10,8 @@ foreach(src ${BIN_SOURCES})
 
   add_executable(${exe_name} ${src})
 
-  target_link_libraries(${exe_name} PRIVATE RestCore)
-
-  if(TARGET ${DETECTOR_LIB})
-    target_link_libraries(${exe_name} PRIVATE ${DETECTOR_LIB})
-  endif()
-
-  if(TARGET ${RAW_LIB})
-    target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" ${RAW_LIB} "-Wl,--as-needed")
-  endif()
-
-  if(TARGET ${GEANT4_LIB})
-    target_link_libraries(${exe_name} PRIVATE "-Wl,--no-as-needed" ${GEANT4_LIB} "-Wl,--as-needed")
-  endif()
-
+  # Every REST library, so that all the registered events and processes are available
+  rest_link_registered_libraries(${exe_name} RestCore ${REST_LIBRARIES})
 
   # Link all configured ROOT libraries in every executable.
   if(ROOT_TARGET_LIBRARIES)

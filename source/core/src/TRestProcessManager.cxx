@@ -116,33 +116,39 @@ void TRestProcessManager::Run() {
         proc->Initialize();
     }
 
+    fStageInputs.assign(fProcessChain.size(), nullptr);
+
     for (size_t i = 0; i < fProcessChain.size(); ++i) {
         const std::string& inputName = fPipelineConnections[i].first;
         const std::string& outputName = fPipelineConnections[i].second;
         const std::string procClassName = fProcessChain[i]->GetClassName();
 
-        if ((inputName != "None" && !inputName.empty()) && i == 0) {
-            if (!fRunInfo->HasEvent(inputName)) {
-                RESTError << "Input event " << inputName << " not found in file" << RESTendl;
+        // A previous stage output takes precedence over the input file, otherwise chained processes
+        // on the same event type would all read the unmodified file event
+        if (inputName != "None" && !inputName.empty()) {
+            if (fEventPool.find(inputName) != fEventPool.end()) {
+                fStageInputs[i] = fEventPool[inputName].get();
+            } else if (fRunInfo->HasEvent(inputName)) {
+                fStageInputs[i] = fRunInfo->GetInputEvent(inputName);
+            } else {
+                throw std::runtime_error("TRestProcessManager::Run - input event '" + inputName +
+                                         "' of process '" + procClassName +
+                                         "' is neither in the input file nor produced by a previous process");
             }
         }
 
         if (fEventPool.find(outputName) == fEventPool.end()) {
-            std::string inputClassName;
-            if (inputName != "None" && !inputName.empty()) {
-                inputClassName = (fEventPool.find(inputName) != fEventPool.end())
-                                     ? fEventPool[inputName]->GetClassName()
-                                     : fRunInfo->GetInputEvent(inputName)->GetClassName();
-            } else {
-                inputClassName = fPipelineOutputClasses[i];
-                if (inputClassName.empty()) {
+            // Processes that change the event type declare it in GetOutputEvent
+            std::string outputClassName = fPipelineOutputClasses[i];
+            if (outputClassName.empty()) {
+                if (!fStageInputs[i]) {
                     throw std::runtime_error(
                         "TRestProcessManager::Run - outputClass must be specified for generator process '" +
                         procClassName + "'");
                 }
+                outputClassName = fStageInputs[i]->GetClassName();
             }
-
-            auto outEvent = EventRegistry::Instance().Create(inputClassName, outputName);
+            auto outEvent = EventRegistry::Instance().Create(outputClassName, outputName);
 
             if (fOutputEventStorage) {
                 fRunInfo->RegisterEvent<TRestEvent>(outputName, *outEvent);
@@ -201,20 +207,10 @@ void TRestProcessManager::Run() {
 
         bool eventAccepted = true;
         for (size_t i = 0; i < fProcessChain.size(); ++i) {
-            const std::string& inputName = fPipelineConnections[i].first;
             const std::string& outputName = fPipelineConnections[i].second;
 
-            TRestEvent* inputEventPtr = nullptr;
-            if (inputName != "None" && !inputName.empty()) {
-                if (fRunInfo->HasEvent(inputName)) {
-                    inputEventPtr = fRunInfo->GetInputEvent(inputName);
-                } else if (fEventPool.find(inputName) != fEventPool.end()) {
-                    inputEventPtr = fEventPool[inputName].get();
-                }
-            }
-
             TRestEvent& outputEvent = *fEventPool[outputName];
-            const TRestEvent& inputEvent = inputEventPtr ? *inputEventPtr : outputEvent;
+            const TRestEvent& inputEvent = fStageInputs[i] ? *fStageInputs[i] : outputEvent;
 
             if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent)) {
                 eventAccepted = false;

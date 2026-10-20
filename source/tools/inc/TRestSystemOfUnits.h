@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <iomanip>
 #include <yaml-cpp/yaml.h>
 
 #include "TRestLogManager.h"

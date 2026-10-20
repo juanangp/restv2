@@ -4,6 +4,7 @@
 #include "TRestDetectorReadout.h"
 #include "TRestTools.h"
 
+#include <algorithm>
 #include <iostream>
 
 #include "TFile.h"

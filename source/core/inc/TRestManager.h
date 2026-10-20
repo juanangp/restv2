@@ -1,6 +1,7 @@
 #ifndef TRESTMANAGER_H
 #define TRESTMANAGER_H
 
+#include <atomic>
 #include <memory>
 #include <vector>
 

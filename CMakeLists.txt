@@ -11,9 +11,10 @@ set(RAW_LIB RestRaw)
 set(GEANT4_LIB RestGeant4)
 set(DETECTOR_LIB RestDetector)
 set(TRACK_LIB RestTrack)
+set(CONNECTORS_LIB RestConnectors)
 
 # ---------------------------------------------------------------------------
-# C++ standard - honour whatever ROOT was compiled with (17 minimum)
+# ROOT and C++ standard
 # ---------------------------------------------------------------------------
 set(ROOT_REQUIRED_LIBRARIES
     Core
@@ -36,21 +37,11 @@ foreach(_root_lib IN LISTS ROOT_REQUIRED_LIBRARIES)
   list(APPEND ROOT_TARGET_LIBRARIES ROOT::${_root_lib})
 endforeach()
 
-execute_process(
-  COMMAND root-config --has-cxx20
-  OUTPUT_VARIABLE _has20
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(
-  COMMAND root-config --has-cxx17
-  OUTPUT_VARIABLE _has17
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-if(_has20 STREQUAL "yes")
-  set(CMAKE_CXX_STANDARD 20)
-elseif(_has17 STREQUAL "yes")
-  set(CMAKE_CXX_STANDARD 17)
-else()
-  message(FATAL_ERROR "ROOT must be compiled with C++17 or later.")
+# C++17 by default (override with -DCMAKE_CXX_STANDARD=20). If ROOT was built with a newer
+# standard, the ROOT:: targets raise it through their compile features.
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard")
+if(CMAKE_CXX_STANDARD LESS 17)
+  message(FATAL_ERROR "REST requires C++17 or later.")
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -59,7 +50,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags
 # ---------------------------------------------------------------------------
 add_compile_options(-fPIC -Wall -Wextra -Wno-unused-parameter)
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
+# Off by default: each compiler version adds new warnings, which would break the build
+option(REST_WERROR "Treat compiler warnings as errors" OFF)
+if(REST_WERROR)
   add_compile_options(-Werror -Wno-cast-function-type -Wno-unknown-pragmas)
 endif()
 
@@ -79,6 +72,37 @@ endif()
 # External dependencies
 # ---------------------------------------------------------------------------
 find_package(yaml-cpp REQUIRED)
+# yaml-cpp < 0.8 only exports the target 'yaml-cpp' (or just YAML_CPP_* variables)
+if(NOT TARGET yaml-cpp::yaml-cpp)
+  if(TARGET yaml-cpp)
+    add_library(yaml-cpp::yaml-cpp ALIAS yaml-cpp)
+  else()
+    add_library(yaml-cpp::yaml-cpp INTERFACE IMPORTED)
+    set_target_properties(yaml-cpp::yaml-cpp PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${YAML_CPP_INCLUDE_DIR}"
+      INTERFACE_LINK_LIBRARIES "${YAML_CPP_LIBRARIES}")
+  endif()
+endif()
+
+# ---------------------------------------------------------------------------
+# rest_link_registered_libraries(<target> <lib>...)
+# REST classes register themselves from static initializers, so a library may be needed
+# even if the target uses none of its symbols. Linkers using --as-needed (default on
+# Ubuntu and others, or set in LDFLAGS) would drop it, so the target is linked with
+# --no-as-needed. Libraries whose target does not exist (disabled) are skipped.
+# ---------------------------------------------------------------------------
+function(rest_link_registered_libraries target)
+  set(_libs "")
+  foreach(_lib ${ARGN})
+    if(TARGET ${_lib})
+      list(APPEND _libs ${_lib})
+    endif()
+  endforeach()
+  target_link_libraries(${target} PRIVATE ${_libs})
+  if(NOT APPLE AND NOT WIN32)
+    target_link_options(${target} PRIVATE "LINKER:--no-as-needed")
+  endif()
+endfunction()
 
 # ---------------------------------------------------------------------------
 # ROOT dictionary output directory (shared by all sub-projects)
@@ -141,7 +165,24 @@ if(${TRACK_LIB})
   add_subdirectory(libraries/track)
 endif()
 
-option(REST_G4 "Build the optional restG4 package application" ON)
+# After the libraries it connects, so that their targets exist
+option(${CONNECTORS_LIB} "Build the connectors library" ON)
+if(${CONNECTORS_LIB})
+  add_subdirectory(libraries/connectors)
+endif()
+
+# Libraries with registered events/processes, linked by executables and macros
+set(REST_LIBRARIES RestTools RestAnalysis RestCore ${RAW_LIB} ${DETECTOR_LIB} ${TRACK_LIB} ${GEANT4_LIB}
+                   ${CONNECTORS_LIB})
+
+option(REST_G4 "Build the optional restG4 package application (requires Geant4)" ON)
+if(REST_G4)
+  find_package(Geant4 QUIET)
+  if(NOT Geant4_FOUND)
+    message(WARNING "Geant4 not found, restG4 will not be built (set Geant4_DIR or -DREST_G4=OFF)")
+    set(REST_G4 OFF)
+  endif()
+endif()
 if(REST_G4)
   add_subdirectory(packages/restG4)
 endif()
@@ -164,6 +205,7 @@ message(STATUS "  ${RAW_LIB}: ${${RAW_LIB}}")
 message(STATUS "  ${DETECTOR_LIB}: ${${DETECTOR_LIB}}")
 message(STATUS "  ${TRACK_LIB}: ${${TRACK_LIB}}")
 message(STATUS "  ${GEANT4_LIB}: ${${GEANT4_LIB}}")
+message(STATUS "  ${CONNECTORS_LIB}: ${${CONNECTORS_LIB}}")
 message(STATUS "  REST_G4 : ${REST_G4}")
 message(STATUS "")
 
@@ -179,8 +221,6 @@ if(ALL_REPOSITORY_MACROS)
 
   file(GLOB_RECURSE ALL_INC_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/**/inc")
 
-  set(ALL_REST_TARGETS RestCore RestTools RestAnalysis ${RAW_LIB} ${DETECTOR_LIB} ${TRACK_LIB} ${GEANT4_LIB})
-
   foreach(MACRO_PATH IN LISTS ALL_REPOSITORY_MACROS)
     get_filename_component(MACRO_WE ${MACRO_PATH} NAME_WE)
     set(MACRO_LIB_NAME "${MACRO_WE}_C")
@@ -194,13 +234,8 @@ if(ALL_REPOSITORY_MACROS)
       LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/macros_build"
     )
 
-    target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${ROOT_TARGET_LIBRARIES} yaml-cpp)
-
-    foreach(REST_TARGET ${ALL_REST_TARGETS})
-      if(TARGET ${REST_TARGET})
-        target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${REST_TARGET})
-      endif()
-    endforeach()
+    target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${ROOT_TARGET_LIBRARIES} yaml-cpp::yaml-cpp)
+    rest_link_registered_libraries(${MACRO_LIB_NAME} ${REST_LIBRARIES})
 
     install(TARGETS ${MACRO_LIB_NAME} LIBRARY DESTINATION macros COMPONENT install)
   endforeach()

@@ -3,12 +3,10 @@
 # Uses configure_file() so no escaping gymnastics are needed.
 # ---------------------------------------------------------------------------
 
-# Locate thisroot.sh for the ROOT version used at compile time
-execute_process(
-  COMMAND root-config --prefix
-  OUTPUT_VARIABLE ROOT_PATH
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(thisROOT "${ROOT_PATH}/bin/thisroot.sh")
+# Locate thisroot.sh for the ROOT version used at compile time. ROOT_BINDIR comes from
+# find_package(ROOT), so root-config does not need to be in PATH. Distribution packages
+# (e.g. Fedora) may not ship thisroot.sh: the generated script only sources it if it exists.
+set(thisROOT "${ROOT_BINDIR}/thisroot.sh")
 
 # Generate the scripts into the build tree; install() copies them
 configure_file(

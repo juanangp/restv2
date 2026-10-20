@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 namespace {
 const bool kRegistered = []() {
-    EventRegistry::Instance().Register("TRestRawSignalEvent",
+    EventRegistry::Instance().Register("TRestDetectorSignalEvent",
                                        []() { return std::make_unique<TRestDetectorSignalEvent>(); });
     return true;
 }();

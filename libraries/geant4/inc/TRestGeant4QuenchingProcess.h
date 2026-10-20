@@ -1,6 +1,9 @@
 #ifndef TRESGEANT4QUENCHINGPROCESS_H
 #define TRESGEANT4QUENCHINGPROCESS_H
 
+#include <set>
+#include <string>
+
 #include "TRestEventProcess.h"
 class TRestGeant4Event;
 class TRestGeant4Metadata;

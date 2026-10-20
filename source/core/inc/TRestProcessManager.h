@@ -26,6 +26,9 @@ class TRestProcessManager : public TRestMetadata {
     std::map<std::string, std::unique_ptr<TRestEvent>> fEventPool;
     std::vector<std::pair<std::string, std::string>> fPipelineConnections;
     std::vector<std::string> fPipelineOutputClasses;
+    /// Input event of each stage: output of the latest previous stage with that name, otherwise the
+    /// input file event (nullptr for generators). Resolved in Run().
+    std::vector<TRestEvent*> fStageInputs;
 
     TRestRun* fRunInfo = nullptr;
     TRestManager* fManager = nullptr;

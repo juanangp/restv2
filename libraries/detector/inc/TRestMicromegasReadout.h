@@ -1,6 +1,8 @@
 #ifndef TRESTMICROMEGASREADOUT_H
 #define TRESTMICROMEGASREADOUT_H
 
+#include <array>
+
 #include "TRestDetectorReadout.h"
 
 

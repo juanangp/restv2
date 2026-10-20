@@ -94,7 +94,7 @@ void TRestRawSignalRecoverSaturationProcess::InitProcess() {
     RegisterObservable("AddedIntegral", fObs.AddedIntegral);
     RegisterObservable("SignalsSaturated", fObs.SignalsSaturated);
     RegisterObservable("SignalsRecovered", fObs.SignalsRecovered);
-    RegisterObservable("SignalsRecovered", fObs.SignalsIDsRecovered);
+    RegisterObservable("SignalsIDsRecovered", fObs.SignalsIDsRecovered);
 }
 
 bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {

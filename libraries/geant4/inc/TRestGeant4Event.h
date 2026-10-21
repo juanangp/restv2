@@ -203,6 +203,7 @@ class TRestGeant4Event : public TRestEvent {
     std::string GetClassName() const override { return "TRestGeant4Event"; }
 
     void Initialize() override {
+        TRestEvent::Initialize();
         fEventData.clear();
         fVolumeIndexMap.clear();
         fCrossIndexMap.clear();

@@ -50,6 +50,8 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     void BuildGeometry() override;
     /// \brief Returns the geometric centroid of a Micromegas DAQ channel.
     ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const override;
+    /// \brief Returns the distance to the readout plane z = positionRelative[2] along its normal (+Z).
+    double GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const override;
 };
 
 #endif

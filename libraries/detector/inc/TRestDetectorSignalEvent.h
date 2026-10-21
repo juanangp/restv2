@@ -123,6 +123,7 @@ class TRestDetectorSignalEvent : public TRestEvent {
     std::string GetClassName() const override { return "TRestDetectorSignalEvent"; }
 
     void Initialize() override {
+        TRestEvent::Initialize();
         fSignalData.clear();
         fSignalsViews.clear();
     }

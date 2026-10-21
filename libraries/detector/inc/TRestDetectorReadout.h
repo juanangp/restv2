@@ -1,6 +1,7 @@
 #ifndef TRESTDETECTORREADOUT_H
 #define TRESTDETECTORREADOUT_H
 
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -123,6 +124,15 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \param daqID DAQ channel identifier.
     /// \return Channel centroid in detector coordinates.
     virtual ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const;
+
+    /// \brief Returns the signed distance from a position to the readout of a DAQ channel, projected on the
+    /// readout normal (as legacy TRestDetectorReadoutPlane::GetDistanceTo: (pos - plane) · normal).
+    /// \return The distance, or NaN if the readout does not define one (default) or the channel is unknown.
+    virtual double GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const {
+        (void)daqID;
+        (void)position;
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 
     /// \brief Checks whether a DAQ channel is present in the decoding table.
     /// \param daqID DAQ channel identifier.

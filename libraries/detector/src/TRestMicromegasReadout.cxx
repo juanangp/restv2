@@ -273,3 +273,9 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
 
     return ROOT::Math::XYZVector(posX, posY, posZ);
 }
+
+double TRestMicromegasReadout::GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const {
+    if (!IsChannelConnected(daqID)) return std::numeric_limits<double>::quiet_NaN();
+    // Single readout plane at z = positionRelative[2]; the global rotation is around Z, so the normal is +Z
+    return position.Z() - fReadoutParams.fPositionRelative[2];
+}

@@ -50,6 +50,9 @@ class TRestEvent {
     virtual std::string GetClassName() const = 0;
 
     /// \brief Resets event to default state.
+    ///
+    /// Pure virtual so every event must reset its own payload, but defined (below) to
+    /// reset fInfo: overrides must call TRestEvent::Initialize().
     virtual void Initialize() = 0;
 
     virtual void InitializeReferences(TRestRun* run);
@@ -202,6 +205,9 @@ class TRestEvent {
         }
     }
 };
+
+/// fName and the branch pointers are kept: they identify the event, not its content.
+inline void TRestEvent::Initialize() { fInfo = TRestEventInfo(); }
 
 /// \class EventRegistry
 /// \brief Runtime factory registry for TRestEvent-derived classes.

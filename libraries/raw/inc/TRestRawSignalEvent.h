@@ -89,6 +89,7 @@ class TRestRawSignalEvent : public TRestEvent {
     std::string GetClassName() const override { return "TRestRawSignalEvent"; }
 
     void Initialize() override {
+        TRestEvent::Initialize();
         fSignalData.clear();
         fSignalsViews.clear();
     }

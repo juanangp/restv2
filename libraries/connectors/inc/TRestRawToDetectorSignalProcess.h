@@ -16,7 +16,7 @@ class TRestRawToDetectorSignalProcess : public TRestEventProcess {
 
    public:
     /// Sampling time used to transform the bin number into time
-    double fSampling = 0.1;
+    TRestWithUnits fSampling = 0.02;
 
     /// Time of the first bin of the raw signal
     double fTriggerStarts = 0;
@@ -38,7 +38,7 @@ class TRestRawToDetectorSignalProcess : public TRestEventProcess {
     std::string fBaselineOption = "";
 
     /// Bin range where the points over threshold are searched (zero suppression)
-    std::pair<int, int> fIntegralRange = {10, 500};
+    std::pair<int, int> fIntegralRange = {100, 500};
 
     /// Number of baseline sigmas for a point to be over threshold (zero suppression)
     double fPointsThreshold = 3;

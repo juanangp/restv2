@@ -10,7 +10,7 @@
 using namespace TRestTools;
 
 void ViewMicromegasReadout(const std::string& instanceName = "IAXO_D1_Readout",
-                 const std::string& decodingName = "iaxo_d0_nominal.dec",
+                 const std::string& decodingName = "nominal_decoding",
                  const std::string inputFile = "iaxo_readout_output.root") {
     TFile* fIn = TFile::Open(inputFile.c_str(), "READ");
     auto configNode = TRestMetadata::ReadMetadata(fIn, instanceName);

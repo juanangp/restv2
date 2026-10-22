@@ -38,7 +38,7 @@ TRestManager::TRestManager(const std::string& fileName, const std::string& secti
 void TRestManager::LoadConfig() {
     fMetaObjects.clear();
     fProcessManager = nullptr;
-    fConfiguredRun = nullptr;
+    fRunInfo = nullptr;
 
     for (const auto& element : fNode) {
         const auto key = element.first.as<std::string>();
@@ -53,16 +53,23 @@ void TRestManager::LoadConfig() {
             fProcessManager = processManager;
         }
         if (auto* run = dynamic_cast<TRestRun*>(meta.get())) {
-            fConfiguredRun = run;
+            fRunInfo = run;
         }
 
         meta->PrintMetadata();
         fMetaObjects.emplace_back(std::move(meta));
     }
+
+    // After the loop: the run may be declared after the metadata that uses it
+    if (fRunInfo) {
+        for (const auto& meta : fMetaObjects) {
+            if (meta.get() != fRunInfo) meta->SetRunInfo(fRunInfo);
+        }
+    }
 }
 
 void TRestManager::Run() {
-    if (fConfiguredRun == nullptr) {
+    if (fRunInfo == nullptr) {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
     if (fProcessManager == nullptr) {
@@ -70,13 +77,12 @@ void TRestManager::Run() {
             "TRestManager::Run - no TRestProcessManager configured under manager section.");
     }
 
-    if(!fileExists(fConfiguredRun->GetInputFileName())){
+    if(!fileExists(fRunInfo->GetInputFileName())){
         throw std::runtime_error(
-            "TRestManager::Run - input file "+fConfiguredRun->GetInputFileName()+ " not found");
+            "TRestManager::Run - input file "+fRunInfo->GetInputFileName()+ " not found");
     }
 
 
-    fProcessManager->SetRunInfo(fConfiguredRun);
     fProcessManager->SetManager(this);
 
     const unsigned int nThreads = fProcessManager->fNThreads;
@@ -96,7 +102,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     Long64_t totalEntries = fProcessManager->fEventsToProcess;
 
     if (totalEntries <= 0) {
-        totalEntries = fConfiguredRun->GetEntries();
+        totalEntries = fRunInfo->GetEntries();
     }
 
     if (totalEntries <= 0) {
@@ -108,10 +114,10 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     auto [runKeyOrig, runNodeOrig] = TRestTools::GetMetadataClass(fNode, "TRestRun");
     if (runNodeOrig && !runNodeOrig.IsNull()) {
         TRestTools::OverrideYAMLParam(runNodeOrig, "runNumber",
-                                      std::to_string(fConfiguredRun->GetRunNumber()));
+                                      std::to_string(fRunInfo->GetRunNumber()));
     }
 
-    const std::string baseOutput = fConfiguredRun->GetOutputFileName();
+    const std::string baseOutput = fRunInfo->GetOutputFileName();
     std::filesystem::path outPath(baseOutput);
     const std::string stem = outPath.stem().string();
     const std::string ext = outPath.extension().string();
@@ -152,7 +158,6 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
             }
 
             threadPipeline->SetEntryRange(ranges[t].first, ranges[t].second);
-            threadPipeline->SetRunInfo(threadRun);
             threadPipeline->SetManager(&threadManager);
             threadPipeline->Run();
 
@@ -173,7 +178,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     }
     for (const auto& f : threadOutputs) std::filesystem::remove(f);
 
-    fConfiguredRun->OpenOutputFile(baseOutput, "UPDATE");
+    fRunInfo->OpenOutputFile(baseOutput, "UPDATE");
 
     if (StopRequested()){
       RESTError<<"TRestManager::RunMultithreaded: Stop requested, output file may be cropped"<<RESTendl;
@@ -184,13 +189,13 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
 }
 
 void TRestManager::SaveMetadata() {
-    if (fConfiguredRun == nullptr) {
+    if (fRunInfo == nullptr) {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
 
-    fConfiguredRun->AddHistoricMetadata();
+    fRunInfo->AddHistoricMetadata();
 
     for (const auto& meta : fMetaObjects) {
-        fConfiguredRun->AddMetadata(meta.get());
+        fRunInfo->AddMetadata(meta.get());
     }
 }

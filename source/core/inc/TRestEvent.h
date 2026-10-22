@@ -1,6 +1,7 @@
 #ifndef TRESTEVENT_H
 #define TRESTEVENT_H
 
+#include <TH1.h>
 #include <TPad.h>
 #include <TString.h>
 #include <TTree.h>
@@ -10,6 +11,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 class TRestRun;
@@ -61,6 +63,35 @@ class TRestEvent {
     /// \param option Draw option string.
     /// \return Pointer to generated pad.
     virtual TPad* DrawEvent(const TString& option = "") const = 0;
+
+    /// \brief Draws a ROOT object with axes (TH1/TH2/TH3, TGraph, TMultiGraph, ...) in the current pad,
+    /// which owns it (deleted with the pad), with the REST axis title and label sizes. Histograms are not
+    /// attached to any directory and have no stats box. A null title keeps the title of the object.
+    template <class T>
+    static void DrawOwned(T* object, const std::string& option, const char* xTitle = nullptr,
+                          const char* yTitle = nullptr, const char* zTitle = nullptr) {
+        if constexpr (std::is_base_of_v<TH1, T>) {
+            object->SetDirectory(nullptr);
+            object->SetStats(false);
+        }
+        object->SetBit(TObject::kCanDelete);
+        object->Draw(option.c_str());
+
+        // After Draw: graphs create their axes when drawn
+        TAxis* xAxis = object->GetXaxis();
+        TAxis* yAxis = object->GetYaxis();
+        if (!xAxis || !yAxis) return;
+        if (xTitle) xAxis->SetTitle(xTitle);
+        if (yTitle) yAxis->SetTitle(yTitle);
+        if constexpr (std::is_base_of_v<TH1, T>) {
+            if (zTitle) object->GetZaxis()->SetTitle(zTitle);
+        }
+        xAxis->SetTitleSize(1.4 * xAxis->GetTitleSize());
+        yAxis->SetTitleSize(1.4 * yAxis->GetTitleSize());
+        xAxis->SetLabelSize(1.25 * xAxis->GetLabelSize());
+        yAxis->SetLabelSize(1.25 * yAxis->GetLabelSize());
+        yAxis->SetTitleOffset(1);
+    }
 
     /// \brief Sets event name.
     /// \param name Event name.

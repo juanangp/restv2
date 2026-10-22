@@ -224,6 +224,7 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                             MetadataClassRegistry::Instance().Create(className, keyName, testConfig);
 
                         if (metadata) {
+                            metadata->SetRunInfo(this);
                             fMetadataStore.push_back(metadata.release());
                         }
                     } catch (const std::exception& e) {

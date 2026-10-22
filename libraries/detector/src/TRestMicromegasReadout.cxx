@@ -92,6 +92,7 @@ void TRestMicromegasReadout::BuildGeometry() {
     }
 
     InitializeReadout();
+    if (!LoadDecoding(fDecodingFile)) RESTError << "Decoding file not found " << RESTendl;
 
     const auto pitch = fReadoutParams.fPitch;
     const auto nChannels = fReadoutParams.fNChannels;

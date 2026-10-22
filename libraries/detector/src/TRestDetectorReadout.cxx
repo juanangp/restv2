@@ -13,10 +13,30 @@
 #include <TGeoNode.h>
 #include <TGeoManager.h>
 #include <TGeoMedium.h>
+#include "TList.h"
 #include "TObjString.h"
 #include "TRestConstants.h"
 
 using namespace TRestConstants;
+
+namespace {
+/// Layout in the ROOT file: Readouts/<geometry>/Geometry and Readouts/<geometry>/Decodings/<decoding>
+const char* kReadoutsDir = "Readouts";
+const char* kGeometryKey = "Geometry";
+const char* kDecodingsDir = "Decodings";
+
+/// \brief Returns parent/name, or nullptr if missing.
+TDirectory* GetSubDirectory(TDirectory* parent, const char* name) {
+    return parent ? parent->GetDirectory(name) : nullptr;
+}
+
+/// \brief Returns parent/name, creating it if missing.
+TDirectory* GetOrMakeSubDirectory(TDirectory* parent, const char* name) {
+    if (!parent) return nullptr;
+    TDirectory* dir = parent->GetDirectory(name);
+    return dir ? dir : parent->mkdir(name);
+}
+}  // namespace
 
 static const bool TRestDetectorReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -43,13 +63,10 @@ TRestDetectorReadout::~TRestDetectorReadout() {
     // TGeoManager is globally owned by ROOT (gGeoManager), it unregisters automatically.
 }
 
-/// \brief Initializes geometry and decoding from YAML.
+/// \brief Reads the readout parameters from YAML. The decoding file is only read by BuildGeometry: a
+/// readout imported from a ROOT file takes the decoding stored there.
 void TRestDetectorReadout::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorReadout>(fNode);
-
-    if (!LoadDecoding(fDecodingFile)) {
-        RESTError << "Decoding file not found " << RESTendl;
-    }
 
     ReadYAMLVerbose(fNode);
 
@@ -67,7 +84,7 @@ void TRestDetectorReadout::InitializeReadout() {
     fGeoManager->SetTopVolume(top);
 }
 
-/// \brief Parses decoding text with `physicalID readoutChannel` rows.
+/// \brief Parses decoding text with `daqChannel physicalID` rows (legacy order).
 /// \param text Multiline decoding text.
 /// \param decodingMap Output map receiving parsed values.
 /// \return `true` when at least one valid row is parsed.
@@ -82,11 +99,13 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
         size_t firstChar = line.find_first_not_of("     ");
         if (firstChar == std::string::npos || line[firstChar] == '#') continue;
 
+        // As legacy decoding files: first column DAQ channel, second readout (physical) channel. A
+        // negative physical ID marks an unconnected DAQ channel and is skipped
         std::stringstream ss(line);
+        int daqID = -1;
         int physicalID = -1;
-        int readoutChannel = -1;
-        if (ss >> physicalID >> readoutChannel) {
-            decodingMap[physicalID] = readoutChannel;
+        if (ss >> daqID >> physicalID) {
+            if (physicalID >= 0) decodingMap[physicalID] = daqID;
             linesParsed++;
         }
     }
@@ -317,9 +336,9 @@ bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
 /// \return Multiline decoding text.
 std::string TRestDetectorReadout::GetDecodingAsString() const {
     std::stringstream ss;
-    ss << "# physicalID\treadoutChannel\n";
-    for (const auto& [physicalID, readoutChannel] : fPhysicalToDAQMap) {
-        ss << physicalID << "\t" << readoutChannel << "\n";
+    ss << "# daqChannel\tphysicalID\n";
+    for (const auto& [physicalID, daqID] : fPhysicalToDAQMap) {
+        ss << daqID << "\t" << physicalID << "\n";
     }
     return ss.str();
 }
@@ -333,14 +352,14 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
 
-    TDirectory* geoDir = fIn->GetDirectory("Geometries");
-    if (!geoDir) return false;
+    TDirectory* readoutDir = GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
+    if (!readoutDir) return false;
 
     TGeoManager* prevGeo = gGeoManager;
     gGeoManager = nullptr;
 
     TGeoManager* geo = nullptr;
-    geoDir->GetObject(resolvedGeometryName.c_str(), geo);
+    readoutDir->GetObject(kGeometryKey, geo);
 
     if (!geo) {
         gGeoManager = prevGeo;
@@ -353,6 +372,15 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
     return true;
 }
 
+std::vector<std::string> TRestDetectorReadout::GetDecodingNames(TFile* fIn, const std::string& geometryName) {
+    std::vector<std::string> names;
+    TDirectory* readoutDir = GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), geometryName.c_str());
+    TDirectory* geometryDecDir = GetSubDirectory(readoutDir, kDecodingsDir);
+    if (!geometryDecDir) return names;
+    for (TObject* key : *geometryDecDir->GetListOfKeys()) names.emplace_back(key->GetName());
+    return names;
+}
+
 /// \brief Imports geometry and decoding from an input ROOT file.
 /// \param fIn Input ROOT file.
 /// \param geometryName Geometry object name.
@@ -363,10 +391,8 @@ bool TRestDetectorReadout::Import(TFile* fIn, const std::string& geometryName,
     if (!ImportGeometry(fIn, geometryName)) return false;
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
-    TDirectory* decDir = fIn->GetDirectory("Decodings");
-    if (!decDir) return false;
-
-    TDirectory* geometryDecDir = decDir->GetDirectory(resolvedGeometryName.c_str());
+    TDirectory* readoutDir = GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
+    TDirectory* geometryDecDir = GetSubDirectory(readoutDir, kDecodingsDir);
     if (!geometryDecDir) return false;
 
     TObjString* decObj = dynamic_cast<TObjString*>(geometryDecDir->Get(decodingName.c_str()));
@@ -390,22 +416,17 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
 
-    TDirectory* geoDir = fOut->GetDirectory("Geometries");
-    if (!geoDir) geoDir = fOut->mkdir("Geometries");
-    if (!geoDir) return false;
-    geoDir->cd();
+    TDirectory* readoutDir =
+        GetOrMakeSubDirectory(GetOrMakeSubDirectory(fOut, kReadoutsDir), resolvedGeometryName.c_str());
+    if (!readoutDir) return false;
+    readoutDir->cd();
 
     if (GetGeoManager()) {
-        GetGeoManager()->Write(resolvedGeometryName.c_str(), TObject::kOverwrite);
+        GetGeoManager()->Write(kGeometryKey, TObject::kOverwrite);
     }
 
     // Export the decoding payload (original logic preserved).
-    TDirectory* decDir = fOut->GetDirectory("Decodings");
-    if (!decDir) decDir = fOut->mkdir("Decodings");
-    if (!decDir) return false;
-
-    TDirectory* geometryDecDir = decDir->GetDirectory(resolvedGeometryName.c_str());
-    if (!geometryDecDir) geometryDecDir = decDir->mkdir(resolvedGeometryName.c_str());
+    TDirectory* geometryDecDir = GetOrMakeSubDirectory(readoutDir, kDecodingsDir);
     if (!geometryDecDir) return false;
     geometryDecDir->cd();
 

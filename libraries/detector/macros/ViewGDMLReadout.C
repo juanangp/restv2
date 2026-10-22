@@ -12,7 +12,7 @@ TRestGDMLReadout *gmdlReadout = nullptr;
 using namespace TRestTools;
 
 void ViewGDMLReadout(const std::string& instanceName = "Veto_Readout",
-                 const std::string& decodingName = "veto.dec",
+                 const std::string& decodingName = "veto_decoding",
                  const std::string inputFile = "veto_readout_output.root") {
     TFile* fIn = TFile::Open(inputFile.c_str(), "READ");
     auto configNode = TRestMetadata::ReadMetadata(fIn, instanceName);

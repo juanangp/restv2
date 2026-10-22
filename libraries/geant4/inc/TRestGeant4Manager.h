@@ -18,8 +18,6 @@ class TRestGeant4Manager : public TRestMetadata {
     TRestGeant4Metadata* fG4Metadata = nullptr;
     /// \brief Pointer to configured Geant4 physics list collection.
     TRestGeant4PhysicsLists* fG4PhysicsLists = nullptr;
-    /// \brief Pointer to the run metadata section owning this setup.
-    TRestRun* fConfiguredRun = nullptr;
 
     TRestGeant4Manager(const std::string& instanceName, const YAML::Node& node);
     TRestGeant4Manager(const std::string& fileName, const std::string& sectionName);

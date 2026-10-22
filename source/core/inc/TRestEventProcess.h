@@ -26,9 +26,6 @@ class TRestEventProcess : public TRestMetadata {
     virtual std::string GetInputEvent() const = 0;
     virtual std::string GetOutputEvent() const = 0;
 
-    /// Pointer to run context shared with this process.
-    TRestRun* fRunInfo = nullptr;
-
     /// Pointer to the owning manager, giving access to sibling metadata
     /// (readouts, calibrations, etc.) loaded alongside this process's pipeline.
     /// May be nullptr if the process runs outside a TRestManager context.
@@ -55,10 +52,6 @@ class TRestEventProcess : public TRestMetadata {
 
     /// \brief Initializes this process by delegating to `InitProcess`.
     void Initialize() override { InitProcess(); }
-
-    /// \brief Sets run context pointer.
-    /// \param r Run context.
-    inline void SetRunInfo(TRestRun* r) { fRunInfo = r; }
 
     /// \brief Sets the owning manager, for access to sibling metadata.
     /// \param mgr Owning manager, or nullptr.

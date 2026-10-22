@@ -3,8 +3,8 @@ readoutManager:
   readouts:
     - inputFileName: "iaxo_readout_output.root"
       instanceName: "IAXO_D1_Readout"
-      decodingName: "iaxo_d0_nominal.dec"
+      decodingName: "nominal_decoding"  # name given to Export (GenerateMicromegasReadout)
     - inputFileName: "veto_readout_output.root"
       instanceName: "Veto_Readout"
-      decodingName: "veto_decoding"
+      decodingName: "veto_decoding"  # name given to Export (GenerateGDMLReadout)
 

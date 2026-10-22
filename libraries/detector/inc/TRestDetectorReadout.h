@@ -101,17 +101,20 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Imports geometry and decoding from a ROOT file.
     /// \param fIn Input ROOT file.
     /// \param geometryName Geometry name to import.
-    /// \param decodingName Decoding object name inside the geometry decoding folder.
+    /// \param decodingName Decoding object name inside the geometry decoding folder, as given to Export.
     /// \return `true` if import completed successfully.
-    bool Import(TFile* fIn, const std::string& geometryName, const std::string& decodingName = "default");
+    bool Import(TFile* fIn, const std::string& geometryName, const std::string& decodingName);
 
-    /// \brief Exports geometry and decoding into a ROOT file.
+    /// \brief Exports geometry and decoding into a ROOT file, as Readouts/<geometryName>/Geometry and
+    /// Readouts/<geometryName>/Decodings/<decodingName> (the readout YAML goes to RESTMetadataStore).
     /// \param fOut Output ROOT file.
     /// \param geometryName Geometry object name.
-    /// \param decodingName Decoding object name.
+    /// \param decodingName Name under which the decoding is stored (what Import must be given).
     /// \return `true` if export completed successfully.
-    bool Export(TFile* fOut, const std::string& geometryName,
-                const std::string& decodingName = "default") const;
+    bool Export(TFile* fOut, const std::string& geometryName, const std::string& decodingName) const;
+
+    /// \brief Names of the decodings stored for a geometry in a ROOT file.
+    static std::vector<std::string> GetDecodingNames(TFile* fIn, const std::string& geometryName);
 
     /// \brief Returns DAQ channel corresponding to a spatial position.
     /// \param x X coordinate in detector reference frame.

@@ -1,5 +1,10 @@
 #include "TRestDetectorHitsEvent.h"
+
+#include <algorithm>
+
+#include "TPad.h"
 #include "TRestSystemOfUnits.h"
+#include "TRestTools.h"
 
 
 
@@ -97,4 +102,55 @@ void TRestDetectorHitsEvent::PrintDetectorHitsEvent(Int_t nHits) const {
     }
 
     fHits.PrintHits(nHits);
+}
+
+TPad* TRestDetectorHitsEvent::DrawEvent(const TString& option) const {
+    std::vector<std::string> options;
+    for (const auto& opt : TRestTools::Split(option.Data(), ':')) {
+        if (opt == "print") {
+            PrintEvent();
+        } else if (!opt.empty()) {
+            options.push_back(opt);
+        }
+    }
+    if (options.empty()) options.push_back("hist(Cont1,col)");
+
+    if (GetNumberOfHits() == 0) {
+        std::cout << "Empty event " << std::endl;
+        return nullptr;
+    }
+
+    TVirtualPad* safePad = gPad;
+
+    delete fPad;
+    fPad = new TPad(Form("pad_hits_event_%d", GetID()), "REST Detector Hits Viewer", 0, 0, 1, 1);
+    fPad->Divide(1, options.size());
+    fPad->Draw();
+
+    for (size_t i = 0; i < options.size(); i++) {
+        const auto& opt = options[i];
+        // name(rootOption)[pitch]
+        const size_t open = opt.find('('), close = opt.find(')');
+        const size_t openPitch = opt.find('['), closePitch = opt.find(']');
+        const std::string name = opt.substr(0, std::min(open, openPitch));
+        const std::string histOption =
+            open != std::string::npos && close != std::string::npos ? opt.substr(open + 1, close - open - 1)
+                                                                    : "";
+        const double pitch = openPitch != std::string::npos && closePitch != std::string::npos
+                                 ? std::stod(opt.substr(openPitch + 1, closePitch - openPitch - 1))
+                                 : 0;
+
+        TVirtualPad* optionPad = fPad->cd(i + 1);
+        if (name == "graph") {
+            fHits.DrawGraphs(optionPad, Form("Event ID %d", GetID()));
+        } else if (name == "hist") {
+            fHits.DrawHistograms(optionPad, histOption, pitch);
+        } else {
+            std::cout << "TRestDetectorHitsEvent::DrawEvent: unknown option '" << opt << "'" << std::endl;
+        }
+    }
+
+    fPad->Modified();
+    if (safePad) safePad->cd();
+    return fPad;
 }

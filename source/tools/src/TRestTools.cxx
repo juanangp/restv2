@@ -419,6 +419,22 @@ YAML::Node TRestTools::ResolveAllRefs(const YAML::Node& root) {
     return solved;
 }
 
+YAML::Node TRestTools::DetachYAMLNode(const YAML::Node& node) {
+    if (!node) return YAML::Node();
+    if (node.IsNull()) return YAML::Node(YAML::NodeType::Null);
+    if (node.IsScalar()) return YAML::Node(node.Scalar());
+
+    YAML::Node detached(node.Type());
+    if (node.IsSequence()) {
+        for (const auto& child : node) detached.push_back(DetachYAMLNode(child));
+    } else if (node.IsMap()) {
+        for (const auto& entry : node) {
+            detached[DetachYAMLNode(entry.first)] = DetachYAMLNode(entry.second);
+        }
+    }
+    return detached;
+}
+
 void TRestTools::OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val) {
     if (node.IsMap()) {
         for (auto it = node.begin(); it != node.end(); ++it) {

@@ -42,12 +42,27 @@ class TRestDetectorReadoutManager : public TRestMetadata {
 
     // MANDATORY OVERRIDES FOR TRESTMETADATA
     virtual std::string GetClassName() const override { return "TRestDetectorReadoutManager"; }
-    /// \brief Parses YAML readout requests and source file information.
+    /// \brief Parses YAML readout requests (readouts are imported by SetRunInfo or LoadReadout).
     virtual void LoadConfig() override;
     /// \brief Imports requested readouts into the internal lookup map.
     virtual void Initialize() override { };
 
+    /// \brief Imports the requested readouts. Called by SetRunInfo; call it directly to use the manager
+    /// without a run (then kSelfFile readouts cannot be loaded).
     void LoadReadout();
+
+    using TRestMetadata::WriteMetadata;
+    /// \brief inputFileName value meaning "the input file of the run this manager belongs to"
+    /// (TRestRun::GetInputFile).
+    inline static const std::string kSelfFile = "self";
+
+    /// \brief Sets the run and imports the readouts (LoadReadout).
+    void SetRunInfo(TRestRun* run) override;
+
+    /// \brief Writes the manager YAML plus, for each imported readout, its geometry and only the decoding
+    /// in use (TRestDetectorReadout::Export), so the file is self-contained. The stored inputFileName of
+    /// those readouts is kSelfFile, so it survives renaming or moving the file.
+    void WriteMetadata(TFile* file) override;
 
     void ListReadouts();
 

@@ -30,7 +30,6 @@ class TRestProcessManager : public TRestMetadata {
     /// input file event (nullptr for generators). Resolved in Run().
     std::vector<TRestEvent*> fStageInputs;
 
-    TRestRun* fRunInfo = nullptr;
     TRestManager* fManager = nullptr;
 
     Long64_t fEntryStart = -1;
@@ -53,7 +52,6 @@ class TRestProcessManager : public TRestMetadata {
     void LoadConfig() override;
     void LoadProcesses();
 
-    void SetRunInfo(TRestRun* runInfo) { fRunInfo = runInfo; }
     void SetManager(TRestManager* mgr) { fManager = mgr; }
     void SetEntryRange(Long64_t start, Long64_t end) { fEntryStart = start; fEntryEnd = end; }
 

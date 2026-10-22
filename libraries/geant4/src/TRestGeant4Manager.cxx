@@ -34,7 +34,7 @@ TRestGeant4Manager::TRestGeant4Manager(const std::string& fileName, const std::s
 /// \brief Resolves and stores nested metadata blocks declared under the manager node.
 void TRestGeant4Manager::LoadConfig() {
     fG4Metadata = nullptr;
-    fConfiguredRun = nullptr;
+    fRunInfo = nullptr;
     fG4PhysicsLists = nullptr;
 
     for (const auto& element : fNode) {
@@ -47,7 +47,7 @@ void TRestGeant4Manager::LoadConfig() {
         if (!meta) continue;
 
         if (auto* run = dynamic_cast<TRestRun*>(meta.get())) {
-            fConfiguredRun = run;
+            fRunInfo = run;
             meta.release();
         }
         if (auto* pL = dynamic_cast<TRestGeant4PhysicsLists*>(meta.get())) {
@@ -64,20 +64,20 @@ void TRestGeant4Manager::LoadConfig() {
 
 /// \brief Persists configured Geant4 metadata blocks into the associated run metadata.
 void TRestGeant4Manager::SaveMetadata() {
-    if (fConfiguredRun == nullptr) {
+    if (fRunInfo == nullptr) {
         throw std::runtime_error("TRestGeant4Manager::Run - no TRestRun configured under manager section.");
     }
 
     fG4Metadata->SyncMetadataMapsFromRuntime();
-    fConfiguredRun->AddMetadata(fConfiguredRun);
-    if (fG4PhysicsLists) fConfiguredRun->AddMetadata(fG4PhysicsLists);
-    if (fG4Metadata) fConfiguredRun->AddMetadata(fG4Metadata);
+    fRunInfo->AddMetadata(fRunInfo);
+    if (fG4PhysicsLists) fRunInfo->AddMetadata(fG4PhysicsLists);
+    if (fG4Metadata) fRunInfo->AddMetadata(fG4Metadata);
 }
 
 /// \brief Prints manager-level metadata and its effective YAML configuration.
 void TRestGeant4Manager::PrintMetadata() const{
     RESTMetadata << "=== TRestGeant4Manager ===" << RESTendl;
-    if(fConfiguredRun)fConfiguredRun->PrintMetadata();
+    if(fRunInfo)fRunInfo->PrintMetadata();
     if (fG4Metadata) fG4Metadata->PrintMetadata();
     if (fG4PhysicsLists) fG4PhysicsLists->PrintMetadata();
 }

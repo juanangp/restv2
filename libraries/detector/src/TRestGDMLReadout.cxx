@@ -96,6 +96,7 @@ void TRestGDMLReadout::BuildGeometry() {
     }
 
     fPathToPhysicalIDMap.clear();
+    if (!LoadDecoding(fDecodingFile)) RESTError << "Decoding file not found " << RESTendl;
 
     RESTInfo << "Importing external GDML layout file: " << fReadoutParams.fGDMLFileName << RESTendl;
 

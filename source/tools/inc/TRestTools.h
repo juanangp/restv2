@@ -33,6 +33,9 @@ YAML::Node ResolveEnvVars(const YAML::Node& node);
 YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node);
 void OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val);
 YAML::Node ResolveAllRefs(const YAML::Node& root);
+/// \brief Deep copy where every node is new: unlike YAML::Clone, nodes shared between several places
+/// become independent copies (no anchors/aliases when dumped) and tags/styles are dropped.
+YAML::Node DetachYAMLNode(const YAML::Node& node);
 std::string PatternToRegex(const std::string& pattern);
 std::vector<std::string> ReadYALMObservables(const YAML::Node& node);
 std::string CleanString(const std::string& str);

@@ -149,7 +149,13 @@ class TRestDetectorHitsEvent : public TRestEvent {
 
     // NOTA: métodos de geometría (cilindro/prisma) pendientes de confirmar/portar.
 
-    TPad* DrawEvent(const TString& option = "") const override { return nullptr; }
+    /// \brief Draws the hits, one row of pads per option. Options separated by ':':
+    /// - graph: hits as TGraph markers (TRestHits::DrawGraphs);
+    /// - hist(rootOption)[pitch]: histograms weighted by energy (TRestHits::DrawHistograms): projections
+    ///   and 3D view, and X, Y and Z distributions, only those the hits define (1D, 2D or 3D events);
+    /// - print: PrintEvent.
+    /// Default: "hist(Cont1,col)".
+    TPad* DrawEvent(const TString& option = "") const override;
 
     TRestDetectorHitsEvent() = default;
     ~TRestDetectorHitsEvent() override = default;

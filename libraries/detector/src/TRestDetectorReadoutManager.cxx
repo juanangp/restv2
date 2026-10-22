@@ -2,6 +2,7 @@
 
 
 #include "TRestDetectorReadout.h"
+#include "TRestRun.h"
 #include "TRestTools.h"
 
 #include <algorithm>
@@ -74,7 +75,6 @@ TRestDetectorReadoutManager::~TRestDetectorReadoutManager() {
 // =========================================================================
 void TRestDetectorReadoutManager::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorReadoutManager>(fNode);
-    LoadReadout();
     UpdateYAMLFromParams<TRestDetectorReadoutManager>(fNode);
 }
 
@@ -90,18 +90,31 @@ void TRestDetectorReadoutManager::LoadReadout() {
     fReadoutMap.clear();
 
     for (const auto& readoutInfo : fReadoutInfo) {
-        if (!TRestTools::isRootFile(readoutInfo.fInputFileName)) {
-            RESTError << "Input file " << readoutInfo.fInputFileName << " not found, readout will not be loaded" << RESTendl;
-            continue;
+        // kSelfFile: the readout is stored in the input file of the run
+        std::unique_ptr<TFile> ownedFile;
+        TFile* fIn = nullptr;
+        if (readoutInfo.fInputFileName == kSelfFile) {
+            fIn = fRunInfo ? fRunInfo->GetInputFile() : nullptr;
+            if (!fIn) {
+                RESTError << "Readout '" << readoutInfo.fInstanceName << "' has inputFileName '" << kSelfFile
+                          << "' but the manager has no run with an input file" << RESTendl;
+                continue;
+            }
+        } else {
+            if (!TRestTools::isRootFile(readoutInfo.fInputFileName)) {
+                RESTError << "Input file " << readoutInfo.fInputFileName << " not found, readout will not be loaded" << RESTendl;
+                continue;
+            }
+
+            ownedFile.reset(TFile::Open(readoutInfo.fInputFileName.c_str(), "READ"));
+            if (!ownedFile || ownedFile->IsZombie()) {
+                RESTError << "Could not open ROOT file: " << readoutInfo.fInputFileName << RESTendl;
+                continue;
+            }
+            fIn = ownedFile.get();
         }
 
-        std::unique_ptr<TFile> fIn(TFile::Open(readoutInfo.fInputFileName.c_str(), "READ"));
-        if (!fIn || fIn->IsZombie()) {
-            RESTError << "Could not open ROOT file: " << readoutInfo.fInputFileName << RESTendl;
-            continue;
-        }
-
-        auto yamlConfig = TRestMetadata::ReadMetadata(fIn.get(), readoutInfo.fInstanceName);
+        auto yamlConfig = TRestMetadata::ReadMetadata(fIn, readoutInfo.fInstanceName);
         if (!yamlConfig) {
             RESTError << "Metadata instance " << readoutInfo.fInstanceName << " not found in file " << readoutInfo.fInputFileName << RESTendl;
             continue;
@@ -123,16 +136,54 @@ void TRestDetectorReadoutManager::LoadReadout() {
         
         metadata.release(); 
 
-        readout->Import(fIn.get(), readoutInfo.fInstanceName, readoutInfo.fDecodingName);
-        
+        // The decoding name is the one given to Export when the readout file was written
+        const std::string& decodingName = readoutInfo.fDecodingName;
+        if (!readout->Import(fIn, readoutInfo.fInstanceName, decodingName)) {
+            // Not kept: the readout would silently use the decoding file read from disk at construction
+            std::string available;
+            for (const auto& name : TRestDetectorReadout::GetDecodingNames(fIn, readoutInfo.fInstanceName)) {
+                available += " '" + name + "'";
+            }
+            RESTError << "Decoding '" << decodingName << "' of readout '" << readoutInfo.fInstanceName
+                      << "' (or its geometry) not found in " << readoutInfo.fInputFileName << ". Available:" << available
+                      << RESTendl;
+            continue;
+        }
+
         fReadoutMap[readoutInfo.fInstanceName] = readout.release();
-        RESTInfo << "Successfully imported readout instance '" << readoutInfo.fInstanceName 
-                 << "' with decoding '" << readoutInfo.fDecodingName << "'" << RESTendl;
+        RESTInfo << "Successfully imported readout instance '" << readoutInfo.fInstanceName
+                 << "' with decoding '" << decodingName << "'" << RESTendl;
                  
         fReadoutMap[readoutInfo.fInstanceName]->PrintMetadata();
     }
 }
 
+void TRestDetectorReadoutManager::SetRunInfo(TRestRun* run) {
+    TRestMetadata::SetRunInfo(run);
+    LoadReadout();
+}
+
+void TRestDetectorReadoutManager::WriteMetadata(TFile* file) {
+    UpdateYAMLFromParams<TRestDetectorReadoutManager>(fNode);
+    YAML::Node node = YAML::Clone(fNode);
+
+    YAML::Node readoutsNode = node["readouts"];
+    for (size_t i = 0; i < fReadoutInfo.size() && i < readoutsNode.size(); ++i) {
+        const auto& readoutInfo = fReadoutInfo[i];
+        auto* readout = GetReadout(readoutInfo.fInstanceName);
+        // Readouts not imported keep pointing to their original file
+        if (!readout) continue;
+
+        if (!readout->Export(file, readoutInfo.fInstanceName, readoutInfo.fDecodingName)) {
+            RESTError << "Readout '" << readoutInfo.fInstanceName << "' could not be exported to "
+                      << file->GetName() << RESTendl;
+            continue;
+        }
+        readoutsNode[i]["inputFileName"] = kSelfFile;
+    }
+
+    TRestMetadata::WriteMetadata(file, fName, node);
+}
 
 void TRestDetectorReadoutManager::ListReadouts(){
 

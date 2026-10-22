@@ -16,6 +16,8 @@
 #include "TRestLogManager.h"
 #include "TRestSystemOfUnits.h"
 
+class TRestRun;
+
 class TRestMetadataFieldRegistry;
 
 /// \class TRestMetadata
@@ -39,6 +41,10 @@ class TRestMetadata {
 
     /// Verbosity level used by REST logging.
     TRestLogManager::REST_Verbose_Level fVerboseLevel = TRestLogManager::REST_Verbose_Level::REST_Info;
+
+    /// Run this metadata belongs to (not owned), or nullptr. Set by TRestRun on the metadata it rebuilds
+    /// from an input file, and by the process managers on their processes.
+    TRestRun* fRunInfo = nullptr;
 
    public:
     /// \brief Returns the concrete class name.
@@ -95,8 +101,13 @@ class TRestMetadata {
     virtual void PrintMetadata() const;
 
     static void WriteMetadata(TFile* file, const std::string& instanceName, const YAML::Node& configNode);
-    void WriteMetadata(TFile* file);
+    virtual void WriteMetadata(TFile* file);
     static YAML::Node ReadMetadata(TFile* file, const std::string& instanceName);
+
+    /// \brief Sets the run this metadata belongs to. Overridable to finish loading what depends on the
+    /// run (e.g. readouts stored in the run input file, see TRestDetectorReadoutManager).
+    virtual void SetRunInfo(TRestRun* run) { fRunInfo = run; }
+    TRestRun* GetRunInfo() const { return fRunInfo; }
 
     /// \brief Reads and applies verbose-level configuration from YAML.
     /// \param node YAML node containing verbosity information.

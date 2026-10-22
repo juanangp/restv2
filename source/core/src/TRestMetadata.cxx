@@ -6,23 +6,6 @@
 
 using namespace TRestTools;
 
-namespace {
-YAML::Node DetachYAMLNode(const YAML::Node& node) {
-    if (!node) return YAML::Node();
-    if (node.IsNull()) return YAML::Node(YAML::NodeType::Null);
-    if (node.IsScalar()) return YAML::Node(node.Scalar());
-
-    YAML::Node detached(node.Type());
-    if (node.IsSequence()) {
-        for (const auto& child : node) detached.push_back(DetachYAMLNode(child));
-    } else if (node.IsMap()) {
-        for (const auto& entry : node) {
-            detached[DetachYAMLNode(entry.first)] = DetachYAMLNode(entry.second);
-        }
-    }
-    return detached;
-}
-}  // namespace
 
 TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& node)
     : fName(instanceName), fNode(node) {

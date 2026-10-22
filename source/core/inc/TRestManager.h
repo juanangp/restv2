@@ -20,7 +20,6 @@ class TRestManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
     TRestProcessManager* fProcessManager = nullptr;
-    TRestRun* fConfiguredRun = nullptr;
     static std::atomic<bool> fStopRequested;
 
    public:
@@ -42,8 +41,6 @@ class TRestManager : public TRestMetadata {
         }
         return nullptr;
     }
-
-    TRestRun* GetRunInfo() const { return fConfiguredRun; }
 
     static void RequestStop() { fStopRequested.store(true, std::memory_order_relaxed); }
 

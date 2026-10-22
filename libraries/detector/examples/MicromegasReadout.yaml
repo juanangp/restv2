@@ -1,7 +1,7 @@
 readout:
   class: "TRestMicromegasReadout"
   name: "IAXO_D1_Readout"
-  decodingFile: "iaxo_d0_nominal.dec"
+  decodingFile: "iaxo_d1_iaxolab.dec"
   readoutParameters:
     nChannels: 120 
     pitch: 0.5

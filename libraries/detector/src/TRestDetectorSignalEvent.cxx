@@ -183,7 +183,7 @@ TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
             mg->Add(g, "L");
     }
 
-    mg->Draw("A");
+    DrawOwned(mg, "A");
     
     fPad->Modified();
     

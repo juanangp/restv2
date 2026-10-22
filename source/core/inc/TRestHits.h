@@ -5,12 +5,15 @@
 #include <cmath>
 #include <functional>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include <TRandom.h>
 
 #include "Math/Vector3D.h"
 #include "Math/GenVector/VectorUtil.h"
+
+class TVirtualPad;
 
 namespace TRestHitsUtils {
 
@@ -220,6 +223,31 @@ class TRestHits {
                                     ROOT::Math::XYZVector position) const;
 
     virtual void PrintHits(int nHits = -1) const;
+
+    /// \brief Minimum distance between the different values of one coordinate (the readout pitch for
+    /// strip coordinates), as legacy TRestHits::GetBoundaries. 0 if there are less than two values.
+    static double GetMinimumDistance(std::vector<double> values);
+
+    /// \brief Boundaries and bins of one coordinate with the given bin size (if <= 0, a tenth of the
+    /// extent). The range leaves a margin of 25% of the extent of the values, and at least 10 bins, on
+    /// each side, with the values at bin centres. No values give [-1, 1] with one bin.
+    static void GetBoundaries(const std::vector<double>& values, double binSize, double& max, double& min,
+                              int& nBins);
+
+    /// \brief Draws the hits as TGraph markers in the pad (divided in one row): one graph per projection
+    /// (XZ, YZ, XY) with hits defining both coordinates or, if there are none (1D hits), the energy
+    /// against each defined coordinate.
+    void DrawGraphs(TVirtualPad* pad, const std::string& title = "") const;
+
+    /// \brief Draws the hits as histograms weighted by energy in the pad: a row with the projections
+    /// (XZ, YZ, XY) with hits defining both coordinates, plus a 3D view when the hits define the three
+    /// coordinates, and a row with the X, Y and Z distributions. Empty histograms are not drawn, so 1D,
+    /// 2D and 3D hits only get the pads that apply. The bin size is the pitch or, if pitch <= 0, the
+    /// minimum distance between hits in X and Y (the readout pitch), also used for Z.
+    /// The 3D view shows a TH3 weighted by energy with the hits defining the three coordinates, and the
+    /// hits with one undefined coordinate (e.g. strips) as lines along it, coloured by energy, with the
+    /// crossings of lines along different coordinates (the reconstructed positions, ghosts included).
+    void DrawHistograms(TVirtualPad* pad, const std::string& histOption = "", double pitch = 0) const;
 
     TRestHits() = default;
     virtual ~TRestHits() = default;

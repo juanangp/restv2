@@ -197,6 +197,8 @@ class TRestRun : public TRestMetadata {
     void OpenInputFile(const std::string& filename);
 
     bool IsOpen() const { return fInputFile && !fInputFile->IsZombie(); }
+    /// \brief Input ROOT file, or nullptr if none is open.
+    TFile* GetInputFile() const { return fInputFile.get(); }
 
     /// \brief Opens output ROOT file and creates output trees.
     void OpenOutputFile(std::string fileName = "", const std::string& option = "RECREATE");

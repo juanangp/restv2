@@ -36,8 +36,8 @@ class TRestTrack {
     Double_t GetLength() const;
     Double_t GetVolume() const;
     
+    /// \brief Origin and end of the track (TRestHitsAnalysis::GetTrackEnds).
     void GetBoundaries(XYZVector& orig, XYZVector& end) const;
-    static void ComputeBoundaries(const TRestHits& hits, XYZVector& orig, XYZVector& end);
 
     std::vector<float> GetSigmaX() const;
     std::vector<float> GetSigmaY() const;

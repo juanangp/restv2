@@ -29,12 +29,12 @@ macro(rest_add_connector CONNECTOR_NAME)
 endmacro()
 
 rest_add_connector(TRestRawToDetectorSignalProcess ${RAW_LIB} ${DETECTOR_LIB})
+rest_add_connector(TRestDetectorHitsToTrackProcess ${DETECTOR_LIB} ${TRACK_LIB})
 # Legacy connectors not migrated yet:
 #   TRestDetectorSignalToRawSignalProcess  (detector, raw)
 #   TRestRawReadoutAnalysisProcess         (raw, detector)
 #   TRestRawReadoutMetadataProcess         (raw, detector)
 #   TRestGeant4ToDetectorHitsProcess       (geant4, detector)
-#   TRestDetectorHitsToTrackProcess        (detector, track)
 #   TRestDetectorHitsToTrackFastProcess    (detector, track)
 #   TRestTrackToDetectorHitsProcess        (track, detector)
 

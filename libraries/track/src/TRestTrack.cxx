@@ -1,4 +1,6 @@
 #include "TRestTrack.h"
+
+#include "TRestHitsAnalysis.h"
 #include "TRestTrackEvent.h"
 
 TRestTrack::TRestTrack(TRestTrackEvent* event, std::size_t index) 
@@ -50,28 +52,10 @@ Double_t TRestTrack::GetVolume() const {
     return fEvent->fTrackHits[fTrackIndex].GetMaximumHitDistance2();
 }
 
-void TRestTrack::ComputeBoundaries(const TRestHits& hits, XYZVector& orig, XYZVector& end) {
-    const int nHits = (int)hits.GetNumberOfHits();
-    if (nHits == 0) return;
-    int maxBin = 0;
-    double maxEn = 0;
-    for (int i = 0; i < nHits; i++) {
-        double en = hits.GetEnergy(i);
-        if (en > maxEn) { maxEn = en; maxBin = i; }
-    }
-    auto maxPos = hits.GetPosition(maxBin);
-    auto pos0 = hits.GetPosition(0);
-    auto posE = hits.GetPosition(nHits - 1);
-    if ((pos0 - maxPos).R() < (posE - maxPos).R()) {
-        end = pos0; orig = posE;
-    } else {
-        orig = pos0; end = posE;
-    }
-}
-
 void TRestTrack::GetBoundaries(XYZVector& orig, XYZVector& end) const {
     if (!IsValid()) return;
-    ComputeBoundaries(fEvent->fTrackHits[fTrackIndex], orig, end);
+    const auto& hits = fEvent->fTrackHits[fTrackIndex];
+    TRestHitsAnalysis::GetTrackEnds(hits.GetPoints(), hits.GetEnergies(), orig, end);
 }
 
 std::vector<float> TRestTrack::GetSigmaX() const {

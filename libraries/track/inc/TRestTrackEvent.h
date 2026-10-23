@@ -34,6 +34,12 @@ struct TRestTrackData {
 /// \brief Event holding a collection of particle tracks. Each track is a
 /// contiguous run of volume hits (position + energy + time + type + sigma)
 /// inside the shared `fData` storage; no per-track object is allocated.
+///
+/// An event holds the tracks of one processing stage only: a track process writes its tracks to a new
+/// event instead of adding them as children of the input tracks. Each track is self-contained (it stores
+/// its own representation of the hits, e.g. the reduced nodes), so it does not need the hits or the
+/// tracks of the previous stages to be stored. The parent ID is the ID of the track it comes from in the
+/// input event of the stage (0 if none), for reference only.
 class TRestTrackEvent : public TRestEvent {
 
    friend class TRestTrack; 
@@ -48,8 +54,6 @@ class TRestTrackEvent : public TRestEvent {
     /// Lightweight per-track views over fData.hits (full range). Rebuilt
     /// whenever the underlying storage changes.
     mutable std::vector<TRestHits> fTrackHits;  //!
-
-    Int_t fLevels = -1;  ///< Maximum parent-child depth found in the event.
 
     /// Persisted branch pointers (ROOT requires T** for class/vector branches).
     std::vector<float>* fPtrX = nullptr;        //!
@@ -71,13 +75,15 @@ class TRestTrackEvent : public TRestEvent {
     /// \brief Returns the storage index of the track with the given ID, or -1.
     int FindTrackIndexById(Int_t id) const;
 
+    /// \brief Draws the tracks in the pad, see DrawEvent ("tracks").
+    void DrawTracks(TVirtualPad* pad) const;
+
    public:
     std::string GetClassName() const override { return "TRestTrackEvent"; }
 
     void Initialize() override {
         TRestEvent::Initialize();
         fData.clear();
-        fLevels = -1;
         RebuildTrackViews();
     }
 
@@ -146,7 +152,6 @@ class TRestTrackEvent : public TRestEvent {
         auto* source = dynamic_cast<const TRestTrackEvent*>(other);
         if (source) {
             fData = source->fData;
-            fLevels = source->fLevels;
             RebuildTrackViews();
         }
     }
@@ -166,7 +171,6 @@ class TRestTrackEvent : public TRestEvent {
     void RemoveTrack(Int_t n);
     inline void RemoveTracks() {
         fData.clear();
-        fLevels = -1;
         RebuildTrackViews();
     }
 
@@ -181,9 +185,6 @@ class TRestTrackEvent : public TRestEvent {
     TRestTrack GetMaxEnergyTrackInY();
     TRestTrack GetMaxEnergyTrack(const TString& option = "");
     TRestTrack GetSecondMaxEnergyTrack(const TString& option = "");
-
-    TRestTrack GetOriginTrack(Int_t tck);
-    TRestTrack GetOriginTrackById(Int_t tckId);
 
     Double_t GetMaxEnergyTrackVolume(const TString& option = "");
     Double_t GetMaxEnergyTrackLength(const TString& option = "");
@@ -217,12 +218,6 @@ class TRestTrackEvent : public TRestEvent {
         return std::sqrt(GetSigmaX(n, hit) * GetSigmaX(n, hit) + GetSigmaY(n, hit) * GetSigmaY(n, hit));
     }
 
-    Int_t GetLevel(Int_t tck) const;
-    void SetLevels();
-    inline Int_t GetLevels() const { return fLevels; }
-    Bool_t isTopLevel(Int_t tck) const;
-    Int_t GetOriginTrackID(Int_t tck) const;
-
     Int_t GetTotalHits() const;
 
     void SwapTrackHits(Int_t n, int i, int j);
@@ -234,17 +229,27 @@ class TRestTrackEvent : public TRestEvent {
     Double_t GetMaxTrackRelativeZ();
     void GetMaxTrackBoundaries(XYZVector& orig, XYZVector& end);
 
-    /// \brief Reduces the hits of track `trackIndex` into `nodes` clusters using k-means.
-    /// Appends and returns the index of the newly created clustered track.
-    Int_t KMeansClustering(Int_t trackIndex, Int_t nodes, Int_t maxIt = 100, Bool_t fixBoundaries = false);
+    /// \brief Reduces the hits of track `trackIndex` into `nodes` clusters using k-means. The clustered
+    /// track is added to `output` (the event of the next stage), with this track as parent.
+    /// \return Index of the clustered track in `output`, or -1.
+    Int_t KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrackEvent& output, Int_t maxIt = 100,
+                           Bool_t fixBoundaries = false) const;
 
     void PrintOnlyTracks() const;
     void PrintTrackEvent(Bool_t fullInfo) const;
     void PrintTrack(Int_t n, Bool_t fullInfo = true) const;
     inline void PrintEvent() const override { PrintTrackEvent(false); }
 
-    // NOTA: métodos de dibujo (TGraph/TPad: DrawEvent, DrawHits, GetOriginEnd) pendientes de portar.
-    TPad* DrawEvent(const TString& option = "") const override { return nullptr; }
+    /// \brief Draws the tracks, one row of pads per option. Options separated by ':':
+    /// - tracks: hits as markers in the projections (XZ, YZ, XY) the hits define, plus a 3D view if
+    ///   there are XYZ hits (1D hits: energy against each coordinate). Each track gets a colour, a
+    ///   marker size growing with the hit energy and, below 100 hits, a line joining its hits, drawn
+    ///   over the hits of every track;
+    /// - hits(rootOption)[pitch]: hits of all the tracks as histograms weighted by energy
+    ///   (TRestHits::DrawHistograms);
+    /// - print: PrintEvent.
+    /// Default: "tracks".
+    TPad* DrawEvent(const TString& option = "") const override;
 
     TRestTrackEvent() = default;
     ~TRestTrackEvent() override = default;

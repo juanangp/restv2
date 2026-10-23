@@ -4,6 +4,16 @@
 
 #include <algorithm>
 #include <limits>
+#include <numeric>
+
+#include "TGraph.h"
+#include "TH1F.h"
+#include "TH3F.h"
+#include "TMarker.h"
+#include "TPolyLine3D.h"
+#include "TPolyMarker3D.h"
+#include "TRestHitsAnalysis.h"
+#include "TRestTools.h"
 
 
 namespace {
@@ -33,7 +43,6 @@ Int_t TRestTrackEvent::AddTrack(Int_t trackID, Int_t parentID) {
     fData.parentID.push_back(parentID);
     fData.trackNHits.push_back(0);
     RebuildTrackViews();
-    SetLevels();
     return (Int_t)fData.trackID.size() - 1;
 }
 
@@ -64,7 +73,13 @@ void TRestTrackEvent::AddHitToTrack(const XYZVector& position, Double_t energy, 
     fData.sigmaZ.push_back((float)sigma.Z());
     
     fData.trackNHits.back()++;
-    RebuildTrackViews();
+    // The hit goes to the last track: only its view changes
+    if (fTrackHits.size() == fData.trackNHits.size()) {
+        const int nHits = fData.trackNHits.back();
+        fTrackHits.back() = TRestHits(&fData.hits, (int)fData.hits.x.size() - nHits, nHits);
+    } else {
+        RebuildTrackViews();
+    }
 }
 
 void TRestTrackEvent::RemoveTrack(Int_t n) {
@@ -86,7 +101,6 @@ void TRestTrackEvent::RemoveTrack(Int_t n) {
     fData.trackNHits.erase(fData.trackNHits.begin() + n);
 
     RebuildTrackViews();
-    SetLevels();
 }
 
 Int_t TRestTrackEvent::GetNumberOfTracks(const TString& option) const {
@@ -94,8 +108,6 @@ Int_t TRestTrackEvent::GetNumberOfTracks(const TString& option) const {
 
     Int_t nT = 0;
     for (int n = 0; n < (Int_t)fTrackHits.size(); n++) {
-        if (!isTopLevel(n)) continue;
-
         if (option == "X" && isXZ(n))
             nT++;
         else if (option == "Y" && isYZ(n))
@@ -104,20 +116,6 @@ Int_t TRestTrackEvent::GetNumberOfTracks(const TString& option) const {
             nT++;
     }
     return nT;
-}
-
-Int_t TRestTrackEvent::GetOriginTrackID(Int_t tck) const {
-    Int_t originTrackID = fData.trackID[tck];
-    Int_t pID = fData.parentID[tck];
-
-    while (pID != 0) {
-        originTrackID = pID;
-        int idx = FindTrackIndexById(originTrackID);
-        if (idx < 0) break;
-        pID = fData.parentID[idx];
-    }
-
-    return originTrackID;
 }
 
 TRestTrack TRestTrackEvent::GetTrack(std::size_t n) { 
@@ -144,7 +142,7 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrackInX() {
     Int_t track = -1;
     Double_t maxEnergy = 0;
     for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
-        if (!isTopLevel(tck) || !isXZ(tck)) continue;
+        if (!isXZ(tck)) continue;
         if (GetTrackEnergy(tck) > maxEnergy) {
             maxEnergy = GetTrackEnergy(tck);
             track = tck;
@@ -157,7 +155,7 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrackInY() {
     Int_t track = -1;
     Double_t maxEnergy = 0;
     for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
-        if (!isTopLevel(tck) || !isYZ(tck)) continue;
+        if (!isYZ(tck)) continue;
         if (GetTrackEnergy(tck) > maxEnergy) {
             maxEnergy = GetTrackEnergy(tck);
             track = tck;
@@ -173,7 +171,7 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const TString& option) {
     Int_t track = -1;
     Double_t maxEnergy = 0;
     for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
-        if (!isTopLevel(tck) || !isXYZ(tck)) continue;
+        if (!isXYZ(tck)) continue;
         if (GetTrackEnergy(tck) > maxEnergy) {
             maxEnergy = GetTrackEnergy(tck);
             track = tck;
@@ -192,7 +190,7 @@ TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const TString& option) {
     Int_t track = -1;
     Double_t maxEnergy = 0;
     for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
-        if (!isTopLevel(tck) || GetTrackID(tck) == id) continue;
+        if (GetTrackID(tck) == id) continue;
 
         Double_t en = GetTrackEnergy(tck);
         bool matches = false;
@@ -211,16 +209,6 @@ TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const TString& option) {
     return track == -1 ? TRestTrack() : TRestTrack(this, track);
 }
 
-TRestTrack TRestTrackEvent::GetOriginTrack(Int_t tck) {
-    return GetTrackById(GetOriginTrackID(tck));
-}
-
-TRestTrack TRestTrackEvent::GetOriginTrackById(Int_t tckId) {
-    int idx = FindTrackIndexById(tckId);
-    if (idx < 0) return TRestTrack();
-    return GetOriginTrack(idx);
-}
-
 Double_t TRestTrackEvent::GetMaxEnergyTrackVolume(const TString& option) {
     TRestTrack t = GetMaxEnergyTrack(option);
     return t.GetEvent() != nullptr ? t.GetVolume() : 0;
@@ -234,8 +222,6 @@ Double_t TRestTrackEvent::GetMaxEnergyTrackLength(const TString& option) {
 Double_t TRestTrackEvent::GetEnergy(const TString& option) {
     Double_t en = 0;
     for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
-        if (!isTopLevel(tck)) continue;
-
         if (option == "")
             en += GetTrackEnergy(tck);
         else if (option == "X" && (isXZ(tck) || isXYZ(tck)))
@@ -344,30 +330,6 @@ void TRestTrackEvent::MergeTrackHits(Int_t n, int i, int j) {
     RemoveTrackHit(n, j);
 }
 
-Int_t TRestTrackEvent::GetLevel(Int_t tck) const {
-    Int_t lvl = 1;
-    Int_t parentTrackId = fData.parentID[tck];
-
-    while (parentTrackId > 0) {
-        lvl++;
-        int idx = FindTrackIndexById(parentTrackId);
-        if (idx < 0) break;
-        parentTrackId = fData.parentID[idx];
-    }
-    return lvl;
-}
-
-void TRestTrackEvent::SetLevels() {
-    Int_t maxLevel = 0;
-    for (int tck = 0; tck < (Int_t)fData.trackID.size(); tck++) {
-        Int_t lvl = GetLevel(tck);
-        if (maxLevel < lvl) maxLevel = lvl;
-    }
-    fLevels = maxLevel;
-}
-
-Bool_t TRestTrackEvent::isTopLevel(Int_t tck) const { return GetLevels() == GetLevel(tck); }
-
 ///////////////////////////////////////////////
 /// \brief Retrieves the relative Z position of the most energetic track's
 /// half-energy integral, to crosscheck if the track is upwards or downwards.
@@ -425,8 +387,8 @@ void TRestTrackEvent::GetMaxTrackBoundaries(XYZVector& orig, XYZVector& end) {
     }
 
     XYZVector origX, endX, origY, endY;
-    TRestTrack::ComputeBoundaries(tckX.GetHits(), origX, endX);
-    TRestTrack::ComputeBoundaries(tckY.GetHits(), origY, endY);
+    tckX.GetBoundaries(origX, endX);
+    tckY.GetBoundaries(origY, endY);
 
     double originZ = (origX.Z() + origY.Z()) / 2.;
     double endZ = (endX.Z() + endY.Z()) / 2.;
@@ -436,74 +398,26 @@ void TRestTrackEvent::GetMaxTrackBoundaries(XYZVector& orig, XYZVector& end) {
 }
 
 ///////////////////////////////////////////////
-/// \brief Reduces the hits of a track into `nodes` centroids via k-means
-/// clustering, and stores the result as a new child track.
+/// \brief Reduces the hits of a track into `nodes` nodes (TRestHitsAnalysis::KMeansClustering) and adds
+/// them to `output` as a track whose parent is this one.
 ///
-Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, Int_t maxIt, Bool_t fixBoundaries) {
-    TRestHits& src = fTrackHits[trackIndex];
-    const int nHits = (int)src.GetNumberOfHits();
-    if (nodes < 2 || nHits == 0) return -1;
+Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrackEvent& output, Int_t maxIt,
+                                        Bool_t fixBoundaries) const {
+    const TRestHits& hits = fTrackHits[trackIndex];
+    const auto result =
+        TRestHitsAnalysis::KMeansClustering(hits.GetPoints(), hits.GetEnergies(), nodes, maxIt, fixBoundaries);
+    if (result.empty()) return -1;
 
-    std::vector<XYZVector> centroid(nodes), centroidOld(nodes);
-    for (int n = 0; n < nodes; n++) {
-        int idx = (nodes > 1) ? (n * (nHits - 1)) / (nodes - 1) : 0;
-        centroid[n] = src.GetPosition(idx);
+    const REST_HitType type = hits.GetType(0);
+    Int_t newTrackIndex = output.AddTrack(output.GetNumberOfTracks() + 1, GetTrackID(trackIndex));
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    for (const auto& node : result) {
+        // Undefined coordinates back to NaN, as in the hits (GetPoints sets them to 0)
+        const XYZVector position(TRestHitsData::IsDefined(type, 0) ? node.position.X() : nan,
+                                 TRestHitsData::IsDefined(type, 1) ? node.position.Y() : nan,
+                                 TRestHitsData::IsDefined(type, 2) ? node.position.Z() : nan);
+        output.AddHitToTrack(position, node.energy, 0, type);
     }
-
-    std::vector<std::vector<int>> clusterHits(nodes);
-
-    for (int it = 0; it < maxIt; it++) {
-        for (auto& v : clusterHits) v.clear();
-
-        for (int i = 0; i < nHits; i++) {
-            double minDist = std::numeric_limits<double>::max();
-            int clIndex = -1;
-            XYZVector hitPos = src.GetPosition(i);
-            for (int n = 0; n < nodes; n++) {
-                if (fixBoundaries && (n == 0 || n == nodes - 1)) continue;
-                double dist = (centroid[n] - hitPos).R();
-                if (dist < minDist) { minDist = dist; clIndex = n; }
-            }
-            if (clIndex >= 0) clusterHits[clIndex].push_back(i);
-        }
-
-        bool converge = true;
-        for (int n = 0; n < nodes; n++) {
-            if (fixBoundaries && (n == 0 || n == nodes - 1)) continue;
-            if (!clusterHits[n].empty()) {
-                double meanX = 0, meanY = 0, meanZ = 0, totalEnergy = 0;
-                for (int i : clusterHits[n]) {
-                    double en = src.GetEnergy(i);
-                    XYZVector pos = src.GetPosition(i);
-                    meanX += pos.X() * en;
-                    meanY += pos.Y() * en;
-                    meanZ += pos.Z() * en;
-                    totalEnergy += en;
-                }
-                if (totalEnergy > 0)
-                    centroid[n] = XYZVector(meanX / totalEnergy, meanY / totalEnergy, meanZ / totalEnergy);
-            }
-            converge &= ((centroid[n] - centroidOld[n]).R() < 1e-9);
-            centroidOld[n] = centroid[n];
-        }
-        if (converge) break;
-    }
-
-    const REST_HitType type = src.GetType(0);
-    std::vector<double> clusterEnergy(nodes, 0.0);
-    for (int n = 0; n < nodes; n++) {
-        for (int i : clusterHits[n]) clusterEnergy[n] += src.GetEnergy(i);
-    }
-
-    Int_t newTrackIndex = AddTrack(GetTrackID(trackIndex), GetTrackID(trackIndex));
-    for (int n = 0; n < nodes; n++) {
-        if (fixBoundaries && (n == 0 || n == nodes - 1)) {
-            AddHitToTrack(centroid[n], 0, 0, type);
-        } else if (!clusterHits[n].empty()) {
-            AddHitToTrack(centroid[n], clusterEnergy[n], 0, type);
-        }
-    }
-
     return newTrackIndex;
 }
 
@@ -515,7 +429,6 @@ void TRestTrackEvent::PrintOnlyTracks() const {
                  << std::endl;
     }
     std::cout << "-----------------------" << std::endl;
-    std::cout << "Track levels : " << GetLevels() << std::endl;
 }
 
 void TRestTrackEvent::PrintTrackEvent(Bool_t fullInfo) const {
@@ -525,7 +438,6 @@ void TRestTrackEvent::PrintTrackEvent(Bool_t fullInfo) const {
              << GetNumberOfTracks("XYZ") + GetNumberOfTracks("X") + GetNumberOfTracks("Y") << std::endl;
     std::cout << "Number of tracks XZ " << GetNumberOfTracks("X") << std::endl;
     std::cout << "Number of tracks YZ " << GetNumberOfTracks("Y") << std::endl;
-    std::cout << "Track levels : " << GetLevels() << std::endl;
     std::cout << "+++++++++++++++++++++++++++++++++++" << std::endl;
     for (int i = 0; i < (Int_t)fTrackHits.size(); i++) PrintTrack(i, fullInfo);
 }
@@ -549,5 +461,201 @@ void TRestTrackEvent::PrintTrack(Int_t n, Bool_t fullInfo) const {
     if (fullInfo) {
         fTrackHits[n].PrintHits();
         std::cout << "----------------------------------------" << std::endl;
+    }
+}
+
+namespace {
+/// Marker size of a hit, growing with its energy (as legacy TRestTrackEvent::DrawEvent for top level tracks)
+double GetHitMarkerSize(const TRestHits& hits, int n) {
+    const double minSize = 0.4, maxSize = 2.;
+    if (hits.GetNumberOfHits() == 1) return 2;
+    if (hits.GetNumberOfHits() > 100) return 0.8;
+
+    const double maxEnergy = hits.GetMaximumHitEnergy(), meanEnergy = hits.GetMeanHitEnergy();
+    if (maxEnergy <= meanEnergy) return maxSize;
+    const double slope = maxSize / (maxEnergy - meanEnergy);
+    return std::max(0.1, slope * (hits.GetEnergy(n) - meanEnergy) + maxSize - minSize);
+}
+
+/// Tracks with less hits are drawn with a line joining them (as legacy)
+const size_t kMaxHitsForLines = 100;
+}  // namespace
+
+TPad* TRestTrackEvent::DrawEvent(const TString& option) const {
+    std::vector<std::string> options;
+    for (const auto& opt : TRestTools::Split(option.Data(), ':')) {
+        if (opt == "print") {
+            PrintEvent();
+        } else if (!opt.empty()) {
+            options.push_back(opt);
+        }
+    }
+    if (options.empty()) options.push_back("tracks");
+
+    if (GetNumberOfTracks() == 0) {
+        std::cout << "Empty event " << std::endl;
+        return nullptr;
+    }
+
+    TVirtualPad* safePad = gPad;
+
+    delete fPad;
+    fPad = new TPad(Form("pad_track_event_%d", GetID()), "REST Track Viewer", 0, 0, 1, 1);
+    fPad->Divide(1, options.size());
+    fPad->Draw();
+
+    for (size_t i = 0; i < options.size(); i++) {
+        // name(rootOption)[pitch]
+        const auto [name, histOption, pitch] = ParseDrawOption(options[i]);
+
+        TVirtualPad* optionPad = fPad->cd(i + 1);
+        if (name == "tracks") {
+            DrawTracks(optionPad);
+        } else if (name == "hits") {
+            // View over the hits of all the tracks; DrawHistograms does not modify them
+            TRestHits(const_cast<TRestHitsData*>(&fData.hits), 0, (int)fData.hits.x.size())
+                .DrawHistograms(optionPad, histOption, pitch);
+        } else {
+            std::cout << "TRestTrackEvent::DrawEvent: unknown option '" << options[i] << "'" << std::endl;
+        }
+    }
+
+    fPad->Modified();
+    if (safePad) safePad->cd();
+    return fPad;
+}
+
+void TRestTrackEvent::DrawTracks(TVirtualPad* pad) const {
+    std::vector<int> tracks(GetNumberOfTracks());
+    std::iota(tracks.begin(), tracks.end(), 0);
+
+    std::vector<double> values[3];
+    double maxEnergy = 0;
+    bool has3D = false;
+    for (int t : tracks) {
+        const auto& hits = fTrackHits[t];
+        for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+            for (int a = 0; a < 3; a++) {
+                if (TRestHitsData::IsDefined(hits.GetType(n), a)) values[a].push_back(hits.GetCoordinate(n, a));
+            }
+            maxEnergy = std::max(maxEnergy, hits.GetEnergy(n));
+            if (hits.GetType(n) % REST_HitType::XYZ == 0) has3D = true;
+        }
+    }
+
+    // Ranges as TRestDetectorHitsEvent (margin around the hits)
+    double min[3], max[3];
+    int nBins[3];
+    for (int a = 0; a < 3; a++) {
+        TRestHitsAnalysis::GetBoundaries(values[a], TRestHitsAnalysis::GetMinimumDistance(values[a]), max[a],
+                                         min[a], nBins[a]);
+    }
+
+    // {u, v} coordinates of each view: the projections with hits defining both or, if there are none
+    // (1D hits), each coordinate against the energy (v = -1)
+    auto definesBoth = [](int type, int u, int v) {
+        return TRestHitsData::IsDefined(type, u) && (v < 0 || TRestHitsData::IsDefined(type, v));
+    };
+    std::vector<std::pair<int, int>> views;
+    for (const auto& plane : TRestHitsData::kPlanes) {
+        bool hasHits = false;
+        for (int t : tracks) {
+            for (size_t n = 0; n < fTrackHits[t].GetNumberOfHits() && !hasHits; n++) {
+                hasHits = definesBoth(fTrackHits[t].GetType(n), plane[0], plane[1]);
+            }
+        }
+        if (hasHits) views.emplace_back(plane[0], plane[1]);
+    }
+    if (views.empty()) {
+        for (int a = 0; a < 3; a++) {
+            if (!values[a].empty()) views.emplace_back(a, -1);
+        }
+    }
+
+    const int nPads = views.size() + (has3D ? 1 : 0);
+    if (nPads == 0) return;
+    pad->Divide(nPads, 1);
+
+    // A colour per track: ROOT colours 2 (red, the first one in legacy) to 9
+    std::vector<Color_t> colors;
+    for (int t : tracks) colors.push_back(2 + t % 8);
+
+    const std::string title = Form("Event ID %d", GetID());
+    for (size_t i = 0; i < views.size(); i++) {
+        const auto [u, v] = views[i];
+        pad->cd(i + 1);
+        SetPadMargins(gPad);
+
+        auto* frame = new TH1F("frame", title.c_str(), 1, min[u], max[u]);
+        frame->SetMinimum(v >= 0 ? min[v] : 0);
+        frame->SetMaximum(v >= 0 ? max[v] : 1.1 * maxEnergy);
+        DrawOwned(frame, "AXIS", TRestHitsData::kAxisTitles[u], v >= 0 ? TRestHitsData::kAxisTitles[v] : "Energy");
+
+        // First the hits of every track, then the track lines over them (as legacy)
+        std::vector<TGraph*> lines;
+        for (size_t k = 0; k < tracks.size(); k++) {
+            const int t = tracks[k];
+            const auto& hits = fTrackHits[t];
+
+            std::vector<double> us, vs;
+            for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+                if (!definesBoth(hits.GetType(n), u, v)) continue;
+                us.push_back(hits.GetCoordinate(n, u));
+                vs.push_back(v >= 0 ? hits.GetCoordinate(n, v) : hits.GetEnergy(n));
+
+                auto* marker = new TMarker(us.back(), vs.back(), 20);
+                marker->SetMarkerColor(colors[k]);
+                marker->SetMarkerSize(GetHitMarkerSize(hits, n));
+                marker->SetBit(TObject::kCanDelete);
+                marker->Draw();
+            }
+
+            if (us.size() > 1 && us.size() < kMaxHitsForLines)
+                lines.push_back(new TGraph(us.size(), us.data(), vs.data()));
+        }
+        for (auto* line : lines) {
+            line->SetLineWidth(2);
+            line->SetBit(TObject::kCanDelete);
+            line->Draw("L");
+        }
+    }
+
+    if (!has3D) return;
+
+    pad->cd(nPads);
+    auto* frame = new TH3F("XYZframe", title.c_str(), 1, min[0], max[0], 1, min[1], max[1], 1, min[2], max[2]);
+    DrawOwned(frame, "", TRestHitsData::kAxisTitles[0], TRestHitsData::kAxisTitles[1],
+              TRestHitsData::kAxisTitles[2]);
+
+    std::vector<TPolyLine3D*> lines;
+    for (size_t k = 0; k < tracks.size(); k++) {
+        const int t = tracks[k];
+        const auto& hits = fTrackHits[t];
+
+        auto* line = new TPolyLine3D();
+        for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+            if (hits.GetType(n) % REST_HitType::XYZ != 0) continue;
+            line->SetNextPoint(hits.GetX(n), hits.GetY(n), hits.GetZ(n));
+
+            auto* marker = new TPolyMarker3D(1, 20);
+            marker->SetPoint(0, hits.GetX(n), hits.GetY(n), hits.GetZ(n));
+            marker->SetMarkerColor(colors[k]);
+            marker->SetMarkerSize(GetHitMarkerSize(hits, n));
+            marker->SetBit(TObject::kCanDelete);
+            marker->Draw();
+        }
+
+        // Size: points set (GetN is the allocated size)
+        if (line->Size() > 1 && line->Size() < (int)kMaxHitsForLines) {
+            lines.push_back(line);
+        } else {
+            delete line;
+        }
+    }
+    // Over the hits of every track
+    for (auto* line : lines) {
+        line->SetLineWidth(2);
+        line->SetBit(TObject::kCanDelete);
+        line->Draw();
     }
 }

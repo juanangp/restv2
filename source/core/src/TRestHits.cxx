@@ -11,6 +11,7 @@
 #include <TVirtualPad.h>
 
 #include "TRestEvent.h"
+#include "TRestHitsAnalysis.h"
 
 
 using REST_HitType = TRestHitsData::REST_HitType;
@@ -467,55 +468,31 @@ void TRestHits::PrintHits(Int_t nHits) const {
     }
 }
 
-double TRestHits::GetMinimumDistance(std::vector<double> values) {
-    std::sort(values.begin(), values.end());
-    double minDiff = 0;
-    for (size_t i = 1; i < values.size(); i++) {
-        const double diff = values[i] - values[i - 1];
-        if (diff > 0 && (minDiff == 0 || diff < minDiff)) minDiff = diff;
+std::vector<ROOT::Math::XYZVector> TRestHits::GetPoints() const {
+    std::vector<ROOT::Math::XYZVector> points(fNHits);
+    for (int n = 0; n < fNHits; n++) {
+        const int type = GetType(n);
+        points[n].SetXYZ(TRestHitsData::IsDefined(type, 0) ? GetX(n) : 0, TRestHitsData::IsDefined(type, 1) ? GetY(n) : 0,
+                         TRestHitsData::IsDefined(type, 2) ? GetZ(n) : 0);
     }
-    return minDiff;
+    return points;
 }
 
-void TRestHits::GetBoundaries(const std::vector<double>& values, double binSize, double& max, double& min,
-                              int& nBins) {
-    if (values.empty()) {
-        min = -1;
-        max = 1;
-        nBins = 1;
-        return;
-    }
-    min = *std::min_element(values.begin(), values.end());
-    max = *std::max_element(values.begin(), values.end());
-    if (binSize <= 0) binSize = max > min ? (max - min) / 10. : 1;
+std::vector<double> TRestHits::GetEnergies() const {
+    std::vector<double> energies(fNHits);
+    for (int n = 0; n < fNHits; n++) energies[n] = GetEnergy(n);
+    return energies;
+}
 
-    // Margin in bins; the edges keep the values at bin centres (strips at multiples of the pitch)
-    const int marginBins = std::max(10, (int)std::ceil(0.25 * (max - min) / binSize));
-    nBins = (int)std::ceil((max - min) / binSize - 1e-6) + 1 + 2 * marginBins;
-    min -= (marginBins + 0.5) * binSize;
-    max = min + nBins * binSize;
+std::vector<double> TRestHits::GetCoordinates(int axis) const {
+    std::vector<double> values(fNHits);
+    for (int n = 0; n < fNHits; n++) values[n] = GetCoordinate(n, axis);
+    return values;
 }
 
 namespace {
-/// Coordinates as indices 0, 1, 2 (X, Y, Z): factor in the hit type and axis title
-const REST_HitType kAxisTypes[3] = {REST_HitType::X, REST_HitType::Y, REST_HitType::Z};
-const char* kAxisTitles[3] = {"X-axis (mm)", "Y-axis (mm)", "Z-axis (mm)"};
-/// Projection planes XZ, YZ and XY (as legacy), as pairs of coordinates
-const int kPlanes[3][2] = {{0, 2}, {1, 2}, {0, 1}};
 /// Maximum number of bins of the 3D histogram, bins are merged above it
 const double kMax3DBins = 1e6;
-
-bool IsDefined(int type, int axis) { return type % kAxisTypes[axis] == 0; }
-
-double GetCoordinate(const TRestHits& hits, int n, int axis) {
-    return axis == 0 ? hits.GetX(n) : axis == 1 ? hits.GetY(n) : hits.GetZ(n);
-}
-
-/// Margins so the axis titles are not clipped
-void SetPadMargins(TVirtualPad* pad) {
-    pad->SetBottomMargin(0.13);
-    pad->SetLeftMargin(0.15);
-}
 
 /// 3D view in the current pad, see TRestHits::DrawHistograms
 void Draw3D(const TRestHits& hits, const double min[3], const double max[3], const int nBins[3]) {
@@ -530,8 +507,8 @@ void Draw3D(const TRestHits& hits, const double min[3], const double max[3], con
         if (hits.GetType(n) % REST_HitType::XYZ == 0)
             h3->Fill(hits.GetX(n), hits.GetY(n), hits.GetZ(n), hits.GetEnergy(n));
     }
-    TRestEvent::DrawOwned(h3, h3->GetEntries() > 0 ? "box2" : "", kAxisTitles[0], kAxisTitles[1],
-                          kAxisTitles[2]);
+    TRestEvent::DrawOwned(h3, h3->GetEntries() > 0 ? "box2" : "", TRestHitsData::kAxisTitles[0], TRestHitsData::kAxisTitles[1],
+                          TRestHitsData::kAxisTitles[2]);
 
     const double eMin = hits.GetMinimumHitEnergy(), eMax = hits.GetMaximumHitEnergy();
     const int nColors = TColor::GetNumberOfColors();
@@ -546,7 +523,7 @@ void Draw3D(const TRestHits& hits, const double min[3], const double max[3], con
     for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
         int undefined = -1, nDefined = 0;
         for (int a = 0; a < 3; a++) {
-            if (IsDefined(hits.GetType(n), a)) {
+            if (TRestHitsData::IsDefined(hits.GetType(n), a)) {
                 nDefined++;
             } else {
                 undefined = a;
@@ -555,7 +532,7 @@ void Draw3D(const TRestHits& hits, const double min[3], const double max[3], con
         if (nDefined != 2) continue;
 
         double p0[3], p1[3];
-        for (int a = 0; a < 3; a++) p0[a] = p1[a] = GetCoordinate(hits, n, a);
+        for (int a = 0; a < 3; a++) p0[a] = p1[a] = hits.GetCoordinate(n, a);
         p0[undefined] = min[undefined];
         p1[undefined] = max[undefined];
 
@@ -576,12 +553,12 @@ void Draw3D(const TRestHits& hits, const double min[3], const double max[3], con
             const auto [b, undefinedB] = lines[j];
             if (undefinedA == undefinedB) continue;
             const int common = 3 - undefinedA - undefinedB;
-            const double ca = GetCoordinate(hits, a, common), cb = GetCoordinate(hits, b, common);
+            const double ca = hits.GetCoordinate(a, common), cb = hits.GetCoordinate(b, common);
             if (std::abs(ca - cb) > 0.05 * (max[common] - min[common])) continue;
 
             double point[3];
-            point[undefinedA] = GetCoordinate(hits, b, undefinedA);
-            point[undefinedB] = GetCoordinate(hits, a, undefinedB);
+            point[undefinedA] = hits.GetCoordinate(b, undefinedA);
+            point[undefinedB] = hits.GetCoordinate(a, undefinedB);
             point[common] = 0.5 * (ca + cb);
 
             auto* marker = new TPolyMarker3D(1);
@@ -607,12 +584,12 @@ void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
 
     const Color_t planeColors[3] = {kBlue, kRed, kBlack};
     for (int p = 0; p < 3; p++) {
-        const int a = kPlanes[p][0], b = kPlanes[p][1];
-        GraphData graph{{}, {}, kAxisTitles[a], kAxisTitles[b], planeColors[p]};
+        const int a = TRestHitsData::kPlanes[p][0], b = TRestHitsData::kPlanes[p][1];
+        GraphData graph{{}, {}, TRestHitsData::kAxisTitles[a], TRestHitsData::kAxisTitles[b], planeColors[p]};
         for (size_t n = 0; n < GetNumberOfHits(); n++) {
-            if (!IsDefined(GetType(n), a) || !IsDefined(GetType(n), b)) continue;
-            graph.u.push_back(GetCoordinate(*this, n, a));
-            graph.v.push_back(GetCoordinate(*this, n, b));
+            if (!TRestHitsData::IsDefined(GetType(n), a) || !TRestHitsData::IsDefined(GetType(n), b)) continue;
+            graph.u.push_back(GetCoordinate(n, a));
+            graph.v.push_back(GetCoordinate(n, b));
         }
         if (!graph.u.empty()) graphs.push_back(std::move(graph));
     }
@@ -620,10 +597,10 @@ void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
     // 1D hits: energy against each coordinate
     if (graphs.empty()) {
         for (int a = 0; a < 3; a++) {
-            GraphData graph{{}, {}, kAxisTitles[a], "Energy", kBlack};
+            GraphData graph{{}, {}, TRestHitsData::kAxisTitles[a], "Energy", kBlack};
             for (size_t n = 0; n < GetNumberOfHits(); n++) {
-                if (!IsDefined(GetType(n), a)) continue;
-                graph.u.push_back(GetCoordinate(*this, n, a));
+                if (!TRestHitsData::IsDefined(GetType(n), a)) continue;
+                graph.u.push_back(GetCoordinate(n, a));
                 graph.v.push_back(GetEnergy(n));
             }
             if (!graph.u.empty()) graphs.push_back(std::move(graph));
@@ -634,7 +611,7 @@ void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
     pad->Divide(graphs.size(), 1);
     for (size_t i = 0; i < graphs.size(); i++) {
         pad->cd(i + 1);
-        SetPadMargins(gPad);
+        TRestEvent::SetPadMargins(gPad);
         auto* graph = new TGraph(graphs[i].u.size(), graphs[i].u.data(), graphs[i].v.data());
         graph->SetTitle(title.c_str());
         graph->SetMarkerColor(graphs[i].color);
@@ -648,23 +625,25 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     std::vector<double> values[3];
     for (size_t n = 0; n < GetNumberOfHits(); n++) {
         for (int a = 0; a < 3; a++) {
-            if (IsDefined(GetType(n), a)) values[a].push_back(GetCoordinate(*this, n, a));
+            if (TRestHitsData::IsDefined(GetType(n), a)) values[a].push_back(GetCoordinate(n, a));
         }
     }
 
     // Without a pitch, X and Y use the minimum distance between their hits (the readout pitch). Z has no
     // natural pitch (the drift gives almost continuous values), so it uses the X/Y bin size
     double binSize[3];
-    binSize[0] = pitch > 0 ? pitch : GetMinimumDistance(values[0]);
-    binSize[1] = pitch > 0 ? pitch : GetMinimumDistance(values[1]);
+    binSize[0] = pitch > 0 ? pitch : TRestHitsAnalysis::GetMinimumDistance(values[0]);
+    binSize[1] = pitch > 0 ? pitch : TRestHitsAnalysis::GetMinimumDistance(values[1]);
     if (binSize[0] <= 0) binSize[0] = binSize[1];
     if (binSize[1] <= 0) binSize[1] = binSize[0];
     binSize[2] = pitch > 0 ? pitch : std::min(binSize[0], binSize[1]);
-    if (binSize[2] <= 0) binSize[2] = GetMinimumDistance(values[2]);
+    if (binSize[2] <= 0) binSize[2] = TRestHitsAnalysis::GetMinimumDistance(values[2]);
 
     double min[3], max[3];
     int nBins[3];
-    for (int a = 0; a < 3; a++) GetBoundaries(values[a], binSize[a], max[a], min[a], nBins[a]);
+    for (int a = 0; a < 3; a++) {
+        TRestHitsAnalysis::GetBoundaries(values[a], binSize[a], max[a], min[a], nBins[a]);
+    }
 
     struct Item {
         TH1* hist;
@@ -675,19 +654,19 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
 
     const char* planeNames[3] = {"XZ", "YZ", "XY"};
     for (int p = 0; p < 3; p++) {
-        const int a = kPlanes[p][0], b = kPlanes[p][1];
+        const int a = TRestHitsData::kPlanes[p][0], b = TRestHitsData::kPlanes[p][1];
         auto* h = new TH2F(planeNames[p], "", nBins[a], min[a], max[a], nBins[b], min[b], max[b]);
         h->SetDirectory(nullptr);
         for (size_t n = 0; n < GetNumberOfHits(); n++) {
-            if (IsDefined(GetType(n), a) && IsDefined(GetType(n), b))
-                h->Fill(GetCoordinate(*this, n, a), GetCoordinate(*this, n, b), GetEnergy(n));
+            if (TRestHitsData::IsDefined(GetType(n), a) && TRestHitsData::IsDefined(GetType(n), b))
+                h->Fill(GetCoordinate(n, a), GetCoordinate(n, b), GetEnergy(n));
         }
         // Histograms not drawn are not owned by any pad
         if (h->GetEntries() == 0) {
             delete h;
             continue;
         }
-        projections.push_back({h, kAxisTitles[a], kAxisTitles[b]});
+        projections.push_back({h, TRestHitsData::kAxisTitles[a], TRestHitsData::kAxisTitles[b]});
     }
 
     const char* axisNames[3] = {"X", "Y", "Z"};
@@ -696,11 +675,11 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
         auto* h = new TH1F(axisNames[a], "", nBins[a], min[a], max[a]);
         h->SetDirectory(nullptr);
         for (size_t n = 0; n < GetNumberOfHits(); n++) {
-            if (IsDefined(GetType(n), a)) h->Fill(GetCoordinate(*this, n, a), GetEnergy(n));
+            if (TRestHitsData::IsDefined(GetType(n), a)) h->Fill(GetCoordinate(n, a), GetEnergy(n));
         }
         // The weighted fill stores the errors, ROOT would draw them as error bars
         h->Sumw2(false);
-        distributions.push_back({h, kAxisTitles[a], "Energy"});
+        distributions.push_back({h, TRestHitsData::kAxisTitles[a], "Energy"});
     }
 
     // Only with hits defining at least two coordinates, so it shows points or lines
@@ -713,7 +692,7 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
 
     auto drawAt = [&](int padIndex, const Item& item) {
         pad->cd(padIndex);
-        SetPadMargins(gPad);
+        TRestEvent::SetPadMargins(gPad);
         TRestEvent::DrawOwned(item.hist, histOption, item.xTitle, item.yTitle);
     };
     for (size_t i = 0; i < projections.size(); i++) drawAt(i + 1, projections[i]);

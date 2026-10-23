@@ -6,6 +6,7 @@
 #include <TString.h>
 #include <TTree.h>
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
@@ -63,6 +64,31 @@ class TRestEvent {
     /// \param option Draw option string.
     /// \return Pointer to generated pad.
     virtual TPad* DrawEvent(const TString& option = "") const = 0;
+
+    /// \brief One DrawEvent option written as name(rootOption)[value], e.g. hist(Cont1,col)[3]; the
+    /// parts in brackets are optional (empty rootOption, value 0).
+    struct DrawOption {
+        std::string name;
+        std::string rootOption;
+        double value = 0;
+    };
+    static DrawOption ParseDrawOption(const std::string& option) {
+        const size_t open = option.find('('), close = option.find(')');
+        const size_t openValue = option.find('['), closeValue = option.find(']');
+        DrawOption parsed;
+        parsed.name = option.substr(0, std::min(open, openValue));
+        if (open != std::string::npos && close != std::string::npos)
+            parsed.rootOption = option.substr(open + 1, close - open - 1);
+        if (openValue != std::string::npos && closeValue != std::string::npos)
+            parsed.value = std::stod(option.substr(openValue + 1, closeValue - openValue - 1));
+        return parsed;
+    }
+
+    /// \brief Margins of the event viewers, so the axis titles are not clipped.
+    static void SetPadMargins(TVirtualPad* pad) {
+        pad->SetBottomMargin(0.13);
+        pad->SetLeftMargin(0.15);
+    }
 
     /// \brief Draws a ROOT object with axes (TH1/TH2/TH3, TGraph, TMultiGraph, ...) in the current pad,
     /// which owns it (deleted with the pad), with the REST axis title and label sizes. Histograms are not

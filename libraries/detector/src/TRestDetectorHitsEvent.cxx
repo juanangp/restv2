@@ -1,7 +1,5 @@
 #include "TRestDetectorHitsEvent.h"
 
-#include <algorithm>
-
 #include "TPad.h"
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
@@ -128,17 +126,8 @@ TPad* TRestDetectorHitsEvent::DrawEvent(const TString& option) const {
     fPad->Draw();
 
     for (size_t i = 0; i < options.size(); i++) {
-        const auto& opt = options[i];
         // name(rootOption)[pitch]
-        const size_t open = opt.find('('), close = opt.find(')');
-        const size_t openPitch = opt.find('['), closePitch = opt.find(']');
-        const std::string name = opt.substr(0, std::min(open, openPitch));
-        const std::string histOption =
-            open != std::string::npos && close != std::string::npos ? opt.substr(open + 1, close - open - 1)
-                                                                    : "";
-        const double pitch = openPitch != std::string::npos && closePitch != std::string::npos
-                                 ? std::stod(opt.substr(openPitch + 1, closePitch - openPitch - 1))
-                                 : 0;
+        const auto [name, histOption, pitch] = ParseDrawOption(options[i]);
 
         TVirtualPad* optionPad = fPad->cd(i + 1);
         if (name == "graph") {
@@ -146,7 +135,8 @@ TPad* TRestDetectorHitsEvent::DrawEvent(const TString& option) const {
         } else if (name == "hist") {
             fHits.DrawHistograms(optionPad, histOption, pitch);
         } else {
-            std::cout << "TRestDetectorHitsEvent::DrawEvent: unknown option '" << opt << "'" << std::endl;
+            std::cout << "TRestDetectorHitsEvent::DrawEvent: unknown option '" << options[i] << "'"
+                      << std::endl;
         }
     }
 

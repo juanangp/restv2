@@ -2,6 +2,7 @@
 #define TRESTHITS_H
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <functional>
 #include <numeric>
@@ -66,6 +67,15 @@ struct TRestHitsData {
 
     std::vector<float> x, y, z, time, energy;
     std::vector<int> type;
+
+    /// Coordinates as indices 0, 1, 2 (X, Y, Z): factor in the hit type and axis title
+    static constexpr REST_HitType kAxisTypes[3] = {X, Y, Z};
+    static constexpr const char* kAxisTitles[3] = {"X-axis (mm)", "Y-axis (mm)", "Z-axis (mm)"};
+    /// Projection planes XZ, YZ and XY (as legacy), as pairs of coordinates
+    static constexpr int kPlanes[3][2] = {{0, 2}, {1, 2}, {0, 1}};
+
+    /// \brief Whether a hit of the given type defines the coordinate (0, 1, 2 = X, Y, Z).
+    static bool IsDefined(int hitType, int axis) { return hitType % kAxisTypes[axis] == 0; }
 
     /// \brief Clears all hit arrays.
     void clear() {
@@ -171,6 +181,10 @@ class TRestHits {
     inline double GetX(int n) const { return fData->x[GetGlobalIdx(n)]; }
     inline double GetY(int n) const { return fData->y[GetGlobalIdx(n)]; }
     inline double GetZ(int n) const { return fData->z[GetGlobalIdx(n)]; }
+    /// \brief Coordinate 0, 1, 2 (X, Y, Z) of a hit.
+    inline double GetCoordinate(int n, int axis) const {
+        return axis == 0 ? GetX(n) : axis == 1 ? GetY(n) : GetZ(n);
+    }
     inline double GetTime(int n) const { return fData->time[GetGlobalIdx(n)]; }
     inline double GetEnergy(int n) const { return fData->energy[GetGlobalIdx(n)]; }
     inline TRestHitsData::REST_HitType GetType(int n) const {
@@ -224,15 +238,13 @@ class TRestHits {
 
     virtual void PrintHits(int nHits = -1) const;
 
-    /// \brief Minimum distance between the different values of one coordinate (the readout pitch for
-    /// strip coordinates), as legacy TRestHits::GetBoundaries. 0 if there are less than two values.
-    static double GetMinimumDistance(std::vector<double> values);
-
-    /// \brief Boundaries and bins of one coordinate with the given bin size (if <= 0, a tenth of the
-    /// extent). The range leaves a margin of 25% of the extent of the values, and at least 10 bins, on
-    /// each side, with the values at bin centres. No values give [-1, 1] with one bin.
-    static void GetBoundaries(const std::vector<double>& values, double binSize, double& max, double& min,
-                              int& nBins);
+    /// \brief Hit positions and energies, the input of the TRestHitsAnalysis functions. The coordinates a
+    /// hit does not define (by type, NaN in the position) are 0, so the distances between hits of the same
+    /// type are those in their projection.
+    std::vector<ROOT::Math::XYZVector> GetPoints() const;
+    std::vector<double> GetEnergies() const;
+    /// \brief Coordinate 0, 1, 2 (X, Y, Z) of every hit (same order as GetEnergies).
+    std::vector<double> GetCoordinates(int axis) const;
 
     /// \brief Draws the hits as TGraph markers in the pad (divided in one row): one graph per projection
     /// (XZ, YZ, XY) with hits defining both coordinates or, if there are none (1D hits), the energy

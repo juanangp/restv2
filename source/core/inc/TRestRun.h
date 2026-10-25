@@ -36,6 +36,10 @@ class TRestRun : public TRestMetadata {
     std::string fOutputFileName = "rest_default.root";
     std::string fMainDataPath = "";
     std::string fInputFormat = "";
+    /// Last saved event type: output event of the last process of the chain that wrote the file (e.g.
+    /// TRestTrackEvent), preserved from the input file otherwise. Selected event (GetEvent) when the file
+    /// is opened
+    std::string fOutputEvent = "";
     double fStartTime = 0;
     double fEndTime = 0;
     Long64_t fEntriesSaved = 0;
@@ -57,7 +61,8 @@ class TRestRun : public TRestMetadata {
     std::map<std::string, TRestEvent*> fInputEvents;
     std::map<std::string, TRestEvent*> fOutputEvents;
 
-    TRestEvent *fInputEvent = nullptr;
+    /// Selected event, see GetEvent/SetEvent
+    TRestEvent *fEvent = nullptr;
 
     std::string fConfigRunNumber = "";
     std::string fConfigSubRunNumber = "";
@@ -144,6 +149,9 @@ class TRestRun : public TRestMetadata {
     /// \return `true` when output file is open.
     bool HasOutputFileOpen() const { return fOutputFile != nullptr; }
 
+    /// \brief Returns the last saved event type (see fOutputEvent), empty if unknown.
+    std::string GetOutputEvent() const { return fOutputEvent; }
+
     /// \brief Sets run number.
     /// \param v Run number.
     void SetRunNumber(int v) { fRunNumber = v; }
@@ -178,6 +186,12 @@ class TRestRun : public TRestMetadata {
     void SetOutputFileName(const std::string& v) {
         fOutputFileName = v;
         if (fNode) TRestTools::SetNodeParameter(fNode, "outputFileName", fOutputFileName);
+    }
+
+    /// \brief Sets the last saved event type of the output file and mirrors it into the YAML node.
+    void SetOutputEvent(const std::string& v) {
+        fOutputEvent = v;
+        if (fNode) TRestTools::SetNodeParameter(fNode, "outputEvent", fOutputEvent);
     }
 
     /// \brief Sets experiment name.
@@ -275,8 +289,10 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     // Larger baskets mean fewer, bigger writes, which helps a lot on network filesystems
     if (fOutputBasketSize > 0) fOutputEventTrees[className]->SetBasketSize("*", fOutputBasketSize);
 
-    if (fOutputEvents.size() > 0 && fOutputAnalysisTree) {
-        if(!fAnalysisTree)eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
+    // Event info branches of the analysis tree only once, bound to the first registered event (the
+    // following ones copy its info); with an input analysis tree they are cloned from it
+    if (fOutputAnalysisTree && !fAnalysisTree && !fOutputAnalysisTree->GetBranch("eventID")) {
+        eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
     }
 }
 
@@ -335,32 +351,22 @@ void RegisterEvent(const std::string& className, T& eventObject) {
 
     TRestMetadata* GetMetadataClass(const std::string &className) const;
 
-    /// \brief Returns non-const reference to an input event by tree name.
+    /// \brief Selects the event of a tree and returns it.
     /// \param treeName Event tree/class name.
-    /// \return Input event reference.
-    TRestEvent* GetInputEvent(const std::string& treeName);
+    /// \return Event, nullptr if the tree does not exist.
+    TRestEvent* GetEvent(const std::string& treeName);
 
-    TRestEvent* GetInputEvent() {
-        return fInputEvent;
+    /// \brief Returns the selected event: the last saved event type (GetOutputEvent) when the file is
+    /// opened, or the one set with SetEvent.
+    TRestEvent* GetEvent() {
+        return fEvent;
     }
 
-    template <typename T>
-    T* GetInputEvent(const std::string& treeName) {
-      TRestEvent* baseEvent = GetInputEvent(treeName);
-      if (!baseEvent) return nullptr;
+    /// \brief Selects the event of a tree.
+    /// \param treeName Event tree/class name.
+    void SetEvent(const std::string& treeName);
 
-      T* castedEvent = dynamic_cast<T*>(baseEvent);
-        if (!castedEvent) {
-          RESTError << "TRestRun: The input event in tree '" << treeName 
-                    << "' is not of the requested type." << RESTendl;
-          return nullptr;
-        }
-      return castedEvent;
-    }
-
-    void SetInputEvent(const std::string& treeName);
-
-    std::map<std::string, TRestEvent*> GetInputEventMap() const {return fInputEvents;}
+    std::map<std::string, TRestEvent*> GetEventMap() const {return fInputEvents;}
 
     /// \brief Fills all registered output trees for current event.
     void Fill();

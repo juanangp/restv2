@@ -21,6 +21,7 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
         std::vector<double> RiseTime;
         std::vector<double> RiseSlope;
         std::vector<double> PeakTime;
+        std::vector<double> Width;
         std::vector<int> PointsOverThr;
         std::vector<bool> Saturated;
 
@@ -48,11 +49,15 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
         double MinPeakTime = 0.0;
         double MaxPeakTimeDelay = 0.0;
         double AveragePeakTime = 0.0;
+        double AmplitudeAvg = 0.0;
+        double IntegralAvg = 0.0;
+        double WidthAvg = 0.0;
+        double PointsOverThrAvg = 0.0;
 
         void clear() {
             auto clear_vectors = [](auto&... vecs) { (vecs.clear(), ...); };
             clear_vectors(SignalsID, Baseline, BaselineSigma, AmpSgnMaxMethod, AmpSgnIntMethod, RiseTime,
-                          RiseSlope, PeakTime, PointsOverThr, Saturated);
+                          RiseSlope, PeakTime, Width, PointsOverThr, Saturated);
 
             BaselineAvg = BaselineSigmaAvg = 0.0;
             TimeBinLength = NSignals = NGoodSignals = 0;
@@ -61,6 +66,7 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
             AmplitudeIntegralRatio = MinPeakAmplitude = MaxPeakAmplitude = 0.0;
             PeakAmplitudeIntegral = MinEventValue = AmplitudeRatio = 0.0;
             MaxPeakTime = MinPeakTime = MaxPeakTimeDelay = AveragePeakTime = 0.0;
+            AmplitudeAvg = IntegralAvg = WidthAvg = PointsOverThrAvg = 0.0;
         }
     };
 

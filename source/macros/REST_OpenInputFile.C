@@ -21,7 +21,7 @@ int REST_OpenInputFile(const std::string &filename){
 
     _run->GetEntry(0);
 
-    _ev = _run->GetInputEvent();
+    _ev = _run->GetEvent();
 
     if (!_ev) {
         std::cerr << "Error: Failed to retrieve a valid TRestEvent from the file." << std::endl;

@@ -259,7 +259,16 @@ class TRestHits {
     /// The 3D view shows a TH3 weighted by energy with the hits defining the three coordinates, and the
     /// hits with one undefined coordinate (e.g. strips) as lines along it, coloured by energy, with the
     /// crossings of lines along different coordinates (the reconstructed positions, ghosts included).
-    void DrawHistograms(TVirtualPad* pad, const std::string& histOption = "", double pitch = 0) const;
+    /// With markers3D (track view), the Z bin size is the spacing of the samples of the pulses (median
+    /// distance between consecutive Z values of the same channel, if any channel has several), and the 3D
+    /// view shows instead markers (TPolyMarker3D) colored by energy with the
+    /// palette, on an empty TH3 for the axes: the hits defining the three coordinates and the hits with one
+    /// undefined coordinate combined in each bin of their common coordinate, both projections sorted by
+    /// their defined coordinate and paired monotonically by their accumulated energy fraction (no ghost
+    /// combinations), the direction given by the sign of the slopes of both projections along the common
+    /// coordinate (e.g. alpha tracks with XZ and YZ strips).
+    void DrawHistograms(TVirtualPad* pad, const std::string& histOption = "", double pitch = 0,
+                        bool markers3D = false) const;
 
     TRestHits() = default;
     virtual ~TRestHits() = default;

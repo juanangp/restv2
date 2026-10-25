@@ -129,7 +129,7 @@ void TRestProcessManager::Run() {
             if (fEventPool.find(inputName) != fEventPool.end()) {
                 fStageInputs[i] = fEventPool[inputName].get();
             } else if (fRunInfo->HasEvent(inputName)) {
-                fStageInputs[i] = fRunInfo->GetInputEvent(inputName);
+                fStageInputs[i] = fRunInfo->GetEvent(inputName);
             } else {
                 throw std::runtime_error("TRestProcessManager::Run - input event '" + inputName +
                                          "' of process '" + procClassName +
@@ -216,6 +216,9 @@ void TRestProcessManager::Run() {
                 eventAccepted = false;
                 break;
             }
+            // Events created by a generator (e.g. from DAQ files) take the run and subrun of this run,
+            // the others keep the ones of their input
+            if (!fStageInputs[i]) outputEvent.InitializeReferences(fRunInfo);
         }
 
         if (eventAccepted) {

@@ -60,6 +60,8 @@ class TRestEvent {
 
     virtual void InitializeReferences(TRestRun* run);
     void SetRestRun(TRestRun* run);
+    /// \brief Run the event was read from (SetRestRun), nullptr if none.
+    TRestRun* GetRestRun() const { return fRestRun; }
     /// \brief Draws event representation.
     /// \param option Draw option string.
     /// \return Pointer to generated pad.

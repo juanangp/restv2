@@ -52,6 +52,12 @@ TRestBrowser::TRestBrowser(const string& viewerName, Double_t geomScale) {
     SetViewer(viewerName, geomScale);
 }
 
+TRestBrowser::TRestBrowser(TRestEventViewer* viewer, Double_t geomScale) {
+    Initialize("I");
+    if (viewer == nullptr) viewer = new TRestEventViewer();
+    SetViewer(viewer, geomScale);
+}
+
 TRestBrowser::~TRestBrowser() {
     if (frmMain != nullptr) frmMain->Cleanup();
     // delete frmMain;
@@ -265,7 +271,7 @@ Bool_t TRestBrowser::LoadEventEntry(Int_t n) {
 
     if (fRestRun->fAnalysisTree != nullptr && n < fRestRun->fAnalysisTree->GetEntries() && n >= 0) {
         fRestRun->GetEntry(n);
-        TRestEvent* ev = fRestRun->GetInputEvent();
+        TRestEvent* ev = fRestRun->GetEvent();
         if (!ev) {
             RESTError << "internal error!" << RESTendl;
             return kFALSE;
@@ -285,7 +291,7 @@ Bool_t TRestBrowser::LoadEventEntry(Int_t n) {
     }
 
     if (fEventViewer != nullptr) {
-        TRestEvent* inputEvent = (fRestRun->GetInputEvent());
+        TRestEvent* inputEvent = (fRestRun->GetEvent());
         inputEvent->SetRestRun(fRestRun);
         fEventViewer->AddEvent(inputEvent);
         fEventViewer->Plot(fPlotOptionTextBox->GetText());
@@ -329,7 +335,7 @@ Bool_t TRestBrowser::LoadEventId(Int_t eventID, Int_t subEventID) {
     }
 
     if (fEventViewer != nullptr) {
-        TRestEvent* inputEvent = (fRestRun->GetInputEvent());
+        TRestEvent* inputEvent = (fRestRun->GetEvent());
         inputEvent->SetRestRun(fRestRun);
         fEventViewer->AddEvent(inputEvent);
         fEventViewer->Plot(fPlotOptionTextBox->GetText());
@@ -349,11 +355,14 @@ Bool_t TRestBrowser::OpenFile(const std::string& filename) {
 
         TGeoManager* geometry = gGeoManager;
 
-        auto eventMap = fRestRun->GetInputEventMap();
+        auto eventMap = fRestRun->GetEventMap();
         if (!eventMap.empty()) {
+            // Selected: the event of the run, the last saved event type of the file (TRestRun::GetOutputEvent)
+            // if it has one
             for (auto& [eventType, eventObj] : eventMap){
               fEventTypeComboBox->AddEntry(eventType.c_str(), fEventTypeComboBox->GetNumberOfEntries());
-              fEventTypeComboBox->Select(fEventTypeComboBox->GetNumberOfEntries() - 1, false);
+              if (eventObj == fRestRun->GetEvent())
+                  fEventTypeComboBox->Select(fEventTypeComboBox->GetNumberOfEntries() - 1, false);
             }
 
             // init viewer
@@ -365,7 +374,7 @@ Bool_t TRestBrowser::OpenFile(const std::string& filename) {
             pureAnalysis = kTRUE;
         }
 
-        TRestEvent* ev = fRestRun->GetInputEvent();
+        TRestEvent* ev = fRestRun->GetEvent();
         if (!ev) {
             RESTError << "internal error!" << RESTendl;
         } else {
@@ -380,10 +389,17 @@ Bool_t TRestBrowser::OpenFile(const std::string& filename) {
     return false;
 }
 
-void TRestBrowser::SetInputEvent(const std::string &eventType) {
+void TRestBrowser::SetEvent(const std::string &eventType) {
     if (fRestRun != nullptr) {
-        fRestRun->SetInputEvent(eventType);
+        fRestRun->SetEvent(eventType);
     }
+    // The shown entry is plotted again with the new event type, also selected in the combo box
+    if (fEventTypeComboBox != nullptr) {
+        if (auto* entry = fEventTypeComboBox->FindEntry(eventType.c_str())) {
+            fEventTypeComboBox->Select(entry->EntryId(), false);
+        }
+    }
+    if (fRestRun != nullptr && fRestRun->fInputFile != nullptr && !pureAnalysis) LoadEventEntry(fEventRow);
 }
 
 
@@ -435,7 +451,7 @@ void TRestBrowser::EventTypeChangedAction(Int_t id) {
     string eventType = fEventTypeComboBox->GetSelectedEntry()->GetTitle();
 
     if (!eventType.empty()) {
-        fRestRun->SetInputEvent(eventType);
+        fRestRun->SetEvent(eventType);
         RowValueChangedAction(0);
     }
 }

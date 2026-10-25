@@ -28,6 +28,7 @@ static const bool TRestRun_FieldsRegistered = []() {
     reg.RegisterField<TRestRun>("outputFileName", &TRestRun::fOutputFileName);
     reg.RegisterField<TRestRun>("mainDataPath", &TRestRun::fMainDataPath);
     reg.RegisterField<TRestRun>("inputFormat", &TRestRun::fInputFormat);
+    reg.RegisterField<TRestRun>("outputEvent", &TRestRun::fOutputEvent);
 
     reg.RegisterField<TRestRun>("startTime", &TRestRun::fStartTime);
     reg.RegisterField<TRestRun>("endTime", &TRestRun::fEndTime);
@@ -238,6 +239,8 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     if (selfConfig && !selfConfig.IsNull()) {
         fInputFileNode = selfConfig;
+        // Preserved unless the processes of this run produce another (TRestManager::SaveMetadata)
+        fOutputEvent = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "outputEvent", fOutputEvent);
     } else {
         RESTWarning << "Not valid TRestRun Metadata in " << filename << RESTendl;
     }
@@ -268,10 +271,14 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                 }
 
                 fInputEvents[className] = eventObj.release();
-                fInputEvent = fInputEvents[className];
+                fEvent = fInputEvents[className];
             }
         }
     }
+
+    // The last saved event type by default, otherwise the last event tree
+    const auto outputIt = fInputEvents.find(fOutputEvent);
+    if (outputIt != fInputEvents.end()) fEvent = outputIt->second;
 }
 
 void TRestRun::AddMetadata(TRestMetadata* metadata) {
@@ -305,23 +312,23 @@ TRestMetadata* TRestRun::GetMetadataClass(const std::string &className) const {
     return nullptr;
 }
 
-TRestEvent* TRestRun::GetInputEvent(const std::string& treeName) {
+TRestEvent* TRestRun::GetEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
     if (it == fInputEvents.end()) {
         RESTError<< "TRestRun: Tree '" << treeName << "' does not exist."<<RESTendl;
         return nullptr;
     }
-    fInputEvent = it->second;
-    return fInputEvent;
+    fEvent = it->second;
+    return fEvent;
 }
 
-void TRestRun::SetInputEvent(const std::string& treeName) {
+void TRestRun::SetEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
     if (it == fInputEvents.end()) {
         RESTError<< "TRestRun: Tree '" << treeName << "' does not exist."<<RESTendl;
         return;
     }
-    fInputEvent = it->second;
+    fEvent = it->second;
 }
 
 bool TRestRun::GetEntry(Long64_t entry) {

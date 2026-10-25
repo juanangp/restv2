@@ -91,6 +91,7 @@ void TRestRawSignalAnalysisProcess::InitProcess() {
     RegisterObservable("RiseTime", fObs.RiseTime);
     RegisterObservable("RiseSlope", fObs.RiseSlope);
     RegisterObservable("PeakTime", fObs.PeakTime);
+    RegisterObservable("Width", fObs.Width);
     RegisterObservable("PointsOverThr", fObs.PointsOverThr);
     RegisterObservable("Saturated", fObs.Saturated);
 
@@ -118,6 +119,10 @@ void TRestRawSignalAnalysisProcess::InitProcess() {
     RegisterObservable("MinPeakTime", fObs.MinPeakTime);
     RegisterObservable("MaxPeakTimeDelay", fObs.MaxPeakTimeDelay);
     RegisterObservable("AveragePeakTime", fObs.AveragePeakTime);
+    RegisterObservable("AmplitudeAvg", fObs.AmplitudeAvg);
+    RegisterObservable("IntegralAvg", fObs.IntegralAvg);
+    RegisterObservable("WidthAvg", fObs.WidthAvg);
+    RegisterObservable("PointsOverThrAvg", fObs.PointsOverThrAvg);
 }
 
 /// \brief Computes per-signal and event-level pulse-shape observables for one event.
@@ -170,12 +175,15 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         const auto riseTime = GetRiseTime(pointsOverThr);
         const auto riseSlope = GetRiseSlope(pointsOverThr);
         bool saturated = signal.GetPoint(maxPeak.first) >= 4096;
+        // Full width at half maximum of the baseline-subtracted pulse, in bins
+        const double width = pointsOverThr.empty() ? 0. : GetMaxPeakWidth(data);
 
         fObs.SignalsID.push_back(sID);
         fObs.Baseline.push_back(baseline);
         fObs.BaselineSigma.push_back(baselineSigma);
         fObs.AmpSgnMaxMethod.push_back(maxPeak.second);
         fObs.PeakTime.push_back(maxPeak.first);
+        fObs.Width.push_back(width);
         fObs.AmpSgnIntMethod.push_back(thrIntegral);
         fObs.RiseTime.push_back(riseTime);
         fObs.RiseSlope.push_back(riseSlope);
@@ -220,10 +228,18 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
 
     fObs.RiseSlopeAvg = calcAvgOverThr(fObs.RiseSlope, fObs.PointsOverThr, fPointsThreshold);
     fObs.RiseTimeAvg = calcAvgOverThr(fObs.RiseTime, fObs.PointsOverThr, fPointsThreshold);
+    fObs.AmplitudeAvg = calcAvgOverThr(fObs.AmpSgnMaxMethod, fObs.PointsOverThr, fPointsThreshold);
+    fObs.IntegralAvg = calcAvgOverThr(fObs.AmpSgnIntMethod, fObs.PointsOverThr, fPointsThreshold);
+    fObs.WidthAvg = calcAvgOverThr(fObs.Width, fObs.PointsOverThr, fPointsThreshold);
+    fObs.PointsOverThrAvg = calcAvgOverThr(fObs.PointsOverThr, fObs.PointsOverThr, fPointsThreshold);
     fObs.TimeBinLength = sigEvent->GetSignal(0).GetNPoints();
     fObs.RateOfChangeAvg = fObs.RiseSlopeAvg / fObs.SlopeIntegral;
     fObs.IntegralBalance = (fObs.FullIntegralSum - fObs.ThresholdIntegralSum) /
                            (fObs.FullIntegralSum + fObs.ThresholdIntegralSum);
+
+    if (fObs.MaxIntegral > 0) fObs.AmplitudeIntegralRatio = fObs.ThresholdIntegralSum / fObs.MaxIntegral;
+    if (fObs.MaxPeakAmplitude > 0) fObs.AmplitudeRatio = fObs.MaxIntegral / fObs.MaxPeakAmplitude;
+    fObs.PeakAmplitudeIntegral = fObs.MaxIntegral;
 
     if (fObs.NGoodSignals > 0) {
         fObs.AveragePeakTime /= fObs.NGoodSignals;

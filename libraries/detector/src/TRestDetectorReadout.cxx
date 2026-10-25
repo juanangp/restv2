@@ -213,13 +213,21 @@ void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManag
     TGeoVolume* top = viewGeo->MakeBox("TOP", topMedium, half, half, half);
     viewGeo->SetTopVolume(top);
 
+    // Items are grouped in assemblies: a single volume with too many daughters (~1e5) overflows the
+    // Int_t buffer size computed in TGeoVoxelFinder::SortAll, corrupting the heap at CloseGeometry
+    const int kItemsPerGroup = 1000;
+    TGeoVolumeAssembly* group = nullptr;
     int i = 0;
     for (auto& item : items) {
+        if (i % kItemsPerGroup == 0) {
+            group = new TGeoVolumeAssembly(Form("VIEW_GROUP_%d", i / kItemsPerGroup));
+            top->AddNode(group, i / kItemsPerGroup);
+        }
         TGeoMedium* med = item.medium ? item.medium : topMedium;
         auto* copy = new TGeoVolume(Form("%s_v%d", item.name.c_str(), i), item.shape, med);
         copy->SetLineColor(item.color);
         copy->SetVisibility(kTRUE);
-        top->AddNode(copy, i++, item.matrix.release());
+        group->AddNode(copy, i++, item.matrix.release());
     }
 
     viewGeo->CloseGeometry();

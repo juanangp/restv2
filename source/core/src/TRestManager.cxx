@@ -195,6 +195,10 @@ void TRestManager::SaveMetadata() {
 
     fRunInfo->AddHistoricMetadata();
 
+    // Last saved event type, the one selected when the file is opened (otherwise the one of the input file)
+    if (fProcessManager && !fProcessManager->GetOutputEvent().empty())
+        fRunInfo->SetOutputEvent(fProcessManager->GetOutputEvent());
+
     for (const auto& meta : fMetaObjects) {
         fRunInfo->AddMetadata(meta.get());
     }

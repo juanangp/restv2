@@ -23,6 +23,62 @@ struct CellHash {
 };
 
 double GetCoordinate(const XYZVector& p, int axis) { return axis == 0 ? p.X() : axis == 1 ? p.Y() : p.Z(); }
+
+// Line that best fits the points: energy weighted centroid and principal axis of the energy weighted
+// covariance (unit vector, null for a single point). False if there are no points or no energy
+bool FitLine(const std::vector<XYZVector>& points, const std::vector<double>& energies, XYZVector& centroid,
+             XYZVector& axis) {
+    if (points.empty() || points.size() != energies.size()) return false;
+
+    double totalEnergy = 0;
+    centroid = XYZVector();
+    for (size_t i = 0; i < points.size(); i++) {
+        const double w = std::max(energies[i], 0.);
+        totalEnergy += w;
+        centroid += w * points[i];
+    }
+    if (totalEnergy <= 0) return false;
+    centroid /= totalEnergy;
+
+    double covariance[3][3] = {};
+    for (size_t i = 0; i < points.size(); i++) {
+        const double w = std::max(energies[i], 0.) / totalEnergy;
+        const XYZVector d = points[i] - centroid;
+        const double c[3] = {d.X(), d.Y(), d.Z()};
+        for (int a = 0; a < 3; a++) {
+            for (int b = 0; b < 3; b++) covariance[a][b] += w * c[a] * c[b];
+        }
+    }
+    auto multiply = [&covariance](const XYZVector& v) {
+        const double c[3] = {v.X(), v.Y(), v.Z()};
+        double r[3] = {};
+        for (int a = 0; a < 3; a++) {
+            for (int b = 0; b < 3; b++) r[a] += covariance[a][b] * c[b];
+        }
+        return XYZVector(r[0], r[1], r[2]);
+    };
+
+    // Direction of largest spread (principal eigenvector, power iteration), starting from the column of
+    // the covariance with the largest norm, which is not orthogonal to it. A single point gives no
+    // direction
+    axis = XYZVector();
+    for (int a = 0; a < 3; a++) {
+        const XYZVector column(covariance[0][a], covariance[1][a], covariance[2][a]);
+        if (column.R() > axis.R()) axis = column;
+    }
+    if (axis.R() > 0) {
+        axis = axis.Unit();
+        for (int it = 0; it < 100; it++) {
+            const XYZVector next = multiply(axis);
+            if (next.R() == 0) break;
+            const XYZVector unit = next.Unit();
+            const bool converged = (unit - axis).R() < 1e-12;
+            axis = unit;
+            if (converged) break;
+        }
+    }
+    return true;
+}
 }  // namespace
 
 std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vector<XYZVector>& points, double distance,
@@ -107,14 +163,15 @@ std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vect
 
 std::vector<TRestHitsAnalysis::Node> TRestHitsAnalysis::KMeansClustering(const std::vector<XYZVector>& points,
                                                                          const std::vector<double>& energies,
-                                                                         int nodes, int maxIt, bool fixBoundaries) {
+                                                                         const std::vector<XYZVector>& centroids,
+                                                                         int maxIt, bool fixBoundaries) {
     const int nPoints = (int)points.size();
+    const int nodes = (int)centroids.size();
     if (nodes < 2 || nPoints == 0) return {};
 
     auto isFixed = [&](int n) { return fixBoundaries && (n == 0 || n == nodes - 1); };
 
-    std::vector<XYZVector> centroid(nodes), centroidOld(nodes);
-    for (int n = 0; n < nodes; n++) centroid[n] = points[(n * (nPoints - 1)) / (nodes - 1)];
+    std::vector<XYZVector> centroid = centroids, centroidOld(nodes);
 
     std::vector<std::vector<int>> clusterPoints(nodes);
     for (int it = 0; it < maxIt; it++) {
@@ -153,14 +210,63 @@ std::vector<TRestHitsAnalysis::Node> TRestHitsAnalysis::KMeansClustering(const s
     std::vector<Node> result;
     for (int n = 0; n < nodes; n++) {
         if (isFixed(n)) {
-            result.push_back({centroid[n], 0});
+            result.push_back({centroid[n], 0, XYZVector()});
         } else if (!clusterPoints[n].empty()) {
             double energy = 0;
-            for (int i : clusterPoints[n]) energy += energies[i];
-            result.push_back({centroid[n], energy});
+            double variance[3] = {};
+            for (int i : clusterPoints[n]) {
+                energy += energies[i];
+                const XYZVector d = points[i] - centroid[n];
+                variance[0] += energies[i] * d.X() * d.X();
+                variance[1] += energies[i] * d.Y() * d.Y();
+                variance[2] += energies[i] * d.Z() * d.Z();
+            }
+            auto sigma = [&](int a) { return energy > 0 ? std::sqrt(std::max(variance[a] / energy, 0.)) : 0; };
+            result.push_back({centroid[n], energy, XYZVector(sigma(0), sigma(1), sigma(2))});
         }
     }
     return result;
+}
+
+bool TRestHitsAnalysis::GetLine(const std::vector<XYZVector>& points, const std::vector<double>& energies,
+                                XYZVector& first, XYZVector& last) {
+    XYZVector centroid, axis;
+    if (!FitLine(points, energies, centroid, axis)) return false;
+
+    double tMin = 0, tMax = 0;
+    for (size_t i = 0; i < points.size(); i++) {
+        const double t = (points[i] - centroid).Dot(axis);
+        if (i == 0 || t < tMin) tMin = t;
+        if (i == 0 || t > tMax) tMax = t;
+    }
+    first = centroid + tMin * axis;
+    last = centroid + tMax * axis;
+    return true;
+}
+
+std::vector<XYZVector> TRestHitsAnalysis::GetLineNodes(const std::vector<XYZVector>& points,
+                                                       const std::vector<double>& energies, int nodes) {
+    XYZVector first, last;
+    if (nodes < 2 || !GetLine(points, energies, first, last)) return {};
+
+    std::vector<XYZVector> result(nodes);
+    for (int n = 0; n < nodes; n++) result[n] = first + (double)n / (nodes - 1) * (last - first);
+    return result;
+}
+
+double TRestHitsAnalysis::GetLineResidual(const std::vector<XYZVector>& points, const std::vector<double>& energies) {
+    XYZVector centroid, axis;
+    if (!FitLine(points, energies, centroid, axis)) return -1;
+
+    double sum = 0, totalEnergy = 0;
+    for (size_t i = 0; i < points.size(); i++) {
+        const double w = std::max(energies[i], 0.);
+        const XYZVector d = points[i] - centroid;
+        const XYZVector perpendicular = d - d.Dot(axis) * axis;
+        sum += w * perpendicular.Mag2();
+        totalEnergy += w;
+    }
+    return std::sqrt(sum / totalEnergy);
 }
 
 double TRestHitsAnalysis::GetMinimumDistance(std::vector<double> values) {
@@ -192,19 +298,38 @@ void TRestHitsAnalysis::GetBoundaries(const std::vector<double>& values, double 
     max = min + nBins * binSize;
 }
 
-void TRestHitsAnalysis::GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies,
-                                     XYZVector& origin, XYZVector& end) {
-    if (points.empty()) return;
-    const size_t maxPoint = std::max_element(energies.begin(), energies.end()) - energies.begin();
+double TRestHitsAnalysis::GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies,
+                                       XYZVector& origin, XYZVector& end) {
+    if (points.empty()) return 0;
     const XYZVector& first = points.front();
     const XYZVector& last = points.back();
-    if ((first - points[maxPoint]).R() < (last - points[maxPoint]).R()) {
+    const XYZVector segment = last - first;
+    const double length2 = segment.Mag2();
+
+    // Energy of the halves closer to the first and to the last point
+    double firstEnergy = 0, lastEnergy = 0;
+    for (size_t i = 0; i < points.size(); i++) {
+        const double fraction = length2 > 0 ? (points[i] - first).Dot(segment) / length2
+                                            : (points.size() > 1 ? (double)i / (points.size() - 1) : 0);
+        if (fraction < 0.5) {
+            firstEnergy += energies[i];
+        } else if (fraction > 0.5) {
+            lastEnergy += energies[i];
+        } else {
+            firstEnergy += energies[i] / 2.;
+            lastEnergy += energies[i] / 2.;
+        }
+    }
+
+    if (firstEnergy > lastEnergy) {
         end = first;
         origin = last;
     } else {
         origin = first;
         end = last;
     }
+    const double total = firstEnergy + lastEnergy;
+    return total > 0 ? std::abs(lastEnergy - firstEnergy) / total : 0;
 }
 
 double TRestHitsAnalysis::GetGaussSigma(const std::vector<double>& values, const std::vector<double>& energies,

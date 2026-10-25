@@ -8,7 +8,7 @@ int REST_Geant4_ViewEvent(const std::string& fName) {
     TRestBrowser* browser = new TRestBrowser("TRestGeant4EventViewer");
 
     browser->OpenFile(fName);
-    browser->SetInputEvent("TRestGeant4Event");
+    browser->SetEvent("TRestGeant4Event");
 
     return 0;
 }

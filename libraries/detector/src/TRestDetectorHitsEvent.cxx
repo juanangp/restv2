@@ -132,8 +132,8 @@ TPad* TRestDetectorHitsEvent::DrawEvent(const TString& option) const {
         TVirtualPad* optionPad = fPad->cd(i + 1);
         if (name == "graph") {
             fHits.DrawGraphs(optionPad, Form("Event ID %d", GetID()));
-        } else if (name == "hist") {
-            fHits.DrawHistograms(optionPad, histOption, pitch);
+        } else if (name == "hist" || name == "markers") {
+            fHits.DrawHistograms(optionPad, histOption, pitch, name == "markers");
         } else {
             std::cout << "TRestDetectorHitsEvent::DrawEvent: unknown option '" << options[i] << "'"
                       << std::endl;

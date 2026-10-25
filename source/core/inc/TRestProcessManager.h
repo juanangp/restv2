@@ -55,6 +55,13 @@ class TRestProcessManager : public TRestMetadata {
     void SetManager(TRestManager* mgr) { fManager = mgr; }
     void SetEntryRange(Long64_t start, Long64_t end) { fEntryStart = start; fEntryEnd = end; }
 
+    /// \brief Output event of the last process of the chain, empty without processes or if the output
+    /// events are not stored.
+    std::string GetOutputEvent() const {
+        if (!fOutputEventStorage || fPipelineConnections.empty()) return "";
+        return fPipelineConnections.back().second;
+    }
+
     void Run();
     void Run(TRestRun& restRun) {
         SetRunInfo(&restRun);

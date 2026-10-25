@@ -84,7 +84,7 @@ class TRestBrowser {
     Bool_t OpenFile(const std::string& filename);
 
     // setters
-    void SetInputEvent(const std::string &eventType);
+    void SetEvent(const std::string &eventType);
     inline void SetWindowName(const std::string& windowName) { frmMain->SetWindowName(windowName.c_str()); }
 
     // getters
@@ -108,6 +108,9 @@ class TRestBrowser {
     // Constructors
     TRestBrowser();
     TRestBrowser(const std::string& viewerName, Double_t geomScale = 0.1);
+    /// Browser with a viewer already created (e.g. a viewer defined in a macro, without dictionary). The
+    /// browser takes its ownership.
+    TRestBrowser(TRestEventViewer* viewer, Double_t geomScale = 0.1);
 
     // Destructor
     ~TRestBrowser();

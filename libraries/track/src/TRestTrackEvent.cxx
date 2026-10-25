@@ -398,14 +398,19 @@ void TRestTrackEvent::GetMaxTrackBoundaries(XYZVector& orig, XYZVector& end) {
 }
 
 ///////////////////////////////////////////////
-/// \brief Reduces the hits of a track into `nodes` nodes (TRestHitsAnalysis::KMeansClustering) and adds
-/// them to `output` as a track whose parent is this one.
+/// \brief Reduces the hits of a track into `nodes` nodes (TRestHitsAnalysis::KMeansClustering), starting
+/// equally spaced along the hits order, and adds them to `output` as a track whose parent is this one.
 ///
 Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrackEvent& output, Int_t maxIt,
                                         Bool_t fixBoundaries) const {
     const TRestHits& hits = fTrackHits[trackIndex];
+    const auto points = hits.GetPoints();
+    if (nodes < 2 || points.empty()) return -1;
+
+    std::vector<XYZVector> centroids(nodes);
+    for (int n = 0; n < nodes; n++) centroids[n] = points[(n * (points.size() - 1)) / (nodes - 1)];
     const auto result =
-        TRestHitsAnalysis::KMeansClustering(hits.GetPoints(), hits.GetEnergies(), nodes, maxIt, fixBoundaries);
+        TRestHitsAnalysis::KMeansClustering(points, hits.GetEnergies(), centroids, maxIt, fixBoundaries);
     if (result.empty()) return -1;
 
     const REST_HitType type = hits.GetType(0);
@@ -416,7 +421,7 @@ Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrac
         const XYZVector position(TRestHitsData::IsDefined(type, 0) ? node.position.X() : nan,
                                  TRestHitsData::IsDefined(type, 1) ? node.position.Y() : nan,
                                  TRestHitsData::IsDefined(type, 2) ? node.position.Z() : nan);
-        output.AddHitToTrack(position, node.energy, 0, type);
+        output.AddHitToTrack(position, node.energy, 0, type, node.sigma);
     }
     return newTrackIndex;
 }
@@ -479,6 +484,7 @@ double GetHitMarkerSize(const TRestHits& hits, int n) {
 
 /// Tracks with less hits are drawn with a line joining them (as legacy)
 const size_t kMaxHitsForLines = 100;
+
 }  // namespace
 
 TPad* TRestTrackEvent::DrawEvent(const TString& option) const {

@@ -39,7 +39,7 @@ void ViewMicromegasReadout(const std::string& instanceName = "IAXO_D1_Readout",
 
     double testX = 0.5;
     double testY = 0.5;
-    double testZ = -15.0;  // Math matched to the YAML relative offset [-10 mm]
+    double testZ = 110.0;  // Math matched to the YAML relative offset [-10 mm]
 
     std::cout << "\n--- TESTING SPATIAL LOOKUP ---" << std::endl;
 

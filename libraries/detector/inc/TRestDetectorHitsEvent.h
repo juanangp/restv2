@@ -153,6 +153,9 @@ class TRestDetectorHitsEvent : public TRestEvent {
     /// - graph: hits as TGraph markers (TRestHits::DrawGraphs);
     /// - hist(rootOption)[pitch]: histograms weighted by energy (TRestHits::DrawHistograms): projections
     ///   and 3D view, and X, Y and Z distributions, only those the hits define (1D, 2D or 3D events);
+    /// - markers(rootOption)[pitch]: as hist, with the Z bin size of the spacing of the pulse samples and
+    ///   the 3D view as markers colored by energy, the strips paired without ghosts
+    ///   (TRestHits::DrawHistograms with markers3D);
     /// - print: PrintEvent.
     /// Default: "hist(Cont1,col)".
     TPad* DrawEvent(const TString& option = "") const override;

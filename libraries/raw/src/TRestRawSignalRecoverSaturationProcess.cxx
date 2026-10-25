@@ -1,7 +1,9 @@
 /// \class TRestRawSignalRecoverSaturationProcess
 /// Recovers signals that saturated the ADC by fitting the AGET response function (without the sine
 /// term, see TRestPulseShapeAnalysis::FitAget) to the non-saturated bins, with the baseline fixed.
-/// Saturated bins are increased up to the fit values when these are above the saturation value.
+/// Saturated bins are increased up to the fit values when these are above the saturation value. Signals whose
+/// fit is below the saturation value (minus the baseline sigma) in any saturated bin are left unchanged,
+/// since the fit does not describe the pulse.
 ///
 /// The fit range is the span of the points over threshold of each signal plus fitMargin bins on each side.
 ///
@@ -109,6 +111,12 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
     fObs.clear();
 
     const auto thrParams = std::make_pair(fPointsThreshold, fSignalThreshold);
+    const bool debug = GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Debug;
+    auto skip = [&](const TRestRawSignal& sig, const std::string& reason) {
+        if (debug)
+            std::cout << "recSat: event " << sigEvent->GetID() << " signal " << sig.GetSignalID()
+                      << " not recovered: " << reason << std::endl;
+    };
 
     for (int s = 0; s < sigEvent->GetNumberOfSignals(); s++) {
         auto& signal = sigEvent->GetSignal(s);
@@ -123,11 +131,15 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
         std::vector<int> saturatedBins;
         for (int i = maxPeakBin; i < nPoints && data[i] == maxValue; i++) saturatedBins.push_back(i);
 
-        if ((int)saturatedBins.size() < fMinSaturatedBins && !fProcessAllSignals) continue;
+        if (maxValue < fMinSaturationValue) continue;
+
+        if ((int)saturatedBins.size() < fMinSaturatedBins && !fProcessAllSignals) {
+            skip(signal, "only " + std::to_string(saturatedBins.size()) + " consecutive bins at maximum " +
+                             std::to_string(maxValue));
+            continue;
+        }
 
         fObs.SignalsSaturated++;
-
-        if (maxValue < fMinSaturationValue) continue;
 
         if (fProcessAllSignals && (int)saturatedBins.size() < fMinSaturatedBins) {
             saturatedBins.clear();
@@ -140,8 +152,10 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
 
         double baseline = 0, sigma = 0;
         if (!GetBaselineSigma(data, fBaselineRange.first, fBaselineRange.second, baseline, sigma,
-                              fBaselineOption))
+                              fBaselineOption)) {
+            skip(signal, "baseline calculation failed");
             continue;
+        }
 
         std::vector<float> subtracted(nPoints);
         for (int i = 0; i < nPoints; i++) subtracted[i] = data[i] - baseline;
@@ -149,7 +163,11 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
         const auto pointsOverThr = GetPointsOverThreshold(subtracted, range, thrParams, fPointsOverThreshold,
                                                           fNPointsFlat, sigma);
 
-        if (pointsOverThr.empty()) continue;
+        if (pointsOverThr.empty()) {
+            skip(signal, "no points over threshold (baseline " + std::to_string(baseline) + ", sigma " +
+                             std::to_string(sigma) + ")");
+            continue;
+        }
 
         // Graph with the pulse range (points over threshold plus a margin) without the saturated bins
         std::vector<bool> isSaturated(nPoints, false);
@@ -161,9 +179,31 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
             if (!isSaturated[i]) g.AddPoint(i, data[i]);
         }
 
-        const auto fit = FitAget(g, false, baseline,
-                                 GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Debug);
-        if (!fit) continue;
+        const auto fit = FitAget(g, false, baseline);
+        if (!fit) {
+            skip(signal, "fit failed or invalid (" + std::to_string(g.GetN()) + " points, " +
+                             std::to_string(saturatedBins.size()) + " saturated bins)");
+            continue;
+        }
+
+        // A saturated pulse is at or above the saturation value in all the saturated bins, a fit that is
+        // below it (beyond the baseline fluctuations) in any of them does not describe the pulse
+        const bool isSaturatedSignal = (int)saturatedBins.size() >= fMinSaturatedBins;
+        if (isSaturatedSignal) {
+            auto below = std::find_if(saturatedBins.begin(), saturatedBins.end(),
+                                      [&](int b) { return fit->Eval(b) < maxValue - sigma; });
+            if (below != saturatedBins.end()) {
+                std::string pars;
+                for (int i = 0; i < fit->GetNpar(); i++)
+                    pars += std::string(" ") + fit->GetParName(i) + "=" + std::to_string(fit->GetParameter(i));
+                skip(signal, "bad fit, below saturation at bin " + std::to_string(*below) + " (fit " +
+                                 std::to_string(fit->Eval(*below)) + ", saturation " +
+                                 std::to_string(maxValue) + ", saturated bins " +
+                                 std::to_string(saturatedBins.front()) + "-" +
+                                 std::to_string(saturatedBins.back()) + ";" + pars + ")");
+                continue;
+            }
+        }
 
         bool anyBinRecovered = false;
         double signalAddedAmplitude = 0, signalAddedIntegral = 0;
@@ -178,7 +218,10 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
             }
         }
 
-        if (!anyBinRecovered) continue;
+        if (!anyBinRecovered) {
+            skip(signal, "fit does not exceed saturation " + std::to_string(maxValue));
+            continue;
+        }
 
         for (int b : saturatedBins) {
             if (deltas[b] != 0) signal.IncreaseBinBy(b, deltas[b]);

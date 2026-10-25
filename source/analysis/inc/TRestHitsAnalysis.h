@@ -32,16 +32,39 @@ std::vector<std::vector<size_t>> FindClusters(const std::vector<XYZVector>& poin
 struct Node {
     XYZVector position;
     double energy = 0;
+    XYZVector sigma;  ///< Energy weighted spread (standard deviation) of its points in each coordinate
 };
 
-/// \brief Reduces the points to `nodes` nodes with k-means: each node is the energy weighted mean of
-/// the points closest to it, and its energy their sum. The nodes start equally spaced along the points
-/// order. With `fixBoundaries`, the first and last nodes stay at the first and last points, with no
-/// points nor energy.
-/// \return The nodes in order, without the empty ones (except the fixed boundaries). Empty if nodes < 2
-/// or there are no points.
+/// \brief Reduces the points to nodes with k-means, starting from the given nodes (`centroids`), as legacy
+/// TRestVolumeHits::kMeansClustering: each node is the energy weighted mean of the points closest to it,
+/// its energy their sum and its sigma their energy weighted spread. With `fixBoundaries`, the first and last
+/// nodes stay where they are, with no points, energy nor sigma.
+/// \return The nodes in order, without the empty ones (except the fixed boundaries). Empty if there are
+/// less than two centroids or no points.
 std::vector<Node> KMeansClustering(const std::vector<XYZVector>& points, const std::vector<double>& energies,
-                                   int nodes, int maxIt = 100, bool fixBoundaries = false);
+                                   const std::vector<XYZVector>& centroids, int maxIt = 100,
+                                   bool fixBoundaries = false);
+
+/// \brief Segment of the line that best fits the points: through their energy weighted mean, along the
+/// direction of largest spread (principal axis of the energy weighted covariance, i.e. the line
+/// minimizing the squared distances to it), between the extreme projections of the points on it. Works
+/// for 1D, 2D and 3D points: the coordinates the points do not define must have the same value in all of
+/// them (TRestHits::GetPoints sets them to 0), the line then stays in the projection they define.
+/// \return False (first and last unchanged) if there are no points or no energy. Both at the mean for a
+/// single point.
+bool GetLine(const std::vector<XYZVector>& points, const std::vector<double>& energies, XYZVector& first,
+             XYZVector& last);
+
+/// \brief `nodes` equally spaced points along the line that best fits the points (GetLine), from one
+/// extreme to the other.
+/// \return The nodes in order along the line. Empty if nodes < 2, there are no points or no energy.
+std::vector<XYZVector> GetLineNodes(const std::vector<XYZVector>& points, const std::vector<double>& energies,
+                                    int nodes);
+
+/// \brief How far the points are from a line: energy weighted RMS distance of the points to the line that
+/// best fits them (GetLine), 0 for a line. Same conditions on the undefined coordinates as GetLine.
+/// \return -1 if there are no points or no energy.
+double GetLineResidual(const std::vector<XYZVector>& points, const std::vector<double>& energies);
 
 /// \brief Minimum distance between the different values of one coordinate (the readout pitch for strip
 /// coordinates), as legacy TRestHits::GetBoundaries. 0 if there are less than two different values.
@@ -53,9 +76,14 @@ double GetMinimumDistance(std::vector<double> values);
 void GetBoundaries(const std::vector<double>& values, double binSize, double& max, double& min, int& nBins);
 
 /// \brief Origin and end of a track given by its points in order: the end is the extreme (first or last
-/// point) closest to the most energetic point (the Bragg peak), the origin the other one.
-void GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies, XYZVector& origin,
-                  XYZVector& end);
+/// point) on the half of the track with more energy (the Bragg peak), the origin the other one. The halves
+/// split the projections of the points on the segment from the first to the last point (the point order
+/// for a single point or coinciding extremes). Using the energy of each half instead of the most
+/// energetic point (legacy) keeps a single noisy point from reversing the track.
+/// \return The energy asymmetry of the halves, (E_end - E_origin) / (E_end + E_origin), from 0 (no
+/// preferred direction, origin = first point) to 1: how reliable the direction is. 0 without energy.
+double GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies, XYZVector& origin,
+                    XYZVector& end);
 
 /// \brief Size of the distribution of one coordinate of the points (`values`) from a gaussian fit of
 /// the energy against the coordinate, as legacy TRestHits::GetGaussSigmaX. With less than `nHitsMin`

@@ -1,5 +1,6 @@
 #include "TRestMicromegasReadout.h"
 
+#include <map>
 #include <stdexcept>
 
 #include "TGeoBBox.h"
@@ -28,6 +29,7 @@ static const bool TRestMicromegasReadoutParameters_FieldsRegistered = []() {
     reg.RegisterField<TRestMicromegasReadoutParameters>("pitch", &TRestMicromegasReadoutParameters::fPitch);
     reg.RegisterField<TRestMicromegasReadoutParameters>("thickness", &TRestMicromegasReadoutParameters::fThickness);
     reg.RegisterField<TRestMicromegasReadoutParameters>("gasThickness", &TRestMicromegasReadoutParameters::fGasThickness);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("checkOverlaps", &TRestMicromegasReadoutParameters::fCheckOverlaps);
     return true;
 }();
 
@@ -127,6 +129,12 @@ void TRestMicromegasReadout::BuildGeometry() {
 
     double zGlobal = 0.0;
 
+    // Pixels are grouped in one assembly per strip: a single volume holding all 2*N*N pixels overflows
+    // the Int_t buffer size computed in TGeoVoxelFinder::SortAll (heap corruption for N >~ 215)
+    std::map<int, TGeoVolumeAssembly*> stripAssemblies;
+    std::map<int, int> stripPixelCounter;
+    const UInt_t kNoPhysicalID = static_cast<UInt_t>(-1);
+
     auto addPixel = [&](double localX, double localY, TGeoRotation* localRot, int channelID,
                         bool isChannelX) {
         double posX = localX + offsetX + posRel[0];
@@ -149,7 +157,14 @@ void TRestMicromegasReadout::BuildGeometry() {
             }
         }
 
-        TGeoNode* node = readoutGeom->AddNode(vol, nodeCounter, finalMatrix);
+        auto& strip = stripAssemblies[channelID];
+        if (!strip) {
+            strip = new TGeoVolumeAssembly((volName + "_ASSEMBLY").c_str());
+            TGeoNode* stripNode = readoutGeom->AddNode(strip, channelID);
+            stripNode->SetUniqueID(kNoPhysicalID);
+        }
+
+        TGeoNode* node = strip->AddNode(vol, stripPixelCounter[channelID]++, finalMatrix);
         node->SetUniqueID(channelID);
         nodeCounter++;
     };
@@ -221,16 +236,21 @@ void TRestMicromegasReadout::BuildGeometry() {
     }
 
     TGeoVolume* top = fGeoManager->GetTopVolume();
-    top->AddNode(readoutGeom, 0, globalMatrix);
-
-    top->GetShape()->ComputeBBox();
-    top->Voxelize("");
-    std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single unified Z plane." << std::endl;
-
-    std::cout << "[*] Checking geometry overlaps..." << std::endl;
-    fGeoManager->CheckOverlaps(0.001);
+    TGeoNode* readoutNode = top->AddNode(readoutGeom, 0, globalMatrix);
+    readoutNode->SetUniqueID(kNoPhysicalID);
 
     fGeoManager->CloseGeometry();
+    std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single unified Z plane." << std::endl;
+
+    if (fReadoutParams.fCheckOverlaps) {
+        // Only the direct daughters of readoutGeom (strips + gas) are checked, which covers X vs Y pixel
+        // overlaps: pixels inside a strip cannot overlap by construction. Sampling ("s<npoints>") since the
+        // full pairwise check is unaffordable
+        std::cout << "[*] Checking geometry overlaps (sampling)..." << std::endl;
+        fGeoManager->ClearOverlaps();
+        readoutGeom->CheckOverlaps(0.001, "s1000");
+        std::cout << "[+] Overlaps found: " << fGeoManager->GetListOfOverlaps()->GetEntriesFast() << std::endl;
+    }
 }
 
 ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {

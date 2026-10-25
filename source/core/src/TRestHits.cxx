@@ -8,7 +8,13 @@
 #include <TMath.h>
 #include <TPolyLine3D.h>
 #include <TPolyMarker3D.h>
+#include <TStyle.h>
 #include <TVirtualPad.h>
+
+#include <algorithm>
+#include <array>
+#include <map>
+#include <tuple>
 
 #include "TRestEvent.h"
 #include "TRestHitsAnalysis.h"
@@ -571,6 +577,164 @@ void Draw3D(const TRestHits& hits, const double min[3], const double max[3], con
         }
     }
 }
+
+/// Z spacing of the samples of a pulse: the median of the distances between consecutive Z values of the
+/// hits in the same channel (same type and X/Y position), i.e. the sampling (or integration window) times
+/// the drift velocity. 0 if no channel has two different Z values (e.g. simulated hits)
+double GetZStep(const TRestHits& hits) {
+    std::map<std::tuple<int, double, double>, std::vector<double>> channels;
+    for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+        const int type = hits.GetType(n);
+        if (!TRestHitsData::IsDefined(type, 2)) continue;
+        const double x = TRestHitsData::IsDefined(type, 0) ? hits.GetX(n) : 0;
+        const double y = TRestHitsData::IsDefined(type, 1) ? hits.GetY(n) : 0;
+        channels[{type, x, y}].push_back(hits.GetZ(n));
+    }
+
+    std::vector<double> steps;
+    for (auto& [channel, z] : channels) {
+        std::sort(z.begin(), z.end());
+        for (size_t i = 1; i < z.size(); i++) {
+            if (z[i] > z[i - 1]) steps.push_back(z[i] - z[i - 1]);
+        }
+    }
+    if (steps.empty()) return 0;
+    std::nth_element(steps.begin(), steps.begin() + steps.size() / 2, steps.end());
+    return steps[steps.size() / 2];
+}
+
+/// Number of energy bands of the 3D view with markers, one TPolyMarker3D (one palette color) each
+const int kEnergyBands = 50;
+
+/// Energy weighted covariance between the coordinates axis and common of the hits of the groups
+double Covariance(const TRestHits& hits, const std::map<int, std::vector<size_t>>& groups, int axis,
+                  int common) {
+    double sumW = 0, sumA = 0, sumC = 0, sumAC = 0;
+    for (const auto& [bin, indices] : groups) {
+        for (size_t n : indices) {
+            const double w = hits.GetEnergy(n);
+            const double a = hits.GetCoordinate(n, axis), c = hits.GetCoordinate(n, common);
+            sumW += w;
+            sumA += w * a;
+            sumC += w * c;
+            sumAC += w * a * c;
+        }
+    }
+    return sumW > 0 ? sumAC / sumW - (sumA / sumW) * (sumC / sumW) : 0;
+}
+
+/// 3D view in the current pad as markers colored by energy, see TRestHits::DrawHistograms
+void Draw3DMarkers(const TRestHits& hits, const double min[3], const double max[3], const int nBins[3]) {
+    std::vector<std::array<double, 4>> points;  // x, y, z, energy
+    for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+        if (hits.GetType(n) % REST_HitType::XYZ == 0)
+            points.push_back({hits.GetX(n), hits.GetY(n), hits.GetZ(n), hits.GetEnergy(n)});
+    }
+
+    // Hits with one undefined coordinate (e.g. XZ and YZ strips): those undefined along different
+    // coordinates are combined in each bin of their common coordinate (Z for XZ and YZ). Instead of every
+    // pair (a rectangle of ghosts when a bin has several strips of each projection), both groups are sorted
+    // by their defined coordinate and paired monotonically by their accumulated energy fraction, so each bin
+    // gives a segment of the track holding the mean of the energies of both projections. The direction of
+    // the pairing (X-Y correlation) is the sign of the product of the slopes of both projections along the
+    // common coordinate
+    std::map<int, std::vector<size_t>> groups[3][3];  // [undefined][common]: bin of common -> hits
+    for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+        if (hits.GetEnergy(n) <= 0) continue;
+        int undefined = -1, nDefined = 0;
+        for (int a = 0; a < 3; a++) {
+            if (TRestHitsData::IsDefined(hits.GetType(n), a)) {
+                nDefined++;
+            } else {
+                undefined = a;
+            }
+        }
+        if (nDefined != 2) continue;
+        for (int common = 0; common < 3; common++) {
+            if (common == undefined) continue;
+            const double binSize = (max[common] - min[common]) / nBins[common];
+            const double offset = hits.GetCoordinate(n, common) - min[common];
+            const int bin = binSize > 0 ? (int)std::floor(offset / binSize) : 0;
+            groups[undefined][common][bin].push_back(n);
+        }
+    }
+    for (int ua = 0; ua < 3; ua++) {
+        for (int ub = ua + 1; ub < 3; ub++) {
+            const int common = 3 - ua - ub;
+            if (groups[ua][common].empty() || groups[ub][common].empty()) continue;
+            // Group A (undefined ua) defines ub, group B (undefined ub) defines ua
+            const bool ascending = Covariance(hits, groups[ua][common], ub, common) *
+                                       Covariance(hits, groups[ub][common], ua, common) >=
+                                   0;
+            for (const auto& [bin, indicesA] : groups[ua][common]) {
+                const auto it = groups[ub][common].find(bin);
+                if (it == groups[ub][common].end()) continue;
+                std::vector<size_t> groupA = indicesA, groupB = it->second;
+                std::sort(groupA.begin(), groupA.end(), [&](size_t i, size_t j) {
+                    return hits.GetCoordinate(i, ub) < hits.GetCoordinate(j, ub);
+                });
+                std::sort(groupB.begin(), groupB.end(), [&](size_t i, size_t j) {
+                    return ascending ? hits.GetCoordinate(i, ua) < hits.GetCoordinate(j, ua)
+                                     : hits.GetCoordinate(i, ua) > hits.GetCoordinate(j, ua);
+                });
+                double energyA = 0, energyB = 0;
+                for (size_t i : groupA) energyA += hits.GetEnergy(i);
+                for (size_t j : groupB) energyB += hits.GetEnergy(j);
+                const double meanEnergy = 0.5 * (energyA + energyB);
+
+                size_t a = 0, b = 0;
+                double restA = hits.GetEnergy(groupA[0]) / energyA;
+                double restB = hits.GetEnergy(groupB[0]) / energyB;
+                while (a < groupA.size() && b < groupB.size()) {
+                    const double fraction = std::min(restA, restB);
+                    const size_t i = groupA[a], j = groupB[b];
+                    double point[3];
+                    point[ua] = hits.GetCoordinate(j, ua);
+                    point[ub] = hits.GetCoordinate(i, ub);
+                    point[common] = 0.5 * (hits.GetCoordinate(i, common) + hits.GetCoordinate(j, common));
+                    if (fraction > 0) points.push_back({point[0], point[1], point[2], fraction * meanEnergy});
+                    restA -= fraction;
+                    restB -= fraction;
+                    if (restA <= 1e-9 && ++a < groupA.size()) restA = hits.GetEnergy(groupA[a]) / energyA;
+                    if (restB <= 1e-9 && ++b < groupB.size()) restB = hits.GetEnergy(groupB[b]) / energyB;
+                }
+            }
+        }
+    }
+
+    // Empty TH3 only for the frame and the axes, the points drawn on top as markers colored by energy with
+    // the palette, one TPolyMarker3D per energy band
+    auto* frame = new TH3F("XYZ", "", 1, min[0], max[0], 1, min[1], max[1], 1, min[2], max[2]);
+    TRestEvent::DrawOwned(frame, "", TRestHitsData::kAxisTitles[0], TRestHitsData::kAxisTitles[1],
+                          TRestHitsData::kAxisTitles[2]);
+    if (points.empty()) return;
+
+    double minEnergy = points[0][3], maxEnergy = points[0][3];
+    for (const auto& p : points) {
+        minEnergy = std::min(minEnergy, p[3]);
+        maxEnergy = std::max(maxEnergy, p[3]);
+    }
+    std::vector<TPolyMarker3D*> bands(kEnergyBands, nullptr);
+    const double range = maxEnergy - minEnergy;
+    for (const auto& p : points) {
+        const int band =
+            range > 0 ? std::min(kEnergyBands - 1, (int)((p[3] - minEnergy) / range * kEnergyBands))
+                      : kEnergyBands - 1;
+        if (!bands[band]) {
+            bands[band] = new TPolyMarker3D();
+            bands[band]->SetMarkerStyle(kFullCircle);
+            bands[band]->SetMarkerSize(0.6);
+            const int nColors = gStyle->GetNumberOfColors();
+            bands[band]->SetMarkerColor(gStyle->GetColorPalette((band * nColors) / kEnergyBands));
+        }
+        bands[band]->SetNextPoint(p[0], p[1], p[2]);
+    }
+    for (auto* marker : bands) {
+        if (!marker) continue;
+        marker->SetBit(TObject::kCanDelete);
+        marker->Draw();
+    }
+}
 }  // namespace
 
 void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
@@ -621,7 +785,8 @@ void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
     }
 }
 
-void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, double pitch) const {
+void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, double pitch,
+                               bool markers3D) const {
     std::vector<double> values[3];
     for (size_t n = 0; n < GetNumberOfHits(); n++) {
         for (int a = 0; a < 3; a++) {
@@ -638,6 +803,12 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     if (binSize[1] <= 0) binSize[1] = binSize[0];
     binSize[2] = pitch > 0 ? pitch : std::min(binSize[0], binSize[1]);
     if (binSize[2] <= 0) binSize[2] = TRestHitsAnalysis::GetMinimumDistance(values[2]);
+    // Track view: Z uses the spacing of the samples of the pulses, so there are no empty bins inside a
+    // pulse (pulses drawn cut) and the strips are paired sample by sample
+    if (markers3D) {
+        const double zStep = GetZStep(*this);
+        if (zStep > 0) binSize[2] = zStep;
+    }
 
     double min[3], max[3];
     int nBins[3];
@@ -698,7 +869,11 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     for (size_t i = 0; i < projections.size(); i++) drawAt(i + 1, projections[i]);
     if (draw3D) {
         pad->cd(projections.size() + 1);
-        Draw3D(*this, min, max, nBins);
+        if (markers3D) {
+            Draw3DMarkers(*this, min, max, nBins);
+        } else {
+            Draw3D(*this, min, max, nBins);
+        }
     }
     const int firstDistributionPad = nFirstRow > 0 ? nColumns + 1 : 1;
     for (size_t i = 0; i < distributions.size(); i++) drawAt(firstDistributionPad + i, distributions[i]);

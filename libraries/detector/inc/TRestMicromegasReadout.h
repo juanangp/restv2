@@ -14,6 +14,8 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     TRestWithUnits fPitch = 0;
     TRestWithUnits fThickness = 0;
     TRestWithUnits fGasThickness = 0;
+    /// Run a sampling overlap check on the strips after building (slow for large nChannels)
+    bool fCheckOverlaps = false;
 
     TRestMicromegasReadoutParameters();
     TRestMicromegasReadoutParameters(const std::string& name, const YAML::Node& node);

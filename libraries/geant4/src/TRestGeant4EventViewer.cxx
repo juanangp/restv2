@@ -73,11 +73,12 @@ TrackVisualConfiguration GetTrackVisualConfiguration(const TRestGeant4Track& tra
         config.fColor = kYellow;
     }
 
-    Width_t width = TMath::Log10(track.GetInitialEnergy() / 100);
+    Width_t width = TMath::Log10(track.GetInitialEnergy() / 10);
     width = (width > 10 ? 10 : width);
     width = (width < 1 ? 1 : width);
 
-    config.fLineWidth = TMath::Log10(track.GetInitialEnergy() / 10);
+    // At least 1, a track below 10 keV had a width <= 0 and was not drawn
+    config.fLineWidth = width;
 
     if (track.GetCreatorProcess() == "nCapture") {
         config.fLineStyle = 2;

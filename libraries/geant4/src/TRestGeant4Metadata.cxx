@@ -29,6 +29,8 @@ static const bool TRestGeant4ActiveVolumeMetadata_FieldsRegistered = []() {
                                                        &TRestGeant4ActiveVolumeMetadata::fChance);
     reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("maxStep",
                                                        &TRestGeant4ActiveVolumeMetadata::fMaxStep);
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("sensitive",
+                                                       &TRestGeant4ActiveVolumeMetadata::fSensitive);
     return true;
 }();
 
@@ -78,8 +80,6 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4Metadata>("activateAllVolumes", &TRestGeant4Metadata::fActivateAllVolumes);
     reg.RegisterField<TRestGeant4Metadata>("printProgress", &TRestGeant4Metadata::fPrintProgress);
     reg.RegisterField<TRestGeant4Metadata>("activeVolumes", &TRestGeant4Metadata::fActiveVolumesMetadata);
-    reg.RegisterNestedField<TRestGeant4Metadata>("generator", &TRestGeant4Metadata::fGeant4PrimaryGeneratorInfo);
-    reg.RegisterField<TRestGeant4Metadata>("sensitiveVolumes", &TRestGeant4Metadata::fSensitiveVolumes);
     reg.RegisterField<TRestGeant4Metadata>("killVolumes", &TRestGeant4Metadata::fKillVolumesRegistry);
     reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes", &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
     reg.RegisterField<TRestGeant4Metadata>("biasingVolumes", &TRestGeant4Metadata::fBiasingVolumes);
@@ -119,7 +119,7 @@ TRestGeant4Metadata::TRestGeant4Metadata(const std::string& instanceName, const 
 }
 
 /// \brief Destructor clean-up logic.
-TRestGeant4Metadata::~TRestGeant4Metadata() { fGeant4PrimaryGeneratorInfo.RemoveParticleSources(); }
+TRestGeant4Metadata::~TRestGeant4Metadata() = default;
 
 /// \brief Pre-allocation and basic environment state setups.
 void TRestGeant4Metadata::Clear() {
@@ -139,7 +139,7 @@ void TRestGeant4Metadata::Clear() {
     fKillVolumes.clear();
     fKillVolumesRegistry.clear();
     fActiveVolumesSet.clear();
-    fGeant4PrimaryGeneratorInfo.RemoveParticleSources();
+    fGeant4PrimaryGeneratorInfo = TRestGeant4PrimaryGeneratorInfo();
 }
 
 void TRestGeant4Metadata::SyncRuntimeMapsFromMetadata() {
@@ -166,6 +166,12 @@ void TRestGeant4Metadata::SyncMetadataMapsFromRuntime() {
 /// \brief Modern framework configuration entry point.
 void TRestGeant4Metadata::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4Metadata>(fNode);
+    // The generator section is parsed by TRestGeant4PrimaryGeneratorInfo, which keeps a handle to it
+    const YAML::Node& node = fNode;
+    if (node["generator"]) {
+        fGeant4PrimaryGeneratorInfo.SetYAMLNode(fNode["generator"]);
+        fGeant4PrimaryGeneratorInfo.LoadConfig();
+    }
     SyncRuntimeMapsFromMetadata();
     ReadYAMLVerbose(fNode);
     if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
@@ -211,7 +217,12 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
         }
     }
 
-    std::vector<std::string> sensitiveExpressions = fSensitiveVolumes;
+    std::vector<std::string> sensitiveExpressions;
+    for (const auto& volume : fActiveVolumesMetadata) {
+        if (volume.fSensitive && !volume.fVolumeName.empty()) {
+            sensitiveExpressions.push_back(volume.fVolumeName);
+        }
+    }
     fSensitiveVolumes.clear();
 
     for (const auto& sensExpr : sensitiveExpressions) {
@@ -224,7 +235,8 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
                 }
                 RegisterVolumeAlias(sensExpr, physVol);
             }
-        } else {
+        } else if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), sensExpr) ==
+                   fSensitiveVolumes.end()) {
             fSensitiveVolumes.push_back(sensExpr);
         }
     }
@@ -287,18 +299,6 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
 
 }
 
-void TRestGeant4Metadata::RemoveParticleSources() {
-    fGeant4PrimaryGeneratorInfo.RemoveParticleSources();
-}
-
-/// \brief Append a newly declared target particle source generator.
-void TRestGeant4Metadata::AddParticleSource(TRestGeant4ParticleSource* src) {
-    if (src) {
-        fGeant4PrimaryGeneratorInfo.fParticleSources.push_back(*src);
-        delete src;
-    }
-}
-
 /// \brief Parses the local Major configuration value from the semantic version string.
 size_t TRestGeant4Metadata::GetGeant4VersionMajor() const {
     if (fGeant4Version.empty()) return 0;
@@ -357,6 +357,15 @@ double TRestGeant4Metadata::GetMaxStepSize(const std::string& volume) const {
     return 0.0;
 }
 
+void TRestGeant4Metadata::WriteMetadata(TFile* file) {
+    TRestMetadata::WriteMetadata(file);
+    // The same key restG4 writes and LoadGeometryFromActiveFile reads
+    if (auto* geometry = fGeant4GeometryInfo.GetGeometry()) {
+        file->cd();
+        geometry->Write("Geometry", TObject::kOverwrite);
+    }
+}
+
 //Automatic load of Geometry info in case a root file is opened
 void TRestGeant4Metadata::LoadGeometryFromActiveFile() {
     if (gFile && !gFile->IsZombie()) {
@@ -378,5 +387,5 @@ void TRestGeant4Metadata::LoadGeometryFromActiveFile() {
 
 // Returns the computed generation surface area for cosmic run in cm^2
 double TRestGeant4Metadata::GetCosmicGeneratorSurfaceCm2() const {
-    return fGeant4PrimaryGeneratorInfo.GetSpatialGeneratorCosmicSurfaceTermCm2();
+    return fGeant4PrimaryGeneratorInfo.GetCosmicSurfaceCm2();
 }

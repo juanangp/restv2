@@ -91,6 +91,18 @@ double GetIntegral(const std::vector<T>& signal, int startBin, int endBin);
 template <typename T>
 double GetMaxPeakWidth(const std::vector<T>& signal);
 
+/// \brief Finds all the peaks of a baseline subtracted signal given as (time, value) points sorted in time,
+/// e.g. TRestDetectorSignal::GetPointsVector. A point of the signal smoothed with a moving average of
+/// 2 * halfWindow + 1 consecutive points is a peak candidate if it is over threshold and at most
+/// maxGreaterEqual of the other points of that window are greater or equal. The peak is the highest
+/// smoothed point within `distance` (time units) after the candidate, and the next peak must be at least
+/// `distance` after it. Returns (time, amplitude) pairs, with the amplitude as the average of the peak
+/// point and its neighbours. The legacy TRestRawPeaksFinderProcess used halfWindow = 5, maxGreaterEqual = 3
+/// for TPC signals and halfWindow = 2, maxGreaterEqual = 0 for veto signals.
+std::vector<std::pair<double, double>> GetPeaks(const std::vector<std::pair<double, double>>& points,
+                                                double threshold, double distance, int halfWindow = 5,
+                                                int maxGreaterEqual = 3);
+
 template <typename T>
 double GetSlopeIntegral(const std::vector<std::pair<T, float>>& signal);
 template <typename T>

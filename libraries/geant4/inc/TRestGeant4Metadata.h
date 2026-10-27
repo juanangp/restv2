@@ -18,17 +18,26 @@
 #include "TRestMetadata.h"
 
 // Forward declarations for framework friend classes
-class TRestGeant4ParticleSource;
 
 class SteppingAction;
 class DetectorConstruction;
 
 /// \class TRestGeant4ActiveVolumeMetadata
+/// \brief An entry of `activeVolumes`: the hits of the active volumes are stored. Since only active
+/// volumes can be sensitive, the sensitive ones are flagged here (there is no `sensitiveVolumes` list):
+///
+///     activeVolumes:
+///       - name: "gas"          # regular expression of physical (or logical) volume names
+///         chance: 1.0          # probability to store the hits of an event in the volume
+///         maxStep: 10 um       # Geant4 maximum step in the volume (0: no limit)
+///         sensitive: true      # an event is stored only with energy in a sensitive volume
 class TRestGeant4ActiveVolumeMetadata : public TRestMetadata {
    public:
     std::string fVolumeName;
     double fChance = 1.0;
     TRestWithUnits fMaxStep = 0.0;
+    /// If true, the volume is also sensitive (it triggers the event storage)
+    bool fSensitive = false;
 
     TRestGeant4ActiveVolumeMetadata();
     TRestGeant4ActiveVolumeMetadata(const std::string& instanceName, const YAML::Node& node);
@@ -107,7 +116,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     std::set<std::string> fFullChainStopIsotopes;
     std::vector<std::string> fFullChainStopIsotopesRegistry;  //! YAML adapter for registry
 
-    /// The volume that serves as trigger for data storage
+    /// The volumes that serve as trigger for data storage, the physical volumes matching the active
+    /// volumes with sensitive: true (filled by SyncActiveVolumesFromMetadata)
     std::vector<std::string> fSensitiveVolumes;
 
     /// A container related to fRemoveUnwantedTracks
@@ -179,6 +189,10 @@ class TRestGeant4Metadata : public TRestMetadata {
     // --- Life Cycle and Configuration Methods ---
     void LoadConfig() override;
     void Initialize() override {}
+    using TRestMetadata::WriteMetadata;
+    /// \brief Writes the YAML and, if loaded, the geometry as `Geometry` in the file, so every run made from
+    /// a simulation one (e.g. an analysis) keeps it
+    void WriteMetadata(TFile* file) override;
     /// \brief Resets all metadata containers and cached lookup structures.
     void Clear();
     void SyncActiveVolumesFromMetadata();
@@ -192,6 +206,9 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline const TRestGeant4GeometryInfo& GetGeant4GeometryInfo() const { return fGeant4GeometryInfo; }
     inline const TRestGeant4PhysicsInfo& GetGeant4PhysicsInfo() const { return fGeant4PhysicsInfo; }
     inline const TRestGeant4PrimaryGeneratorInfo& GetGeant4PrimaryGeneratorInfo() const {
+        return fGeant4PrimaryGeneratorInfo;
+    }
+    inline TRestGeant4PrimaryGeneratorInfo& GetGeant4PrimaryGeneratorInfo() {
         return fGeant4PrimaryGeneratorInfo;
     }
 
@@ -233,20 +250,10 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline void SetNumberOfRequestedEntries(int64_t n) { fNRequestedEntries = n; }
     inline void SetSimulationMaxTimeSeconds(double seconds) { fSimulationMaxTimeSeconds = seconds; }
 
-    // --- Primary Generator Sources Management ---
+    // --- Primary Generator Sources ---
     inline int GetNumberOfSources() const {
-        return static_cast<int>(fGeant4PrimaryGeneratorInfo.fParticleSources.size());
+        return static_cast<int>(fGeant4PrimaryGeneratorInfo.GetNumberOfSources());
     }
-    inline TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) {
-        return &fGeant4PrimaryGeneratorInfo.fParticleSources.at(n);
-    }
-    inline const TRestGeant4ParticleSource* GetParticleSource(size_t n = 0) const {
-        return &fGeant4PrimaryGeneratorInfo.fParticleSources.at(n);
-    }
-    /// \brief Clears all configured primary particle sources.
-    void RemoveParticleSources();
-    /// \brief Copies one particle source into metadata and releases the supplied instance.
-    void AddParticleSource(TRestGeant4ParticleSource* src);
 
     // --- Biasing Volumes Management ---
     inline size_t GetNumberOfBiasingVolumes() const { return fBiasingVolumes.size(); }
@@ -257,6 +264,14 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline std::string GetSensitiveVolume(int n ) const { return fSensitiveVolumes.at(n); }
     inline size_t GetNumberOfSensitiveVolumes() const { return fSensitiveVolumes.size(); }
     inline const std::vector<std::string>& GetSensitiveVolumes() const { return fSensitiveVolumes; }
+    /// \brief The `name` (expression) of each sensitive entry of `activeVolumes`, as written in the YAML
+    inline std::vector<std::string> GetSensitiveVolumeExpressions() const {
+        std::vector<std::string> expressions;
+        for (const auto& volume : fActiveVolumesMetadata) {
+            if (volume.fSensitive && !volume.fVolumeName.empty()) expressions.push_back(volume.fVolumeName);
+        }
+        return expressions;
+    }
     inline void InsertSensitiveVolume(const std::string& volume) {
         if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), volume) ==
             fSensitiveVolumes.end()) {

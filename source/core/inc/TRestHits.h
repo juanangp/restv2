@@ -255,7 +255,9 @@ class TRestHits {
     /// (XZ, YZ, XY) with hits defining both coordinates, plus a 3D view when the hits define the three
     /// coordinates, and a row with the X, Y and Z distributions. Empty histograms are not drawn, so 1D,
     /// 2D and 3D hits only get the pads that apply. The bin size is the pitch or, if pitch <= 0, the
-    /// minimum distance between hits in X and Y (the readout pitch), also used for Z.
+    /// minimum distance between hits in X and Y (the readout pitch), also used for Z. If it gives more than
+    /// 200 bins over the hits range, the coordinate is taken as continuous (e.g. simulated hits): bins of
+    /// 1 mm without pitch, and at most 200 bins per axis.
     /// The 3D view shows a TH3 weighted by energy with the hits defining the three coordinates, and the
     /// hits with one undefined coordinate (e.g. strips) as lines along it, coloured by energy, with the
     /// crossings of lines along different coordinates (the reconstructed positions, ghosts included).

@@ -271,7 +271,19 @@ class TRestGeant4Event : public TRestEvent {
 
     void PrintG4Event(int maxTracks = -1, int maxHits = -1) const;
     void PrintEvent() const override { PrintG4Event(); }
-    TPad* DrawEvent(const TString& option = "") const override { return nullptr; }
+    /// \brief Draws the event, one row of pads per option. Options separated by ':':
+    /// - graph[process1,process2,...]: the hits (also those without energy, the trajectories) in the XZ,
+    ///   YZ and XY projections, coloured by particle (TRestGeant4Track::GetParticleColor), the marker size
+    ///   growing with the energy; the hits of the given Geant4 processes (e.g. phot, compt, eBrem) are
+    ///   marked with open black markers, with a legend of particles and processes;
+    /// - hist(rootOption)[binSize]: histograms weighted by energy of the hits with energy
+    ///   (TRestHits::DrawHistograms): projections, 3D view and X, Y and Z distributions; binSize in mm,
+    ///   3 by default (as legacy);
+    /// - print: PrintEvent.
+    /// Default: "graph:hist(Cont0,colz)", as legacy graphXZ:graphYZ:histXZ(Cont0,colz):histYZ(Cont0,colz).
+    TPad* DrawEvent(const TString& option = "") const override;
+    /// \brief Draws the graph option of DrawEvent in the pad, divided in the XZ, YZ and XY projections.
+    void DrawGraphs(TVirtualPad* pad, const std::vector<std::string>& processes = {}) const;
 
     TRestGeant4Event() = default;
     ~TRestGeant4Event() override = default;

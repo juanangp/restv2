@@ -70,8 +70,10 @@ class TRestBrowser {
 
     TRestEventViewer* fEventViewer = nullptr;  //!
 
-    void SetViewer(TRestEventViewer* eV, Double_t geomScale = 0.1);
-    void SetViewer(const std::string& viewerName, Double_t geomScale = 0.1);
+    /// geomScale: factor from the hit positions (mm) to the geometry ones. The geometry is in mm
+    /// (TGeoManager with Geant4 units, REST_Units::SetGeoManagerDefaultUnits), so 1; legacy used 0.1 (cm)
+    void SetViewer(TRestEventViewer* eV, Double_t geomScale = 1.0);
+    void SetViewer(const std::string& viewerName, Double_t geomScale = 1.0);
     void SetLeftPanelButtons();
     void SetBottomPanelButtons();
     Bool_t LoadEventId(Int_t eventID, Int_t subEventID = -1);
@@ -107,10 +109,10 @@ class TRestBrowser {
 
     // Constructors
     TRestBrowser();
-    TRestBrowser(const std::string& viewerName, Double_t geomScale = 0.1);
+    TRestBrowser(const std::string& viewerName, Double_t geomScale = 1.0);
     /// Browser with a viewer already created (e.g. a viewer defined in a macro, without dictionary). The
     /// browser takes its ownership.
-    TRestBrowser(TRestEventViewer* viewer, Double_t geomScale = 0.1);
+    TRestBrowser(TRestEventViewer* viewer, Double_t geomScale = 1.0);
 
     // Destructor
     ~TRestBrowser();

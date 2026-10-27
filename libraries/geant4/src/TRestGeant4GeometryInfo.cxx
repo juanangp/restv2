@@ -1,12 +1,57 @@
 #include "TRestGeant4GeometryInfo.h"
 
 #include <TGeoManager.h>
+#include <TGeoMatrix.h>
 #include <TGeoNode.h>
 #include <TGeoVolume.h>
 #include <TPRegexp.h>
 
+#include <filesystem>
+#include <functional>
+
 
 using namespace std;
+
+namespace {
+
+/// Visitor of a physical node: the node, its path (the node names below the top one joined by the path
+/// separator) and its placement in world coordinates; it returns true to stop the visit
+using NodeVisitor = function<bool(TGeoNode*, const string&, const TGeoHMatrix&)>;
+
+/// Visits all the physical nodes, the top one first. TGeoManager::GetListOfNodes is only the current
+/// navigation branch and FindNode(const char*) is FindNode(Bool_t), so the tree is walked
+void VisitPhysicalNodes(TGeoManager* geoManager, const string& separator, const NodeVisitor& visit) {
+    TGeoNode* top = geoManager ? geoManager->GetTopNode() : nullptr;
+    if (!top) return;
+    NodeVisitor walk = [&](TGeoNode* node, const string& path, const TGeoHMatrix& placement) {
+        if (visit(node, path, placement)) return true;
+        for (int i = 0; i < node->GetNdaughters(); i++) {
+            TGeoNode* daughter = node->GetDaughter(i);
+            TGeoHMatrix daughterPlacement = placement;
+            daughterPlacement.Multiply(daughter->GetMatrix());
+            const string name = daughter->GetName();
+            if (walk(daughter, node == top ? name : path + separator + name, daughterPlacement)) return true;
+        }
+        return false;
+    };
+    walk(top, top->GetName(), TGeoHMatrix());
+}
+
+/// The node with this name or path, and its placement in world coordinates
+TGeoNode* FindPhysicalNode(TGeoManager* geoManager, const string& separator, const string& name,
+                           TGeoHMatrix& placement) {
+    TGeoNode* found = nullptr;
+    const auto visit = [&](TGeoNode* node, const string& path, const TGeoHMatrix& matrix) {
+        if (name != node->GetName() && name != path) return false;
+        found = node;
+        placement = matrix;
+        return true;
+    };
+    VisitPhysicalNodes(geoManager, separator, visit);
+    return found;
+}
+
+}  // namespace
 
 /// \brief Modernized entry point to load GDML geometry using ROOT's native TGeoManager engine.
 void TRestGeant4GeometryInfo::LoadGeometryFromGdml(const std::string& gdmlFilename) {
@@ -15,7 +60,12 @@ void TRestGeant4GeometryInfo::LoadGeometryFromGdml(const std::string& gdmlFilena
 
     // Import the GDML file directly into ROOT's geometry core engine
     // This replaces the old legacy TXMLEngine manual parsing completely
-    fGeoManager = TGeoManager::Import(gdmlFilename.c_str());
+    // ROOT resolves GDML external entities relative to the working directory, so import from the GDML directory
+    const auto currentDirectory = filesystem::current_path();
+    const auto gdmlDirectory = filesystem::path(gdmlFilename).parent_path();
+    if (!gdmlDirectory.empty()) filesystem::current_path(gdmlDirectory);
+    fGeoManager = TGeoManager::Import(filesystem::path(gdmlFilename).filename().c_str());
+    filesystem::current_path(currentDirectory);
     if (!fGeoManager) {
         cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - ERROR: Failed to load GDML: " << gdmlFilename
              << endl;
@@ -52,15 +102,12 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumes() const {
 /// \brief Returns all unique physical volume/node names defined inside the current geometry.
 std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumes() const {
     std::vector<std::string> physicalVolumes;
-    if (!fGeoManager) return physicalVolumes;
-
-    TObjArray* nodes = fGeoManager->GetListOfNodes();
-    if (nodes) {
-        for (int i = 0; i < nodes->GetEntries(); ++i) {
-            TGeoNode* node = static_cast<TGeoNode*>(nodes->At(i));
-            if (node) physicalVolumes.push_back(node->GetName());
-        }
-    }
+    std::set<std::string> names;
+    const auto visit = [&](TGeoNode* node, const string&, const TGeoHMatrix&) {
+        if (names.insert(node->GetName()).second) physicalVolumes.push_back(node->GetName());
+        return false;
+    };
+    VisitPhysicalNodes(fGeoManager, fPathSeparator, visit);
     return physicalVolumes;
 }
 
@@ -97,30 +144,22 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingEx
 
 std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesMatchingExpression(
     const std::string& expression) const {
-    
     std::vector<std::string> matched;
-    
-    std::vector<std::string> allPhysical = GetAllPhysicalVolumes();
     TPRegexp regex(expression.c_str());
 
-    for (const auto& nodeName : allPhysical) {
-        if (regex.MatchB(nodeName.c_str())) {
-            matched.push_back(nodeName);
-        }
+    // The Geant4 physical names (with their logical names), the ones of the hits, when the Geant4
+    // geometry is known (restG4): inside an assembly they differ from the GDML/TGeo ones (e.g.
+    // av_1_impr_1_<logical>_pv_0 instead of the physvol name)
+    for (const auto& [physName, alternativeNames] : fG4ToAltNames) {
+        const std::string cleanName = alternativeNames.empty() ? physName : *alternativeNames.begin();
+        if (regex.MatchB(cleanName.c_str()) || regex.MatchB(physName.c_str())) matched.push_back(physName);
     }
+    if (!matched.empty() || !fG4ToAltNames.empty()) return matched;
 
-    if (matched.empty()) {
-        for (const auto& pair : fG4ToAltNames) {
-            const std::string& physName = pair.first;
-            
-            std::string cleanName = (!pair.second.empty()) ? *(pair.second.begin()) : physName;
-
-            if (regex.MatchB(cleanName.c_str()) || regex.MatchB(physName.c_str())) {
-                matched.push_back(physName);
-            }
-        }
+    // Otherwise the TGeo node names (the GDML physvol names)
+    for (const auto& nodeName : GetAllPhysicalVolumes()) {
+        if (regex.MatchB(nodeName.c_str())) matched.push_back(nodeName);
     }
-
     return matched;
 }
 
@@ -135,6 +174,32 @@ std::string TRestGeant4GeometryInfo::GetAlternativePathFromGeant4Path(const std:
         alternativePath.replace(pos, 1, fPathSeparator);
     }
     return alternativePath;
+}
+
+std::set<std::string> TRestGeant4GeometryInfo::GetVolumesMatchingExpression(
+    const std::string& expression) const {
+    auto physicalVolumes = GetAllPhysicalVolumesMatchingExpression(expression);
+    if (physicalVolumes.empty()) {
+        for (const auto& logicalVolume : GetAllLogicalVolumesMatchingExpression(expression)) {
+            for (const auto& physicalVolume : GetAllPhysicalVolumesFromLogical(logicalVolume)) {
+                physicalVolumes.push_back(physicalVolume);
+            }
+        }
+    }
+
+    std::set<std::string> volumes;
+    for (const auto& physicalVolume : physicalVolumes) {
+        volumes.insert(GetAlternativeNameFromGeant4PhysicalName(physicalVolume));
+    }
+    return volumes;
+}
+
+std::set<int> TRestGeant4GeometryInfo::GetVolumeIDsFromNames(const std::set<std::string>& names) const {
+    std::set<int> ids;
+    for (const auto& [id, name] : fVolumeNameMap) {
+        if (names.count(name) || names.count(GetGeant4NameFiltered(name))) ids.insert(id);
+    }
+    return ids;
 }
 
 std::string TRestGeant4GeometryInfo::GetGeant4NameFiltered(const std::string& g4Name) {
@@ -205,24 +270,23 @@ bool TRestGeant4GeometryInfo::IsValidLogicalVolume(const std::string& volume) co
 }
 
 bool TRestGeant4GeometryInfo::IsValidPhysicalVolume(const std::string& volume) const {
-    return fGeoManager ? (fGeoManager->FindNode(volume.c_str()) != nullptr) : false;
+    TGeoHMatrix placement;
+    return FindPhysicalNode(fGeoManager, fPathSeparator, volume, placement) != nullptr;
 }
 
 ROOT::Math::XYZVector TRestGeant4GeometryInfo::GetPosition(const std::string& physicalVolumeName) const {
-    if (!fGeoManager) return {0.0, 0.0, 0.0};
-    TGeoNode* node = fGeoManager->FindNode(physicalVolumeName.c_str());
-    if (!node || !node->GetMatrix()) return {0.0, 0.0, 0.0};
+    TGeoHMatrix placement;
+    if (!FindPhysicalNode(fGeoManager, fPathSeparator, physicalVolumeName, placement)) return {0.0, 0.0, 0.0};
 
-    const double* translation = node->GetMatrix()->GetTranslation();
+    const double* translation = placement.GetTranslation();
     return ROOT::Math::XYZVector(translation[0], translation[1], translation[2]);
 }
 
 ROOT::Math::Rotation3D TRestGeant4GeometryInfo::GetRotation(const std::string& physicalVolumeName) const {
-    if (!fGeoManager) return {};
-    TGeoNode* node = fGeoManager->FindNode(physicalVolumeName.c_str());
-    if (!node || !node->GetMatrix()) return {};
+    TGeoHMatrix placement;
+    if (!FindPhysicalNode(fGeoManager, fPathSeparator, physicalVolumeName, placement)) return {};
 
-    const double* r = node->GetMatrix()->GetRotationMatrix();
+    const double* r = placement.GetRotationMatrix();
     // Construct standard MathCore 3D rotation from raw matrix elements array directly
     return ROOT::Math::Rotation3D(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]);
 }
@@ -233,17 +297,23 @@ std::string TRestGeant4GeometryInfo::GetMaterialNameOfLogical(const std::string&
     return (vol && vol->GetMaterial()) ? vol->GetMaterial()->GetName() : "";
 }
 
-std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesFromLogical(const std::string& logicalVolumeName) const {
+std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumesFromLogical(
+    const std::string& logicalVolumeName) const {
     std::vector<std::string> result;
-    if (!fGeoManager) return result;
-    auto* nodes = fGeoManager->GetListOfNodes();
-    if (!nodes) return result;
-    for (int i = 0; i < nodes->GetEntries(); ++i) {
-        auto* node = dynamic_cast<TGeoNode*>(nodes->At(i));
-        if (!node || !node->GetVolume()) continue;
-        if (logicalVolumeName == node->GetVolume()->GetName()) {
+    // The Geant4 physical names when the Geant4 geometry is known (restG4), as in
+    // GetAllPhysicalVolumesMatchingExpression: inside an assembly they differ from the TGeo ones
+    for (const auto& [physName, logicalNames] : fG4ToAltNames) {
+        if (logicalNames.count(logicalVolumeName)) result.push_back(physName);
+    }
+    if (!fG4ToAltNames.empty()) return result;
+
+    // Otherwise the TGeo node names (the GDML physvol names)
+    const auto visit = [&](TGeoNode* node, const string&, const TGeoHMatrix&) {
+        if (node->GetVolume() && logicalVolumeName == node->GetVolume()->GetName()) {
             result.emplace_back(node->GetName());
         }
-    }
+        return false;
+    };
+    VisitPhysicalNodes(fGeoManager, fPathSeparator, visit);
     return result;
 }

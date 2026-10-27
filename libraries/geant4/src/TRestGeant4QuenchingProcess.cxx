@@ -3,11 +3,13 @@
 #include "TRestGeant4Event.h"
 #include "TRestGeant4Metadata.h"
 #include "TRestGeant4Track.h"
+#include "TRestTools.h"
 
-#include <cctype>
+#include <algorithm>
 #include <cmath>
 
 using namespace std;
+using TRestTools::ToLower;
 
 static const bool TRestGeant4QuenchingInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -63,12 +65,6 @@ const bool kRegistered = []() {
 }  // namespace
 
 namespace {
-string ToLower(string value) {
-    transform(value.begin(), value.end(), value.begin(),
-              [](unsigned char c) { return static_cast<char>(tolower(c)); });
-    return value;
-}
-
 /*string NormalizeQuenchingModel(const string& model) {
     const auto normalized = ToLower(model);
     if (normalized == "auto" || normalized == "lindhard" || normalized == "birks") {
@@ -220,7 +216,10 @@ void TRestGeant4QuenchingProcess::LoadConfig() {
 /// \brief Registers all event observables produced by this process.
 void TRestGeant4QuenchingProcess::InitProcess() {
     if(fRunInfo)fGeant4Metadata = (TRestGeant4Metadata*)fRunInfo->GetMetadataClass("TRestGeant4Metadata");
-    const auto geometryInfo = fGeant4Metadata->GetGeant4GeometryInfo();
+    if (!fGeant4Metadata) {
+        throw std::runtime_error("TRestGeant4QuenchingProcess: no TRestGeant4Metadata found");
+    }
+    const auto& geometryInfo = fGeant4Metadata->GetGeant4GeometryInfo();
     
     fVolumes.clear();
     fVolumeModels.clear();
@@ -233,34 +232,21 @@ void TRestGeant4QuenchingProcess::InitProcess() {
 
     // check all the user volume expressions are valid and correspond to at least a volume
     for (auto& userVolume : fUserVolumes) {
-        set<string> physicalVolumes = {};
-        //const auto allVol = geometryInfo.GetAllLogicalVolumes();
-        const auto  volMatching = geometryInfo.GetAllLogicalVolumesMatchingExpression(userVolume.fVolume);
-        for (const auto& volume : volMatching) {
-              physicalVolumes.insert(volume);
-        }
-        if (physicalVolumes.empty()) {
-            // maybe it refers to a logical volume
-            const auto logMatching = geometryInfo.GetAllLogicalVolumesMatchingExpression(userVolume.fVolume);
-            for (const auto& logicalVolume : logMatching) {
-               physicalVolumes.insert(logicalVolume);
-            }
-        }
+        // physical volumes matching the expression or, if none, those of the matching logical volumes
+        const auto volumeNames = geometryInfo.GetVolumesMatchingExpression(userVolume.fVolume);
 
-        if (physicalVolumes.empty()) {
+        if (volumeNames.empty()) {
             RESTError << "TRestGeant4QuenchingProcess: No volume found matching expression: " << userVolume.fVolume
                         << RESTendl;
             continue;
         }
 
-        for (const auto& physicalVolume : physicalVolumes) {
-            const auto volumeName = geometryInfo.GetAlternativeNameFromGeant4PhysicalName(physicalVolume);
-            const string volumeNameString = volumeName;
-            RESTDebug<<"Volume: "<<physicalVolume<<" "<<volumeName<<RESTendl;
+        for (const auto& volumeNameString : volumeNames) {
+            RESTDebug << "Volume: " << volumeNameString << RESTendl;
             fVolumes.insert(volumeNameString);
             fVolumeModels[volumeNameString] =
                 InferQuenchingModel(userVolume.fModel, userVolume.fVolume, volumeNameString);
-            fVolumeBirksConstants[volumeNameString] = userVolume.fBirksFallbackStepLength;
+            fVolumeBirksConstants[volumeNameString] = userVolume.fBirksConstant;
             fVolumeBirksFallbackStepLengths[volumeNameString] =
                 userVolume.fBirksFallbackStepLength;
         }
@@ -292,10 +278,16 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
         fObs.sensitiveVolumeEnergyBefore += g4Event->GetEnergyInVolume(sensitiveVolumeName);
     }
 
-    std::map<std::string, double> localQuenchedEnergies;
-    for (const auto& volName : g4Event->fEventData.crossVolumeNames) {
-        localQuenchedEnergies[volName] = 0.0;
-    }
+    // The deposited energies (total, per volume and per volume, particle and process) are recomputed
+    // from the visible energy of the hits, as legacy
+    auto& eventData = g4Event->fEventData;
+    eventData.totalDepositedEnergy = 0.0;
+    std::fill(eventData.volumeDepositedEnergy.begin(), eventData.volumeDepositedEnergy.end(), 0.0);
+    eventData.crossVolumeNames.clear();
+    eventData.crossParticleNames.clear();
+    eventData.crossProcessNames.clear();
+    eventData.crossDepositedEnergies.clear();
+    g4Event->RebuildCrossIndex();
 
     g4Event->ClearCache(); 
 
@@ -392,8 +384,6 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
                     missingHadronicInfoWarningPrinted = true;
                 }
             }
-        } else {
-          continue;
         }
 
         const auto visibleEnergy =
@@ -411,9 +401,9 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
             trackNewDepositedEnergy +=
                 visibleEnergy;
 
-            localQuenchedEnergies[
-                physicalVolumeName
-            ] += visibleEnergy;
+            g4Event->AddEnergyInVolumeForParticleForProcess(
+                visibleEnergy, physicalVolumeName, particleName,
+                track.GetProcessName(track.GetHitProcess(hitIndex)));
         }
     }
 

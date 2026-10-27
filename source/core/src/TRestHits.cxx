@@ -500,6 +500,12 @@ namespace {
 /// Maximum number of bins of the 3D histogram, bins are merged above it
 const double kMax3DBins = 1e6;
 
+/// Maximum number of bins per axis of the histograms of DrawHistograms (without the margins)
+const double kMaxBinsPerAxis = 200;
+/// Bin size (mm) of DrawHistograms without pitch for continuous coordinates (e.g. simulated hits), whose
+/// minimum distance is not a readout pitch
+const double kContinuousBinSize = 1;
+
 /// 3D view in the current pad, see TRestHits::DrawHistograms
 void Draw3D(const TRestHits& hits, const double min[3], const double max[3], const int nBins[3]) {
     const double totalBins = (double)nBins[0] * nBins[1] * nBins[2];
@@ -808,6 +814,16 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     if (markers3D) {
         const double zStep = GetZStep(*this);
         if (zStep > 0) binSize[2] = zStep;
+    }
+    // Continuous coordinates (e.g. hits of a simulation) give a minimum distance much smaller than the
+    // range, and a histogram too large to be allocated: more than kMaxBinsPerAxis bins over the range is
+    // taken as continuous, with bins of kContinuousBinSize without pitch, and at most kMaxBinsPerAxis bins
+    for (int a = 0; a < 3; a++) {
+        if (values[a].empty()) continue;
+        const auto [minValue, maxValue] = std::minmax_element(values[a].begin(), values[a].end());
+        const double range = *maxValue - *minValue;
+        if (binSize[a] <= 0 || range / binSize[a] <= kMaxBinsPerAxis) continue;
+        binSize[a] = std::max(pitch > 0 ? 0 : kContinuousBinSize, range / kMaxBinsPerAxis);
     }
 
     double min[3], max[3];

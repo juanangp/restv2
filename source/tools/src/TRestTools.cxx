@@ -502,6 +502,12 @@ void TRestTools::ReplaceAll(std::string& str, const std::string& from, const std
     }
 }
 
+std::string TRestTools::ToLower(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return str;
+}
+
 std::string TRestTools::ToTimeStringLong(double seconds) {
     const auto absSeconds = std::abs(seconds); 
     

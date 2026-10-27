@@ -40,6 +40,8 @@ std::string PatternToRegex(const std::string& pattern);
 std::vector<std::string> ReadYALMObservables(const YAML::Node& node);
 std::string CleanString(const std::string& str);
 void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
+/// \brief The string in lower case (ASCII)
+std::string ToLower(std::string str);
 
 // ==================================================
 /// \brief Generic template helpers.

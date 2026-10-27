@@ -44,14 +44,19 @@ class TRestGeant4GeometryInfo {
     // --- Fast Validation Methods relying directly on TGeoManager ---
     bool IsValidLogicalVolume(const std::string& volume) const;
 
+    /// \brief True if a physical node has this name or path (node names below the top joined by the path
+    /// separator). As all the physical node queries, it walks the node tree: TGeoManager::GetListOfNodes is
+    /// only the current navigation branch and FindNode(const char*) is FindNode(Bool_t)
     bool IsValidPhysicalVolume(const std::string& volume) const;
 
     // --- Modernized Spatial Analytics Getters (Replacing TVector3/TRotation) ---
 
-    /// \brief Gets the position in world coordinates of a given physical node.
+    /// \brief Gets the position in world coordinates of a given physical node (name or path), (0, 0, 0)
+    /// if not found.
     ROOT::Math::XYZVector GetPosition(const std::string& physicalVolumeName) const;
 
-    /// \brief Gets the rotation matrix in world coordinates of a given physical node.
+    /// \brief Gets the rotation matrix in world coordinates of a given physical node (name or path), the
+    /// identity if not found.
     ROOT::Math::Rotation3D GetRotation(const std::string& physicalVolumeName) const;
 
     // --- Material Extraction ---
@@ -106,12 +111,22 @@ class TRestGeant4GeometryInfo {
     /// \brief Traverses the Geant4 world to populate logical/physical volume lookup maps.
     void PopulateFromGeant4World(const G4VPhysicalVolume* world);
 
+    /// \brief Names of the physical nodes of a logical volume.
     std::vector<std::string> GetAllPhysicalVolumesFromLogical(const std::string& logicalVolumeName) const;
 
     /// \brief Returns logical volume names matching a wildcard/regex-like expression.
     std::vector<std::string> GetAllLogicalVolumesMatchingExpression(const std::string& expression) const;
     /// \brief Returns physical volume names matching a wildcard/regex-like expression.
     std::vector<std::string> GetAllPhysicalVolumesMatchingExpression(const std::string& expression) const;
+    /// \brief Returns the alternative REST names of the physical volumes matching the expression or, if
+    /// none, of the physical volumes of the logical volumes matching it (as legacy volume selections).
+    std::set<std::string> GetVolumesMatchingExpression(const std::string& expression) const;
+    /// \brief Returns the IDs of the volumes (volume ID map) whose name, or filtered name, is in `names`.
+    std::set<int> GetVolumeIDsFromNames(const std::set<std::string>& names) const;
+    /// \brief Returns the IDs of the volumes matching the expression, as GetVolumesMatchingExpression.
+    std::set<int> GetVolumeIDsMatchingExpression(const std::string& expression) const {
+        return GetVolumeIDsFromNames(GetVolumesMatchingExpression(expression));
+    }
 
     /// \brief Prints geometry summary and cached mapping information.
     void Print() const;

@@ -2,9 +2,20 @@
 #include "TRestGeant4Metadata.h"
 #include "TRestRun.h"
 #include "TRestGeant4Track.h"
+#include "TRestTools.h"
 
+#include <TGraph.h>
+#include <TH1F.h>
+#include <TLegend.h>
+#include <TLegendEntry.h>
+#include <TMarker.h>
+#include <TPad.h>
+
+#include <algorithm>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <set>
 
 namespace {
 const bool kRegistered = []() {
@@ -520,4 +531,194 @@ void TRestGeant4Event::PrintG4Event(int maxTracks, int maxHits) const {
     }
 
     std::cout << "=========================================================" << std::endl;
+}
+
+namespace {
+/// Default bin size of the hist option (mm), as legacy
+const double kDefaultBinSize = 3;
+/// Marker sizes of the hits of the graph option, from no energy to the maximum one
+const double kMinMarkerSize = 0.4, kMaxMarkerSize = 3;
+}  // namespace
+
+TPad* TRestGeant4Event::DrawEvent(const TString& option) const {
+    std::vector<std::string> options;
+    for (const auto& opt : TRestTools::Split(option.Data(), ':')) {
+        if (opt == "print") {
+            PrintEvent();
+        } else if (!opt.empty()) {
+            options.push_back(opt);
+        }
+    }
+    if (options.empty()) options = {"graph", "hist(Cont0,colz)"};
+
+    if (fEventData.hitsStorage.x.empty()) {
+        std::cout << "Empty event " << std::endl;
+        return nullptr;
+    }
+
+    TVirtualPad* safePad = gPad;
+
+    delete fPad;
+    fPad = new TPad(Form("pad_geant4_event_%d", GetID()), "REST Geant4 Event Viewer", 0, 0, 1, 1);
+    fPad->Divide(1, options.size());
+    fPad->Draw();
+
+    for (size_t i = 0; i < options.size(); i++) {
+        // name(rootOption)[list]: the brackets are a list of processes (graph) or the bin size (hist), so
+        // they are not parsed as the DrawOption value
+        const auto open = options[i].find('['), close = options[i].find(']');
+        std::string brackets;
+        if (open != std::string::npos && close != std::string::npos && close > open) {
+            brackets = options[i].substr(open + 1, close - open - 1);
+        }
+        const auto drawOption = ParseDrawOption(options[i].substr(0, open));
+
+        TVirtualPad* optionPad = fPad->cd(i + 1);
+        if (drawOption.name == "graph") {
+            std::vector<std::string> processes;
+            for (const auto& process : TRestTools::Split(brackets, ',')) {
+                if (!process.empty()) processes.push_back(process);
+            }
+            DrawGraphs(optionPad, processes);
+        } else if (drawOption.name == "hist") {
+            // As legacy, also written binSize=<value>
+            const auto equal = brackets.find('=');
+            const auto value = brackets.substr(equal == std::string::npos ? 0 : equal + 1);
+            const double binSize = value.empty() ? kDefaultBinSize : std::stod(value);
+
+            // The hits with energy, the others (transportation) only change the ranges
+            TRestHitsData hits;
+            const auto& storage = fEventData.hitsStorage;
+            for (size_t n = 0; n < storage.energy.size(); n++) {
+                if (storage.energy[n] <= 0) continue;
+                hits.x.push_back(storage.x[n]);
+                hits.y.push_back(storage.y[n]);
+                hits.z.push_back(storage.z[n]);
+                hits.time.push_back(storage.time[n]);
+                hits.energy.push_back(storage.energy[n]);
+                hits.type.push_back(storage.type[n]);
+            }
+            if (hits.x.empty()) {
+                std::cout << "TRestGeant4Event::DrawEvent: no hit with energy" << std::endl;
+                continue;
+            }
+            TRestHits(&hits, 0, static_cast<int>(hits.x.size()))
+                .DrawHistograms(optionPad, drawOption.rootOption, binSize);
+        } else {
+            std::cout << "TRestGeant4Event::DrawEvent: unknown option '" << options[i] << "'" << std::endl;
+        }
+    }
+
+    fPad->Modified();
+    if (safePad) safePad->cd();
+    return fPad;
+}
+
+void TRestGeant4Event::DrawGraphs(TVirtualPad* pad, const std::vector<std::string>& processes) const {
+    const auto& data = fEventData;
+    const auto& hits = data.hitsStorage;
+
+    // Process IDs of the marked processes, from the physics information of the simulation
+    std::vector<int> processIDs;
+    if (!processes.empty()) {
+        const auto* metadata = GetGeant4Metadata();
+        for (const auto& process : processes) {
+            const int id = metadata ? metadata->GetGeant4PhysicsInfo().GetProcessID(process) : -1;
+            if (id < 0) {
+                std::cout << "TRestGeant4Event::DrawEvent: process '" << process
+                          << "' not marked, unknown or no TRestGeant4Metadata" << std::endl;
+            }
+            processIDs.push_back(id);
+        }
+    }
+
+    // A colour per track, by particle (once per track, GetParticleColor warns for unknown particles)
+    std::vector<Color_t> colors;
+    std::vector<std::pair<std::string, Color_t>> particles;
+    for (size_t t = 0; t < GetNumberOfTracks(); t++) {
+        colors.push_back(GetTrack(t).GetParticleColor());
+        const auto& particle = data.trackParticleNames[t];
+        const auto isParticle = [&particle](const auto& p) { return p.first == particle; };
+        if (std::none_of(particles.begin(), particles.end(), isParticle)) {
+            particles.emplace_back(particle, colors.back());
+        }
+    }
+
+    double min[3], max[3];
+    double maxEnergy = 0;
+    for (int a = 0; a < 3; a++) {
+        min[a] = std::numeric_limits<double>::max();
+        max[a] = std::numeric_limits<double>::lowest();
+    }
+    for (size_t n = 0; n < hits.x.size(); n++) {
+        const double position[3] = {hits.x[n], hits.y[n], hits.z[n]};
+        for (int a = 0; a < 3; a++) {
+            min[a] = std::min(min[a], position[a]);
+            max[a] = std::max(max[a], position[a]);
+        }
+        maxEnergy = std::max(maxEnergy, static_cast<double>(hits.energy[n]));
+    }
+    // A margin around the hits, at least 1 mm (a single hit)
+    for (int a = 0; a < 3; a++) {
+        const double margin = std::max(0.05 * (max[a] - min[a]), 1.);
+        min[a] -= margin;
+        max[a] += margin;
+    }
+    auto markerSize = [maxEnergy](double energy) {
+        if (maxEnergy <= 0) return kMinMarkerSize;
+        return kMinMarkerSize + (kMaxMarkerSize - kMinMarkerSize) * std::max(energy, 0.) / maxEnergy;
+    };
+
+    pad->Divide(3, 1);
+    const std::string title = Form("Event ID %d", GetID());
+    for (int p = 0; p < 3; p++) {
+        const int u = TRestHitsData::kPlanes[p][0], v = TRestHitsData::kPlanes[p][1];
+        pad->cd(p + 1);
+        SetPadMargins(gPad);
+
+        auto* frame = new TH1F(Form("frame_%d", p), title.c_str(), 1, min[u], max[u]);
+        frame->SetMinimum(min[v]);
+        frame->SetMaximum(max[v]);
+        DrawOwned(frame, "AXIS", TRestHitsData::kAxisTitles[u], TRestHitsData::kAxisTitles[v]);
+
+        auto* legend = new TLegend(0.75, 0.7, 0.95, 0.9);
+        legend->SetBit(TObject::kCanDelete);
+        for (const auto& [particle, color] : particles) {
+            auto* entry = legend->AddEntry(static_cast<TObject*>(nullptr), particle.c_str(), "p");
+            entry->SetMarkerColor(color);
+            entry->SetMarkerStyle(20);
+            entry->SetMarkerSize(1.5);
+        }
+
+        std::vector<bool> processInLegend(processIDs.size(), false);
+        for (size_t t = 0; t < GetNumberOfTracks(); t++) {
+            const size_t start = data.trackStartIndices[t];
+            for (size_t n = start; n < start + data.trackNHits[t]; n++) {
+                const double position[3] = {hits.x[n], hits.y[n], hits.z[n]};
+                auto* marker = new TMarker(position[u], position[v], 20);
+                marker->SetMarkerColor(colors[t]);
+                marker->SetMarkerSize(markerSize(hits.energy[n]));
+                marker->SetBit(TObject::kCanDelete);
+                marker->Draw();
+
+                for (size_t k = 0; k < processIDs.size(); k++) {
+                    if (processIDs[k] < 0 || data.hitProcessID[n] != processIDs[k]) continue;
+                    auto* processMarker = new TMarker(position[u], position[v], 24 + k % 9);
+                    processMarker->SetMarkerColor(kBlack);
+                    processMarker->SetMarkerSize(2);
+                    processMarker->SetBit(TObject::kCanDelete);
+                    processMarker->Draw();
+                    if (!processInLegend[k]) {
+                        auto* entry =
+                            legend->AddEntry(static_cast<TObject*>(nullptr), processes[k].c_str(), "p");
+                        entry->SetMarkerColor(kBlack);
+                        entry->SetMarkerStyle(processMarker->GetMarkerStyle());
+                        entry->SetMarkerSize(1.5);
+                        processInLegend[k] = true;
+                    }
+                }
+            }
+        }
+        legend->Draw();
+    }
 }

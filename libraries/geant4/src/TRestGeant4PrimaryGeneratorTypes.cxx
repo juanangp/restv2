@@ -1,6 +1,9 @@
 #include "TRestGeant4PrimaryGeneratorTypes.h"
 
 #include <TAxis.h>
+#include <TFile.h>
+#include <TH1.h>
+#include <TRandom.h>
 #include <TMath.h>
 #include <TF1.h>
 #include <TF2.h>
@@ -9,6 +12,9 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <stdexcept>
+
+#include "TRestTools.h"
 
 using namespace std;
 
@@ -22,144 +28,6 @@ bool CaseInsensitiveCompare(const std::string& str1, const std::string& str2) {
 }  // namespace
 
 namespace TRestGeant4PrimaryGeneratorTypes {
-
-// --- SpatialGeneratorTypes Mapping ---
-
-string SpatialGeneratorTypesToString(SpatialGeneratorTypes type) {
-    switch (type) {
-        case SpatialGeneratorTypes::CUSTOM:
-            return "Custom";
-        case SpatialGeneratorTypes::VOLUME:
-            return "Volume";
-        case SpatialGeneratorTypes::SURFACE:
-            return "Surface";
-        case SpatialGeneratorTypes::POINT:
-            return "Point";
-        case SpatialGeneratorTypes::COSMIC:
-            return "Cosmic";
-        case SpatialGeneratorTypes::SOURCE:
-            return "Source";
-    }
-    cout << "SpatialGeneratorTypesToString - Error - Unknown "
-            "SpatialGeneratorTypes"
-         << endl;
-    exit(1);
-}
-
-SpatialGeneratorTypes StringToSpatialGeneratorTypes(const string& type) {
-    if (CaseInsensitiveCompare(type, SpatialGeneratorTypesToString(SpatialGeneratorTypes::CUSTOM)))
-        return SpatialGeneratorTypes::CUSTOM;
-    if (CaseInsensitiveCompare(type, SpatialGeneratorTypesToString(SpatialGeneratorTypes::VOLUME)))
-        return SpatialGeneratorTypes::VOLUME;
-    if (CaseInsensitiveCompare(type, SpatialGeneratorTypesToString(SpatialGeneratorTypes::SURFACE)))
-        return SpatialGeneratorTypes::SURFACE;
-    if (CaseInsensitiveCompare(type, SpatialGeneratorTypesToString(SpatialGeneratorTypes::POINT)))
-        return SpatialGeneratorTypes::POINT;
-    if (CaseInsensitiveCompare(type, SpatialGeneratorTypesToString(SpatialGeneratorTypes::COSMIC)))
-        return SpatialGeneratorTypes::COSMIC;
-    if (CaseInsensitiveCompare(type, SpatialGeneratorTypesToString(SpatialGeneratorTypes::SOURCE)))
-        return SpatialGeneratorTypes::SOURCE;
-
-    cout << "StringToSpatialGeneratorTypes - Error - Unknown "
-            "SpatialGeneratorTypes: "
-         << type << endl;
-    exit(1);
-}
-
-// --- SpatialGeneratorShapes Mapping ---
-
-string SpatialGeneratorShapesToString(SpatialGeneratorShapes shape) {
-    switch (shape) {
-        case SpatialGeneratorShapes::GDML:
-            return "GDML";
-        case SpatialGeneratorShapes::WALL:
-            return "Wall";
-        case SpatialGeneratorShapes::CIRCLE:
-            return "Circle";
-        case SpatialGeneratorShapes::BOX:
-            return "Box";
-        case SpatialGeneratorShapes::SPHERE:
-            return "Sphere";
-        case SpatialGeneratorShapes::CYLINDER:
-            return "Cylinder";
-    }
-    cout << "SpatialGeneratorShapesToString - Error - Unknown "
-            "SpatialGeneratorShapes"
-         << endl;
-    exit(1);
-}
-
-SpatialGeneratorShapes StringToSpatialGeneratorShapes(const string& shape) {
-    if (CaseInsensitiveCompare(shape, SpatialGeneratorShapesToString(SpatialGeneratorShapes::GDML)))
-        return SpatialGeneratorShapes::GDML;
-    if (CaseInsensitiveCompare(shape, SpatialGeneratorShapesToString(SpatialGeneratorShapes::WALL)))
-        return SpatialGeneratorShapes::WALL;
-    if (CaseInsensitiveCompare(shape, SpatialGeneratorShapesToString(SpatialGeneratorShapes::CIRCLE)))
-        return SpatialGeneratorShapes::CIRCLE;
-    if (CaseInsensitiveCompare(shape, SpatialGeneratorShapesToString(SpatialGeneratorShapes::BOX)))
-        return SpatialGeneratorShapes::BOX;
-    if (CaseInsensitiveCompare(shape, SpatialGeneratorShapesToString(SpatialGeneratorShapes::SPHERE)))
-        return SpatialGeneratorShapes::SPHERE;
-    if (CaseInsensitiveCompare(shape, SpatialGeneratorShapesToString(SpatialGeneratorShapes::CYLINDER)))
-        return SpatialGeneratorShapes::CYLINDER;
-
-    cout << "StringToSpatialGeneratorShapes - Error - Unknown "
-            "SpatialGeneratorShapes: '"
-         << shape << "'" << endl;
-    exit(1);
-}
-
-// --- EnergyDistributionTypes Mapping ---
-
-string EnergyDistributionTypesToString(EnergyDistributionTypes type) {
-    switch (type) {
-        case EnergyDistributionTypes::TH1D:
-            return "TH1D";
-        case EnergyDistributionTypes::TH2D:
-            return "TH2D";
-        case EnergyDistributionTypes::FORMULA:
-            return "Formula";
-        case EnergyDistributionTypes::FORMULA2:
-            return "Formula2";
-        case EnergyDistributionTypes::MONO:
-            return "Mono";
-        case EnergyDistributionTypes::FLAT:
-            return "Flat";
-        case EnergyDistributionTypes::LOG:
-            return "Log";
-        case EnergyDistributionTypes::COSMIC:
-            return "Cosmic";
-    }
-    cout << "EnergyDistributionTypesToString - Error - Unknown energy "
-            "distribution type"
-         << endl;
-    exit(1);
-}
-
-EnergyDistributionTypes StringToEnergyDistributionTypes(
-    const string& type) {
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::TH1D)))
-        return EnergyDistributionTypes::TH1D;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::TH2D)))
-        return EnergyDistributionTypes::TH2D;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::FORMULA)))
-        return EnergyDistributionTypes::FORMULA;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::FORMULA2)))
-        return EnergyDistributionTypes::FORMULA2;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::MONO)))
-        return EnergyDistributionTypes::MONO;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::FLAT)))
-        return EnergyDistributionTypes::FLAT;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::LOG)))
-        return EnergyDistributionTypes::LOG;
-    if (CaseInsensitiveCompare(type, EnergyDistributionTypesToString(EnergyDistributionTypes::COSMIC)))
-        return EnergyDistributionTypes::COSMIC;
-
-    cout << "StringToEnergyDistributionTypes - Error - Unknown "
-            "EnergyDistributionTypes: "
-         << type << endl;
-    exit(1);
-}
 
 // --- EnergyDistributionFormulas Mapping ---
 
@@ -177,10 +45,7 @@ string EnergyDistributionFormulasToString(
         case EnergyDistributionFormulas::ENVIRONMENTAL_NEUTRONS:
             return "EnvironmentalNeutrons";
     }
-    cout << "EnergyDistributionFormulasToString - Error - Unknown energy "
-            "distribution formula"
-         << endl;
-    exit(1);
+    throw invalid_argument("EnergyDistributionFormulasToString: Unknown energy distribution formula");
 }
 
 EnergyDistributionFormulas StringToEnergyDistributionFormulas(
@@ -201,10 +66,7 @@ EnergyDistributionFormulas StringToEnergyDistributionFormulas(
             type, EnergyDistributionFormulasToString(EnergyDistributionFormulas::ENVIRONMENTAL_NEUTRONS)))
         return EnergyDistributionFormulas::ENVIRONMENTAL_NEUTRONS;
 
-    cout << "StringToEnergyDistributionFormulas - Error - Unknown "
-            "EnergyDistributionFormulas: "
-         << type << endl;
-    exit(1);
+    throw invalid_argument("StringToEnergyDistributionFormulas: Unknown EnergyDistributionFormulas: " + type);
 }
 
 TF1 EnergyDistributionFormulasToRootFormula(
@@ -224,7 +86,8 @@ TF1 EnergyDistributionFormulasToRootFormula(
             return distribution;
         }
         case EnergyDistributionFormulas::COSMIC_GAMMAS: {
-            exit(1);
+            throw invalid_argument("EnergyDistributionFormulasToRootFormula: "
+                                   "CosmicGammas is not implemented");
         }
         case EnergyDistributionFormulas::FISSION_NEUTRONS_U238: {
             const char* title = "Watt formula: Neutrons from U238 fission";
@@ -253,64 +116,7 @@ TF1 EnergyDistributionFormulasToRootFormula(
             return distribution;
         }
     }
-    cout << "EnergyDistributionFormulasToRootFormula - Error - Unknown "
-            "energy distribution formula"
-         << endl;
-    exit(1);
-}
-
-// --- AngularDistributionTypes Mapping ---
-
-string AngularDistributionTypesToString(AngularDistributionTypes type) {
-    switch (type) {
-        case AngularDistributionTypes::TH1D:
-            return "TH1D";
-        case AngularDistributionTypes::TH2D:
-            return "TH2D";
-        case AngularDistributionTypes::FORMULA:
-            return "Formula";
-        case AngularDistributionTypes::FORMULA2:
-            return "Formula2";
-        case AngularDistributionTypes::ISOTROPIC:
-            return "Isotropic";
-        case AngularDistributionTypes::FLUX:
-            return "Flux";
-        case AngularDistributionTypes::BACK_TO_BACK:
-            return "Back to back";
-        case AngularDistributionTypes::COSMIC:
-            return "Cosmic";
-    }
-    cout << "AngularDistributionTypesToString - Error - Unknown "
-            "AngularDistributionTypes"
-         << endl;
-    exit(1);
-}
-
-AngularDistributionTypes StringToAngularDistributionTypes(
-    const string& type) {
-    if (CaseInsensitiveCompare(type, AngularDistributionTypesToString(AngularDistributionTypes::TH1D)))
-        return AngularDistributionTypes::TH1D;
-    if (CaseInsensitiveCompare(type, AngularDistributionTypesToString(AngularDistributionTypes::TH2D)))
-        return AngularDistributionTypes::TH2D;
-    if (CaseInsensitiveCompare(type, AngularDistributionTypesToString(AngularDistributionTypes::FORMULA)))
-        return AngularDistributionTypes::FORMULA;
-    if (CaseInsensitiveCompare(type, AngularDistributionTypesToString(AngularDistributionTypes::FORMULA2)))
-        return AngularDistributionTypes::FORMULA2;
-    if (CaseInsensitiveCompare(type, AngularDistributionTypesToString(AngularDistributionTypes::ISOTROPIC)))
-        return AngularDistributionTypes::ISOTROPIC;
-    if (CaseInsensitiveCompare(type, AngularDistributionTypesToString(AngularDistributionTypes::FLUX)))
-        return AngularDistributionTypes::FLUX;
-    if (CaseInsensitiveCompare(type,
-                               AngularDistributionTypesToString(AngularDistributionTypes::BACK_TO_BACK)))
-        return AngularDistributionTypes::BACK_TO_BACK;
-    if (CaseInsensitiveCompare(type,
-                               AngularDistributionTypesToString(AngularDistributionTypes::COSMIC)))
-        return AngularDistributionTypes::COSMIC;
-
-    cout << "StringToAngularDistributionTypes - Error - Unknown "
-            "AngularDistributionTypes: "
-         << type << endl;
-    exit(1);
+    throw invalid_argument("EnergyDistributionFormulasToRootFormula: Unknown energy distribution formula");
 }
 
 // --- AngularDistributionFormulas Mapping ---
@@ -325,10 +131,7 @@ string AngularDistributionFormulasToString(
         case AngularDistributionFormulas::SIN_2THETA:
             return "Sin2theta";
     }
-    cout << "AngularDistributionFormulasToString - Error - Unknown angular "
-            "distribution formula"
-         << endl;
-    exit(1);
+    throw invalid_argument("AngularDistributionFormulasToString: Unknown angular distribution formula");
 }
 
 AngularDistributionFormulas StringToAngularDistributionFormulas(
@@ -341,10 +144,8 @@ AngularDistributionFormulas StringToAngularDistributionFormulas(
                                AngularDistributionFormulasToString(AngularDistributionFormulas::SIN_2THETA)))
         return AngularDistributionFormulas::SIN_2THETA;
 
-    cout << "StringToAngularDistributionFormulas - Error - Unknown "
-            "AngularDistributionFormulas: "
-         << type << endl;
-    exit(1);
+    throw invalid_argument("StringToAngularDistributionFormulas: "
+                           "Unknown AngularDistributionFormulas: " + type);
 }
 
 TF1 AngularDistributionFormulasToRootFormula(
@@ -387,10 +188,7 @@ TF1 AngularDistributionFormulasToRootFormula(
             return f;
         }
     }
-    cout << "AngularDistributionFormulasToRootFormula - Error - Unknown "
-            "angular distribution formula"
-         << endl;
-    exit(1);
+    throw invalid_argument("AngularDistributionFormulasToRootFormula: Unknown angular distribution formula");
 }
 
 // --- EnergyAndAngularDistributionFormulas Mapping & Guan Parametrization ---
@@ -400,10 +198,8 @@ string EnergyAndAngularDistributionFormulasToString(
     if (type == EnergyAndAngularDistributionFormulas::COSMIC_MUONS) {
         return "CosmicMuons";
     }
-    cout << "EnergyAndAngularDistributionFormulasToString - Error - "
-            "Unknown energy/angular distribution formula"
-         << endl;
-    exit(1);
+    throw invalid_argument("EnergyAndAngularDistributionFormulasToString: "
+                           "Unknown energy/angular distribution formula");
 }
 
 EnergyAndAngularDistributionFormulas
@@ -412,10 +208,8 @@ StringToEnergyAndAngularDistributionFormulas(const string& type) {
                                          EnergyAndAngularDistributionFormulas::COSMIC_MUONS))) {
         return EnergyAndAngularDistributionFormulas::COSMIC_MUONS;
     } else {
-        cout << "StringToEnergyAndAngularDistributionFormulas - Error - "
-                "Unknown AngularDistributionFormulas: "
-             << type << endl;
-        exit(1);
+        throw invalid_argument("StringToEnergyAndAngularDistributionFormulas: "
+                               "Unknown AngularDistributionFormulas: " + type);
     }
 }
 
@@ -444,10 +238,41 @@ TF2 EnergyAndAngularDistributionFormulasToRootFormula(
         f.SetTitle(title);
         return f;
     }
-    cout << "EnergyAndAngularDistributionFormulasToRootFormula - Error - "
-            "Unknown energy and angular distribution formula"
-         << endl;
-    exit(1);
+    throw invalid_argument("EnergyAndAngularDistributionFormulasToRootFormula: "
+                           "Unknown energy and angular distribution formula");
+}
+
+// --- Helpers of the generator classes ---
+
+std::unique_ptr<TH1> ReadHistogram(const string& fileName, const string& name) {
+    unique_ptr<TFile> file(TFile::Open(TRestTools::GetFullPath(fileName).c_str(), "READ"));
+    if (!file || file->IsZombie()) {
+        throw invalid_argument("ReadHistogram: cannot open the file '" + fileName + "'");
+    }
+    const auto* histogram = file->Get<TH1>(name.c_str());
+    if (!histogram) {
+        throw invalid_argument("ReadHistogram: histogram '" + name + "' not found in '" + fileName + "'");
+    }
+    unique_ptr<TH1> copy(static_cast<TH1*>(histogram->Clone()));
+    copy->SetDirectory(nullptr);
+    return copy;
+}
+
+ROOT::Math::XYZVector IsotropicDirection(TRandom& random) {
+    const double cosTheta = random.Uniform(-1, 1);
+    const double sinTheta = std::sqrt(1 - cosTheta * cosTheta);
+    const double phi = random.Uniform(0, 2 * M_PI);
+    return {sinTheta * std::cos(phi), sinTheta * std::sin(phi), cosTheta};
+}
+
+ROOT::Math::XYZVector DirectionFromAxis(TRandom& random, const ROOT::Math::XYZVector& axis, double angle) {
+    // Two unit vectors normal to the axis and to each other
+    const ROOT::Math::XYZVector reference =
+        std::abs(axis.Z()) < 0.9 ? ROOT::Math::XYZVector(0, 0, 1) : ROOT::Math::XYZVector(1, 0, 0);
+    const auto v = axis.Cross(reference).Unit();
+    const auto w = axis.Cross(v);
+    const double phi = random.Uniform(0, 2 * M_PI);
+    return std::cos(angle) * axis + std::sin(angle) * (std::cos(phi) * v + std::sin(phi) * w);
 }
 
 }  // namespace TRestGeant4PrimaryGeneratorTypes

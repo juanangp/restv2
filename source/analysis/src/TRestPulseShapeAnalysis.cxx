@@ -564,6 +564,59 @@ template double TRestPulseShapeAnalysis::GetMaxPeakWidth(const std::vector<short
 template double TRestPulseShapeAnalysis::GetMaxPeakWidth(const std::vector<float>& signal);
 
 ///////////////////////////////////////////////
+/// \brief It returns the (time, amplitude) of all
+/// the peaks found in the signal, see the header
+/// for the definition of peak
+///
+std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetPeaks(
+    const std::vector<std::pair<double, double>>& points, double threshold, double distance, int halfWindow,
+    int maxGreaterEqual) {
+    std::vector<std::pair<double, double>> peaks;
+    const int nPoints = points.size();
+    if (nPoints == 0) return peaks;
+
+    halfWindow = std::max(1, halfWindow);
+
+    // Moving average of 2 * halfWindow + 1 points, shrunk at the edges
+    std::vector<double> smoothed(nPoints, 0);
+    for (int i = 0; i < nPoints; i++) {
+        const int startBin = std::max(0, i - halfWindow);
+        const int endBin = std::min(nPoints - 1, i + halfWindow);
+        for (int j = startBin; j <= endBin; j++) smoothed[i] += points[j].second;
+        smoothed[i] /= endBin - startBin + 1;
+    }
+
+    int lastPeak = -1;
+    for (int i = halfWindow; i < nPoints - halfWindow; i++) {
+        if (smoothed[i] <= threshold) continue;
+        if (lastPeak >= 0 && points[i].first - points[lastPeak].first < distance) continue;
+
+        int nGreaterEqual = 0;
+        for (int j = i - halfWindow; j <= i + halfWindow && nGreaterEqual <= maxGreaterEqual; j++) {
+            if (j != i && smoothed[i] <= smoothed[j]) nGreaterEqual++;
+        }
+        if (nGreaterEqual > maxGreaterEqual) continue;
+
+        // On flat tops the candidate is at the left of the actual maximum
+        int maxBin = i;
+        for (int j = i + 1; j < nPoints && points[j].first - points[i].first <= distance; j++) {
+            if (smoothed[j] > smoothed[maxBin]) maxBin = j;
+        }
+
+        const int startBin = std::max(0, maxBin - 1);
+        const int endBin = std::min(nPoints - 1, maxBin + 1);
+        double amplitude = 0;
+        for (int j = startBin; j <= endBin; j++) amplitude += points[j].second;
+        amplitude /= endBin - startBin + 1;
+
+        peaks.emplace_back(points[maxBin].first, amplitude);
+        lastPeak = maxBin;
+    }
+
+    return peaks;
+}
+
+///////////////////////////////////////////////
 /// \brief It performs a gaussian fit to the signal
 /// which is stored inside a TGraph. It returns
 /// a TVector 2 with the maximum and the mean of the

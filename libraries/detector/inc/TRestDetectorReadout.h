@@ -130,9 +130,24 @@ class TRestDetectorReadout : public TRestMetadata {
 
     /// \brief Returns the signed distance from a position to the readout of a DAQ channel, projected on the
     /// readout normal (as legacy TRestDetectorReadoutPlane::GetDistanceTo: (pos - plane) · normal).
-    /// \return The distance, or NaN if the readout does not define one (default) or the channel is unknown.
+    /// \return The distance, or NaN if the readout does not define one or the channel is unknown.
     virtual double GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const {
-        (void)daqID;
+        if (!IsChannelConnected(daqID)) return std::numeric_limits<double>::quiet_NaN();
+        return GetDistanceToReadout(position);
+    }
+
+    /// \brief Signed distance from a position to the readout, for queries without a channel (e.g. the drift
+    /// of simulated hits, see TRestDetectorHitsDriftProcess).
+    /// \return The distance, or NaN if the readout does not define one (default).
+    virtual double GetDistanceToReadout(const ROOT::Math::XYZVector& position) const {
+        (void)position;
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    /// \brief Maximum distance to the readout inside its drift volume (the cathode, as the legacy readout
+    /// plane height).
+    /// \return The distance, or NaN if the readout does not define one (default).
+    virtual double GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const {
         (void)position;
         return std::numeric_limits<double>::quiet_NaN();
     }

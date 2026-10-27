@@ -42,6 +42,16 @@ class TRestManager : public TRestMetadata {
         return nullptr;
     }
 
+    /// \brief Metadata objects of class T or derived from it (e.g. all the drift media), in declaration order.
+    template <class T>
+    std::vector<T*> GetMetadataOfType() const {
+        std::vector<T*> result;
+        for (const auto& meta : fMetaObjects) {
+            if (auto* object = dynamic_cast<T*>(meta.get())) result.push_back(object);
+        }
+        return result;
+    }
+
     static void RequestStop() { fStopRequested.store(true, std::memory_order_relaxed); }
 
     static bool StopRequested() { return fStopRequested.load(std::memory_order_relaxed); }

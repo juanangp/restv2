@@ -29,6 +29,7 @@ static const bool TRestMicromegasReadoutParameters_FieldsRegistered = []() {
     reg.RegisterField<TRestMicromegasReadoutParameters>("pitch", &TRestMicromegasReadoutParameters::fPitch);
     reg.RegisterField<TRestMicromegasReadoutParameters>("thickness", &TRestMicromegasReadoutParameters::fThickness);
     reg.RegisterField<TRestMicromegasReadoutParameters>("gasThickness", &TRestMicromegasReadoutParameters::fGasThickness);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("normal", &TRestMicromegasReadoutParameters::fNormal);
     reg.RegisterField<TRestMicromegasReadoutParameters>("checkOverlaps", &TRestMicromegasReadoutParameters::fCheckOverlaps);
     return true;
 }();
@@ -44,6 +45,9 @@ TRestMicromegasReadoutParameters::TRestMicromegasReadoutParameters(
 
 void TRestMicromegasReadoutParameters::LoadConfig() {
     UpdateParamsFromYAML<TRestMicromegasReadoutParameters>(fNode);
+    if (fNormal[0] != 0 || fNormal[1] != 0 || fNormal[2] == 0) {
+        throw std::runtime_error("TRestMicromegasReadoutParameters: normal must be [0, 0, 1] or [0, 0, -1]");
+    }
     UpdateYAMLFromParams<TRestMicromegasReadoutParameters>(fNode);
 }
 
@@ -219,7 +223,9 @@ void TRestMicromegasReadout::BuildGeometry() {
         gasVol->SetLineColor(kAzure);
         gasVol->SetTransparency(65);
 
-        const double gasZ = posRel[2] + visibleThickness / 2.0 + gasH / 2.0;
+        // The gas (drift volume) is on the cathode side of the plane
+        const double gasZ =
+            posRel[2] + fReadoutParams.GetNormalSign() * (visibleThickness / 2.0 + gasH / 2.0);
         auto* gasMatrix = new TGeoTranslation(posRel[0],
                                               posRel[1], gasZ);
 
@@ -295,8 +301,14 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
     return ROOT::Math::XYZVector(posX, posY, posZ);
 }
 
-double TRestMicromegasReadout::GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const {
-    if (!IsChannelConnected(daqID)) return std::numeric_limits<double>::quiet_NaN();
-    // Single readout plane at z = positionRelative[2]; the global rotation is around Z, so the normal is +Z
-    return position.Z() - fReadoutParams.fPositionRelative[2];
+double TRestMicromegasReadout::GetDistanceToReadout(const ROOT::Math::XYZVector& position) const {
+    // Single readout plane at z = positionRelative[2]; the global rotation is around Z, so the normal is +-Z
+    return fReadoutParams.GetNormalSign() * (position.Z() - fReadoutParams.fPositionRelative[2]);
+}
+
+double TRestMicromegasReadout::GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const {
+    (void)position;
+    if (fReadoutParams.fGasThickness <= 0) return std::numeric_limits<double>::quiet_NaN();
+    // Same extent as the GAS volume built in BuildGeometry
+    return fReadoutParams.fThickness / 2.0 + fReadoutParams.fGasThickness;
 }

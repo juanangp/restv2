@@ -187,6 +187,19 @@ if(REST_G4)
   add_subdirectory(packages/restG4)
 endif()
 
+option(REST_GARFIELD "Build the optional restGarfield package application (requires Garfield++)" ON)
+if(REST_GARFIELD)
+  find_package(Garfield QUIET HINTS $ENV{GARFIELD_INSTALL} $ENV{GARFIELD_HOME})
+  if(NOT Garfield_FOUND OR NOT TARGET ${DETECTOR_LIB})
+    message(WARNING "Garfield++ or ${DETECTOR_LIB} not found, restGarfield will not be built "
+                    "(set GARFIELD_INSTALL or -DREST_GARFIELD=OFF)")
+    set(REST_GARFIELD OFF)
+  endif()
+endif()
+if(REST_GARFIELD)
+  add_subdirectory(packages/restGarfield)
+endif()
+
 add_subdirectory(source/bin)
 
 # Create thisREST.sh
@@ -207,6 +220,7 @@ message(STATUS "  ${TRACK_LIB}: ${${TRACK_LIB}}")
 message(STATUS "  ${GEANT4_LIB}: ${${GEANT4_LIB}}")
 message(STATUS "  ${CONNECTORS_LIB}: ${${CONNECTORS_LIB}}")
 message(STATUS "  REST_G4 : ${REST_G4}")
+message(STATUS "  REST_GARFIELD : ${REST_GARFIELD}")
 message(STATUS "")
 
 # ---------------------------------------------------------------------------
@@ -214,7 +228,11 @@ message(STATUS "")
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE MACROS_SOURCE "${CMAKE_SOURCE_DIR}/source/macros/*.C")
 file(GLOB_RECURSE MACROS_LIBRARIES "${CMAKE_SOURCE_DIR}/libraries/**/macros/*.C")
-set(ALL_REPOSITORY_MACROS ${MACROS_SOURCE} ${MACROS_LIBRARIES})
+set(MACROS_PACKAGES "")
+if(REST_GARFIELD)
+  file(GLOB MACROS_PACKAGES "${CMAKE_SOURCE_DIR}/packages/restGarfield/macros/*.C")
+endif()
+set(ALL_REPOSITORY_MACROS ${MACROS_SOURCE} ${MACROS_LIBRARIES} ${MACROS_PACKAGES})
 
 if(ALL_REPOSITORY_MACROS)
   install(FILES ${ALL_REPOSITORY_MACROS} DESTINATION macros COMPONENT install)

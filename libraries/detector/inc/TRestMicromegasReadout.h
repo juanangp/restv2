@@ -14,6 +14,9 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     TRestWithUnits fPitch = 0;
     TRestWithUnits fThickness = 0;
     TRestWithUnits fGasThickness = 0;
+    /// Normal of the readout plane pointing to the cathode (drift volume side). Only +Z or -Z, since
+    /// globalRotation is around Z
+    std::array<double, 3> fNormal = {0.0, 0.0, 1.0};
     /// Run a sampling overlap check on the strips after building (slow for large nChannels)
     bool fCheckOverlaps = false;
 
@@ -22,6 +25,9 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     void LoadConfig() override;
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestMicromegasReadoutParameters"; }
+
+    /// \brief Side of the readout plane where the cathode is: +1 (+Z) or -1 (-Z).
+    int GetNormalSign() const { return fNormal[2] < 0 ? -1 : 1; }
 };
 
 
@@ -52,8 +58,13 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     void BuildGeometry() override;
     /// \brief Returns the geometric centroid of a Micromegas DAQ channel.
     ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const override;
-    /// \brief Returns the distance to the readout plane z = positionRelative[2] along its normal (+Z).
-    double GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const override;
+    using TRestDetectorReadout::GetDistanceToReadout;
+    /// \brief Returns the distance to the readout plane z = positionRelative[2] along its normal (positive
+    /// towards the cathode).
+    double GetDistanceToReadout(const ROOT::Math::XYZVector& position) const override;
+    /// \brief Returns the distance from the readout plane to the cathode (end of the gasThickness volume),
+    /// or NaN if gasThickness is not set.
+    double GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const override;
 };
 
 #endif

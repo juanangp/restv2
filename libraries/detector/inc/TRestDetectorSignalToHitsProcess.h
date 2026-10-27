@@ -16,7 +16,7 @@ class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
    private:
     TRestDetectorReadout* fReadout = nullptr;
     char fAxis = 'Z';    ///< Drift axis parsed from fDriftAxis
-    int fDriftDirection = 1;  ///< Drift sense parsed from fDriftAxis
+    int fDriftDirection = 1;  ///< Drift sense parsed from fDriftAxis (readouts without distance)
 
    public:
     /// Methods accepted by fMethod. onlyMax, tripleMax, tripleMaxAverage, gaussFit, landauFit and agetFit
@@ -29,13 +29,20 @@ class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
     /// omitted if the manager contains a single readout.
     std::string fReadoutName = "";
 
-    /// Drift velocity in position units per signal time unit: coordinate along fDriftAxis = readout
-    /// plane (where TRestDetectorReadout::GetDistanceToReadout is 0) + direction * driftVelocity * time.
-    /// Values <= 0 disable the drift: the hits are placed on the channel position.
+    /// Drift velocity in position units per signal time unit: coordinate along fDriftAxis where
+    /// TRestDetectorReadout::GetDistanceToReadout = driftVelocity * time (readout plane and sense from
+    /// the readout), or direction * driftVelocity * time if the readout defines no distance.
+    /// Values <= 0 take it from the TRestDetectorDrift (fDriftMediumName) if there is one with a
+    /// drift velocity, otherwise they disable the drift: the hits are placed on the channel position.
     TRestWithUnits fDriftVelocity = 0;
 
+    /// Name of the TRestDetectorDrift giving the drift velocity when driftVelocity <= 0. It can be
+    /// omitted if the manager contains a single medium.
+    std::string fDriftMediumName = "";
+
     /// Axis and sense of the drift from the readout into the drift volume (Z, -Z, X, ...; as the legacy
-    /// plane normal). The drift only fills it for channels where the readout leaves it undefined (NaN),
+    /// plane normal). The sense is only used if the readout defines no distance (otherwise it comes from
+    /// the readout normal). The drift only fills it for channels where the readout leaves it undefined (NaN),
     /// so channels of detectors without drift keep their position.
     std::string fDriftAxis = "Z";
 

@@ -316,10 +316,8 @@ int TRestTools::CountString(const std::string& in, const std::string& substring)
 bool TRestTools::isANumber(const std::string& str) {
     if (str.empty()) return false;
 
-    size_t first = str.find_first_not_of(" \t\n\r");
-    if (first == std::string::npos) return false;
-    size_t last = str.find_last_not_of(" \t\n\r");
-    std::string cleanStr = str.substr(first, (last - first + 1));
+    const std::string cleanStr = Trim(str);
+    if (cleanStr.empty()) return false;
 
     char* endptr = nullptr;
     std::strtod(cleanStr.c_str(), &endptr);
@@ -481,6 +479,61 @@ std::vector<std::string> TRestTools::ReadYALMObservables(const YAML::Node& node)
 }
 
 // Helper function to remove spaces and special characters from a string
+std::string TRestTools::ReplaceDelimited(const std::string& text, char open, char close,
+                                         const TextReplacement& replacement) {
+    std::string result;
+    size_t position = 0;
+    while (true) {
+        const size_t first = text.find(open, position);
+        const size_t last = first == std::string::npos ? first : text.find(close, first + 1);
+        if (last == std::string::npos) {
+            result += text.substr(position);
+            break;
+        }
+        result += text.substr(position, first - position);
+        const auto value = replacement(text.substr(first + 1, last - first - 1));
+        result += value ? *value : text.substr(first, last - first + 1);
+        position = last + 1;
+    }
+    return result;
+}
+
+std::string TRestTools::ReplaceIdentifiers(const std::string& expression, const std::string& identifier,
+                                           const TextReplacement& replacement) {
+    const std::regex regex(identifier);
+    std::string result;
+    size_t last = 0;
+    for (auto it = std::sregex_iterator(expression.begin(), expression.end(), regex);
+         it != std::sregex_iterator(); ++it) {
+        const size_t position = it->position();
+        const char previous = position > 0 ? expression[position - 1] : ' ';
+        if (std::isdigit(static_cast<unsigned char>(previous)) || previous == '.') continue;
+        const auto value = replacement(it->str());
+        if (!value) continue;
+        result += expression.substr(last, position - last) + *value;
+        last = position + it->length();
+    }
+    return result + expression.substr(last);
+}
+
+std::string TRestTools::Trim(const std::string& str, const std::string& characters) {
+    const size_t first = str.find_first_not_of(characters);
+    if (first == std::string::npos) return "";
+    return str.substr(first, str.find_last_not_of(characters) - first + 1);
+}
+
+YAML::Node TRestTools::GetNodeAtPath(const YAML::Node& node, const std::string& path) {
+    YAML::Node current;
+    current.reset(node);
+    for (const auto& key : Split(path, '.')) {
+        // Const access: a missing key is not added to the node
+        const YAML::Node parent = current;
+        if (!parent || !parent.IsMap() || !parent[key]) return YAML::Node(YAML::NodeType::Undefined);
+        current.reset(parent[key]);
+    }
+    return current;
+}
+
 std::string TRestTools::CleanString(const std::string& str) {
     std::string s = str;
     s.erase(std::remove_if(s.begin(), s.end(),

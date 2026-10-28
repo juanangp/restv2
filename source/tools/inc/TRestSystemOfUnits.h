@@ -5,6 +5,7 @@
 #include <Math/Vector3D.h>
 #include <cctype>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <cmath>
@@ -222,6 +223,19 @@ inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit q
 /// Sets the TGeoManager default units (mm, MeV, ns). Safe to call multiple times.
 bool SetGeoManagerDefaultUnits();
 
+/// \brief Value of a number with optional units (e.g. "300 V", "1 kV/cm") in REST units.
+/// \return nullopt if the text does not start with a number.
+inline std::optional<double> ParseValueWithUnits(const std::string& text) {
+    std::istringstream stream(text);
+    double value = 0;
+    if (!(stream >> value)) return std::nullopt;
+    std::string units;
+    std::getline(stream, units);
+    units = TRestTools::Trim(units);
+    if (!units.empty()) value *= ParseUnit(units);
+    return value;
+}
+
 }  // namespace REST_Units
 
 // ============================================================================
@@ -253,16 +267,7 @@ struct convert<TRestWithUnits> {
     static bool decode(const Node& node, TRestWithUnits& rhs) {
         if (!node || !node.IsScalar()) return false;
 
-        std::string raw = node.as<std::string>();
-        std::istringstream ss(raw);
-        double val = 0.0;
-        ss >> val;
-
-        std::string units;
-        ss >> units;
-        if (!units.empty()) {
-            val *= REST_Units::ParseUnit(units);
-        }
+        const double val = REST_Units::ParseValueWithUnits(node.as<std::string>()).value_or(0.0);
         rhs.value = val;
 
         // Mutate the local node to a plain number so it exports clean later

@@ -27,13 +27,12 @@
 /// * entries, runLength (hours, from the start and end time of each file, not affected by the cuts;
 ///   without them, from the first and last timeSeconds), meanRate (Hz),
 ///   startTime and endTime (dates), cuts (expression of the cuts of the panel);
-/// * run.key (TRestRun of the first file, e.g. run.runTag), runInfo.key (its runInfo, e.g.
-///   runInfo.meshVoltage) and instance.key... (any metadata of the first file, e.g.
-///   driftMedium.electricField);
+/// * run.key (TRestRun of the first file, e.g. run.runTag, and its runInfo, e.g. run.runInfo.meshVoltage)
+///   and instance.key... (any metadata of the first file, e.g. driftMedium.electricField);
 /// * mean(obs), sigma(obs), min(obs), max(obs): of an observable with the cuts of the panel (only its
 ///   finite values: NaN, e.g. a line observable not defined, are ignored);
 /// * any arithmetic of them (TFormula), e.g. {entries/runLength|%.1f}.
-/// A single reference to a text (e.g. run.runTag, runInfo.meshVoltage: 300 V) is written as it is.
+/// A single reference to a text (e.g. run.runTag, run.runInfo.meshVoltage: 300 V) is written as it is.
 ///
 /// ### Plots
 /// `plots`: list of plots, with name, title, xLabel, yLabel, logX/logY/logZ, gridX/gridY, legend,
@@ -67,7 +66,7 @@
 ///      panels:
 ///        - labels:
 ///            - {text: "Run tag: {run.runTag}", position: [0.1, 0.82]}
-///            - {text: "Mesh: {runInfo.meshVoltage}", position: [0.1, 0.74]}
+///            - {text: "Mesh: {run.runInfo.meshVoltage}", position: [0.1, 0.74]}
 ///            - {text: "Rate: {entries/runLength|%.1f} per hour", position: [0.1, 0.66]}
 ///            - {text: "Mean angle: {mean(trackLineAnalysis_Angle)} rad", position: [0.1, 0.58]}
 ///      plots:
@@ -91,8 +90,8 @@
 /// the analysis trees of the files. Differences: the cuts are TRestCut of the manager referenced by name;
 /// the panel keys variable, metadata, observable and expression are a single label text with
 /// {expressions} (observables with mean(...) etc. instead of names with '_', metadata by instance and
-/// key, also the runInfo of the run); YAML lists instead of elements; the TApplication preview waits for
-/// Enter.
+/// key, also the runInfo of the run as run.runInfo.key); YAML lists instead of elements; the TApplication
+/// preview waits for Enter.
 
 #include "TRestAnalysisPlot.h"
 
@@ -128,6 +127,10 @@
 #include "TRestManager.h"
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
+
+using TRestTools::GetYAMLList;
+using TRestTools::GetYAMLParam;
+using TRestTools::Trim;
 
 namespace {
 const bool kFieldsRegistered = []() {
@@ -175,34 +178,10 @@ const std::map<std::string, int> kFillStyles = {
     {"metopes", kFMetopes}};
 
 /// Identifier, possibly with dots (metadata reference, e.g. run.runTag)
-const std::regex kReference(R"([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)");
+const std::string kReferencePattern = R"([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)";
+const std::regex kReference(kReferencePattern);
 /// Statistic of an observable, e.g. mean(trackLineAnalysis_Angle)
 const std::regex kStatistic(R"((mean|sigma|min|max)\s*\(\s*([A-Za-z_]\w*)\s*\))");
-
-std::string Trim(const std::string& text) {
-    const size_t first = text.find_first_not_of(" \t");
-    if (first == std::string::npos) return "";
-    return text.substr(first, text.find_last_not_of(" \t") - first + 1);
-}
-
-std::string GetString(const YAML::Node& node, const std::string& key, const std::string& defaultValue = "") {
-    return node[key] ? node[key].as<std::string>() : defaultValue;
-}
-
-bool GetBool(const YAML::Node& node, const std::string& key, bool defaultValue) {
-    return node[key] ? node[key].as<bool>() : defaultValue;
-}
-
-double GetDouble(const YAML::Node& node, const std::string& key, double defaultValue) {
-    return node[key] ? static_cast<double>(node[key].as<TRestWithUnits>()) : defaultValue;
-}
-
-/// A list of strings, or a single one
-std::vector<std::string> GetList(const YAML::Node& node, const std::string& key) {
-    if (!node[key]) return {};
-    if (node[key].IsScalar()) return {node[key].as<std::string>()};
-    return node[key].as<std::vector<std::string>>();
-}
 
 /// Number, name of the map or default (with a warning)
 int ParseStyle(const std::string& value, const std::map<std::string, int>& names, int defaultValue) {
@@ -231,18 +210,6 @@ int ParseColor(const std::string& value, int defaultValue) {
     return it->second + std::stoi(value.substr(sign));
 }
 
-/// Number of a text with optional units (e.g. "300 V"), in REST units
-std::optional<double> ToNumber(const std::string& text) {
-    std::istringstream stream(text);
-    double value = 0;
-    if (!(stream >> value)) return std::nullopt;
-    std::string units;
-    std::getline(stream, units);
-    units = Trim(units);
-    if (!units.empty()) value *= REST_Units::ParseUnit(units);
-    return value;
-}
-
 /// Values of the {expression|format} of the labels, output file names and scales
 class Evaluator {
    public:
@@ -257,17 +224,8 @@ class Evaluator {
 
     /// \brief The text with its {expression|format} replaced.
     std::string Replace(const std::string& text) const {
-        std::string result;
-        size_t position = 0;
-        while (true) {
-            const size_t open = text.find('{', position);
-            const size_t close = open == std::string::npos ? open : text.find('}', open);
-            if (close == std::string::npos) {
-                result += text.substr(position);
-                break;
-            }
-            result += text.substr(position, open - position);
-            std::string expression = text.substr(open + 1, close - open - 1);
+        return TRestTools::ReplaceDelimited(text, '{', '}', [this](const std::string& content) {
+            std::string expression = content;
             std::string format;
             // The last '|' that is not part of ||
             const size_t bar = expression.rfind('|');
@@ -275,10 +233,8 @@ class Evaluator {
                 format = Trim(expression.substr(bar + 1));
                 expression = expression.substr(0, bar);
             }
-            result += Value(Trim(expression), format);
-            position = close + 1;
-        }
-        return result;
+            return std::optional<std::string>(Value(Trim(expression), format));
+        });
     }
 
     /// \brief Numerical value of an expression, nullopt if it cannot be evaluated.
@@ -296,27 +252,19 @@ class Evaluator {
         withStatistics += expression.substr(last);
 
         // References with a value; the rest (functions, e.g. sqrt or TMath::Pi) are left to TFormula
-        std::string formula;
-        last = 0;
-        for (auto it = std::sregex_iterator(withStatistics.begin(), withStatistics.end(), kReference);
-             it != std::sregex_iterator(); ++it) {
-            const size_t position = it->position();
-            // Exponent of a number, e.g. 1e5
-            const char previous = position > 0 ? withStatistics[position - 1] : ' ';
-            if (std::isdigit(static_cast<unsigned char>(previous)) || previous == '.') continue;
-            std::optional<double> value;
-            const auto number = numbers.find(it->str());
-            if (number != numbers.end()) {
-                value = number->second;
-            } else if (const auto text = Lookup(it->str())) {
-                value = ToNumber(*text);
-                if (!value) return std::nullopt;
-            }
-            if (!value) continue;
-            formula += withStatistics.substr(last, position - last) + Number(*value);
-            last = position + it->length();
-        }
-        formula += withStatistics.substr(last);
+        bool valid = true;
+        const std::string formula = TRestTools::ReplaceIdentifiers(
+            withStatistics, kReferencePattern,
+            [&](const std::string& reference) -> std::optional<std::string> {
+                const auto number = numbers.find(reference);
+                if (number != numbers.end()) return Number(number->second);
+                const auto text = Lookup(reference);
+                if (!text) return std::nullopt;
+                const auto value = REST_Units::ParseValueWithUnits(*text);
+                if (!value) valid = false;
+                return value ? Number(*value) : *text;
+            });
+        if (!valid) return std::nullopt;
 
         TFormula function("TRestAnalysisPlot", formula.c_str(), false);
         if (!function.IsValid()) return std::nullopt;
@@ -337,23 +285,16 @@ class Evaluator {
         const size_t dot = reference.find('.');
         if (dot == std::string::npos) return std::nullopt;
 
-        // The run of the file whatever its instance name, and its runInfo
+        // The run of the file whatever its instance name (run.runInfo.key: its runInfo)
         const std::string instance = reference.substr(0, dot);
         YAML::Node node;
         if (instance == "run") {
             node.reset(run);
-        } else if (instance == "runInfo") {
-            if (run) node.reset(run["runInfo"]);
         } else if (metadata && metadata->count(instance)) {
             node.reset(metadata->at(instance));
         }
-        std::istringstream keys(reference.substr(dot + 1));
-        std::string key;
-        while (std::getline(keys, key, '.')) {
-            if (!node || !node.IsMap()) return std::nullopt;
-            const YAML::Node parent = node;
-            node.reset(parent[key]);
-        }
+        if (!node) return std::nullopt;
+        node.reset(TRestTools::GetNodeAtPath(node, reference.substr(dot + 1)));
         if (!node || !node.IsScalar()) return std::nullopt;
         return node.as<std::string>();
     }
@@ -383,7 +324,7 @@ class Evaluator {
         // A single reference to a text is written as it is (formatted if it is a number and has format)
         if (std::regex_match(expression, kReference) && !numbers.count(expression)) {
             if (const auto text = Lookup(expression)) {
-                const auto number = format.empty() ? std::nullopt : ToNumber(*text);
+                const auto number = format.empty() ? std::nullopt : REST_Units::ParseValueWithUnits(*text);
                 return number ? Format(*number, format) : *text;
             }
         }
@@ -408,8 +349,9 @@ void DrawPlot(TVirtualPad* pad, TRestAnalysisPlot::Plot& plot) {
 
     TAxis* xAxis = nullptr;
     TAxis* yAxis = nullptr;
-    // A single histogram is drawn directly (statistics box and 2D options), several in a stack
-    if (plot.stack) {
+    // A single histogram is drawn directly (statistics box and 2D options), several in a stack (all empty:
+    // the first one, for the frame)
+    if (plot.stack && plot.stack->GetNhists() > 0) {
         plot.stack->Draw(plot.stackOption.c_str());
         pad->Update();  // the stack has axes once painted
         xAxis = plot.stack->GetXaxis();
@@ -487,15 +429,15 @@ void TRestAnalysisPlot::ReadPanels() {
     fPanels.clear();
     if (!fNode["panels"]) return;
     for (const auto& node : fNode["panels"]) {
-        if (!GetBool(node, "enabled", true)) continue;
+        if (!GetYAMLParam<bool>(node, "enabled", true)) continue;
         Panel panel;
-        panel.textSize = GetDouble(node, "textSize", panel.textSize);
-        panel.precision = node["precision"] ? node["precision"].as<int>() : panel.precision;
-        panel.cuts = GetList(node, "cuts");
+        panel.textSize = GetYAMLParam<TRestWithUnits>(node, "textSize", panel.textSize);
+        panel.precision = GetYAMLParam<int>(node, "precision", panel.precision);
+        panel.cuts = GetYAMLList(node, "cuts");
         if (node["labels"]) {
             for (const auto& labelNode : node["labels"]) {
                 Label label;
-                label.text = GetString(labelNode, "text");
+                label.text = GetYAMLParam<std::string>(labelNode, "text");
                 if (labelNode["position"]) {
                     const auto position = labelNode["position"].as<std::vector<double>>();
                     if (position.size() != 2) {
@@ -516,38 +458,38 @@ void TRestAnalysisPlot::ReadPlots() {
     fPlots.clear();
     if (!fNode["plots"]) return;
     for (const auto& node : fNode["plots"]) {
-        if (!GetBool(node, "enabled", true)) continue;
+        if (!GetYAMLParam<bool>(node, "enabled", true)) continue;
         Plot plot;
-        plot.name = GetString(node, "name", "plot_" + std::to_string(fPlots.size()));
-        plot.title = GetString(node, "title", plot.name);
-        plot.xLabel = GetString(node, "xLabel");
-        plot.yLabel = GetString(node, "yLabel");
-        plot.logX = GetBool(node, "logX", plot.logX);
-        plot.logY = GetBool(node, "logY", plot.logY);
-        plot.logZ = GetBool(node, "logZ", plot.logZ);
-        plot.gridX = GetBool(node, "gridX", plot.gridX);
-        plot.gridY = GetBool(node, "gridY", plot.gridY);
-        plot.legend = GetBool(node, "legend", plot.legend);
-        plot.timeDisplay = GetBool(node, "timeDisplay", plot.timeDisplay);
-        plot.normalize = GetDouble(node, "normalize", plot.normalize);
-        plot.scale = GetString(node, "scale");
-        plot.stackOption = GetString(node, "stackOption", plot.stackOption);
-        plot.marginLeft = GetDouble(node, "marginLeft", plot.marginLeft);
-        plot.marginRight = GetDouble(node, "marginRight", plot.marginRight);
-        plot.marginTop = GetDouble(node, "marginTop", plot.marginTop);
-        plot.marginBottom = GetDouble(node, "marginBottom", plot.marginBottom);
-        plot.save = GetString(node, "save");
+        plot.name = GetYAMLParam<std::string>(node, "name", "plot_" + std::to_string(fPlots.size()));
+        plot.title = GetYAMLParam<std::string>(node, "title", plot.name);
+        plot.xLabel = GetYAMLParam<std::string>(node, "xLabel");
+        plot.yLabel = GetYAMLParam<std::string>(node, "yLabel");
+        plot.logX = GetYAMLParam<bool>(node, "logX", plot.logX);
+        plot.logY = GetYAMLParam<bool>(node, "logY", plot.logY);
+        plot.logZ = GetYAMLParam<bool>(node, "logZ", plot.logZ);
+        plot.gridX = GetYAMLParam<bool>(node, "gridX", plot.gridX);
+        plot.gridY = GetYAMLParam<bool>(node, "gridY", plot.gridY);
+        plot.legend = GetYAMLParam<bool>(node, "legend", plot.legend);
+        plot.timeDisplay = GetYAMLParam<bool>(node, "timeDisplay", plot.timeDisplay);
+        plot.normalize = GetYAMLParam<TRestWithUnits>(node, "normalize", plot.normalize);
+        plot.scale = GetYAMLParam<std::string>(node, "scale");
+        plot.stackOption = GetYAMLParam<std::string>(node, "stackOption", plot.stackOption);
+        plot.marginLeft = GetYAMLParam<TRestWithUnits>(node, "marginLeft", plot.marginLeft);
+        plot.marginRight = GetYAMLParam<TRestWithUnits>(node, "marginRight", plot.marginRight);
+        plot.marginTop = GetYAMLParam<TRestWithUnits>(node, "marginTop", plot.marginTop);
+        plot.marginBottom = GetYAMLParam<TRestWithUnits>(node, "marginBottom", plot.marginBottom);
+        plot.save = GetYAMLParam<std::string>(node, "save");
 
         auto readHisto = [&](const YAML::Node& histoNode) {
             Histo histo;
-            histo.name = GetString(histoNode, "name", plot.name);
-            histo.drawOption = GetString(histoNode, "option");
-            histo.cuts = GetList(histoNode, "cuts");
+            histo.name = GetYAMLParam<std::string>(histoNode, "name", plot.name);
+            histo.drawOption = GetYAMLParam<std::string>(histoNode, "option");
+            histo.cuts = GetYAMLList(histoNode, "cuts");
             if (histoNode["variables"]) {
                 for (const auto& variableNode : histoNode["variables"]) {
                     Variable variable;
-                    variable.name = GetString(variableNode, "name");
-                    variable.nBins = variableNode["nBins"] ? variableNode["nBins"].as<int>() : variable.nBins;
+                    variable.name = GetYAMLParam<std::string>(variableNode, "name");
+                    variable.nBins = GetYAMLParam<int>(variableNode, "nBins", variable.nBins);
                     if (variableNode["range"]) {
                         const auto range = variableNode["range"];
                         if (!range.IsSequence() || range.size() != 2) {
@@ -570,12 +512,14 @@ void TRestAnalysisPlot::ReadPlots() {
                                              " has a variable without name or bins");
                 }
             }
-            histo.lineColor = ParseColor(GetString(histoNode, "lineColor"), histo.lineColor);
-            histo.lineWidth = histoNode["lineWidth"] ? histoNode["lineWidth"].as<int>() : histo.lineWidth;
-            histo.lineStyle = ParseStyle(GetString(histoNode, "lineStyle"), kLineStyles, histo.lineStyle);
-            histo.fillColor = ParseColor(GetString(histoNode, "fillColor"), histo.fillColor);
-            histo.fillStyle = ParseStyle(GetString(histoNode, "fillStyle"), kFillStyles, histo.fillStyle);
-            histo.stats = GetBool(histoNode, "stats", histo.stats);
+            histo.lineColor = ParseColor(GetYAMLParam<std::string>(histoNode, "lineColor"), histo.lineColor);
+            histo.lineWidth = GetYAMLParam<int>(histoNode, "lineWidth", histo.lineWidth);
+            histo.lineStyle =
+                ParseStyle(GetYAMLParam<std::string>(histoNode, "lineStyle"), kLineStyles, histo.lineStyle);
+            histo.fillColor = ParseColor(GetYAMLParam<std::string>(histoNode, "fillColor"), histo.fillColor);
+            histo.fillStyle =
+                ParseStyle(GetYAMLParam<std::string>(histoNode, "fillStyle"), kFillStyles, histo.fillStyle);
+            histo.stats = GetYAMLParam<bool>(histoNode, "stats", histo.stats);
             plot.histos.push_back(std::move(histo));
         };
         if (node["histos"]) {
@@ -615,8 +559,8 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const st
             }
         }
         if (fileRun) {
-            const double start = fileRun["startTime"] ? fileRun["startTime"].as<double>() : 0;
-            const double end = fileRun["endTime"] ? fileRun["endTime"].as<double>() : 0;
+            const double start = GetYAMLParam<double>(fileRun, "startTime", 0);
+            const double end = GetYAMLParam<double>(fileRun, "endTime", 0);
             if (firstFile || start < startTime) startTime = start;
             if (firstFile || end > endTime) endTime = end;
             duration += end - start;
@@ -800,11 +744,18 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const st
             histo.histo->SetFillStyle(histo.fillStyle);
             histo.histo->SetStats(histo.stats);
 
+            // Empty (e.g. exclusive cuts): nothing to scale, and without range its axis has no width (it
+            // stays in the legend)
+            const bool empty = histo.histo->GetEntries() == 0;
+            if (empty) {
+                RESTWarning << "TRestAnalysisPlot: plot " << plot.name << ", histogram " << histo.name
+                            << " has no entries after the cuts" << RESTendl;
+            }
             if (plot.normalize > 0) {
                 const double integral = histo.histo->Integral();
                 if (integral > 0) histo.histo->Scale(plot.normalize / integral);
             }
-            if (!plot.scale.empty()) {
+            if (!plot.scale.empty() && !empty) {
                 Evaluator evaluator = global;
                 evaluator.numbers["binSize"] = histo.histo->GetXaxis()->GetBinWidth(1);
                 evaluator.numbers["entries"] = histo.histo->GetEntries();
@@ -817,7 +768,9 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const st
                                 << plot.scale << RESTendl;
                 }
             }
-            if (plot.stack) plot.stack->Add(histo.histo.get(), histo.drawOption.c_str());
+            // Not in the stack if empty: without range its axis is [0, 0], and the axis of the stack (union
+            // of those of its histograms) would hide the others (e.g. timeSeconds from 0)
+            if (plot.stack && !empty) plot.stack->Add(histo.histo.get(), histo.drawOption.c_str());
             if (plot.legendBox) plot.legendBox->AddEntry(histo.histo.get(), histo.name.c_str(), "lf");
         }
         if (plot.histos.size() > 1 && std::any_of(plot.histos.begin(), plot.histos.end(),

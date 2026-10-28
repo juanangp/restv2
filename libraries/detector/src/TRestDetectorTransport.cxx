@@ -229,8 +229,8 @@ TRestDetectorTransport TRestDetectorTransport::Read(TFile* file, const std::stri
     table.fMedium = medium;
     table.fPressure = entry["pressure"].as<double>();
     table.fTemperature = entry["temperature"].as<double>();
-    table.fPressureScaling = entry["pressureScaling"] ? entry["pressureScaling"].as<bool>() : true;
-    table.fPenning = entry["penningRate"] ? entry["penningRate"].as<double>() : 0;
+    table.fPressureScaling = TRestTools::GetYAMLParam<bool>(entry, "pressureScaling", true);
+    table.fPenning = TRestTools::GetYAMLParam<double>(entry, "penningRate", 0);
 
     auto* directory = file->GetDirectory((kTablesDir + "/" + key).c_str());
     if (!directory) throw std::runtime_error(error + "no directory " + kTablesDir + "/" + key);

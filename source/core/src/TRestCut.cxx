@@ -74,31 +74,21 @@ void TRestCut::Compile(TTree* tree) {
     // The identifiers that are branches become parameters; the rest (functions, numbers as 1e5) are
     // left to TFormula
     std::map<std::string, size_t> parameters;
-    std::string formula;
-    const std::regex identifier("[A-Za-z_][A-Za-z0-9_]*");
-    size_t last = 0;
-    for (auto it = std::sregex_iterator(expression.begin(), expression.end(), identifier);
-         it != std::sregex_iterator(); ++it) {
-        const size_t position = it->position();
-        const std::string name = it->str();
-        const bool afterNumber = position > 0 && (std::isdigit(expression[position - 1]) ||
-                                                  expression[position - 1] == '.');
-        if (afterNumber || !tree->GetBranch(name.c_str())) continue;
-
-        TBranch* branch = tree->GetBranch(name.c_str());
-        TLeaf* leaf = tree->GetLeaf(name.c_str());
-        if (!leaf || dynamic_cast<TBranchElement*>(branch) || leaf->GetLenStatic() != 1) {
-            throw std::runtime_error("TRestCut '" + fName + "': observable " + name +
-                                     " is not a scalar (number or boolean)");
-        }
-        if (parameters.find(name) == parameters.end()) {
-            parameters[name] = fLeaves.size();
-            fLeaves.push_back(leaf);
-        }
-        formula += expression.substr(last, position - last) + "[" + std::to_string(parameters[name]) + "]";
-        last = position + name.size();
-    }
-    formula += expression.substr(last);
+    const std::string formula = TRestTools::ReplaceIdentifiers(
+        expression, "[A-Za-z_][A-Za-z0-9_]*", [&](const std::string& name) -> std::optional<std::string> {
+            TBranch* branch = tree->GetBranch(name.c_str());
+            if (!branch) return std::nullopt;
+            TLeaf* leaf = tree->GetLeaf(name.c_str());
+            if (!leaf || dynamic_cast<TBranchElement*>(branch) || leaf->GetLenStatic() != 1) {
+                throw std::runtime_error("TRestCut '" + fName + "': observable " + name +
+                                         " is not a scalar (number or boolean)");
+            }
+            if (parameters.find(name) == parameters.end()) {
+                parameters[name] = fLeaves.size();
+                fLeaves.push_back(leaf);
+            }
+            return "[" + std::to_string(parameters[name]) + "]";
+        });
 
     fFormula = std::make_unique<TFormula>(("cut_" + fName).c_str(), formula.c_str(), false);
     if (!fFormula->IsValid()) {

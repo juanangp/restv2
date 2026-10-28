@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,19 +69,13 @@ class TRestRun : public TRestMetadata {
     /// Selected event, see GetEvent/SetEvent
     TRestEvent *fEvent = nullptr;
 
-    std::string fConfigRunNumber = "";
-    std::string fConfigSubRunNumber = "";
-    std::string fConfigRunType = "Null";
-    std::string fConfigRunUser = "Null";
-    std::string fConfigRunTag = "Null";
-    std::string fConfigRunDescription = "Null";
-    std::string fConfigExperimentName = "Null";
-    /// inheritInputRun: the run parameters not given in the configuration are "preserve" (input file)
+    /// inheritInputRun: the run parameters not given in the configuration nor in the name of the input
+    /// file (inputFormat) are taken from the run of the input file
     bool fInheritInputRun = false;
-    bool fIsInitializedFromConfig = false;
     int fOutputBasketSize = 1024*1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
 
-    /// \brief Resolves placeholders in file patterns.
+    /// \brief Resolves placeholders in file patterns: [parameter] (see GetParameter, e.g. [runNumber] or
+    /// [runInfo.meshVoltage]; also [fRunNumber]), [version].
     /// \param pattern Input filename pattern.
     /// \return Resolved filename.
     std::string ResolveFilePattern(const std::string& pattern) const;
@@ -92,8 +87,9 @@ class TRestRun : public TRestMetadata {
 
     void FormOutputFile();
 
-    /// \brief Resolves effective input filename from inputFileName/inputFormat.
-    void ResolveInputFormat();
+    /// \brief Parameters in the name of the input file, from the [parameter] of inputFormat.
+    /// \return Parameter name (e.g. runNumber, runInfo.meshVoltage) and value as written in the name.
+    std::map<std::string, std::string> ParseInputFormat() const;
 
     /// \brief Default constructor.
     TRestRun();
@@ -145,6 +141,18 @@ class TRestRun : public TRestMetadata {
 
     /// \brief Returns the information of the run (`runInfo`), key: value as written.
     const std::map<std::string, std::string>& GetRunInformation() const { return fRunInformation; }
+
+    /// \brief Parameters of the run (registered fields, current values) as a YAML node.
+    YAML::Node GetParameters() const;
+
+    /// \brief Returns a parameter of the run as written, e.g. "runNumber", "runTag" or "runInfo.meshVoltage"
+    /// (a key of runInfo). From other metadata through their run, e.g. fRunInfo->GetParameter(...).
+    /// \return Text of the parameter, nullopt if it does not exist.
+    std::optional<std::string> GetParameter(const std::string& name) const;
+
+    /// \brief Returns a numerical parameter of the run in REST units, e.g. "runInfo.meshVoltage" (300 V).
+    /// \return Value, nullopt if it does not exist or it is not a number.
+    std::optional<double> GetParameterValue(const std::string& name) const;
 
     /// \brief Returns input file name.
     /// \return Input file path.

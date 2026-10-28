@@ -78,7 +78,7 @@ std::string TRestDetectorDrift::SelectTable(const YAML::Node& tables) const {
         const auto range = table["fieldRange"].as<std::vector<double>>();
         candidates.push_back({table["key"].as<std::string>(), table["pressure"].as<double>(),
                               table["temperature"].as<double>(), range.at(0), range.at(1),
-                              table["pressureScaling"] ? table["pressureScaling"].as<bool>() : true});
+                              TRestTools::GetYAMLParam<bool>(table, "pressureScaling", true)});
     }
     auto sameCondition = [&](const Candidate& c) {
         return std::abs(c.pressure - fPressure) <= 1e-6 * fPressure &&

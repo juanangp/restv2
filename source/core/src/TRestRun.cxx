@@ -5,10 +5,12 @@
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
 
+#include <cctype>
 #include <filesystem>
 #include <regex>
 #include <stdexcept>
 
+#include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
 
 using namespace TRestTools;
@@ -86,57 +88,48 @@ TRestRun::~TRestRun() {
 }
 
 // ---------------------------------------------------------------------------
+namespace {
+/// Parameters of the run that can be taken from the input file (its name or its run)
+const std::vector<std::string> kRunParameters = {"runNumber", "subRunNumber",   "runType",       "runUser",
+                                                 "runTag",    "runDescription", "experimentName"};
+
+/// Name of a parameter in a pattern: [fRunNumber] is runNumber
+std::string ParameterName(const std::string& token) {
+    if (token.size() > 1 && token[0] == 'f' && std::isupper(static_cast<unsigned char>(token[1])))
+        return std::string(1, std::tolower(static_cast<unsigned char>(token[1]))) + token.substr(2);
+    return token;
+}
+}  // namespace
+
 void TRestRun::LoadConfig() {
     if (!fNode || fNode.IsNull()) {
         RESTError << "TRestRun::LoadConfig - node is missing or null" << RESTendl;
         return;
     }
 
-    if (!fIsInitializedFromConfig) {
-        fInheritInputRun = ReadYAMLParamOrDefault<bool>(fNode, "inheritInputRun", fInheritInputRun);
-        // With inheritInputRun the parameters not given are taken from the input file
-        auto readConfig = [this](const std::string& key, const std::string& value) {
-            return ReadYAMLParamOrDefault<std::string>(fNode, key, fInheritInputRun ? "preserve" : value);
-        };
-        fConfigRunNumber = readConfig("runNumber", fConfigRunNumber);
-        fConfigSubRunNumber = readConfig("subRunNumber", fConfigSubRunNumber);
-        fConfigRunType = readConfig("runType", fConfigRunType);
-        fConfigRunUser = readConfig("runUser", fConfigRunUser);
-        fConfigRunTag = readConfig("runTag", fConfigRunTag);
-        fConfigRunDescription = readConfig("runDescription", fConfigRunDescription);
-        fConfigExperimentName = readConfig("experimentName", fConfigExperimentName);
-
-        if (fConfigRunNumber != "preserve" && fConfigRunNumber != "auto") {
-            try {
-                fRunNumber = std::stoi(fConfigRunNumber);
-            } catch (...) {
-            }
+    // What is written in the configuration always wins
+    const YAML::Node config = YAML::Clone(fNode);
+    for (const auto& key : kRunParameters) {
+        if (config[key] && config[key].IsScalar() && config[key].Scalar() == "preserve") {
+            throw std::runtime_error(
+                "TRestRun::LoadConfig - " + key +
+                ": \"preserve\" is not used, the parameters not given are taken from the name of the input "
+                "file (inputFormat) or its run (inheritInputRun: true)");
         }
-        if (fConfigSubRunNumber != "preserve") {
-            try {
-                fSubRunNumber = std::stoi(fConfigSubRunNumber);
-            } catch (...) {
-            }
-        }
-        if (fConfigRunType != "preserve") fRunType = fConfigRunType;
-        if (fConfigRunUser != "preserve") fRunUser = fConfigRunUser;
-        if (fConfigRunTag != "preserve") fRunTag = fConfigRunTag;
-        if (fConfigRunDescription != "preserve") fRunDescription = fConfigRunDescription;
-        if (fConfigExperimentName != "preserve") fExperimentName = fConfigExperimentName;
-
-        fOutputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "outputFileName", fOutputFileName);
-        fMainDataPath = GetFullPath(ReadYAMLParamOrDefault<std::string>(fNode, "mainDataPath", fMainDataPath));
-        fInputFormat = ReadYAMLParamOrDefault<std::string>(fNode, "inputFormat", fInputFormat);
-        fEntriesSaved = ReadYAMLParamOrDefault<Long64_t>(fNode, "entriesSaved", fEntriesSaved);
-        fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
-
-        fOutputBasketSize = ReadYAMLParamOrDefault<int>(fNode, "outputBasketSize", fOutputBasketSize);
-        if (fNode["runInfo"]) fRunInformation = fNode["runInfo"].as<std::map<std::string, std::string>>();
-
-        fIsInitializedFromConfig = true;
     }
+    const bool autoRunNumber =
+        config["runNumber"] && config["runNumber"].IsScalar() && config["runNumber"].Scalar() == "auto";
+    YAML::Node fields = YAML::Clone(config);
+    if (autoRunNumber) fields.remove("runNumber");
+    UpdateParamsFromYAML<TRestRun>(fields);
+    // A new run number ($REST_HOME/.rest/runNumber)
+    if (autoRunNumber) fRunNumber = GetRunNumberAuto();
 
-    if ((fInputFileName.empty() || fInputFileName =="Null" ) && !fInputFormat.empty()) {
+    fInheritInputRun = ReadYAMLParamOrDefault<bool>(fNode, "inheritInputRun", fInheritInputRun);
+    fOutputBasketSize = ReadYAMLParamOrDefault<int>(fNode, "outputBasketSize", fOutputBasketSize);
+    fMainDataPath = GetFullPath(fMainDataPath);
+
+    if ((fInputFileName.empty() || fInputFileName == "Null") && !fInputFormat.empty()) {
         fInputFileName = ResolveFilePattern(fInputFormat);
     }
 
@@ -147,48 +140,52 @@ void TRestRun::LoadConfig() {
         OpenInputFile(fInputFileName);
     }
 
-    ResolveInputFormat();
-
-    // In case inputFormat is empty we get preserve variables fron input file
-    if (fInputFile) {
-        if (fInputFileNode && !fInputFileNode.IsNull()) {
-            if (fConfigRunNumber == "preserve")
-                fRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "runNumber", fRunNumber);
-            if (fConfigSubRunNumber == "preserve")
-                fSubRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "subRunNumber", fSubRunNumber);
-            if (fConfigRunType == "preserve")
-                fRunType = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runType", fRunType);
-            if (fConfigRunUser == "preserve")
-                fRunUser = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runUser", fRunUser);
-            if (fConfigRunTag == "preserve")
-                fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", fRunTag);
-            if (fConfigRunDescription == "preserve")
-                fRunDescription =
-                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runDescription", fRunDescription);
-            if (fConfigExperimentName == "preserve")
-                fExperimentName =
-                    ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", fExperimentName);
-            // Times of the data taking (a process reading raw data sets them again)
-            fStartTime = ReadYAMLParamOrDefault<double>(fInputFileNode, "startTime", fStartTime);
-            fEndTime = ReadYAMLParamOrDefault<double>(fInputFileNode, "endTime", fEndTime);
-            // The runInfo of the input file is kept; the keys of the configuration are added or replace it
-            if (fInputFileNode["runInfo"] && fInputFileNode["runInfo"].IsMap()) {
-                auto runInformation = fInputFileNode["runInfo"].as<std::map<std::string, std::string>>();
-                for (const auto& [key, value] : fRunInformation) runInformation[key] = value;
-                fRunInformation = runInformation;
+    // The parameters not given: from the name of the input file (inputFormat), otherwise from its run
+    // (inheritInputRun). The times of the data taking and the runInfo always from its run
+    const YAML::Node& inputRun = fInputFileNode;
+    const bool hasInputRun = inputRun && inputRun.IsMap();
+    const auto tags = ParseInputFormat();
+    YAML::Node inherited(YAML::NodeType::Map);
+    for (const auto& key : kRunParameters) {
+        if (config[key]) continue;
+        const auto tag = tags.find(key);
+        if (tag != tags.end()) {
+            if (key != "runNumber" && key != "subRunNumber") {
+                inherited[key] = tag->second;
+                continue;
             }
-        }
-    } else {
-        if (fInputFormat.empty() && fConfigRunNumber == "auto") {
-            fRunNumber = GetRunNumberAuto();
+            // Decimal (as a YAML integer 00012 would be octal)
+            try {
+                inherited[key] = std::stoi(tag->second);
+            } catch (...) {
+                RESTWarning << "TRestRun: " << key << " " << tag->second << " of the input file name is not "
+                            << "a number" << RESTendl;
+            }
+        } else if (fInheritInputRun && hasInputRun && inputRun[key]) {
+            inherited[key] = inputRun[key];
         }
     }
+    // A process reading raw data sets them again
+    for (const std::string key : {"startTime", "endTime"}) {
+        if (!config[key] && hasInputRun && inputRun[key]) inherited[key] = inputRun[key];
+    }
+    UpdateParamsFromYAML<TRestRun>(inherited);
+
+    // runInfo: the keys of the configuration, of the input file name ([runInfo.key]) and of its run
+    std::map<std::string, std::string> runInformation;
+    if (hasInputRun && inputRun["runInfo"] && inputRun["runInfo"].IsMap())
+        runInformation = inputRun["runInfo"].as<std::map<std::string, std::string>>();
+    for (const auto& [name, value] : tags) {
+        if (name.rfind("runInfo.", 0) == 0) runInformation[name.substr(8)] = value;
+    }
+    for (const auto& [key, value] : fRunInformation) runInformation[key] = value;
+    fRunInformation = runInformation;
 
     fOutputFileName = PrefixMainDataPath(ResolveFilePattern(fOutputFileName));
 
     TRestMetadata::ReadYAMLVerbose(fNode);
 
-    // Sync resolved file names to the node
+    // Sync resolved parameters and file names to the node
     UpdateYAMLFromParams<TRestRun>(fNode);
 }
 
@@ -549,52 +546,43 @@ void TRestRun::PrintAllMetadata() const {
      metadata->PrintMetadata();
 }
 
+YAML::Node TRestRun::GetParameters() const {
+    // From the members, the setters do not update the node
+    YAML::Node parameters(YAML::NodeType::Map);
+    const_cast<TRestRun*>(this)->UpdateYAMLFromParams<TRestRun>(parameters);
+    return parameters;
+}
+
+std::optional<std::string> TRestRun::GetParameter(const std::string& name) const {
+    const YAML::Node node = GetNodeAtPath(GetParameters(), name);
+    if (!node || !node.IsScalar()) return std::nullopt;
+    return node.Scalar();
+}
+
+std::optional<double> TRestRun::GetParameterValue(const std::string& name) const {
+    const YAML::Node node = GetNodeAtPath(GetParameters(), name);
+    if (!node || !node.IsScalar()) return std::nullopt;
+    return REST_Units::ParseValueWithUnits(node.Scalar());
+}
+
 std::string TRestRun::ResolveFilePattern(const std::string& pattern) const {
-    std::string result = pattern;
-    size_t pos = 0;
-    while (true) {
-        size_t pos1 = result.find("[", pos);
-        if (pos1 == std::string::npos) break;
-        size_t pos2 = result.find("]", pos1 + 1);
-        if (pos2 == std::string::npos) break;
-
-        std::string token = result.substr(pos1 + 1, pos2 - pos1 - 1);
-        std::string replacement;
-        bool hasReplacement = true;
-
-        if (token == "fRunNumber" || token == "runNumber") {
-            char runNumberStr[32];
-            snprintf(runNumberStr, sizeof(runNumberStr), "%05d", fRunNumber);
-            replacement = runNumberStr;
-        } else if (token == "fSubRunNumber" || token == "subRunNumber") {
-            char subRunNumberStr[32];
-            snprintf(subRunNumberStr, sizeof(subRunNumberStr), "%03d", fSubRunNumber);
-            replacement = subRunNumberStr;
-        } else if (token == "fRunType" || token == "runType") {
-            replacement = CleanString(fRunType);
-        } else if (token == "fRunUser" || token == "runUser") {
-            replacement = CleanString(fRunUser);
-        } else if (token == "fRunTag" || token == "runTag") {
-            replacement = CleanString(fRunTag);
-        } else if (token == "fExperimentName" || token == "experimentName") {
-            replacement = CleanString(fExperimentName);
-        } else if (token == "fRunDescription" || token == "runDescription") {
-            replacement = CleanString(fRunDescription);
-        } else if (token == "fVersion" || token == "version") {
-            replacement = "2.0.0";
-        } else {
-            hasReplacement = false;
+    const YAML::Node parameters = GetParameters();
+    return ReplaceDelimited(pattern, '[', ']', [&](const std::string& token) -> std::optional<std::string> {
+        const std::string name = ParameterName(token);
+        char number[32];
+        if (name == "runNumber") {
+            snprintf(number, sizeof(number), "%05d", fRunNumber);
+            return number;
         }
-
-        if (hasReplacement) {
-            result.replace(pos1, pos2 - pos1 + 1, replacement);
-            pos = pos1 + replacement.size();
-        } else {
-            pos = pos2 + 1;
+        if (name == "subRunNumber") {
+            snprintf(number, sizeof(number), "%03d", fSubRunNumber);
+            return number;
         }
-    }
-
-    return result;
+        if (name == "version") return "2.0.0";
+        const YAML::Node node = GetNodeAtPath(parameters, name);
+        if (!node || !node.IsScalar()) return std::nullopt;
+        return CleanString(node.Scalar());
+    });
 }
 
 std::string TRestRun::PrefixMainDataPath(const std::string& fileName) const {
@@ -606,17 +594,18 @@ std::string TRestRun::PrefixMainDataPath(const std::string& fileName) const {
     return (std::filesystem::path(fMainDataPath) / path).lexically_normal().string();
 }
 
-void TRestRun::ResolveInputFormat() {
-    if (fInputFormat.empty() || fInputFileName.empty() || fInputFileName == "Null") return;
+std::map<std::string, std::string> TRestRun::ParseInputFormat() const {
+    std::map<std::string, std::string> parameters;
+    if (fInputFormat.empty() || fInputFileName.empty() || fInputFileName == "Null") return parameters;
 
     std::string filenameBase = std::filesystem::path(fInputFileName).stem().string();
     std::string regexStr = fInputFormat;
     std::vector<std::string> tags;
 
-    std::regex bracketRe(R"(\[(\w+)\])");
+    std::regex bracketRe(R"(\[([\w.]+)\])");
     std::smatch m;
     while (std::regex_search(regexStr, m, bracketRe)) {
-        tags.push_back(m[1].str());
+        tags.push_back(ParameterName(m[1].str()));
         regexStr = m.prefix().str() + "([^\\_]+)" + m.suffix().str();
     }
 
@@ -625,23 +614,7 @@ void TRestRun::ResolveInputFormat() {
 
     std::smatch matches;
     if (std::regex_match(filenameBase, matches, std::regex(regexStr))) {
-        for (size_t i = 1; i < matches.size(); ++i) {
-            std::string t = tags[i - 1];
-            std::string val = matches[i].str();
-
-            if ((t == "runNumber") && fConfigRunNumber == "preserve") try {
-                    fRunNumber = std::stoi(val);
-                } catch (...) {
-                }
-            if ((t == "subRunNumber") && fConfigSubRunNumber == "preserve") try {
-                    fSubRunNumber = std::stoi(val);
-                } catch (...) {
-                }
-            if ((t == "runType") && fConfigRunType == "preserve") fRunType = val;
-            if ((t == "runUser") && fConfigRunUser == "preserve") fRunUser = val;
-            if ((t == "runTag") && fConfigRunTag == "preserve") fRunTag = val;
-            if ((t == "runDescription") && fConfigRunDescription == "preserve") fRunDescription = val;
-            if ((t == "experimentName") && fConfigExperimentName == "preserve") fExperimentName = val;
-        }
+        for (size_t i = 1; i < matches.size(); ++i) parameters[tags[i - 1]] = matches[i].str();
     }
+    return parameters;
 }

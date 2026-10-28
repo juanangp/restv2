@@ -358,14 +358,6 @@ bool TRestTrackLineAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         throw std::runtime_error("TRestTrackLineAnalysisProcess: input/output is not a TRestTrackEvent");
     }
 
-    // Input and output are the same event when chained after another track process: work on a copy, the
-    // output is cleared below
-    TRestTrackEvent inputCopy;
-    if (&input == &output) {
-        inputCopy.CopyFrom(&input);
-        inputEvent = &inputCopy;
-    }
-
     outputEvent->Initialize();
     outputEvent->SetEventInfo(inputEvent);
 

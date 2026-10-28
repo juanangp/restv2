@@ -1,6 +1,7 @@
 #include "TRestProcessManager.h"
 
 #include <algorithm>
+#include <set>
 #include <stdexcept>
 
 #include "TRestRun.h"
@@ -62,7 +63,7 @@ void TRestProcessManager::LoadConfig() {
 void TRestProcessManager::LoadProcesses() {
     fMetaObjects.clear();
     fProcessChain.clear();
-    fEventPool.clear();
+    fStageOutputs.clear();
     fPipelineConnections.clear();
     fPipelineOutputClasses.clear();
 
@@ -106,7 +107,7 @@ void TRestProcessManager::Run() {
         return;
     }
 
-    if (fOutputEventStorage && !fRunInfo->HasOutputFileOpen()) {
+    if (!fRunInfo->HasOutputFileOpen()) {
         fRunInfo->OpenOutputFile();
     }
 
@@ -117,6 +118,11 @@ void TRestProcessManager::Run() {
     }
 
     fStageInputs.assign(fProcessChain.size(), nullptr);
+    fStageOutputs.clear();
+    fStageOutputs.resize(fProcessChain.size());
+    // Output of the latest stage of each event name, and the names in order of first appearance
+    std::map<std::string, TRestEvent*> latestOutputs;
+    std::vector<std::string> outputNames;
 
     for (size_t i = 0; i < fProcessChain.size(); ++i) {
         const std::string& inputName = fPipelineConnections[i].first;
@@ -126,8 +132,8 @@ void TRestProcessManager::Run() {
         // A previous stage output takes precedence over the input file, otherwise chained processes
         // on the same event type would all read the unmodified file event
         if (inputName != "None" && !inputName.empty()) {
-            if (fEventPool.find(inputName) != fEventPool.end()) {
-                fStageInputs[i] = fEventPool[inputName].get();
+            if (latestOutputs.find(inputName) != latestOutputs.end()) {
+                fStageInputs[i] = latestOutputs[inputName];
             } else if (fRunInfo->HasEvent(inputName)) {
                 fStageInputs[i] = fRunInfo->GetEvent(inputName);
             } else {
@@ -137,24 +143,40 @@ void TRestProcessManager::Run() {
             }
         }
 
-        if (fEventPool.find(outputName) == fEventPool.end()) {
-            // Processes that change the event type declare it in GetOutputEvent
-            std::string outputClassName = fPipelineOutputClasses[i];
-            if (outputClassName.empty()) {
-                if (!fStageInputs[i]) {
-                    throw std::runtime_error(
-                        "TRestProcessManager::Run - outputClass must be specified for generator process '" +
-                        procClassName + "'");
-                }
-                outputClassName = fStageInputs[i]->GetClassName();
+        // Processes that change the event type declare it in GetOutputEvent
+        std::string outputClassName = fPipelineOutputClasses[i];
+        if (outputClassName.empty()) {
+            if (!fStageInputs[i]) {
+                throw std::runtime_error(
+                    "TRestProcessManager::Run - outputClass must be specified for generator process '" +
+                    procClassName + "'");
             }
-            auto outEvent = EventRegistry::Instance().Create(outputClassName, outputName);
+            outputClassName = fStageInputs[i]->GetClassName();
+        }
+        fStageOutputs[i] = EventRegistry::Instance().Create(outputClassName, outputName);
+        if (latestOutputs.find(outputName) == latestOutputs.end()) outputNames.push_back(outputName);
+        latestOutputs[outputName] = fStageOutputs[i].get();
+    }
 
-            if (fOutputEventStorage) {
-                fRunInfo->RegisterEvent<TRestEvent>(outputName, *outEvent);
-            }
-
-            fEventPool[outputName] = std::move(outEvent);
+    // One tree per event name, filled with the output of its last stage. Registered once per name in
+    // order of first appearance (the first one binds the event info of the analysis tree). Without
+    // outputEventStorage only the final event (output of the last process) is stored
+    std::set<std::string> storedNames;
+    if (fOutputEventStorage) {
+        for (const auto& outputName : outputNames) {
+            fRunInfo->RegisterEvent<TRestEvent>(outputName, *latestOutputs[outputName]);
+            storedNames.insert(outputName);
+        }
+    } else if (!fStageOutputs.empty()) {
+        fRunInfo->RegisterEvent<TRestEvent>(fPipelineConnections.back().second, *fStageOutputs.back());
+        storedNames.insert(fPipelineConnections.back().second);
+    }
+    // With inputEventStorage the events of the input file are stored as read, unless a stored process
+    // output has the same name (it takes precedence, a single tree per name)
+    if (fInputEventStorage) {
+        for (const auto& [inputName, inputEvent] : fRunInfo->GetEventMap()) {
+            if (!inputEvent || storedNames.count(inputName) > 0) continue;
+            fRunInfo->RegisterEvent<TRestEvent>(inputName, *inputEvent);
         }
     }
 
@@ -207,9 +229,7 @@ void TRestProcessManager::Run() {
 
         bool eventAccepted = true;
         for (size_t i = 0; i < fProcessChain.size(); ++i) {
-            const std::string& outputName = fPipelineConnections[i].second;
-
-            TRestEvent& outputEvent = *fEventPool[outputName];
+            TRestEvent& outputEvent = *fStageOutputs[i];
             const TRestEvent& inputEvent = fStageInputs[i] ? *fStageInputs[i] : outputEvent;
 
             if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent)) {
@@ -223,9 +243,7 @@ void TRestProcessManager::Run() {
 
         if (eventAccepted) {
             acceptedCount++;
-            if (fOutputEventStorage) {
-                fRunInfo->Fill();
-            }
+            fRunInfo->Fill();
         } else {
             rejectedCount++;
         }

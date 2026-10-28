@@ -90,7 +90,6 @@ class TRestDetectorSignal {
     void Sort();
     void AddOffset(double offset);
     void MultiplySignalBy(double factor);
-    void ExponentialConvolution(double fromTime, double decayTime, double offset = 0);
     void SignalAddition(const TRestDetectorSignal* inSgnl);
 
     /// \brief Builds a ROOT graph representation for quick waveform inspection.

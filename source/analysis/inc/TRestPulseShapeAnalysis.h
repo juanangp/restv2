@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 class TF1;
@@ -24,6 +25,24 @@ inline double AgetShape(double u, bool withSine = true) {
     const double s = u * u * u * std::exp(-3.0 * u);
     return withSine ? s * std::sin(u) : s;
 }
+
+/// \brief Shaping response h(u) of a type, with u = t / shapingTime: gaus (exp(-u^2 / 2), centred),
+/// exponential (exp(-u)), shaper and shaperSin (AgetShape). The causal ones are 0 for u < 0. Throws for an
+/// unknown type.
+double ShapingFunction(const std::string& type, double u);
+
+/// \brief Range of u where the response of a type is computed: [-3.5, 3.5] for gaus, [0, 5] otherwise
+std::pair<double, double> ShapingSupport(const std::string& type);
+
+/// \brief Response of a type sampled in bins (shapingTime in bins), normalized so that its samples add up to
+/// gain. center is the index of the sample aligned with the input sample (0 for causal responses, half the
+/// length for gaus). Returns an empty vector if the type is unknown or the response would be empty/null.
+std::vector<double> BuildResponse(const std::string& type, double shapingTime, double gain, int& center);
+
+/// \brief Convolves in with a sampled response (output of the same length as in). With ignoreNegative the
+/// negative samples of in are ignored.
+std::vector<double> Convolve(const std::vector<double>& in, const std::vector<double>& response, int center,
+                             bool ignoreNegative);
 
 template <typename T>
 bool GetBaselineSigma(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,

@@ -58,15 +58,6 @@ const bool kRegistered = []() {
         });
     return true;
 }();
-
-/// Readout normal (pointing to the cathode) at a position. TRestDetectorReadout::GetDistanceToReadout is
-/// a projection on the normal, so its gradient is the normal.
-XYZVector GetReadoutNormal(const TRestDetectorReadout& readout, const XYZVector& position, double distance) {
-    const XYZVector normal(readout.GetDistanceToReadout(position + XYZVector(1, 0, 0)) - distance,
-                           readout.GetDistanceToReadout(position + XYZVector(0, 1, 0)) - distance,
-                           readout.GetDistanceToReadout(position + XYZVector(0, 0, 1)) - distance);
-    return normal.R() > 0 ? normal.Unit() : normal;
-}
 }  // namespace
 
 TRestDetectorHitsDriftProcess::TRestDetectorHitsDriftProcess() : TRestEventProcess() {
@@ -85,7 +76,15 @@ TRestDetectorHitsDriftProcess::TRestDetectorHitsDriftProcess(const std::string& 
     LoadConfig();
 }
 
-void TRestDetectorHitsDriftProcess::LoadConfig() {}
+void TRestDetectorHitsDriftProcess::LoadConfig() {
+    TRestEventProcess::LoadConfig();
+    if (!fNode || fNode.IsNull()) {
+        RESTError << "TRestDetectorHitsDriftProcess::LoadConfig - YAML node is missing" << RESTendl;
+        return;
+    }
+    UpdateParamsFromYAML<TRestDetectorHitsDriftProcess>(fNode);
+    UpdateYAMLFromParams<TRestDetectorHitsDriftProcess>(fNode);
+}
 
 void TRestDetectorHitsDriftProcess::InitProcess() {
     if (kFluctuations.count(fFluctuations) == 0) {
@@ -129,6 +128,7 @@ void TRestDetectorHitsDriftProcess::InitProcess() {
 }
 
 bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
+    
     const auto* inputEvent = dynamic_cast<const TRestDetectorHitsEvent*>(&input);
     auto* outputEvent = dynamic_cast<TRestDetectorHitsEvent*>(&output);
     if (!inputEvent || !outputEvent) {
@@ -137,7 +137,7 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
     }
 
     outputEvent->Initialize();
-    outputEvent->SetEventInfo(&input);
+    outputEvent->SetEventInfo(inputEvent);
 
     double totalEnergy = 0;
     for (size_t n = 0; n < inputEvent->GetNumberOfHits(); n++) {
@@ -156,7 +156,7 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
         const double distance = fReadout->GetDistanceToReadout(position);
         const double maxDistance = fReadout->GetMaxDistanceToReadout(position);
         if (std::isnan(distance) || distance < 0 || distance > maxDistance) continue;
-        const XYZVector normal = GetReadoutNormal(*fReadout, position, distance);
+        const XYZVector normal = fReadout->GetReadoutNormal(position);
 
         double electrons = energy / wValue;
         if (fFluctuations == "fano") {

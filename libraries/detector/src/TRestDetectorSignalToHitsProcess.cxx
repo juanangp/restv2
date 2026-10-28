@@ -182,6 +182,8 @@ void TRestDetectorSignalToHitsProcess::InitProcess() {
         }
         if (medium) fDriftVelocity = medium->GetDriftVelocity();
     }
+    // The stored metadata keeps the readout and drift velocity used, not the defaults of the YAML
+    UpdateYAMLFromParams<TRestDetectorSignalToHitsProcess>(fNode);
 }
 
 bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {

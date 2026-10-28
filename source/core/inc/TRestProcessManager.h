@@ -23,9 +23,12 @@ class TRestProcessManager : public TRestMetadata {
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
     std::vector<std::unique_ptr<TRestEventProcess>> fProcessChain;
 
-    std::map<std::string, std::unique_ptr<TRestEvent>> fEventPool;
     std::vector<std::pair<std::string, std::string>> fPipelineConnections;
     std::vector<std::string> fPipelineOutputClasses;
+    /// Output event of each stage: each stage has its own, so input and output are never the same event
+    /// (processes of the same event type do not need to copy their input). Only the last stage of each
+    /// event name is stored. Created in Run().
+    std::vector<std::unique_ptr<TRestEvent>> fStageOutputs;
     /// Input event of each stage: output of the latest previous stage with that name, otherwise the
     /// input file event (nullptr for generators). Resolved in Run().
     std::vector<TRestEvent*> fStageInputs;
@@ -55,10 +58,9 @@ class TRestProcessManager : public TRestMetadata {
     void SetManager(TRestManager* mgr) { fManager = mgr; }
     void SetEntryRange(Long64_t start, Long64_t end) { fEntryStart = start; fEntryEnd = end; }
 
-    /// \brief Output event of the last process of the chain, empty without processes or if the output
-    /// events are not stored.
+    /// \brief Output event of the last process of the chain (always stored), empty without processes.
     std::string GetOutputEvent() const {
-        if (!fOutputEventStorage || fPipelineConnections.empty()) return "";
+        if (fPipelineConnections.empty()) return "";
         return fPipelineConnections.back().second;
     }
 

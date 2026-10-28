@@ -107,19 +107,6 @@ void TRestDetectorSignal::MultiplySignalBy(double factor) {
     }
 }
 
-void TRestDetectorSignal::ExponentialConvolution(double fromTime, double decayTime, double offset) {
-    int start = fData->offsets[fSignalIdx];
-    int nPoints = GetNPoints();
-
-    for (int i = 0; i < nPoints; i++) {
-        int globalIdx = start + i;
-        if (fData->allSignalsTime[globalIdx] > fromTime) {
-            fData->allSignalsCharge[globalIdx] =
-                (fData->allSignalsCharge[globalIdx] - offset) * std::exp(-(fData->allSignalsTime[globalIdx] - fromTime) / decayTime) + offset;
-        }
-    }
-}
-
 void TRestDetectorSignal::SignalAddition(const TRestDetectorSignal* inSignal) {
     if (this->GetNPoints() != inSignal->GetNPoints()) {
         RESTError << "ERROR : I cannot add two signals with different number of points" << RESTendl;

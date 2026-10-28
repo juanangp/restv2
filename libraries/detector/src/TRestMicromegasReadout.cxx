@@ -139,10 +139,11 @@ void TRestMicromegasReadout::BuildGeometry() {
     std::map<int, int> stripPixelCounter;
     const UInt_t kNoPhysicalID = static_cast<UInt_t>(-1);
 
-    auto addPixel = [&](double localX, double localY, TGeoRotation* localRot, int channelID,
+    // Pixel centred at (x, y) in the module frame (before the offsets and positionRelative)
+    auto addPixel = [&](double x, double y, TGeoRotation* localRot, int channelID,
                         bool isChannelX) {
-        double posX = localX + offsetX + posRel[0];
-        double posY = localY + offsetY + posRel[1];
+        double posX = x + offsetX + posRel[0];
+        double posY = y + offsetY + posRel[1];
         double posZ = zGlobal + posRel[2];
 
         TGeoCombiTrans* finalMatrix = new TGeoCombiTrans(posX, posY, posZ, localRot);
@@ -173,38 +174,20 @@ void TRestMicromegasReadout::BuildGeometry() {
         nodeCounter++;
     };
 
-    int chX0 = nChannels;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel((0.5 + nPix) * pitch, pitch - pitch / 4.0, rotMinus135, chX0, true);
-    }
-
-    for (int nCh = 1; nCh <= nChannels - 2; ++nCh) {
-        int chID = nChannels + nCh;
+    // The positions are the nominal ones of GetPositionFromChannel (those of the DAQ).
+    // X channel nCh (physical ID nChannels + nCh): column of pixels at x = nCh * pitch - pitch / 4
+    for (int nCh = 0; nCh < nChannels; ++nCh) {
+        TGeoRotation* rot = nCh == 0 ? rotMinus135 : rot45;
         for (int nPix = 0; nPix < nChannels; ++nPix) {
-            addPixel((0.5 + nPix) * pitch, nCh * pitch - pitch / 4.0, rot45, chID, true);
+            addPixel(nCh * pitch - pitch / 4.0, (0.5 + nPix) * pitch, rot, nChannels + nCh, true);
         }
     }
 
-    int chXLast = nChannels + nChannels - 1;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel((0.5 + nPix) * pitch, (nChannels - 1) * pitch - pitch / 4.0, rot45, chXLast, true);
-    }
-
-    int chY0 = 0;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel((1.0) * pitch, pitch / 4.0 + nPix * pitch, rot45, chY0, false);
-    }
-
-    for (int nCh = 1; nCh <= nChannels - 2; ++nCh) {
-        int chID = nCh;
+    // Y channel nCh (physical ID nCh): row of pixels at y = (1 + nCh) * pitch, between the X pixels
+    for (int nCh = 0; nCh < nChannels; ++nCh) {
         for (int nPix = 0; nPix < nChannels; ++nPix) {
-            addPixel((1.0 + nCh) * pitch, pitch / 4.0 + nPix * pitch, rot45, chID, false);
+            addPixel(pitch / 4.0 + nPix * pitch, (1.0 + nCh) * pitch, rot45, nCh, false);
         }
-    }
-
-    int chYLast = nChannels - 1;
-    for (int nPix = 0; nPix < nChannels; ++nPix) {
-        addPixel(nChannels * pitch, pitch / 4.0 + nPix * pitch, rot45, chYLast, false);
     }
 
     const int gasID = 2 * nChannels;

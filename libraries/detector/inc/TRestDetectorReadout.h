@@ -1,6 +1,7 @@
 #ifndef TRESTDETECTORREADOUT_H
 #define TRESTDETECTORREADOUT_H
 
+#include <cmath>
 #include <limits>
 #include <map>
 #include <memory>
@@ -150,6 +151,27 @@ class TRestDetectorReadout : public TRestMetadata {
     virtual double GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const {
         (void)position;
         return std::numeric_limits<double>::quiet_NaN();
+    }
+
+    /// \brief Unit normal of the readout (pointing to the cathode) at a position: the gradient of
+    /// GetDistanceToReadout, a projection on the normal. A null vector if the readout has no distance.
+    ROOT::Math::XYZVector GetReadoutNormal(const ROOT::Math::XYZVector& position) const {
+        const double distance = GetDistanceToReadout(position);
+        if (std::isnan(distance)) return {0, 0, 0};
+        using V = ROOT::Math::XYZVector;
+        const V normal(GetDistanceToReadout(position + V(1, 0, 0)) - distance,
+                       GetDistanceToReadout(position + V(0, 1, 0)) - distance,
+                       GetDistanceToReadout(position + V(0, 0, 1)) - distance);
+        return normal.R() > 0 ? normal.Unit() : normal;
+    }
+
+    /// \brief Position on the readout of a point of its drift volume: the point moved along the normal by its
+    /// distance to the readout (where its charge is collected). The point itself if the readout has no
+    /// distance.
+    ROOT::Math::XYZVector ProjectToReadout(const ROOT::Math::XYZVector& position) const {
+        const double distance = GetDistanceToReadout(position);
+        if (std::isnan(distance)) return position;
+        return position - distance * GetReadoutNormal(position);
     }
 
     /// \brief Checks whether a DAQ channel is present in the decoding table.

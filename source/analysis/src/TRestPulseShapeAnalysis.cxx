@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <stdexcept>
 
 namespace {
 
@@ -952,3 +953,60 @@ template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<double>& noise,
 template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<short>& noise, double maxAmplitude, int period, double phase);
 template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<float>& noise, double maxAmplitude, int period, double phase);
 template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<double>& noise, double maxAmplitude, int period, double phase);
+
+double TRestPulseShapeAnalysis::ShapingFunction(const std::string& type, double u) {
+    if (type == "gaus") return std::exp(-0.5 * u * u);
+    if (type != "exponential" && type != "shaper" && type != "shaperSin") {
+        throw std::runtime_error("TRestPulseShapeAnalysis: unknown shaping type '" + type +
+                                 "' (gaus, exponential, shaper or shaperSin)");
+    }
+    if (u < 0) return 0;
+    if (type == "exponential") return std::exp(-u);
+    return AgetShape(u, type == "shaperSin");
+}
+
+std::pair<double, double> TRestPulseShapeAnalysis::ShapingSupport(const std::string& type) {
+    if (type == "gaus") return {-3.5, 3.5};
+    return {0, 5};
+}
+
+std::vector<double> TRestPulseShapeAnalysis::BuildResponse(const std::string& type, double shapingTime,
+                                                           double gain, int& center) {
+    center = 0;
+    if (!(shapingTime > 0)) return {};
+    if (type != "gaus" && type != "exponential" && type != "shaper" && type != "shaperSin") return {};
+
+    std::vector<double> r;
+    if (type == "gaus") {
+        const int cBin = (int)(shapingTime * 3.5);
+        r.resize(2 * cBin);
+        center = cBin;
+        for (int i = 0; i < 2 * cBin; ++i) r[i] = ShapingFunction(type, (i - cBin) / shapingTime);
+    } else {
+        r.resize((int)(5 * shapingTime));
+        for (size_t i = 0; i < r.size(); ++i) r[i] = ShapingFunction(type, (double)i / shapingTime);
+    }
+
+    const double sum = std::accumulate(r.begin(), r.end(), 0.0);
+    if (!(sum > 0)) return {};
+    for (double& v : r) v *= gain / sum;
+    return r;
+}
+
+std::vector<double> TRestPulseShapeAnalysis::Convolve(const std::vector<double>& in,
+                                                      const std::vector<double>& response, int center,
+                                                      bool ignoreNegative) {
+    const int nBins = (int)in.size();
+    const int nr = (int)response.size();
+    std::vector<double> out(nBins, 0.0);
+
+    for (int m = 0; m < nBins; ++m) {
+        const double v = in[m];
+        if (v == 0 || (ignoreNegative && v < 0)) continue;
+
+        const int kMin = std::max(0, center - m);
+        const int kMax = std::min(nr, nBins - m + center);
+        for (int k = kMin; k < kMax; ++k) out[m + k - center] += response[k] * v;
+    }
+    return out;
+}

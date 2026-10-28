@@ -150,14 +150,6 @@ bool TRestTrackLinearizationProcess::ProcessEvent(const TRestEvent& input, TRest
         throw std::runtime_error("TRestTrackLinearizationProcess: input/output is not a TRestTrackEvent");
     }
 
-    // Input and output are the same event when chained after another track process: work on a copy, the
-    // output is cleared below
-    TRestTrackEvent inputCopy;
-    if (&input == &output) {
-        inputCopy.CopyFrom(&input);
-        inputEvent = &inputCopy;
-    }
-
     outputEvent->Initialize();
     outputEvent->SetEventInfo(inputEvent);
 

@@ -57,60 +57,9 @@ void TRestRawSignalShapingProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawSignalShapingProcess>(fNode);
 }
 
-std::vector<double> TRestRawSignalShapingProcess::BuildResponse(const std::string& type, double shapingTime,
-                                                                double gain, int& center) {
-    center = 0;
-    if (!(shapingTime > 0)) return {};
-
-    std::vector<double> r;
-
-    if (type == "gaus") {
-        const int cBin = (int)(shapingTime * 3.5);
-        r.resize(2 * cBin);
-        center = cBin;
-        for (int i = 0; i < 2 * cBin; ++i) {
-            const double x = (i - cBin) / shapingTime;
-            r[i] = std::exp(-0.5 * x * x);
-        }
-    } else if (type == "exponential" || type == "shaper" || type == "shaperSin") {
-        r.resize((int)(5 * shapingTime));
-        for (size_t i = 0; i < r.size(); ++i) {
-            const double c = (double)i / shapingTime;
-            if (type == "exponential")
-                r[i] = std::exp(-c);
-            else
-                r[i] = TRestPulseShapeAnalysis::AgetShape(c, type == "shaperSin");
-        }
-    } else {
-        return {};
-    }
-
-    const double sum = std::accumulate(r.begin(), r.end(), 0.0);
-    if (!(sum > 0)) return {};
-    for (double& v : r) v *= gain / sum;
-    return r;
-}
-
-std::vector<double> TRestRawSignalShapingProcess::Convolve(const std::vector<double>& in,
-                                                           const std::vector<double>& response, int center,
-                                                           bool ignoreNegative) {
-    const int nBins = (int)in.size();
-    const int nr = (int)response.size();
-    std::vector<double> out(nBins, 0.0);
-
-    for (int m = 0; m < nBins; ++m) {
-        const double v = in[m];
-        if (v == 0 || (ignoreNegative && v < 0)) continue;
-
-        const int kMin = std::max(0, center - m);
-        const int kMax = std::min(nr, nBins - m + center);
-        for (int k = kMin; k < kMax; ++k) out[m + k - center] += response[k] * v;
-    }
-    return out;
-}
-
 void TRestRawSignalShapingProcess::InitProcess() {
-    fResponse = BuildResponse(fShapingType, fShapingTime, fShapingGain, fResponseCenter);
+    fResponse =
+        TRestPulseShapeAnalysis::BuildResponse(fShapingType, fShapingTime, fShapingGain, fResponseCenter);
 
     if (fResponse.empty()) {
         throw std::runtime_error("TRestRawSignalShapingProcess: cannot build the response for shapingType '" +
@@ -131,9 +80,7 @@ bool TRestRawSignalShapingProcess::ProcessEvent(const TRestEvent& input, TRestEv
     const int nSignals = inEvent->GetNumberOfSignals();
     if (nSignals <= 0) return false;
 
-    if (&input != &output) {
-        outEvent->CopyFrom(&input);
-    }
+    outEvent->CopyFrom(&input);
 
     constexpr long kMin = std::numeric_limits<short>::min();
     constexpr long kMax = std::numeric_limits<short>::max();
@@ -151,7 +98,8 @@ bool TRestRawSignalShapingProcess::ProcessEvent(const TRestEvent& input, TRestEv
             for (double& v : centered) v -= baseline;
         }
 
-        std::vector<double> shaped = Convolve(centered, fResponse, fResponseCenter, !useBaseline);
+        std::vector<double> shaped =
+            TRestPulseShapeAnalysis::Convolve(centered, fResponse, fResponseCenter, !useBaseline);
         if (useBaseline) {
             for (double& v : shaped) v += baseline;
         }

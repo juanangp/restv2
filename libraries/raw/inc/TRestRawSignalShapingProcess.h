@@ -46,15 +46,6 @@ class TRestRawSignalShapingProcess : public TRestEventProcess {
     std::string GetInputEvent() const override { return "TRestRawSignalEvent"; }
     std::string GetOutputEvent() const override { return "TRestRawSignalEvent"; }
     std::string GetClassName() const override { return "TRestRawSignalShapingProcess"; }
-
-    /// \brief Builds the kernel for `type`, normalized so that its samples add up to `gain`.
-    /// Returns an empty vector if the type is unknown or the kernel would be empty/null.
-    static std::vector<double> BuildResponse(const std::string& type, double shapingTime, double gain,
-                                             int& center);
-
-    /// \brief Convolves `in` with `response` (same length as `in`). Negative samples are ignored.
-    static std::vector<double> Convolve(const std::vector<double>& in, const std::vector<double>& response,
-                                    int center, bool ignoreNegative);
 };
 
 #endif

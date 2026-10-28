@@ -1,10 +1,15 @@
 #include "TRestEventProcess.h"
 
+#include <stdexcept>
+
+#include "TRestCut.h"
+#include "TRestManager.h"
 #include "TRestRun.h"
 
 static const bool TRestEventProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestEventProcess>("observables", &TRestEventProcess::fObservables);
+    reg.RegisterField<TRestEventProcess>("cuts", &TRestEventProcess::fCutNames);
     return true;
 }();
 
@@ -38,4 +43,30 @@ bool TRestEventProcess::ShouldRegisterObservable(const std::string& name) const 
         if (obs == "all" || obs == name) return true;
     }
     return false;
+}
+
+void TRestEventProcess::InitCuts() {
+    fCuts.clear();
+    if (fCutNames.empty()) return;
+    if (!fManager) throw std::runtime_error(GetName() + ": cuts need a TRestManager with the TRestCut");
+    if (!fRunInfo || !fRunInfo->fOutputAnalysisTree) {
+        throw std::runtime_error(GetName() + ": cuts need the output analysis tree");
+    }
+    const auto cuts = fManager->GetMetadataOfType<TRestCut>();
+    for (const auto& name : fCutNames) {
+        TRestCut* cut = nullptr;
+        for (auto* c : cuts) {
+            if (c->GetName() == name) cut = c;
+        }
+        if (!cut) throw std::runtime_error(GetName() + ": TRestCut '" + name + "' not found in the manager");
+        cut->Compile(fRunInfo->fOutputAnalysisTree);
+        fCuts.push_back(cut);
+    }
+}
+
+bool TRestEventProcess::PassCuts() const {
+    for (const auto* cut : fCuts) {
+        if (!cut->Evaluate()) return false;
+    }
+    return true;
 }

@@ -128,6 +128,7 @@ int main(int argc, char** argv) {
        mgr.PrintMetadata();
        mgr.Run();
        mgr.SaveMetadata();
+       mgr.RunPlots();
 
     } catch (const std::exception& ex) {
         std::cerr << "[ERROR] " << ex.what() << "\n";

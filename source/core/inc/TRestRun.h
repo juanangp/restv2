@@ -4,6 +4,7 @@
 #include <TFile.h>
 #include <TTree.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +32,9 @@ class TRestRun : public TRestMetadata {
     std::string fRunTag = "Null";
     std::string fRunDescription = "Null";
     std::string fExperimentName = "Null";
+    /// Information of the run (`runInfo`), e.g. driftVoltage: 1000 V, gain: 50, as written (with units):
+    /// the one of the input file, with the keys of the configuration added or replacing it
+    std::map<std::string, std::string> fRunInformation;
 
     std::string fInputFileName = "Null";
     std::string fOutputFileName = "rest_default.root";
@@ -71,6 +75,8 @@ class TRestRun : public TRestMetadata {
     std::string fConfigRunTag = "Null";
     std::string fConfigRunDescription = "Null";
     std::string fConfigExperimentName = "Null";
+    /// inheritInputRun: the run parameters not given in the configuration are "preserve" (input file)
+    bool fInheritInputRun = false;
     bool fIsInitializedFromConfig = false;
     int fOutputBasketSize = 1024*1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
 
@@ -136,6 +142,9 @@ class TRestRun : public TRestMetadata {
     /// \brief Returns experiment name.
     /// \return Experiment name.
     std::string GetExperimentName() const { return fExperimentName; }
+
+    /// \brief Returns the information of the run (`runInfo`), key: value as written.
+    const std::map<std::string, std::string>& GetRunInformation() const { return fRunInformation; }
 
     /// \brief Returns input file name.
     /// \return Input file path.

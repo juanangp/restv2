@@ -23,6 +23,7 @@ static const bool TRestRun_FieldsRegistered = []() {
     reg.RegisterField<TRestRun>("runTag", &TRestRun::fRunTag);
     reg.RegisterField<TRestRun>("runDescription", &TRestRun::fRunDescription);
     reg.RegisterField<TRestRun>("experimentName", &TRestRun::fExperimentName);
+    reg.RegisterField<TRestRun>("runInfo", &TRestRun::fRunInformation);
 
     reg.RegisterField<TRestRun>("inputFileName", &TRestRun::fInputFileName);
     reg.RegisterField<TRestRun>("outputFileName", &TRestRun::fOutputFileName);
@@ -92,15 +93,18 @@ void TRestRun::LoadConfig() {
     }
 
     if (!fIsInitializedFromConfig) {
-        fConfigRunNumber = ReadYAMLParamOrDefault<std::string>(fNode, "runNumber", fConfigRunNumber);
-        fConfigSubRunNumber = ReadYAMLParamOrDefault<std::string>(fNode, "subRunNumber", fConfigSubRunNumber);
-        fConfigRunType = ReadYAMLParamOrDefault<std::string>(fNode, "runType", fConfigRunType);
-        fConfigRunUser = ReadYAMLParamOrDefault<std::string>(fNode, "runUser", fConfigRunUser);
-        fConfigRunTag = ReadYAMLParamOrDefault<std::string>(fNode, "runTag", fConfigRunTag);
-        fConfigRunDescription =
-            ReadYAMLParamOrDefault<std::string>(fNode, "runDescription", fConfigRunDescription);
-        fConfigExperimentName =
-            ReadYAMLParamOrDefault<std::string>(fNode, "experimentName", fConfigExperimentName);
+        fInheritInputRun = ReadYAMLParamOrDefault<bool>(fNode, "inheritInputRun", fInheritInputRun);
+        // With inheritInputRun the parameters not given are taken from the input file
+        auto readConfig = [this](const std::string& key, const std::string& value) {
+            return ReadYAMLParamOrDefault<std::string>(fNode, key, fInheritInputRun ? "preserve" : value);
+        };
+        fConfigRunNumber = readConfig("runNumber", fConfigRunNumber);
+        fConfigSubRunNumber = readConfig("subRunNumber", fConfigSubRunNumber);
+        fConfigRunType = readConfig("runType", fConfigRunType);
+        fConfigRunUser = readConfig("runUser", fConfigRunUser);
+        fConfigRunTag = readConfig("runTag", fConfigRunTag);
+        fConfigRunDescription = readConfig("runDescription", fConfigRunDescription);
+        fConfigExperimentName = readConfig("experimentName", fConfigExperimentName);
 
         if (fConfigRunNumber != "preserve" && fConfigRunNumber != "auto") {
             try {
@@ -127,6 +131,7 @@ void TRestRun::LoadConfig() {
         fInputFileName = ReadYAMLParamOrDefault<std::string>(fNode, "inputFileName", fInputFileName);
 
         fOutputBasketSize = ReadYAMLParamOrDefault<int>(fNode, "outputBasketSize", fOutputBasketSize);
+        if (fNode["runInfo"]) fRunInformation = fNode["runInfo"].as<std::map<std::string, std::string>>();
 
         fIsInitializedFromConfig = true;
     }
@@ -135,7 +140,10 @@ void TRestRun::LoadConfig() {
         fInputFileName = ResolveFilePattern(fInputFormat);
     }
 
-    if (!fInputFileName.empty() && fInputFileName != "Null") {
+    // A pattern of several files (e.g. R*_ANA.root) is not opened: it is only for the tasks
+    // (TRestAnalysisPlot), the pipeline reads one file
+    const bool isPattern = fInputFileName.find_first_of("*?") != std::string::npos;
+    if (!fInputFileName.empty() && fInputFileName != "Null" && !isPattern) {
         OpenInputFile(fInputFileName);
     }
 
@@ -150,14 +158,25 @@ void TRestRun::LoadConfig() {
                 fSubRunNumber = ReadYAMLParamOrDefault<int>(fInputFileNode, "subRunNumber", fSubRunNumber);
             if (fConfigRunType == "preserve")
                 fRunType = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runType", fRunType);
+            if (fConfigRunUser == "preserve")
+                fRunUser = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runUser", fRunUser);
             if (fConfigRunTag == "preserve")
-                fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", fConfigRunTag);
+                fRunTag = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runTag", fRunTag);
             if (fConfigRunDescription == "preserve")
                 fRunDescription =
                     ReadYAMLParamOrDefault<std::string>(fInputFileNode, "runDescription", fRunDescription);
             if (fConfigExperimentName == "preserve")
                 fExperimentName =
                     ReadYAMLParamOrDefault<std::string>(fInputFileNode, "experimentName", fExperimentName);
+            // Times of the data taking (a process reading raw data sets them again)
+            fStartTime = ReadYAMLParamOrDefault<double>(fInputFileNode, "startTime", fStartTime);
+            fEndTime = ReadYAMLParamOrDefault<double>(fInputFileNode, "endTime", fEndTime);
+            // The runInfo of the input file is kept; the keys of the configuration are added or replace it
+            if (fInputFileNode["runInfo"] && fInputFileNode["runInfo"].IsMap()) {
+                auto runInformation = fInputFileNode["runInfo"].as<std::map<std::string, std::string>>();
+                for (const auto& [key, value] : fRunInformation) runInformation[key] = value;
+                fRunInformation = runInformation;
+            }
         }
     } else {
         if (fInputFormat.empty() && fConfigRunNumber == "auto") {

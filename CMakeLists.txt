@@ -27,7 +27,8 @@ set(ROOT_REQUIRED_LIBRARIES
     Gui 
     Eve
     RGL
-    TreePlayer)
+    TreePlayer
+    ROOTDataFrame)
 
 find_package(ROOT 6.24 REQUIRED COMPONENTS ${ROOT_REQUIRED_LIBRARIES})
 include(${ROOT_USE_FILE})

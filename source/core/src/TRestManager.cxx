@@ -4,8 +4,10 @@
 #include <stdexcept>
 #include <thread>
 
+#include <TFile.h>
 #include <TFileMerger.h>
 
+#include "TRestAnalysisPlot.h"
 #include "TRestLogManager.h"
 #include "TRestProcessManager.h"
 #include "TRestRun.h"
@@ -73,6 +75,8 @@ void TRestManager::Run() {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
     if (fProcessManager == nullptr) {
+        // Only plots (RunPlots), on the input file of the run
+        if (!GetMetadataOfType<TRestAnalysisPlot>().empty()) return;
         throw std::runtime_error(
             "TRestManager::Run - no TRestProcessManager configured under manager section.");
     }
@@ -192,6 +196,8 @@ void TRestManager::SaveMetadata() {
     if (fRunInfo == nullptr) {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
+    // Without pipeline (only plots) there is no output file
+    if (!fRunInfo->HasOutputFileOpen()) return;
 
     fRunInfo->AddHistoricMetadata();
 
@@ -202,4 +208,35 @@ void TRestManager::SaveMetadata() {
     for (const auto& meta : fMetaObjects) {
         fRunInfo->AddMetadata(meta.get());
     }
+}
+
+void TRestManager::RunPlots() {
+    const auto plots = GetMetadataOfType<TRestAnalysisPlot>();
+    if (plots.empty()) return;
+    if (fRunInfo == nullptr) {
+        throw std::runtime_error("TRestManager::RunPlots - no TRestRun configured under manager section.");
+    }
+    // The output of the pipeline if there is one (read and then updated), otherwise the input of the run
+    std::string fileName = fRunInfo->GetInputFileName();
+    std::string outputFileName = fRunInfo->GetOutputFileName();
+    if (outputFileName == "Null") outputFileName.clear();
+    const bool pipelineOutput = fRunInfo->HasOutputFileOpen();
+    if (pipelineOutput) {
+        fileName = outputFileName;
+        fRunInfo->CloseFiles();
+    } else if (!outputFileName.empty()) {
+        // The input file itself (e.g. same pattern and inheritInputRun) is updated, keeping its run
+        std::error_code error;
+        const bool inputFile = std::filesystem::equivalent(fileName, outputFileName, error);
+        fRunInfo->CloseFiles();
+        // Otherwise a new file of plots; both with the metadata of the manager (as the pipeline output)
+        std::unique_ptr<TFile> file(TFile::Open(outputFileName.c_str(), inputFile ? "UPDATE" : "RECREATE"));
+        if (!file || file->IsZombie()) {
+            throw std::runtime_error("TRestManager::RunPlots - cannot open " + outputFileName);
+        }
+        for (const auto& meta : fMetaObjects) {
+            if (!inputFile || meta.get() != fRunInfo) meta->WriteMetadata(file.get());
+        }
+    }
+    for (auto* plot : plots) plot->PlotCombinedCanvas(fileName, outputFileName, this);
 }

@@ -32,7 +32,8 @@
 /// event type selected in the browser:
 /// - TRestTrackEvent and TRestDetectorHitsEvent: the event (its DrawEvent with the plot option) with a
 ///   dashed black line from the origin (open circle) to the end (star) over every view where they are
-///   defined. The origin and end are the observables LineOriginX/Y/Z and LineEndX/Y/Z of the entry;
+///   defined. The origin and end are the observables OriginX/Y/Z and EndX/Y/Z of the entry (branches
+///   processName_OriginX, ...: of the process given, or if none, of the first process that has them);
 ///   without them only the event is drawn. With an empty plot option, the hits events are drawn with
 ///   "markers(colz)": Z bins of the pulse samples and the 3D view as markers colored by energy
 ///   (TRestDetectorHitsEvent::DrawEvent).
@@ -44,11 +45,14 @@
 /// - Other events: as TRestEventViewer.
 class TrackLineViewer : public TRestEventViewer {
    private:
+    /// Name of the TRestTrackLineAnalysisProcess of the observables, empty: the first one in the file
+    std::string fPrefix;
+
     /// Pad of the signals split by axis, owned by the viewer (the other pads belong to the events)
     TPad* fSignalsPad = nullptr;
 
     /// \brief Origin and end of the current entry from the analysis tree of the event run.
-    /// \return False if there is no run, analysis tree or Line observables.
+    /// \return False if there is no run, analysis tree or line observables.
     bool ReadLine(double origin[3], double end[3]) const;
 
     /// \brief Draws the line over the view pads under `pad` (recursively), with their axes from the
@@ -64,6 +68,8 @@ class TrackLineViewer : public TRestEventViewer {
 
 
    public:
+    explicit TrackLineViewer(const std::string& prefix = "") : fPrefix(prefix) {}
+
     void Plot(const char* option) override;
 };
 
@@ -72,8 +78,32 @@ const Style_t kOriginMarker = 24;
 const Style_t kEndMarker = 29;
 const double kMarkerSize = 2.5;
 
-const char* kLineObservables[6] = {"LineOriginX", "LineOriginY", "LineOriginZ",
-                                   "LineEndX",    "LineEndY",    "LineEndZ"};
+const char* kLineObservables[6] = {"OriginX", "OriginY", "OriginZ", "EndX", "EndY", "EndZ"};
+
+// Branches of the line observables (processName_observable) of the process `prefix`, or if empty of the
+// first process with all of them; empty if they are not in the tree
+std::vector<std::string> GetLineBranches(TTree* tree, const std::string& prefix) {
+    if (!prefix.empty()) {
+        std::vector<std::string> names;
+        for (const char* observable : kLineObservables) {
+            const std::string name = prefix + "_" + observable;
+            if (!tree->GetBranch(name.c_str())) return {};
+            names.push_back(name);
+        }
+        return names;
+    }
+    const std::string suffix = std::string("_") + kLineObservables[0];
+    TObjArray* branches = tree->GetListOfBranches();
+    for (int i = 0; i < branches->GetEntries(); i++) {
+        const std::string name = branches->At(i)->GetName();
+        if (name.size() <= suffix.size()) continue;
+        if (name.compare(name.size() - suffix.size(), suffix.size(), suffix) != 0) continue;
+        const std::vector<std::string> names =
+            GetLineBranches(tree, name.substr(0, name.size() - suffix.size()));
+        if (!names.empty()) return names;
+    }
+    return {};
+}
 
 // Axis (0, 1, 2) from a title starting with X, Y or Z (TRestHitsData::kAxisTitles), -1 otherwise (energy)
 int GetAxis(const char* title) {
@@ -152,9 +182,10 @@ bool TrackLineViewer::ReadLine(double origin[3], double end[3]) const {
 
     // Formulas, so the branch addresses set by others are kept
     std::vector<std::unique_ptr<TTreeFormula>> formulas;
-    for (const char* name : kLineObservables) {
-        if (!tree->GetBranch(name)) return false;
-        formulas.push_back(std::make_unique<TTreeFormula>(name, name, tree));
+    const std::vector<std::string> names = GetLineBranches(tree, fPrefix);
+    if (names.empty()) return false;
+    for (const auto& name : names) {
+        formulas.push_back(std::make_unique<TTreeFormula>(name.c_str(), name.c_str(), tree));
     }
     const Long64_t entry = run->GetCurrentEntry();
     if (tree->GetEntry(entry) <= 0) return false;
@@ -295,7 +326,7 @@ void TrackLineViewer::Plot(const char* option) {
             std::cout << "Line origin (" << origin[0] << ", " << origin[1] << ", " << origin[2] << "), end ("
                       << end[0] << ", " << end[1] << ", " << end[2] << ")" << std::endl;
         } else {
-            std::cout << "TrackLineViewer: no Line observables (TRestTrackLineAnalysisProcess) for this "
+            std::cout << "TrackLineViewer: no line observables (TRestTrackLineAnalysisProcess) for this "
                          "entry, drawing only the event"
                       << std::endl;
         }
@@ -309,21 +340,22 @@ void TrackLineViewer::Plot(const char* option) {
 /// Browses the events of a file analysed with TRestTrackLineAnalysisProcess (TRestBrowser: entry,
 /// event ID, event type, selection with observables, previous/next event) with TrackLineViewer: the
 /// track and hits events with the origin and end over them, the raw and detector signal events split
-/// in X and Y strips (readout of the file). The event type is chosen in the browser, at start
-/// `eventType` or, if empty, the last saved event type of the file (TRestRun::GetOutputEvent, e.g.
-/// TRestTrackEvent).
+/// in X and Y strips (readout of the file). The event type is chosen in the browser, at start the last
+/// saved event type of the file (TRestRun::GetOutputEvent, e.g. TRestTrackEvent). `prefix` is the name
+/// of the TRestTrackLineAnalysisProcess whose observables are drawn (branches prefix_OriginX, ...); if
+/// empty, the first process of the file with them.
 /// The plot option is the DrawEvent option of the event (for signals, any option draws them without
 /// splitting).
 ///
 ///    restRoot
 ///    [0] ViewTrackLine("R01234_LINEAR.root")
-///    [1] ViewTrackLine("R01234_LINEAR.root", "TRestDetectorHitsEvent")
+///    [1] ViewTrackLine("R01234_LINEAR.root", "trackLineAnalysis")
 ///
-/// e.g. selection "LineEnergy > 100000 && LineTrackBalance > 0.95" to go only through those events.
-int ViewTrackLine(const std::string& fileName, const std::string& eventType = "") {
-    auto* browser = new TRestBrowser(new TrackLineViewer());
+/// e.g. selection "trackLineAnalysis_Energy > 100000 && trackLineAnalysis_TrackBalance > 0.95" to go only
+/// through those events (branches processName_observable).
+int ViewTrackLine(const std::string& fileName, const std::string& prefix = "") {
+    auto* browser = new TRestBrowser(new TrackLineViewer(prefix));
     browser->OpenFile(fileName);
-    if (!eventType.empty()) browser->SetEvent(eventType);
     return 0;
 }
 #endif

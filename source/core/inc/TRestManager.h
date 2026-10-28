@@ -15,7 +15,8 @@ class TRestProcessManager;
 /// \brief Top-level orchestrator that loads configured metadata classes.
 ///
 /// `TRestManager` parses configuration and instantiates metadata objects.
-/// Event pipeline execution is delegated to `TRestProcessManager`.
+/// Event pipeline execution is delegated to `TRestProcessManager`; after it, RunPlots draws the
+/// TRestAnalysisPlot of the manager.
 class TRestManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
@@ -30,6 +31,11 @@ class TRestManager : public TRestMetadata {
     std::string GetClassName() const override { return "TRestManager"; }
 
     void Run();
+
+    /// \brief Draws every TRestAnalysisPlot of the manager, in declaration order, with the output file of
+    /// the pipeline (closed first, call after SaveMetadata) or, without pipeline, the input file name of
+    /// the run (it can be a pattern, e.g. R*_ANA.root).
+    void RunPlots();
 
     void LoadConfig() override;
     void Initialize() override {}

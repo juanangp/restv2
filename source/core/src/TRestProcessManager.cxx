@@ -82,8 +82,16 @@ void TRestProcessManager::LoadProcesses() {
             std::unique_ptr<TRestEventProcess> processPtr(proc);
             meta.release();
 
-            const std::string inputEvent = proc->GetInputEvent();
-            const std::string outputEvent = proc->GetOutputEvent();
+            std::string inputEvent = proc->GetInputEvent();
+            std::string outputEvent = proc->GetOutputEvent();
+            // Processes for any event type (e.g. TRestSelectionProcess) take the event of the previous one
+            if (inputEvent.empty()) {
+                if (fPipelineConnections.empty()) {
+                    throw std::runtime_error("TRestProcessManager: process '" + proc->GetName() +
+                                             "' has no input event and it is the first process");
+                }
+                inputEvent = outputEvent = fPipelineConnections.back().second;
+            }
 
             RESTInfo << "Loading process: " << proc->GetName() << " (" << proc->GetClassName() << ")"
                      << RESTendl;
@@ -116,6 +124,8 @@ void TRestProcessManager::Run() {
         proc->SetManager(fManager);
         proc->Initialize();
     }
+    // Once all the observables are registered
+    for (auto& proc : fProcessChain) proc->InitCuts();
 
     fStageInputs.assign(fProcessChain.size(), nullptr);
     fStageOutputs.clear();
@@ -232,7 +242,7 @@ void TRestProcessManager::Run() {
             TRestEvent& outputEvent = *fStageOutputs[i];
             const TRestEvent& inputEvent = fStageInputs[i] ? *fStageInputs[i] : outputEvent;
 
-            if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent)) {
+            if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent) || !fProcessChain[i]->PassCuts()) {
                 eventAccepted = false;
                 break;
             }
@@ -260,5 +270,7 @@ void TRestProcessManager::Run() {
     }
 
     RESTInfo << "TRestProcessManager: Pipeline finished. Accepted: " << acceptedCount
-             << "events, Rejected: " << rejectedCount << " events" << RESTendl;
+             << " events, Rejected: " << rejectedCount << " events" << RESTendl;
+    RESTInfo << "Output file name: "<<fRunInfo->GetOutputFileName() << RESTendl;
+    
 }

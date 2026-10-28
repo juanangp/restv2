@@ -32,27 +32,27 @@
 /// * lineAnaMethod: "default" or "3D" (only with several projections).
 ///
 /// ### Observables
-/// Prefixed with Line, as they are registered with no process name:
-/// * LineOriginX/Y/Z, LineEndX/Y/Z: origin and end of the track.
-/// * LineLength: distance from origin to end (in the defined coordinates).
-/// * LineAngle: polar angle (radians, from the Z axis) of origin - end, NaN without Z or with length 0.
-/// * LinePhi: azimuthal angle (radians, in the XY plane from X) of origin - end, NaN without X and Y or
+/// Branches `processName_observable` of the analysis tree (e.g. trackLineAnalysis_OriginX):
+/// * OriginX/Y/Z, EndX/Y/Z: origin and end of the track.
+/// * Length: distance from origin to end (in the defined coordinates).
+/// * Angle: polar angle (radians, from the Z axis) of origin - end, NaN without Z or with length 0.
+/// * Phi: azimuthal angle (radians, in the XY plane from X) of origin - end, NaN without X and Y or
 ///   with no XY length.
-/// * LineDownwards: 1 if the origin is above the end (origin Z > end Z), -1 below, 0 if unknown (no Z,
+/// * Downwards: 1 if the origin is above the end (origin Z > end Z), -1 below, 0 if unknown (no Z,
 ///   or same Z).
-/// * LineEnergy: energy of the main track.
-/// * LineAsymmetry: energy asymmetry of the halves of the tracks of the main track (energy weighted mean),
+/// * Energy: energy of the main track.
+/// * Asymmetry: energy asymmetry of the halves of the tracks of the main track (energy weighted mean),
 ///   from 0 (no preferred direction) to 1: how reliable the origin and end are.
-/// * LineResidual: energy weighted RMS distance of the hits to the line fitted to them
+/// * Residual: energy weighted RMS distance of the hits to the line fitted to them
 ///   (TRestHitsAnalysis::GetLineResidual), energy weighted mean over the tracks of the main track: 0 for a
 ///   straight track, larger for curved or scattered ones.
-/// * LineRelativeZ: position of the half of the energy along Z, relative to the Z extent of the main track
+/// * RelativeZ: position of the half of the energy along Z, relative to the Z extent of the main track
 ///   and from its minimum Z: below 0.5 the track is downwards, upwards otherwise. NaN without Z.
-/// * LineTrackBalance: energy fraction of the main track, among the tracks of the projections (all the
+/// * TrackBalance: energy fraction of the main track, among the tracks of the projections (all the
 ///   tracks without projections).
-/// * With projections, for each projection P: LineTrackBalance_P (the same in P), LineLength_P and
-///   LineAngle_P (of the main track of P, from its own origin and end; the angle NaN without Z),
-///   LineAsymmetry_P and LineResidual_P.
+/// * With projections, for each projection P: TrackBalance_P (the same in P), Length_P and
+///   Angle_P (of the main track of P, from its own origin and end; the angle NaN without Z),
+///   Asymmetry_P and Residual_P.
 ///
 /// Example (strip readout):
 ///
@@ -65,11 +65,11 @@
 ///
 /// Migrated from the legacy track library (JuanAn Garcia), redesigned to be readout independent (legacy
 /// only for XZ and YZ tracks). Legacy observables with projections [XZ, YZ]: trackBalanceX/Y =
-/// LineTrackBalance_XZ/YZ, trackBalance = LineTrackBalance, originX = LineOriginX, ..., length =
-/// LineLength, angle = LineAngle (NaN instead of -10 for length 0), downwards = LineDownwards (> 0),
-/// totalEnergy = LineEnergy, relativeZ = LineRelativeZ. Differences: the end from the energy of the
+/// TrackBalance_XZ/YZ, trackBalance = TrackBalance, originX = OriginX, ..., length =
+/// Length, angle = Angle (NaN instead of -10 for length 0), downwards = Downwards (> 0),
+/// totalEnergy = Energy, relativeZ = RelativeZ. Differences: the end from the energy of the
 /// halves instead of the most energetic node; the projections oriented coherently; "3D" pairs along the
-/// common coordinate instead of node by node; LinePhi, LineAsymmetry, LineResidual and the per
+/// common coordinate instead of node by node; Phi, Asymmetry, Residual and the per
 /// projection length, angle, asymmetry and residual are new.
 
 #include "TRestTrackLineAnalysisProcess.h"
@@ -327,27 +327,27 @@ void TRestTrackLineAnalysisProcess::InitProcess() {
         fProjectionTracks.push_back(projection);
     }
 
-    RegisterObservable("LineOriginX", fOriginX);
-    RegisterObservable("LineOriginY", fOriginY);
-    RegisterObservable("LineOriginZ", fOriginZ);
-    RegisterObservable("LineEndX", fEndX);
-    RegisterObservable("LineEndY", fEndY);
-    RegisterObservable("LineEndZ", fEndZ);
-    RegisterObservable("LineLength", fLength);
-    RegisterObservable("LineAngle", fAngle);
-    RegisterObservable("LinePhi", fPhi);
-    RegisterObservable("LineDownwards", fDownwards);
-    RegisterObservable("LineEnergy", fEnergy);
-    RegisterObservable("LineAsymmetry", fAsymmetry);
-    RegisterObservable("LineResidual", fResidual);
-    RegisterObservable("LineRelativeZ", fRelativeZ);
-    RegisterObservable("LineTrackBalance", fTrackBalance);
+    RegisterObservable("OriginX", fOriginX);
+    RegisterObservable("OriginY", fOriginY);
+    RegisterObservable("OriginZ", fOriginZ);
+    RegisterObservable("EndX", fEndX);
+    RegisterObservable("EndY", fEndY);
+    RegisterObservable("EndZ", fEndZ);
+    RegisterObservable("Length", fLength);
+    RegisterObservable("Angle", fAngle);
+    RegisterObservable("Phi", fPhi);
+    RegisterObservable("Downwards", fDownwards);
+    RegisterObservable("Energy", fEnergy);
+    RegisterObservable("Asymmetry", fAsymmetry);
+    RegisterObservable("Residual", fResidual);
+    RegisterObservable("RelativeZ", fRelativeZ);
+    RegisterObservable("TrackBalance", fTrackBalance);
     for (auto& projection : fProjectionTracks) {
-        RegisterObservable("LineTrackBalance_" + projection.name, projection.balance);
-        RegisterObservable("LineLength_" + projection.name, projection.length);
-        RegisterObservable("LineAngle_" + projection.name, projection.angle);
-        RegisterObservable("LineAsymmetry_" + projection.name, projection.asymmetry);
-        RegisterObservable("LineResidual_" + projection.name, projection.residual);
+        RegisterObservable("TrackBalance_" + projection.name, projection.balance);
+        RegisterObservable("Length_" + projection.name, projection.length);
+        RegisterObservable("Angle_" + projection.name, projection.angle);
+        RegisterObservable("Asymmetry_" + projection.name, projection.asymmetry);
+        RegisterObservable("Residual_" + projection.name, projection.residual);
     }
 }
 

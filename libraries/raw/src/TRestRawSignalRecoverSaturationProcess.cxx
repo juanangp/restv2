@@ -73,8 +73,8 @@ TRestRawSignalRecoverSaturationProcess::TRestRawSignalRecoverSaturationProcess(
     LoadConfig();
 }
 
-TRestRawSignalRecoverSaturationProcess::TRestRawSignalRecoverSaturationProcess(
-    const std::string& fileName, const std::string& sectionName)
+TRestRawSignalRecoverSaturationProcess::TRestRawSignalRecoverSaturationProcess(const std::string& fileName,
+                                                                               const std::string& sectionName)
     : TRestEventProcess(fileName, sectionName) {
     LoadConfig();
 }
@@ -160,8 +160,8 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
         std::vector<float> subtracted(nPoints);
         for (int i = 0; i < nPoints; i++) subtracted[i] = data[i] - baseline;
         std::pair<int, int> range = {0, nPoints};
-        const auto pointsOverThr = GetPointsOverThreshold(subtracted, range, thrParams, fPointsOverThreshold,
-                                                          fNPointsFlat, sigma);
+        const auto pointsOverThr =
+            GetPointsOverThreshold(subtracted, range, thrParams, fPointsOverThreshold, fNPointsFlat, sigma);
 
         if (pointsOverThr.empty()) {
             skip(signal, "no points over threshold (baseline " + std::to_string(baseline) + ", sigma " +
@@ -195,7 +195,8 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
             if (below != saturatedBins.end()) {
                 std::string pars;
                 for (int i = 0; i < fit->GetNpar(); i++)
-                    pars += std::string(" ") + fit->GetParName(i) + "=" + std::to_string(fit->GetParameter(i));
+                    pars +=
+                        std::string(" ") + fit->GetParName(i) + "=" + std::to_string(fit->GetParameter(i));
                 skip(signal, "bad fit, below saturation at bin " + std::to_string(*below) + " (fit " +
                                  std::to_string(fit->Eval(*below)) + ", saturation " +
                                  std::to_string(maxValue) + ", saturated bins " +

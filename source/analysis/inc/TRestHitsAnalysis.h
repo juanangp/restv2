@@ -21,8 +21,9 @@ using XYZVector = ROOT::Math::XYZVector;
 /// \brief Groups the points in clusters: two points closer than `distance` belong to the same cluster,
 /// and so do the points connected through a chain of such pairs. The distance only uses the coordinates
 /// enabled in `coordinates` (e.g. {true, false, true} for XZ hits), the others are ignored (they can be
-/// NaN, as in the hit positions). The points are placed in cells of side `distance`, so each point is only compared with those
-/// of its cell and the adjacent ones (time growing with the number of points, not with its square).
+/// NaN, as in the hit positions). The points are placed in cells of side `distance`, so each point is only
+/// compared with those of its cell and the adjacent ones (time growing with the number of points, not with
+/// its square).
 /// \return The clusters as indices of `points`, each one in increasing order, ordered by their first
 /// index. With distance <= 0 every point is a cluster.
 std::vector<std::vector<size_t>> FindClusters(const std::vector<XYZVector>& points, double distance,
@@ -82,8 +83,8 @@ void GetBoundaries(const std::vector<double>& values, double binSize, double& ma
 /// energetic point (legacy) keeps a single noisy point from reversing the track.
 /// \return The energy asymmetry of the halves, (E_end - E_origin) / (E_end + E_origin), from 0 (no
 /// preferred direction, origin = first point) to 1: how reliable the direction is. 0 without energy.
-double GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies, XYZVector& origin,
-                    XYZVector& end);
+double GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies,
+                    XYZVector& origin, XYZVector& end);
 
 /// \brief Size of the distribution of one coordinate of the points (`values`) from a gaussian fit of
 /// the energy against the coordinate, as legacy TRestHits::GetGaussSigmaX. With less than `nHitsMin`
@@ -101,8 +102,8 @@ double GetTwist(const std::vector<XYZVector>& points, size_t n = 0, size_t m = 0
 
 /// \brief GetTwist weighted at each inner point with the energy differences with its neighbours, as
 /// legacy TRestHits::GetHitsTwistWeighted.
-double GetTwistWeighted(const std::vector<XYZVector>& points, const std::vector<double>& energies, size_t n = 0,
-                        size_t m = 0);
+double GetTwistWeighted(const std::vector<XYZVector>& points, const std::vector<double>& energies,
+                        size_t n = 0, size_t m = 0);
 
 }  // namespace TRestHitsAnalysis
 

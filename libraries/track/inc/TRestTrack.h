@@ -3,7 +3,9 @@
 
 #include <Math/Vector3D.h>
 #include <Rtypes.h>
+
 #include <vector>
+
 #include "TRestHits.h"
 
 class TRestTrackEvent;
@@ -35,7 +37,7 @@ class TRestTrack {
     Double_t GetEnergy() const;
     Double_t GetLength() const;
     Double_t GetVolume() const;
-    
+
     /// \brief Origin and end of the track (TRestHitsAnalysis::GetTrackEnds).
     void GetBoundaries(XYZVector& orig, XYZVector& end) const;
 
@@ -50,4 +52,3 @@ class TRestTrack {
 };
 
 #endif
-

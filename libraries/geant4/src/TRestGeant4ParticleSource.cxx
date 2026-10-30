@@ -31,11 +31,16 @@ namespace {
 
 /// As legacy, the particle of the cosmic histograms <key>_energy_zenith
 const map<string, string> kCosmicParticles = {
-    {"neutron", "neutron"},           {"proton", "proton"},
-    {"gamma", "gamma"},               {"electron_minus", "e-"},
-    {"electron_plus", "e+"},          {"muon_minus", "mu-"},
-    {"muon_plus", "mu+"},             {"neutron_below_1MeV", "neutron"},
-    {"neutron_above_10GeV", "neutron"}, {"neutron_between_1MeV_and_10GeV", "neutron"},
+    {"neutron", "neutron"},
+    {"proton", "proton"},
+    {"gamma", "gamma"},
+    {"electron_minus", "e-"},
+    {"electron_plus", "e+"},
+    {"muon_minus", "mu-"},
+    {"muon_plus", "mu+"},
+    {"neutron_below_1MeV", "neutron"},
+    {"neutron_above_10GeV", "neutron"},
+    {"neutron_between_1MeV_and_10GeV", "neutron"},
 };
 
 /// The value given in the energy or in the angular section (an error if both differ)
@@ -240,7 +245,7 @@ void TRestGeant4ParticleSource::LoadJointDistribution() {
 }
 
 vector<TRestGeant4ParticleState> TRestGeant4ParticleSource::Generate(TRandom& random, const XYZVector& origin,
-                                                                    const XYZVector& center, bool inward) {
+                                                                     const XYZVector& center, bool inward) {
     if (IsDecay0()) {
         if (!fDecay0Events) throw runtime_error(GetClassName() + ": the Decay0 file is not loaded");
         auto particles = (*fDecay0Events)[random.Integer(static_cast<UInt_t>(fDecay0Events->size()))];

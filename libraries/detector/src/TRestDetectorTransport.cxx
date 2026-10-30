@@ -53,7 +53,7 @@ using Carrier = TRestDetectorTransport::Carrier;
 struct Quantity {
     const char* name;
     const char* title;
-    std::vector<double> Carrier::*values;
+    std::vector<double> Carrier::* values;
 };
 const Quantity kQuantities[] = {
     {"driftVelocity", "drift velocity (mm/#mus)", &Carrier::fDriftVelocity},
@@ -143,8 +143,8 @@ std::pair<double, double> TRestDetectorTransport::GetFieldRange(double pressure)
     return {fFields.front() * scale, fFields.back() * scale};
 }
 
-double TRestDetectorTransport::Interpolate(const std::vector<double>& values, double field,
-                                                double pressure, bool logValues) const {
+double TRestDetectorTransport::Interpolate(const std::vector<double>& values, double field, double pressure,
+                                           bool logValues) const {
     const size_t n = std::min(values.size(), fFields.size());
     if (n == 0) return 0;
     // Field of the table with the same E/p
@@ -215,7 +215,7 @@ bool TRestDetectorTransport::HasTable(TFile* file, const std::string& medium, co
 }
 
 TRestDetectorTransport TRestDetectorTransport::Read(TFile* file, const std::string& medium,
-                                                              const std::string& key) {
+                                                    const std::string& key) {
     const std::string error = "TRestDetectorTransport: table '" + key + "' of '" + medium + "': ";
     // Index loop: range-for gives YAML::detail::iterator_value, which cannot be assigned to a node
     YAML::Node entry;
@@ -263,7 +263,7 @@ TRestDetectorTransport TRestDetectorTransport::Read(TFile* file, const std::stri
 }
 
 void TRestDetectorTransport::Write(TFile* file, const YAML::Node& medium, const YAML::Node& generator,
-                                        const std::string& garfieldTable) const {
+                                   const std::string& garfieldTable) const {
     if (!file || file->IsZombie() || !file->IsWritable()) {
         throw std::runtime_error("TRestDetectorTransport: the medium file is not writable");
     }

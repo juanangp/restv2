@@ -1,5 +1,5 @@
-#ifndef VIEW_TRACK_LINE_C
-#define VIEW_TRACK_LINE_C
+#ifndef REST_TRACK_VIEWTRACKLINE_C
+#define REST_TRACK_VIEWTRACKLINE_C
 
 #include <TCanvas.h>
 #include <TGraph.h>
@@ -65,7 +65,6 @@ class TrackLineViewer : public TRestEventViewer {
     /// \brief Draws the signals split by readout axis in fSignalsPad.
     /// \return False if the event is not a signal event or there is no readout.
     bool DrawSignals();
-
 
    public:
     explicit TrackLineViewer(const std::string& prefix = "") : fPrefix(prefix) {}
@@ -269,7 +268,8 @@ bool TrackLineViewer::DrawSignals() {
     if ((rawEvent ? rawEvent->GetNumberOfSignals() : signalEvent->GetNumberOfSignals()) == 0) return false;
     const TRestDetectorReadout* readout = GetReadout();
     if (!readout) {
-        std::cout << "TrackLineViewer: no readout in the file, the signals are not split by axis" << std::endl;
+        std::cout << "TrackLineViewer: no readout in the file, the signals are not split by axis"
+                  << std::endl;
         return false;
     }
 
@@ -348,12 +348,12 @@ void TrackLineViewer::Plot(const char* option) {
 /// splitting).
 ///
 ///    restRoot
-///    [0] ViewTrackLine("R01234_LINEAR.root")
-///    [1] ViewTrackLine("R01234_LINEAR.root", "trackLineAnalysis")
+///    [0] REST_Track_ViewTrackLine("R01234_LINEAR.root")
+///    [1] REST_Track_ViewTrackLine("R01234_LINEAR.root", "trackLineAnalysis")
 ///
 /// e.g. selection "trackLineAnalysis_Energy > 100000 && trackLineAnalysis_TrackBalance > 0.95" to go only
 /// through those events (branches processName_observable).
-int ViewTrackLine(const std::string& fileName, const std::string& prefix = "") {
+int REST_Track_ViewTrackLine(const std::string& fileName, const std::string& prefix = "") {
     auto* browser = new TRestBrowser(new TrackLineViewer(prefix));
     browser->OpenFile(fileName);
     return 0;

@@ -1,26 +1,27 @@
-#include <algorithm>
-#include <filesystem>
-#include <stdexcept>
-#include <sys/file.h>
-#include <unistd.h>
-#include <cstring>
-#include <iostream>
-#include <memory>
-#include <regex>
-#include <string>
-#include <charconv>
-#include <string_view>
-#include <random>
-#include <limits>
-#include <cstdlib>
-#include <cctype>
+#include "TRestTools.h"
 
 #include <TFile.h>
-#include <TObject.h>
-#include <TObjString.h>
 #include <TKey.h>
+#include <TObjString.h>
+#include <TObject.h>
+#include <sys/file.h>
+#include <unistd.h>
 
-#include "TRestTools.h"
+#include <algorithm>
+#include <cctype>
+#include <charconv>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <random>
+#include <regex>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
 #include "TRestLogManager.h"
 #include "TRestSystemOfUnits.h"
 
@@ -87,7 +88,8 @@ std::string TRestTools::GetFullPath(const std::string& filename) {
         // Convert the input string into a standard filesystem path
         std::filesystem::path relativePath(targetPath);
         // Convert the relative path to an absolute path
-        std::filesystem::path absolutePath = std::filesystem::absolute(relativePath).lexically_normal();;
+        std::filesystem::path absolutePath = std::filesystem::absolute(relativePath).lexically_normal();
+        ;
         // Convert the absolute path back to a standard string and return it
         return absolutePath.string();
     } catch (const std::filesystem::filesystem_error& e) {
@@ -119,33 +121,33 @@ bool TRestTools::isRootFile(const std::string& filename) {
 
 bool TRestTools::isValidTRestRun(const std::string& filename) {
     if (!TRestTools::isRootFile(filename)) {
-        //std::cout<<filename<<" is not a valid root file"<<std::endl;
+        // std::cout<<filename<<" is not a valid root file"<<std::endl;
         return false;
     }
 
     std::unique_ptr<TFile> file(TFile::Open(filename.c_str(), "READ"));
     if (!file || file->IsZombie()) {
-        std::cout<<filename<<" is zombie or invalid"<<std::endl;
+        std::cout << filename << " is zombie or invalid" << std::endl;
         return false;
     }
 
     TObject* analysisTree = file->Get("AnalysisTree");
     if (!analysisTree) {
-        std::cout<<filename<<" analysisTree not found"<<std::endl;
+        std::cout << filename << " analysisTree not found" << std::endl;
         file->Close();
         return false;
     }
 
     TDirectory* metadataDir = file->GetDirectory("RESTMetadataStore");
     if (!metadataDir) {
-        std::cout<<filename<<" no TRestMetadata"<<std::endl;
+        std::cout << filename << " no TRestMetadata" << std::endl;
         file->Close();
         return false;
     }
 
     metadataDir->cd();
 
-     TList* keysInDir = metadataDir->GetListOfKeys();
+    TList* keysInDir = metadataDir->GetListOfKeys();
     bool hasRestRunMetadata = false;
 
     if (keysInDir) {
@@ -172,7 +174,7 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
             }
         }
     }
-    if(!hasRestRunMetadata) std::cout<<filename<<" no valid TRestRun metadata"<<std::endl;
+    if (!hasRestRunMetadata) std::cout << filename << " no valid TRestRun metadata" << std::endl;
 
     file->Close();
     return hasRestRunMetadata;
@@ -181,21 +183,22 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
 int TRestTools::GetRunNumberAuto() {
     const char* restHomeEnv = std::getenv("REST_HOME");
     if (!restHomeEnv) {
-         throw std::runtime_error("TRestTools::GetRunNumberAuto: REST_HOME environment variable is not defined.");
+        throw std::runtime_error(
+            "TRestTools::GetRunNumberAuto: REST_HOME environment variable is not defined.");
     }
 
     std::filesystem::path runFilePath = std::filesystem::path(restHomeEnv) / ".rest" / "runNumber";
-    
-        try {
+
+    try {
         std::filesystem::create_directories(runFilePath.parent_path());
     } catch (const std::filesystem::filesystem_error& e) {
-        throw std::runtime_error("TRestTools::GetRunNumberAuto: Could not create or access directory: " + 
+        throw std::runtime_error("TRestTools::GetRunNumberAuto: Could not create or access directory: " +
                                  runFilePath.parent_path().string() + " (" + e.what() + ")");
     }
 
     int fd = ::open(runFilePath.c_str(), O_RDWR | O_CREAT, 0666);
     if (fd == -1) {
-        throw std::runtime_error("TRestTools::GetRunNumberAuto: Failed to open or create runNumber file: " + 
+        throw std::runtime_error("TRestTools::GetRunNumberAuto: Failed to open or create runNumber file: " +
                                  runFilePath.string() + " (" + std::strerror(errno) + ")");
     }
 
@@ -220,7 +223,8 @@ int TRestTools::GetRunNumberAuto() {
         RESTError << "Failed to update runNumber file: " << runFilePath << RESTendl;
         ::flock(fd, LOCK_UN);
         ::close(fd);
-        throw std::runtime_error("TRestTools::GetRunNumberAuto: Failed to update runNumber file: " + runFilePath.string());
+        throw std::runtime_error("TRestTools::GetRunNumberAuto: Failed to update runNumber file: " +
+                                 runFilePath.string());
     }
 
     ::flock(fd, LOCK_UN);
@@ -304,7 +308,7 @@ int TRestTools::CountString(const std::string& in, const std::string& substring)
 
     int count = 0;
     size_t nPos = in.find(substring, 0);
-    
+
     while (nPos != std::string::npos) {
         count++;
         nPos = in.find(substring, nPos + substring.length());
@@ -334,8 +338,7 @@ int TRestTools::StringToInteger(const std::string& in) {
         }
 
         return static_cast<int>(std::stod(in));
-    }
-    catch (const std::exception& e) {
+    } catch (const std::exception& e) {
         RESTError << "StringToInteger - Error '" << in << "': " << e.what() << RESTendl;
         return 0;
     }
@@ -351,7 +354,7 @@ long TRestTools::GetRandomSeed() {
     thread_local std::random_device rd;
     thread_local std::mt19937_64 engine(rd());
     std::uniform_int_distribution<long> dist(1, std::numeric_limits<long>::max());
-    
+
     return dist(engine);
 }
 
@@ -576,8 +579,8 @@ std::string TRestTools::ToLower(std::string str) {
 }
 
 std::string TRestTools::ToTimeStringLong(double seconds) {
-    const auto absSeconds = std::abs(seconds); 
-    
+    const auto absSeconds = std::abs(seconds);
+
     char buffer[32];
     double valueToFormat = seconds;
     std::string_view unit;
@@ -595,7 +598,8 @@ std::string TRestTools::ToTimeStringLong(double seconds) {
         unit = " days";
     }
 
-    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), valueToFormat, std::chars_format::fixed, 2);
+    auto [ptr, ec] =
+        std::to_chars(buffer, buffer + sizeof(buffer), valueToFormat, std::chars_format::fixed, 2);
 
     if (ec == std::errc{}) {
         return std::string(buffer, ptr - buffer) + std::string(unit);
@@ -606,10 +610,10 @@ std::string TRestTools::ToTimeStringLong(double seconds) {
 
 std::string TRestTools::CleanExpression(const std::string& expr) {
     std::string clean = expr;
-    
-    clean.erase(std::remove_if(clean.begin(), clean.end(), [](unsigned char c) { 
-        return std::isspace(c) || c == '\r' || c == '\n'; 
-    }), clean.end());
-    
+
+    clean.erase(std::remove_if(clean.begin(), clean.end(),
+                               [](unsigned char c) { return std::isspace(c) || c == '\r' || c == '\n'; }),
+                clean.end());
+
     return clean;
 }

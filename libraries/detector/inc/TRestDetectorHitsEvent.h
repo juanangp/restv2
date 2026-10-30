@@ -1,7 +1,6 @@
 #ifndef TRESTDETECTORHITSEVENT_H
 #define TRESTDETECTORHITSEVENT_H
 
-
 #include <vector>
 
 #include "Math/Vector3Dfwd.h"
@@ -24,9 +23,9 @@ class TRestDetectorHitsEvent : public TRestEvent {
     mutable TRestHits fHits{&fHitsData, 0, 0};
 
     /// Auxiliary (non-persisted) storage/views for filtered projections.
-    TRestHitsData fXZData;   //!
-    TRestHitsData fYZData;   //!
-    TRestHitsData fXYZData;  //!
+    TRestHitsData fXZData;                    //!
+    TRestHitsData fYZData;                    //!
+    TRestHitsData fXYZData;                   //!
     TRestHits fXZHitsView{&fXZData, 0, 0};    //!
     TRestHits fYZHitsView{&fYZData, 0, 0};    //!
     TRestHits fXYZHitsView{&fXYZData, 0, 0};  //!
@@ -80,9 +79,7 @@ class TRestDetectorHitsEvent : public TRestEvent {
     /// Called by TRestRun after reading an entry, and internally after any
     /// mutation of fHitsData (AddHit, Sort, Shuffle, Initialize, CopyFrom).
     void RebuildHitsView() { fHits = TRestHits(&fHitsData, 0, (int)fHitsData.x.size()); }
-    void RefreshViews() const override {
-      const_cast<TRestDetectorHitsEvent*>(this)->RebuildHitsView();
-    }
+    void RefreshViews() const override { const_cast<TRestDetectorHitsEvent*>(this)->RebuildHitsView(); }
 
     void CopyFrom(const TRestEvent* other) override {
         TRestEvent::CopyFrom(other);

@@ -5,7 +5,6 @@
 
 #include "TRestDetectorReadout.h"
 
-
 class TRestMicromegasReadoutParameters : public TRestMetadata {
    public:
     std::array<TRestWithUnits, 3> fPositionRelative = {0.0, 0.0, 0.0};
@@ -29,7 +28,6 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     /// \brief Side of the readout plane where the cathode is: +1 (+Z) or -1 (-Z).
     int GetNormalSign() const { return fNormal[2] < 0 ? -1 : 1; }
 };
-
 
 /// \class TRestMicromegasReadout
 /// \brief Micromegas-specific implementation of a detector readout geometry.

@@ -9,8 +9,8 @@
 
 using namespace std;
 using namespace TRestGeant4PrimaryGeneratorTypes;
-using TRestTools::ToLower;
 using ROOT::Math::XYZVector;
+using TRestTools::ToLower;
 
 static const bool TRestGeant4AngularDistribution_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -54,7 +54,7 @@ void CheckAngleRange(const pair<TRestWithUnits, TRestWithUnits>& range, const st
 // --- TRestGeant4AngularDistribution ---
 
 unique_ptr<TRestGeant4AngularDistribution> TRestGeant4AngularDistribution::Create(const string& name,
-                                                                                const YAML::Node& node) {
+                                                                                  const YAML::Node& node) {
     if (!node || !node["type"]) {
         throw runtime_error("TRestGeant4AngularDistribution: the angular 'type' is missing");
     }

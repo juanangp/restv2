@@ -1,6 +1,4 @@
 #include "TRestTrackEvent.h"
-#include "TRestTrack.h" 
-#include "TRestLogManager.h"
 
 #include <algorithm>
 #include <limits>
@@ -13,8 +11,9 @@
 #include "TPolyLine3D.h"
 #include "TPolyMarker3D.h"
 #include "TRestHitsAnalysis.h"
+#include "TRestLogManager.h"
 #include "TRestTools.h"
-
+#include "TRestTrack.h"
 
 namespace {
 const bool kRegistered = []() {
@@ -24,7 +23,6 @@ const bool kRegistered = []() {
 }();
 
 }  // namespace
-
 
 int TRestTrackEvent::GetTrackStartIndex(int n) const {
     int start = 0;
@@ -47,12 +45,12 @@ Int_t TRestTrackEvent::AddTrack(Int_t trackID, Int_t parentID) {
 }
 
 Int_t TRestTrackEvent::AddTrack(Int_t trackID, Int_t parentID, const TRestHits& hits,
-                               const std::vector<XYZVector>& sigmas) {
+                                const std::vector<XYZVector>& sigmas) {
     Int_t index = AddTrack(trackID, parentID);
 
     const size_t n = hits.GetNumberOfHits();
     for (size_t i = 0; i < n; i++) {
-        XYZVector sigma = (i < sigmas.size()) ? sigmas[i] : XYZVector(0,0,0);
+        XYZVector sigma = (i < sigmas.size()) ? sigmas[i] : XYZVector(0, 0, 0);
         AddHitToTrack(hits.GetPosition((int)i), hits.GetEnergy((int)i), hits.GetTime((int)i),
                       hits.GetType((int)i), sigma);
     }
@@ -67,11 +65,11 @@ void TRestTrackEvent::AddHitToTrack(const XYZVector& position, Double_t energy, 
     fData.hits.time.push_back((float)time);
     fData.hits.energy.push_back((float)energy);
     fData.hits.type.push_back((int)type);
-    
+
     fData.sigmaX.push_back((float)sigma.X());
     fData.sigmaY.push_back((float)sigma.Y());
     fData.sigmaZ.push_back((float)sigma.Z());
-    
+
     fData.trackNHits.back()++;
     // The hit goes to the last track: only its view changes
     if (fTrackHits.size() == fData.trackNHits.size()) {
@@ -118,12 +116,10 @@ Int_t TRestTrackEvent::GetNumberOfTracks(const TString& option) const {
     return nT;
 }
 
-TRestTrack TRestTrackEvent::GetTrack(std::size_t n) { 
-    return TRestTrack(this, n); 
-}
+TRestTrack TRestTrackEvent::GetTrack(std::size_t n) { return TRestTrack(this, n); }
 
-TRestTrack TRestTrackEvent::GetTrack(std::size_t n) const { 
-    return TRestTrack(const_cast<TRestTrackEvent*>(this), n); 
+TRestTrack TRestTrackEvent::GetTrack(std::size_t n) const {
+    return TRestTrack(const_cast<TRestTrackEvent*>(this), n);
 }
 
 TRestTrack TRestTrackEvent::GetTrackById(Int_t id) {
@@ -182,7 +178,7 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const TString& option) {
 
 TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const TString& option) {
     TRestTrack first = GetMaxEnergyTrack(option);
-    if (first.GetEvent() == nullptr) return TRestTrack(); // Reemplazo de !first
+    if (first.GetEvent() == nullptr) return TRestTrack();  // Reemplazo de !first
 
     Int_t firstTck = (Int_t)first.GetIndex();
     Int_t id = GetTrackID(firstTck);
@@ -267,13 +263,13 @@ void TRestTrackEvent::SortTrackHits(Int_t n, std::function<bool(int, int)> compa
     const int count = fData.trackNHits[n];
     if (count < 2) return;
 
-    auto order = TRestHitsUtils::BuildSortOrder(
-        count, compareCondition,
-        [this, start](int a, int b) { return fData.hits.z[start + a] < fData.hits.z[start + b]; });
+    auto order = TRestHitsUtils::BuildSortOrder(count, compareCondition, [this, start](int a, int b) {
+        return fData.hits.z[start + a] < fData.hits.z[start + b];
+    });
 
-    TRestHitsUtils::ApplyPermutation(order, start, fData.hits.x, fData.hits.y, fData.hits.z,
-                                     fData.hits.time, fData.hits.energy, fData.hits.type, fData.sigmaX,
-                                     fData.sigmaY, fData.sigmaZ);
+    TRestHitsUtils::ApplyPermutation(order, start, fData.hits.x, fData.hits.y, fData.hits.z, fData.hits.time,
+                                     fData.hits.energy, fData.hits.type, fData.sigmaX, fData.sigmaY,
+                                     fData.sigmaZ);
 }
 
 void TRestTrackEvent::ShuffleTrackHits(Int_t n, int NLoop) {
@@ -283,9 +279,9 @@ void TRestTrackEvent::ShuffleTrackHits(Int_t n, int NLoop) {
 
     auto order = TRestHitsUtils::BuildShuffleOrder(count, NLoop);
 
-    TRestHitsUtils::ApplyPermutation(order, start, fData.hits.x, fData.hits.y, fData.hits.z,
-                                     fData.hits.time, fData.hits.energy, fData.hits.type, fData.sigmaX,
-                                     fData.sigmaY, fData.sigmaZ);
+    TRestHitsUtils::ApplyPermutation(order, start, fData.hits.x, fData.hits.y, fData.hits.z, fData.hits.time,
+                                     fData.hits.energy, fData.hits.type, fData.sigmaX, fData.sigmaY,
+                                     fData.sigmaZ);
 }
 
 void TRestTrackEvent::RemoveTrackHit(Int_t n, int hitIdx) {
@@ -304,7 +300,6 @@ void TRestTrackEvent::RemoveTrackHit(Int_t n, int hitIdx) {
     fData.trackNHits[n]--;
     RebuildTrackViews();
 }
-
 
 void TRestTrackEvent::MergeTrackHits(Int_t n, int i, int j) {
     const int start = GetTrackStartIndex(n);
@@ -431,7 +426,7 @@ void TRestTrackEvent::PrintOnlyTracks() const {
     std::cout << "-----------------------" << std::endl;
     for (int i = 0; i < (Int_t)fTrackHits.size(); i++) {
         std::cout << "Track " << i << " id : " << GetTrackID(i) << " parent : " << GetParentID(i)
-                 << std::endl;
+                  << std::endl;
     }
     std::cout << "-----------------------" << std::endl;
 }
@@ -440,7 +435,7 @@ void TRestTrackEvent::PrintTrackEvent(Bool_t fullInfo) const {
     TRestEvent::PrintEvent();
 
     std::cout << "Number of tracks : "
-             << GetNumberOfTracks("XYZ") + GetNumberOfTracks("X") + GetNumberOfTracks("Y") << std::endl;
+              << GetNumberOfTracks("XYZ") + GetNumberOfTracks("X") + GetNumberOfTracks("Y") << std::endl;
     std::cout << "Number of tracks XZ " << GetNumberOfTracks("X") << std::endl;
     std::cout << "Number of tracks YZ " << GetNumberOfTracks("Y") << std::endl;
     std::cout << "+++++++++++++++++++++++++++++++++++" << std::endl;
@@ -459,7 +454,7 @@ void TRestTrackEvent::PrintTrack(Int_t n, Bool_t fullInfo) const {
     std::cout << "Energy : " << GetTrackEnergy(n) << std::endl;
     std::cout << "Length : " << GetTrackLength(n) << std::endl;
     std::cout << "Mean position : ( " << mean.X() << " , " << mean.Y() << " , " << mean.Z() << " ) "
-             << std::endl;
+              << std::endl;
     std::cout << "Number of track hits : " << GetNumberOfHits(n) << std::endl;
     std::cout << "----------------------------------------" << std::endl;
 
@@ -542,7 +537,8 @@ void TRestTrackEvent::DrawTracks(TVirtualPad* pad) const {
         const auto& hits = fTrackHits[t];
         for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
             for (int a = 0; a < 3; a++) {
-                if (TRestHitsData::IsDefined(hits.GetType(n), a)) values[a].push_back(hits.GetCoordinate(n, a));
+                if (TRestHitsData::IsDefined(hits.GetType(n), a))
+                    values[a].push_back(hits.GetCoordinate(n, a));
             }
             maxEnergy = std::max(maxEnergy, hits.GetEnergy(n));
             if (hits.GetType(n) % REST_HitType::XYZ == 0) has3D = true;
@@ -595,7 +591,8 @@ void TRestTrackEvent::DrawTracks(TVirtualPad* pad) const {
         auto* frame = new TH1F("frame", title.c_str(), 1, min[u], max[u]);
         frame->SetMinimum(v >= 0 ? min[v] : 0);
         frame->SetMaximum(v >= 0 ? max[v] : 1.1 * maxEnergy);
-        DrawOwned(frame, "AXIS", TRestHitsData::kAxisTitles[u], v >= 0 ? TRestHitsData::kAxisTitles[v] : "Energy");
+        DrawOwned(frame, "AXIS", TRestHitsData::kAxisTitles[u],
+                  v >= 0 ? TRestHitsData::kAxisTitles[v] : "Energy");
 
         // First the hits of every track, then the track lines over them (as legacy)
         std::vector<TGraph*> lines;
@@ -629,7 +626,8 @@ void TRestTrackEvent::DrawTracks(TVirtualPad* pad) const {
     if (!has3D) return;
 
     pad->cd(nPads);
-    auto* frame = new TH3F("XYZframe", title.c_str(), 1, min[0], max[0], 1, min[1], max[1], 1, min[2], max[2]);
+    auto* frame =
+        new TH3F("XYZframe", title.c_str(), 1, min[0], max[0], 1, min[1], max[1], 1, min[2], max[2]);
     DrawOwned(frame, "", TRestHitsData::kAxisTitles[0], TRestHitsData::kAxisTitles[1],
               TRestHitsData::kAxisTitles[2]);
 

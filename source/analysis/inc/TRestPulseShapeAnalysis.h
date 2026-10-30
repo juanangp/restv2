@@ -7,8 +7,8 @@
 #include <array>
 #include <cmath>
 #include <iostream>
-#include <numeric>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <string>
 #include <utility>
@@ -142,7 +142,7 @@ template <typename T>
 double GetRiseTime(const std::vector<std::pair<T, float>>& signal);
 
 template <typename T, typename U>
-TGraph GetGraphPair(const std::vector<std::pair<T, U>>& points,const std::string& title="");
+TGraph GetGraphPair(const std::vector<std::pair<T, U>>& points, const std::string& title = "");
 
 template <typename T>
 TGraph GetGraph(const std::vector<T>& signal, const std::string& title = "");

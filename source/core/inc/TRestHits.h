@@ -1,6 +1,8 @@
 #ifndef TRESTHITS_H
 #define TRESTHITS_H
 
+#include <TRandom.h>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -9,10 +11,8 @@
 #include <string>
 #include <vector>
 
-#include <TRandom.h>
-
-#include "Math/Vector3D.h"
 #include "Math/GenVector/VectorUtil.h"
+#include "Math/Vector3D.h"
 
 class TVirtualPad;
 
@@ -57,7 +57,6 @@ inline std::vector<int> BuildShuffleOrder(int n, int NLoop) {
 }
 
 }  // namespace TRestHitsUtils
-
 
 /// \struct TRestHitsData
 /// \brief Shared storage container for hit coordinates, time and energy arrays.

@@ -1,7 +1,6 @@
 #ifndef TRESTGEANT4MANAGER_H
 #define TRESTGEANT4MANAGER_H
 
-
 #include "TRestMetadata.h"
 
 class TRestGeant4Metadata;

@@ -11,24 +11,24 @@ target_include_directories(
   RestTools PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
                    $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(RestTools PUBLIC yaml-cpp::yaml-cpp ${ROOT_TARGET_LIBRARIES})
+target_link_libraries(RestTools PUBLIC yaml-cpp::yaml-cpp
+                                       ${ROOT_TARGET_LIBRARIES})
 # <filesystem> needs libstdc++fs only before GCC 9 (e.g. RHEL 8)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION
+                                            VERSION_LESS 9)
   target_link_libraries(RestTools PUBLIC stdc++fs)
 endif()
 
-rest_attach_dictionary(RestTools
-  HEADERS ${TOOLS_HEADERS}
-  INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+rest_attach_dictionary(RestTools HEADERS ${TOOLS_HEADERS} INCLUDE_DIRS
+                       ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 install(
   TARGETS RestTools
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib/static)
-  install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/libRestTools_rdict.pcm
-    ${CMAKE_CURRENT_BINARY_DIR}/libRestTools.rootmap
-    DESTINATION lib
-    OPTIONAL)
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/libRestTools_rdict.pcm
+        ${CMAKE_CURRENT_BINARY_DIR}/libRestTools.rootmap
+  DESTINATION lib
+  OPTIONAL)
 install(FILES ${TOOLS_HEADERS} DESTINATION include)

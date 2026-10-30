@@ -277,4 +277,3 @@ std::string TRestGeant4Track::GetLastProcessName() const {
     return GetGeant4Metadata()->GetGeant4PhysicsInfo().GetProcessName(
         hits.GetProcess(hits.GetNumberOfHits() - 1));
 }
-

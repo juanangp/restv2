@@ -1,8 +1,8 @@
+#include "TRestPulseShapeAnalysis.h"
+
 #include <TF1.h>
 #include <TFitResult.h>
 #include <TRandom.h>
-
-#include "TRestPulseShapeAnalysis.h"
 
 #include <algorithm>
 #include <cmath>
@@ -22,8 +22,8 @@ using TF1Maker = std::function<std::unique_ptr<TF1>(double lower, double upper)>
 
 /// Fits the function (parameter 0 = amplitude, parameter 1 = position) in a window around the maximum
 /// of the graph. Returns {position, amplitude}, or {-1, -1} if the fit fails.
-std::pair<double, double> FitAroundMaximum(TGraph& signal, const char* label, double lowFrac,
-                                           double highFrac, const TF1Maker& make) {
+std::pair<double, double> FitAroundMaximum(TGraph& signal, const char* label, double lowFrac, double highFrac,
+                                           const TF1Maker& make) {
     constexpr double kFailed = -1;
     if (signal.GetN() == 0) return {kFailed, kFailed};
 
@@ -110,7 +110,6 @@ bool BaselineSigmaIQR(const std::vector<T>& signal, int startBin, int endBin, do
     return true;
 }
 
-
 template <typename T>
 bool BaselineSigmaExcludeOutliers(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
                                   double& baseLineSigma) {
@@ -153,19 +152,18 @@ bool BaselineSigmaExcludeOutliers(const std::vector<T>& signal, int startBin, in
 
 template <typename T>
 bool TRestPulseShapeAnalysis::GetBaselineSigma(const std::vector<T>& signal, int startBin, int endBin,
-                                               double& baseLine, double& baseLineSigma,
-                                               std::string option) {
+                                               double& baseLine, double& baseLineSigma, std::string option) {
     if (option == "robust") return BaselineSigmaIQR(signal, startBin, endBin, baseLine, baseLineSigma);
     if (option == "outliers")
         return BaselineSigmaExcludeOutliers(signal, startBin, endBin, baseLine, baseLineSigma);
     return BaselineSigmaSD(signal, startBin, endBin, baseLine, baseLineSigma);
 }
 
-template bool TRestPulseShapeAnalysis::GetBaselineSigma<short>(const std::vector<short>& signal,
-                                                               int startBin, int endBin, double& baseLine,
+template bool TRestPulseShapeAnalysis::GetBaselineSigma<short>(const std::vector<short>& signal, int startBin,
+                                                               int endBin, double& baseLine,
                                                                double& baseLineSigma, std::string option);
-template bool TRestPulseShapeAnalysis::GetBaselineSigma<float>(const std::vector<float>& signal,
-                                                               int startBin, int endBin, double& baseLine,
+template bool TRestPulseShapeAnalysis::GetBaselineSigma<float>(const std::vector<float>& signal, int startBin,
+                                                               int endBin, double& baseLine,
                                                                double& baseLineSigma, std::string option);
 
 template <typename T>
@@ -183,7 +181,6 @@ template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigma<s
 template std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigma<float>(
     const std::vector<float>& signal, int startBin, int endBin, double& baseLine, double& baseLineSigma,
     std::string option);
-
 
 template <typename T>
 std::vector<float> TRestPulseShapeAnalysis::CalculateBaselineAndSigmaSD(const std::vector<T>& signal,
@@ -671,7 +668,7 @@ std::unique_ptr<TF1> TRestPulseShapeAnalysis::FitAget(TGraph& signal, bool withS
         f->FixParameter(0, *fixedBaseline);
     } else {
         f->SetParameter(0, 0);
-         f->SetParLimits(0, -100, 350.0);
+        f->SetParLimits(0, -100, 350.0);
     }
     f->SetParameter(1, maxAbove);
     f->SetParLimits(1, 0, maxAbove * 100);
@@ -901,7 +898,6 @@ double TRestPulseShapeAnalysis::GetRiseTime(const std::vector<std::pair<T, float
 template double TRestPulseShapeAnalysis::GetRiseTime(const std::vector<std::pair<int, float>>& signal);
 template double TRestPulseShapeAnalysis::GetRiseTime(const std::vector<std::pair<float, float>>& signal);
 
-
 template <typename T>
 void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<T>& noise, double amplitude) {
     const size_t size = noise.size();
@@ -914,36 +910,40 @@ template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<short>& noise, 
 template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<float>& noise, double amplitude);
 template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<double>& noise, double amplitude);
 
-    template <typename T>
-    void TRestPulseShapeAnalysis::GetSinNoise(std::vector<T>& noise, double maxAmplitude, int period, double phase) {
-        const size_t size = noise.size();
-        if (size == 0 || period <= 0 || maxAmplitude <= 0.0) {
-            if (size > 0) std::fill(noise.begin(), noise.end(), static_cast<T>(0));
-            return;
-        }
-
-        double uBase = gRandom->Uniform(0.0, 1.0);
-        double sinBase = std::sin(uBase * TMath::Pi() / 2.0);
-        double baseAmplitude = maxAmplitude * (sinBase * sinBase);
-
-        double slowFreq = period * gRandom->Uniform(4.0, 8.0);
-        double slowPhase = gRandom->Uniform(0.0, 2.0 * TMath::Pi());
-
-        for (size_t i = 0; i < size; ++i) {
-            double angle = (2.0 * TMath::Pi() * i / period) + phase;
-            
-            double slowAngle = (2.0 * TMath::Pi() * i / slowFreq) + slowPhase;
-            double dynamicAmp = baseAmplitude * std::abs(std::sin(slowAngle));
-
-            if (dynamicAmp > maxAmplitude) dynamicAmp = maxAmplitude;
-
-            noise[i] = static_cast<T>(dynamicAmp * std::sin(angle));
-        }
+template <typename T>
+void TRestPulseShapeAnalysis::GetSinNoise(std::vector<T>& noise, double maxAmplitude, int period,
+                                          double phase) {
+    const size_t size = noise.size();
+    if (size == 0 || period <= 0 || maxAmplitude <= 0.0) {
+        if (size > 0) std::fill(noise.begin(), noise.end(), static_cast<T>(0));
+        return;
     }
 
-template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<short>& noise, double maxAmplitude, int period, double phase);
-template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<float>& noise, double maxAmplitude, int period, double phase);
-template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<double>& noise, double maxAmplitude, int period, double phase);
+    double uBase = gRandom->Uniform(0.0, 1.0);
+    double sinBase = std::sin(uBase * TMath::Pi() / 2.0);
+    double baseAmplitude = maxAmplitude * (sinBase * sinBase);
+
+    double slowFreq = period * gRandom->Uniform(4.0, 8.0);
+    double slowPhase = gRandom->Uniform(0.0, 2.0 * TMath::Pi());
+
+    for (size_t i = 0; i < size; ++i) {
+        double angle = (2.0 * TMath::Pi() * i / period) + phase;
+
+        double slowAngle = (2.0 * TMath::Pi() * i / slowFreq) + slowPhase;
+        double dynamicAmp = baseAmplitude * std::abs(std::sin(slowAngle));
+
+        if (dynamicAmp > maxAmplitude) dynamicAmp = maxAmplitude;
+
+        noise[i] = static_cast<T>(dynamicAmp * std::sin(angle));
+    }
+}
+
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<short>& noise, double maxAmplitude, int period,
+                                                   double phase);
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<float>& noise, double maxAmplitude, int period,
+                                                   double phase);
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<double>& noise, double maxAmplitude,
+                                                   int period, double phase);
 
 double TRestPulseShapeAnalysis::ShapingFunction(const std::string& type, double u) {
     if (type == "gaus") return std::exp(-0.5 * u * u);

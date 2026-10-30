@@ -26,7 +26,7 @@ class TRestGeant4SpatialGenerator : public TRestMetadata {
 
     /// \brief The derived class of the `type` of the node, configured from it
     static std::unique_ptr<TRestGeant4SpatialGenerator> Create(const std::string& name,
-                                                              const YAML::Node& node);
+                                                               const YAML::Node& node);
 
     virtual std::unique_ptr<TRestGeant4SpatialGenerator> Clone() const = 0;
 

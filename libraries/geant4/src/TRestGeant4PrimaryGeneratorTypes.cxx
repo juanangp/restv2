@@ -1,12 +1,12 @@
 #include "TRestGeant4PrimaryGeneratorTypes.h"
 
 #include <TAxis.h>
-#include <TFile.h>
-#include <TH1.h>
-#include <TRandom.h>
-#include <TMath.h>
 #include <TF1.h>
 #include <TF2.h>
+#include <TFile.h>
+#include <TH1.h>
+#include <TMath.h>
+#include <TRandom.h>
 
 #include <algorithm>
 #include <cctype>
@@ -31,8 +31,7 @@ namespace TRestGeant4PrimaryGeneratorTypes {
 
 // --- EnergyDistributionFormulas Mapping ---
 
-string EnergyDistributionFormulasToString(
-    EnergyDistributionFormulas formula) {
+string EnergyDistributionFormulasToString(EnergyDistributionFormulas formula) {
     switch (formula) {
         case EnergyDistributionFormulas::COSMIC_NEUTRONS:
             return "CosmicNeutrons";
@@ -48,8 +47,7 @@ string EnergyDistributionFormulasToString(
     throw invalid_argument("EnergyDistributionFormulasToString: Unknown energy distribution formula");
 }
 
-EnergyDistributionFormulas StringToEnergyDistributionFormulas(
-    const string& type) {
+EnergyDistributionFormulas StringToEnergyDistributionFormulas(const string& type) {
     if (CaseInsensitiveCompare(
             type, EnergyDistributionFormulasToString(EnergyDistributionFormulas::COSMIC_NEUTRONS)))
         return EnergyDistributionFormulas::COSMIC_NEUTRONS;
@@ -69,8 +67,7 @@ EnergyDistributionFormulas StringToEnergyDistributionFormulas(
     throw invalid_argument("StringToEnergyDistributionFormulas: Unknown EnergyDistributionFormulas: " + type);
 }
 
-TF1 EnergyDistributionFormulasToRootFormula(
-    EnergyDistributionFormulas formula) {
+TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula) {
     switch (formula) {
         case EnergyDistributionFormulas::COSMIC_NEUTRONS: {
             const char* title = "Cosmic Neutrons at Sea Level";
@@ -86,8 +83,9 @@ TF1 EnergyDistributionFormulasToRootFormula(
             return distribution;
         }
         case EnergyDistributionFormulas::COSMIC_GAMMAS: {
-            throw invalid_argument("EnergyDistributionFormulasToRootFormula: "
-                                   "CosmicGammas is not implemented");
+            throw invalid_argument(
+                "EnergyDistributionFormulasToRootFormula: "
+                "CosmicGammas is not implemented");
         }
         case EnergyDistributionFormulas::FISSION_NEUTRONS_U238: {
             const char* title = "Watt formula: Neutrons from U238 fission";
@@ -121,8 +119,7 @@ TF1 EnergyDistributionFormulasToRootFormula(
 
 // --- AngularDistributionFormulas Mapping ---
 
-string AngularDistributionFormulasToString(
-    AngularDistributionFormulas type) {
+string AngularDistributionFormulasToString(AngularDistributionFormulas type) {
     switch (type) {
         case AngularDistributionFormulas::COS2:
             return "Cos2";
@@ -134,8 +131,7 @@ string AngularDistributionFormulasToString(
     throw invalid_argument("AngularDistributionFormulasToString: Unknown angular distribution formula");
 }
 
-AngularDistributionFormulas StringToAngularDistributionFormulas(
-    const string& type) {
+AngularDistributionFormulas StringToAngularDistributionFormulas(const string& type) {
     if (CaseInsensitiveCompare(type, AngularDistributionFormulasToString(AngularDistributionFormulas::COS2)))
         return AngularDistributionFormulas::COS2;
     if (CaseInsensitiveCompare(type, AngularDistributionFormulasToString(AngularDistributionFormulas::COS3)))
@@ -144,12 +140,13 @@ AngularDistributionFormulas StringToAngularDistributionFormulas(
                                AngularDistributionFormulasToString(AngularDistributionFormulas::SIN_2THETA)))
         return AngularDistributionFormulas::SIN_2THETA;
 
-    throw invalid_argument("StringToAngularDistributionFormulas: "
-                           "Unknown AngularDistributionFormulas: " + type);
+    throw invalid_argument(
+        "StringToAngularDistributionFormulas: "
+        "Unknown AngularDistributionFormulas: " +
+        type);
 }
 
-TF1 AngularDistributionFormulasToRootFormula(
-    AngularDistributionFormulas type) {
+TF1 AngularDistributionFormulasToRootFormula(AngularDistributionFormulas type) {
     switch (type) {
         case AngularDistributionFormulas::COS2: {
             auto cos2 = [](double* xs, double*) {
@@ -193,28 +190,28 @@ TF1 AngularDistributionFormulasToRootFormula(
 
 // --- EnergyAndAngularDistributionFormulas Mapping & Guan Parametrization ---
 
-string EnergyAndAngularDistributionFormulasToString(
-    EnergyAndAngularDistributionFormulas type) {
+string EnergyAndAngularDistributionFormulasToString(EnergyAndAngularDistributionFormulas type) {
     if (type == EnergyAndAngularDistributionFormulas::COSMIC_MUONS) {
         return "CosmicMuons";
     }
-    throw invalid_argument("EnergyAndAngularDistributionFormulasToString: "
-                           "Unknown energy/angular distribution formula");
+    throw invalid_argument(
+        "EnergyAndAngularDistributionFormulasToString: "
+        "Unknown energy/angular distribution formula");
 }
 
-EnergyAndAngularDistributionFormulas
-StringToEnergyAndAngularDistributionFormulas(const string& type) {
+EnergyAndAngularDistributionFormulas StringToEnergyAndAngularDistributionFormulas(const string& type) {
     if (CaseInsensitiveCompare(type, EnergyAndAngularDistributionFormulasToString(
                                          EnergyAndAngularDistributionFormulas::COSMIC_MUONS))) {
         return EnergyAndAngularDistributionFormulas::COSMIC_MUONS;
     } else {
-        throw invalid_argument("StringToEnergyAndAngularDistributionFormulas: "
-                               "Unknown AngularDistributionFormulas: " + type);
+        throw invalid_argument(
+            "StringToEnergyAndAngularDistributionFormulas: "
+            "Unknown AngularDistributionFormulas: " +
+            type);
     }
 }
 
-TF2 EnergyAndAngularDistributionFormulasToRootFormula(
-    EnergyAndAngularDistributionFormulas type) {
+TF2 EnergyAndAngularDistributionFormulasToRootFormula(EnergyAndAngularDistributionFormulas type) {
     if (type == EnergyAndAngularDistributionFormulas::COSMIC_MUONS) {
         // Guan modified Gaisser parametrization formula for sea-level cosmic-ray muon flux
         // Source document: arXiv:1509.06176 (Chinese Physics C Vol. 39, No. 6)
@@ -238,8 +235,9 @@ TF2 EnergyAndAngularDistributionFormulasToRootFormula(
         f.SetTitle(title);
         return f;
     }
-    throw invalid_argument("EnergyAndAngularDistributionFormulasToRootFormula: "
-                           "Unknown energy and angular distribution formula");
+    throw invalid_argument(
+        "EnergyAndAngularDistributionFormulasToRootFormula: "
+        "Unknown energy and angular distribution formula");
 }
 
 // --- Helpers of the generator classes ---

@@ -1,6 +1,6 @@
 #include "TRestGDMLReadout.h"
 
-#include <regex> 
+#include <regex>
 
 #include "TGeoManager.h"
 #include "TGeoNode.h"
@@ -20,12 +20,10 @@ static const bool TRestGDMLReadoutInfo_FieldsRegistered = []() {
     return true;
 }();
 
-TRestGDMLReadoutInfo::TRestGDMLReadoutInfo() : TRestMetadata() {
-    fName = "TRestGDMLReadoutInfo";
-}
+TRestGDMLReadoutInfo::TRestGDMLReadoutInfo() : TRestMetadata() { fName = "TRestGDMLReadoutInfo"; }
 
-TRestGDMLReadoutInfo::TRestGDMLReadoutInfo(
-    const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+TRestGDMLReadoutInfo::TRestGDMLReadoutInfo(const std::string& name, const YAML::Node& node)
+    : TRestMetadata(name, node) {
     LoadConfig();
 }
 
@@ -45,8 +43,8 @@ TRestGDMLReadoutParameters::TRestGDMLReadoutParameters() : TRestMetadata() {
     fName = "TRestGDMLReadoutParameters";
 }
 
-TRestGDMLReadoutParameters::TRestGDMLReadoutParameters(
-    const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+TRestGDMLReadoutParameters::TRestGDMLReadoutParameters(const std::string& name, const YAML::Node& node)
+    : TRestMetadata(name, node) {
     LoadConfig();
 }
 
@@ -104,7 +102,8 @@ void TRestGDMLReadout::BuildGeometry() {
     fGeoManager = TGeoManager::Import(fReadoutParams.fGDMLFileName.c_str());
 
     if (!fGeoManager) {
-        throw std::runtime_error("TRestGDMLReadout::BuildGeometry - ROOT failed to parse GDML input: " + fReadoutParams.fGDMLFileName);
+        throw std::runtime_error("TRestGDMLReadout::BuildGeometry - ROOT failed to parse GDML input: " +
+                                 fReadoutParams.fGDMLFileName);
     }
     TGeoManager::SetVerboseLevel(0);
 
@@ -136,21 +135,20 @@ void TRestGDMLReadout::BuildGeometry() {
 
                     if (match.size() > 2) {
                         try {
-                            int firstCapturedNum  = std::stoi(match.str(1));
+                            int firstCapturedNum = std::stoi(match.str(1));
                             int secondCapturedNum = std::stoi(match.str(2));
-                            physicalID = currentOffsets[i] + (firstCapturedNum * info.fMultiplier) + secondCapturedNum;
+                            physicalID =
+                                currentOffsets[i] + (firstCapturedNum * info.fMultiplier) + secondCapturedNum;
                         } catch (const std::exception& e) {
                             continue;
                         }
-                    }
-                    else if (match.size() > 1) {
+                    } else if (match.size() > 1) {
                         try {
                             physicalID = currentOffsets[i] + std::stoi(match.str(1));
                         } catch (const std::exception& e) {
                             continue;
                         }
-                    }
-                    else {
+                    } else {
                         physicalID = currentOffsets[i];
                     }
 
@@ -206,5 +204,6 @@ void TRestGDMLReadout::BuildGeometry() {
     fGeoManager->CloseGeometry();
     UpdateYAMLFromParams<TRestGDMLReadout>(fNode);
 
-    RESTInfo << "Successfully indexed " << parsedChannelsCount << " channels conserving native geometry structures." << RESTendl;
+    RESTInfo << "Successfully indexed " << parsedChannelsCount
+             << " channels conserving native geometry structures." << RESTendl;
 }

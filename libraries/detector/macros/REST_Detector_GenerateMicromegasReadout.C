@@ -11,8 +11,8 @@ using namespace TRestTools;
 
 TRestMicromegasReadout* mmReadout = nullptr;
 
-void GenerateMicromegasReadout(const std::string& yamlFile = "MicromegasReadout.yaml",
-                     const std::string outputFile = "iaxo_readout_output.root") {
+void REST_Detector_GenerateMicromegasReadout(const std::string& yamlFile = "MicromegasReadout.yaml",
+                                             const std::string outputFile = "iaxo_readout_output.root") {
     std::cout << "[+] ROOT Macro -> Instantiating TRestMicromegasReadout directly..." << std::endl;
 
     mmReadout = new TRestMicromegasReadout(yamlFile, "readout");

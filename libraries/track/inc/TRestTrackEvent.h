@@ -41,8 +41,7 @@ struct TRestTrackData {
 /// tracks of the previous stages to be stored. The parent ID is the ID of the track it comes from in the
 /// input event of the stage (0 if none), for reference only.
 class TRestTrackEvent : public TRestEvent {
-
-   friend class TRestTrack; 
+    friend class TRestTrack;
 
    public:
     using REST_HitType = TRestHitsData::REST_HitType;
@@ -56,17 +55,17 @@ class TRestTrackEvent : public TRestEvent {
     mutable std::vector<TRestHits> fTrackHits;  //!
 
     /// Persisted branch pointers (ROOT requires T** for class/vector branches).
-    std::vector<float>* fPtrX = nullptr;        //!
-    std::vector<float>* fPtrY = nullptr;        //!
-    std::vector<float>* fPtrZ = nullptr;        //!
-    std::vector<float>* fPtrTime = nullptr;     //!
-    std::vector<float>* fPtrEnergy = nullptr;   //!
-    std::vector<int>* fPtrType = nullptr;       //!
-    std::vector<float>* fPtrSigmaX = nullptr;   //!
-    std::vector<float>* fPtrSigmaY = nullptr;   //!
-    std::vector<float>* fPtrSigmaZ = nullptr;   //!
-    std::vector<int>* fPtrTrackID = nullptr;    //!
-    std::vector<int>* fPtrParentID = nullptr;   //!
+    std::vector<float>* fPtrX = nullptr;         //!
+    std::vector<float>* fPtrY = nullptr;         //!
+    std::vector<float>* fPtrZ = nullptr;         //!
+    std::vector<float>* fPtrTime = nullptr;      //!
+    std::vector<float>* fPtrEnergy = nullptr;    //!
+    std::vector<int>* fPtrType = nullptr;        //!
+    std::vector<float>* fPtrSigmaX = nullptr;    //!
+    std::vector<float>* fPtrSigmaY = nullptr;    //!
+    std::vector<float>* fPtrSigmaZ = nullptr;    //!
+    std::vector<int>* fPtrTrackID = nullptr;     //!
+    std::vector<int>* fPtrParentID = nullptr;    //!
     std::vector<int>* fPtrTrackNHits = nullptr;  //!
 
     /// \brief Returns the first global hit index belonging to track n.
@@ -143,9 +142,7 @@ class TRestTrackEvent : public TRestEvent {
             start += n;
         }
     }
-    void RefreshViews() const override {
-        const_cast<TRestTrackEvent*>(this)->RebuildTrackViews();
-    }
+    void RefreshViews() const override { const_cast<TRestTrackEvent*>(this)->RebuildTrackViews(); }
 
     void CopyFrom(const TRestEvent* other) override {
         TRestEvent::CopyFrom(other);
@@ -159,8 +156,8 @@ class TRestTrackEvent : public TRestEvent {
     // Low-level: int idx = event.AddTrack(trackID, parentID);
     //            event.AddHitToTrack(x, y, z, en, t, type);  // repeat for every hit, in order
     Int_t AddTrack(Int_t trackID, Int_t parentID);
-    void AddHitToTrack(const XYZVector& position, Double_t energy, Double_t time,
-                       REST_HitType type, const XYZVector& sigma = XYZVector(0,0,0));
+    void AddHitToTrack(const XYZVector& position, Double_t energy, Double_t time, REST_HitType type,
+                       const XYZVector& sigma = XYZVector(0, 0, 0));
 
     // Adds a full track in one call, taking an already built hits container as
     // the track representation. If `sigmas` is empty, each hit's spatial

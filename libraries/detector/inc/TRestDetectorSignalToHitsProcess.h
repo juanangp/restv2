@@ -15,7 +15,7 @@ class TRestDetectorReadout;
 class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
    private:
     TRestDetectorReadout* fReadout = nullptr;
-    char fAxis = 'Z';    ///< Drift axis parsed from fDriftAxis
+    char fAxis = 'Z';         ///< Drift axis parsed from fDriftAxis
     int fDriftDirection = 1;  ///< Drift sense parsed from fDriftAxis (readouts without distance)
 
    public:

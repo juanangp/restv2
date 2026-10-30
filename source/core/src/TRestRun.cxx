@@ -210,7 +210,9 @@ void TRestRun::OpenInputFile(const std::string& filename) {
     if (metadataDir) {
         TList* keysInDir = metadataDir->GetListOfKeys();
         if (keysInDir) {
-            for (auto* meta : fMetadataStore) { if (meta) delete meta; }
+            for (auto* meta : fMetadataStore) {
+                if (meta) delete meta;
+            }
             fMetadataStore.clear();
 
             for (int i = 0; i < keysInDir->GetEntries(); ++i) {
@@ -238,8 +240,8 @@ void TRestRun::OpenInputFile(const std::string& filename) {
                             fMetadataStore.push_back(metadata.release());
                         }
                     } catch (const std::exception& e) {
-                        std::cerr << "[-] Error loading metadata '" << keyName
-                                  << "' from: " << e.what() << std::endl;
+                        std::cerr << "[-] Error loading metadata '" << keyName << "' from: " << e.what()
+                                  << std::endl;
                     }
                 }
             }
@@ -300,7 +302,7 @@ void TRestRun::AddMetadata(TRestMetadata* metadata) {
 void TRestRun::AddHistoricMetadata() {
     for (auto* metadata : fMetadataStore) {
         if (metadata && metadata->GetClassName() != "TRestRun") {
-          metadata->WriteMetadata(fOutputFile.get());
+            metadata->WriteMetadata(fOutputFile.get());
         }
     }
 }
@@ -311,7 +313,7 @@ YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
     return ReadMetadata(fInputFile.get(), instanceName);
 }
 
-TRestMetadata* TRestRun::GetMetadataClass(const std::string &className) const {
+TRestMetadata* TRestRun::GetMetadataClass(const std::string& className) const {
     for (auto* metadata : fMetadataStore) {
         if (metadata && metadata->GetClassName() == className) {
             return metadata;
@@ -324,7 +326,7 @@ TRestMetadata* TRestRun::GetMetadataClass(const std::string &className) const {
 TRestEvent* TRestRun::GetEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
     if (it == fInputEvents.end()) {
-        RESTError<< "TRestRun: Tree '" << treeName << "' does not exist."<<RESTendl;
+        RESTError << "TRestRun: Tree '" << treeName << "' does not exist." << RESTendl;
         return nullptr;
     }
     fEvent = it->second;
@@ -334,7 +336,7 @@ TRestEvent* TRestRun::GetEvent(const std::string& treeName) {
 void TRestRun::SetEvent(const std::string& treeName) {
     auto it = fInputEvents.find(treeName);
     if (it == fInputEvents.end()) {
-        RESTError<< "TRestRun: Tree '" << treeName << "' does not exist."<<RESTendl;
+        RESTError << "TRestRun: Tree '" << treeName << "' does not exist." << RESTendl;
         return;
     }
     fEvent = it->second;
@@ -359,10 +361,7 @@ bool TRestRun::GetEntry(Long64_t entry) {
     return success;
 }
 
-bool TRestRun::GetNextEntry(){
-  return GetEntry(++fEntry);
-
-}
+bool TRestRun::GetNextEntry() { return GetEntry(++fEntry); }
 
 Long64_t TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string& tag) {
     if (!fAnalysisTree) return -1;
@@ -381,7 +380,7 @@ Long64_t TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string
 
     TTreeReaderValue<int> rvEventID(reader, "eventID");
     TTreeReaderValue<int> rvSubEventID(reader, "subEventID");
-    
+
     std::unique_ptr<TTreeReaderValue<std::string>> rvSubEventTag = nullptr;
     if (fAnalysisTree->GetBranch("subEventTag")) {
         rvSubEventTag = std::make_unique<TTreeReaderValue<std::string>>(reader, "subEventTag");
@@ -399,7 +398,7 @@ Long64_t TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string
             }
 
             Long64_t currentEntry = reader.GetCurrentEntry();
-            this->GetEntry(currentEntry); 
+            this->GetEntry(currentEntry);
             return currentEntry;
         }
     }
@@ -414,7 +413,6 @@ void TRestRun::PrintObservables() {
 
     fAnalysisTree->Show(fEntry);
 }
-
 
 bool TRestRun::HasEvent(const std::string& treeName) const {
     return fInputEvents.find(treeName) != fInputEvents.end();
@@ -439,7 +437,6 @@ void TRestRun::ResolveOutputFileName() {
 
 void TRestRun::FormOutputFile() {
     ResolveOutputFileName();
-
 
     UpdateYAMLFromParams<TRestRun>(fNode);
 
@@ -478,15 +475,13 @@ void TRestRun::SyncAnalysisTreeBranches() {
     TObjArray* inputBranches = fAnalysisTree->GetListOfBranches();
 
     for (int i = 0; i < inputBranches->GetEntries(); ++i) {
-        auto* inputBranch =
-            dynamic_cast<TBranch*>(inputBranches->At(i));
+        auto* inputBranch = dynamic_cast<TBranch*>(inputBranches->At(i));
 
         if (!inputBranch) continue;
 
         const char* branchName = inputBranch->GetName();
 
-        TBranch* outputBranch =
-            fOutputAnalysisTree->GetBranch(branchName);
+        TBranch* outputBranch = fOutputAnalysisTree->GetBranch(branchName);
 
         if (!outputBranch) {
             continue;
@@ -502,10 +497,9 @@ void TRestRun::SyncAnalysisTreeBranches() {
 
 void TRestRun::Fill() {
     if (fOutputFile) fOutputFile->cd();
-    
-    for (auto& [treeName, tree] : fOutputEventTrees)
-            tree->Fill();
-    
+
+    for (auto& [treeName, tree] : fOutputEventTrees) tree->Fill();
+
     if (fOutputAnalysisTree) {
         fOutputAnalysisTree->Fill();
     }
@@ -521,7 +515,7 @@ void TRestRun::CloseFiles() {
                 tree->Write("", TObject::kOverwrite);
             }
         }
-        
+
         if (fOutputAnalysisTree) {
             fOutputAnalysisTree->Write("", TObject::kOverwrite);
         }
@@ -532,14 +526,12 @@ void TRestRun::CloseFiles() {
         fOutputAnalysisTree = nullptr;
     }
     if (fInputFile) {
-        
         fInputFile->Close();
         fInputFile.reset();
         fInputEventTrees.clear();
         fAnalysisTree = nullptr;
     }
 }
-
 
 // ---------------------------------------------------------------------------
 void TRestRun::PrintMetadata() const {
@@ -551,8 +543,7 @@ void TRestRun::PrintMetadata() const {
 }
 
 void TRestRun::PrintAllMetadata() const {
-  for (auto* metadata : fMetadataStore)
-     metadata->PrintMetadata();
+    for (auto* metadata : fMetadataStore) metadata->PrintMetadata();
 }
 
 YAML::Node TRestRun::GetParameters() const {

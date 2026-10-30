@@ -1,11 +1,12 @@
 #include "TRestRawSignalEvent.h"
-#include "TRestLogManager.h"
+
+#include <TMultiGraph.h>
+#include <TObjString.h>
+#include <TPad.h>
 
 #include <iostream>
 
-#include <TPad.h>
-#include <TObjString.h>
-#include <TMultiGraph.h>
+#include "TRestLogManager.h"
 
 // ---------------------------------------------------------------------------
 // Self-registration in EventRegistry (no macro)
@@ -46,8 +47,8 @@ TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
         fPad = new TPad(padName, "REST Event Viewer", 0, 0, 1, 1);
     }
 
-    TVirtualPad* safePad = gPad; 
-    
+    TVirtualPad* safePad = gPad;
+
     fPad->cd();
     fPad->Clear();
 
@@ -64,10 +65,10 @@ TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
         int endIdx = optStr.Index("]", startIdx);
         if (endIdx > startIdx) {
             TString rangeStr = optStr(startIdx, endIdx - startIdx);
-            
+
             TString sep = "-";
             if (rangeStr.Contains(",")) sep = ",";
-            
+
             TObjArray* tokens = rangeStr.Tokenize(sep);
             if (tokens->GetEntries() >= 2) {
                 sRangeInit = ((TObjString*)tokens->At(0))->GetString().Atoi();
@@ -120,16 +121,16 @@ TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
     mg->SetTitle(title.Data());
 
     for (int sID : signalIDs) {
-            const auto& signal = GetSignalByID(sID); 
-            TGraph* g = (TGraph*)signal.GetGraph().Clone();
-            g->SetLineColor((sID%72)+1);
-            mg->Add(g, "L"); 
+        const auto& signal = GetSignalByID(sID);
+        TGraph* g = (TGraph*)signal.GetGraph().Clone();
+        g->SetLineColor((sID % 72) + 1);
+        mg->Add(g, "L");
     }
 
     DrawOwned(mg, "A");
     fPad->Modified();
-    
-    if (safePad) safePad->cd(); 
+
+    if (safePad) safePad->cd();
 
     return fPad;
 }

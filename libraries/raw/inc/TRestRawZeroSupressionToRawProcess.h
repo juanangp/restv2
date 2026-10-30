@@ -6,9 +6,7 @@
 class TRestRawSignalEvent;
 
 class TRestRawZeroSupressionToRawProcess : public TRestEventProcess {
-
    public:
-
     TRestRawZeroSupressionToRawProcess();
     TRestRawZeroSupressionToRawProcess(const std::string& instanceName, const YAML::Node& node);
     TRestRawZeroSupressionToRawProcess(const std::string& fileName, const std::string& sectionName);
@@ -29,7 +27,5 @@ class TRestRawZeroSupressionToRawProcess : public TRestEventProcess {
 
     std::string GetClassName() const override { return "TRestRawZeroSupressionToRawProcess"; }
 };
-
-
 
 #endif

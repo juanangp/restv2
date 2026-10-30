@@ -1,8 +1,4 @@
 #include "TRestGeant4Event.h"
-#include "TRestGeant4Metadata.h"
-#include "TRestRun.h"
-#include "TRestGeant4Track.h"
-#include "TRestTools.h"
 
 #include <TGraph.h>
 #include <TH1F.h>
@@ -17,10 +13,15 @@
 #include <memory>
 #include <set>
 
+#include "TRestGeant4Metadata.h"
+#include "TRestGeant4Track.h"
+#include "TRestRun.h"
+#include "TRestTools.h"
+
 namespace {
 const bool kRegistered = []() {
-    EventRegistry::Instance().Register(
-        "TRestGeant4Event", []() { return std::make_unique<TRestGeant4Event>(); });
+    EventRegistry::Instance().Register("TRestGeant4Event",
+                                       []() { return std::make_unique<TRestGeant4Event>(); });
     return true;
 }();
 }  // namespace
@@ -32,8 +33,7 @@ const TRestGeant4Metadata* TRestGeant4Event::GetGeant4Metadata() const {
         TRestMetadata* baseMeta = fRestRun->GetMetadataClass("TRestGeant4Metadata");
         if (baseMeta) {
             auto* nonConstThis = const_cast<TRestGeant4Event*>(this);
-            nonConstThis->fMetadata =
-                dynamic_cast<const TRestGeant4Metadata*>(baseMeta);
+            nonConstThis->fMetadata = dynamic_cast<const TRestGeant4Metadata*>(baseMeta);
         }
     }
 
@@ -52,8 +52,7 @@ void TRestGeant4Event::RebuildVolumeIndex() {
     fVolumeIndexMap.clear();
 
     const std::size_t n =
-        std::min(fEventData.volumeStoredNames.size(),
-                 fEventData.volumeDepositedEnergy.size());
+        std::min(fEventData.volumeStoredNames.size(), fEventData.volumeDepositedEnergy.size());
 
     for (std::size_t i = 0; i < n; ++i) {
         fVolumeIndexMap[fEventData.volumeStoredNames[i]] = i;
@@ -63,15 +62,12 @@ void TRestGeant4Event::RebuildVolumeIndex() {
 void TRestGeant4Event::RebuildCrossIndex() {
     fCrossIndexMap.clear();
 
-    const std::size_t n = std::min(
-        {fEventData.crossVolumeNames.size(),
-         fEventData.crossParticleNames.size(),
-         fEventData.crossProcessNames.size(),
-         fEventData.crossDepositedEnergies.size()});
+    const std::size_t n =
+        std::min({fEventData.crossVolumeNames.size(), fEventData.crossParticleNames.size(),
+                  fEventData.crossProcessNames.size(), fEventData.crossDepositedEnergies.size()});
 
     for (std::size_t i = 0; i < n; ++i) {
-        fCrossIndexMap[std::make_tuple(fEventData.crossVolumeNames[i],
-                                       fEventData.crossParticleNames[i],
+        fCrossIndexMap[std::make_tuple(fEventData.crossVolumeNames[i], fEventData.crossParticleNames[i],
                                        fEventData.crossProcessNames[i])] = i;
     }
 }
@@ -401,8 +397,8 @@ void TRestGeant4Event::ClearTracks() {
 
 void TRestGeant4Event::RemoveTrackHits(std::size_t trackIndex) {
     if (trackIndex >= fEventData.trackIDs.size()) return;
-    if (trackIndex >= fEventData.trackStartIndices.size() ||
-        trackIndex >= fEventData.trackNHits.size()) return;
+    if (trackIndex >= fEventData.trackStartIndices.size() || trackIndex >= fEventData.trackNHits.size())
+        return;
 
     const std::size_t start = static_cast<std::size_t>(fEventData.trackStartIndices[trackIndex]);
     const std::size_t count = static_cast<std::size_t>(fEventData.trackNHits[trackIndex]);
@@ -438,15 +434,14 @@ void TRestGeant4Event::RemoveTrackHits(std::size_t trackIndex) {
     fEventData.trackNHits[trackIndex] = 0;
 }
 
-void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(
-    Double_t energy, const std::string& volumeName,
-    const std::string& particleName, const std::string& processName) {
+void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(Double_t energy, const std::string& volumeName,
+                                                              const std::string& particleName,
+                                                              const std::string& processName) {
     if (energy <= 0) return;
 
     fEventData.totalDepositedEnergy += energy;
 
-    const auto key =
-        std::make_tuple(volumeName, particleName, processName);
+    const auto key = std::make_tuple(volumeName, particleName, processName);
 
     auto itCross = fCrossIndexMap.find(key);
     if (itCross != fCrossIndexMap.end()) {
@@ -489,17 +484,13 @@ void TRestGeant4Event::PrintG4Event(int maxTracks, int maxHits) const {
     const int nTracks = std::min(maxTracks, totalTracksAvailable);
 
     std::cout << "- Total deposited energy: "
-              << REST_Units::FormatAs(fEventData.totalDepositedEnergy, REST_Units::Energy)
-              << std::endl;
+              << REST_Units::FormatAs(fEventData.totalDepositedEnergy, REST_Units::Energy) << std::endl;
     std::cout << "- Sensitive detectors total energy: "
-              << REST_Units::FormatAs(fEventData.sensitiveVolumeEnergy, REST_Units::Energy)
-              << std::endl;
-    std::cout << "- Event Wall Time: "
-              << REST_Units::FormatAs(fEventData.eventTimeWall, REST_Units::Time)
+              << REST_Units::FormatAs(fEventData.sensitiveVolumeEnergy, REST_Units::Energy) << std::endl;
+    std::cout << "- Event Wall Time: " << REST_Units::FormatAs(fEventData.eventTimeWall, REST_Units::Time)
               << std::endl;
     std::cout << "- Primary source position: "
-              << REST_Units::FormatAs(fEventData.primaryPosition, REST_Units::Length)
-              << std::endl;
+              << REST_Units::FormatAs(fEventData.primaryPosition, REST_Units::Length) << std::endl;
 
     std::cout << "- Primary Particles (" << fEventData.primaryParticleNames.size() << "):" << std::endl;
 
@@ -507,26 +498,24 @@ void TRestGeant4Event::PrintG4Event(int maxTracks, int maxHits) const {
         std::cout << "   - Source [" << i << "]: " << fEventData.primaryParticleNames[i] << std::endl;
 
         if (i < fEventData.primaryDirections.size()) {
-            std::cout << "     Direction: ("
-                      << fEventData.primaryDirections[i].X() << ", "
-                      << fEventData.primaryDirections[i].Y() << ", "
-                      << fEventData.primaryDirections[i].Z() << ")" << std::endl;
+            std::cout << "     Direction: (" << fEventData.primaryDirections[i].X() << ", "
+                      << fEventData.primaryDirections[i].Y() << ", " << fEventData.primaryDirections[i].Z()
+                      << ")" << std::endl;
         }
 
         if (i < fEventData.primaryEnergies.size()) {
             std::cout << "     Energy: "
-                      << REST_Units::FormatAs(fEventData.primaryEnergies[i], REST_Units::Energy)
-                      << std::endl;
+                      << REST_Units::FormatAs(fEventData.primaryEnergies[i], REST_Units::Energy) << std::endl;
         }
     }
 
-    std::cout << "- Number of tracks to print: " << nTracks
-              << " (Total in event: " << totalTracksAvailable << ")" << std::endl;
+    std::cout << "- Number of tracks to print: " << nTracks << " (Total in event: " << totalTracksAvailable
+              << ")" << std::endl;
 
     for (int i = 0; i < nTracks; ++i) {
         std::cout << "   -----------------------------------------------------" << std::endl;
         const auto track = GetTrack(static_cast<std::size_t>(i));
-        
+
         track.PrintTrack(maxHits);
     }
 

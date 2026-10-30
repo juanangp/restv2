@@ -29,7 +29,6 @@
 #include <TRestEventViewer.h>
 #include <TRestRun.h>
 #include <TRestTools.h>
-
 #include <TTreeFormula.h>
 
 using namespace std;
@@ -118,9 +117,9 @@ void TRestBrowser::SetViewer(TRestEventViewer* eV, Double_t geomScale) {
 void TRestBrowser::SetViewer(const std::string& viewerName, Double_t geomScale) {
     if (CountString((string)viewerName, "Viewer") > 0) {
         TClass* cl = TClass::GetClass(viewerName.c_str());
-          if (!cl) {
+        if (!cl) {
             throw std::runtime_error("Error: La clase '" + viewerName + "' no está registrada en ROOT.");
-          }
+        }
 
         std::unique_ptr<TRestEventViewer> viewer(static_cast<TRestEventViewer*>(cl->New()));
         viewer->SetGeomScale(geomScale);
@@ -258,7 +257,6 @@ void TRestBrowser::SetBottomPanelButtons() {
 
 void TRestBrowser::InitFromConfigFile() { cout << __PRETTY_FUNCTION__ << endl; }
 
-
 Bool_t TRestBrowser::LoadEventEntry(Int_t n) {
     if (fRestRun->fInputFile == nullptr || fRestRun->fInputFile->IsZombie()) {
         RESTWarning << "TRestBrowser::LoadEventEntry. No File..." << RESTendl;
@@ -357,12 +355,12 @@ Bool_t TRestBrowser::OpenFile(const std::string& filename) {
 
         auto eventMap = fRestRun->GetEventMap();
         if (!eventMap.empty()) {
-            // Selected: the event of the run, the last saved event type of the file (TRestRun::GetOutputEvent)
-            // if it has one
-            for (auto& [eventType, eventObj] : eventMap){
-              fEventTypeComboBox->AddEntry(eventType.c_str(), fEventTypeComboBox->GetNumberOfEntries());
-              if (eventObj == fRestRun->GetEvent())
-                  fEventTypeComboBox->Select(fEventTypeComboBox->GetNumberOfEntries() - 1, false);
+            // Selected: the event of the run, the last saved event type of the file
+            // (TRestRun::GetOutputEvent) if it has one
+            for (auto& [eventType, eventObj] : eventMap) {
+                fEventTypeComboBox->AddEntry(eventType.c_str(), fEventTypeComboBox->GetNumberOfEntries());
+                if (eventObj == fRestRun->GetEvent())
+                    fEventTypeComboBox->Select(fEventTypeComboBox->GetNumberOfEntries() - 1, false);
             }
 
             // init viewer
@@ -389,7 +387,7 @@ Bool_t TRestBrowser::OpenFile(const std::string& filename) {
     return false;
 }
 
-void TRestBrowser::SetEvent(const std::string &eventType) {
+void TRestBrowser::SetEvent(const std::string& eventType) {
     if (fRestRun != nullptr) {
         fRestRun->SetEvent(eventType);
     }
@@ -401,7 +399,6 @@ void TRestBrowser::SetEvent(const std::string &eventType) {
     }
     if (fRestRun != nullptr && fRestRun->fInputFile != nullptr && !pureAnalysis) LoadEventEntry(fEventRow);
 }
-
 
 void TRestBrowser::NextPlotOptionAction() {
     string text = fPlotOptionTextBox->GetText();
@@ -512,7 +509,7 @@ void TRestBrowser::PreviousEventAction() {
         fEventRow--;
         LoadEventEntry(fEventRow);
     } else {
-       auto tree = fRestRun->fAnalysisTree;
+        auto tree = fRestRun->fAnalysisTree;
         TTreeFormula formula("Selection", sel.c_str(), tree);
         if (formula.GetNdim() > 0) {  // valid expression
             fEventRow--;

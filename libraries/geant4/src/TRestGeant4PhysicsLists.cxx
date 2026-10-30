@@ -1,12 +1,19 @@
 #include "TRestGeant4PhysicsLists.h"
 
-const std::set<std::string> TRestGeant4PhysicsLists::fValidPhysicsLists = {
-    "G4DecayPhysics", "G4RadioactiveDecayPhysics", "G4RadioactiveDecay",
-    "G4RadioactiveDecayBase", "G4Radioactivation", "G4EmLivermorePhysics",
-    "G4EmPenelopePhysics", "G4EmStandardPhysics_option3", "G4EmStandardPhysics_option4",
-    "G4HadronElasticPhysicsHP", "G4IonBinaryCascadePhysics", "G4HadronPhysicsQGSP_BIC_HP",
-    "G4NeutronTrackingCut", "G4EmExtraPhysics"
-};
+const std::set<std::string> TRestGeant4PhysicsLists::fValidPhysicsLists = {"G4DecayPhysics",
+                                                                           "G4RadioactiveDecayPhysics",
+                                                                           "G4RadioactiveDecay",
+                                                                           "G4RadioactiveDecayBase",
+                                                                           "G4Radioactivation",
+                                                                           "G4EmLivermorePhysics",
+                                                                           "G4EmPenelopePhysics",
+                                                                           "G4EmStandardPhysics_option3",
+                                                                           "G4EmStandardPhysics_option4",
+                                                                           "G4HadronElasticPhysicsHP",
+                                                                           "G4IonBinaryCascadePhysics",
+                                                                           "G4HadronPhysicsQGSP_BIC_HP",
+                                                                           "G4NeutronTrackingCut",
+                                                                           "G4EmExtraPhysics"};
 
 // ---------------------------------------------------------------------------
 // Self-registration
@@ -37,23 +44,32 @@ static const bool TRestPhysicsListItem_FieldsRegistered = []() {
 
 static const bool TRestGeant4PhysicsLists_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    
+
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForElectron", &TRestGeant4PhysicsLists::fCutForElectron);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForGamma", &TRestGeant4PhysicsLists::fCutForGamma);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForPositron", &TRestGeant4PhysicsLists::fCutForPositron);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForMuon", &TRestGeant4PhysicsLists::fCutForMuon);
     reg.RegisterField<TRestGeant4PhysicsLists>("cutForNeutron", &TRestGeant4PhysicsLists::fCutForNeutron);
-    reg.RegisterField<TRestGeant4PhysicsLists>("minEnergyRangeProductionCuts", &TRestGeant4PhysicsLists::fMinEnergyRangeProductionCuts);
-    reg.RegisterField<TRestGeant4PhysicsLists>("maxEnergyRangeProductionCuts", &TRestGeant4PhysicsLists::fMaxEnergyRangeProductionCuts);
-    reg.RegisterField<TRestGeant4PhysicsLists>("ionLimitStepList", &TRestGeant4PhysicsLists::fIonLimitStepList);
+    reg.RegisterField<TRestGeant4PhysicsLists>("minEnergyRangeProductionCuts",
+                                               &TRestGeant4PhysicsLists::fMinEnergyRangeProductionCuts);
+    reg.RegisterField<TRestGeant4PhysicsLists>("maxEnergyRangeProductionCuts",
+                                               &TRestGeant4PhysicsLists::fMaxEnergyRangeProductionCuts);
+    reg.RegisterField<TRestGeant4PhysicsLists>("ionLimitStepList",
+                                               &TRestGeant4PhysicsLists::fIonLimitStepList);
 
     reg.RegisterField<TRestGeant4PhysicsLists>("physicsList", &TRestGeant4PhysicsLists::fPhysicsLists);
     return true;
 }();
 
 TRestGeant4PhysicsLists::TRestGeant4PhysicsLists() : TRestMetadata() { fName = "TRestGeant4PhysicsLists"; }
-TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& configFilename, const std::string& name) : TRestMetadata(configFilename, name) { LoadConfig(); }
-TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& instanceName, const YAML::Node& node) : TRestMetadata(instanceName, node) { LoadConfig(); }
+TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& configFilename, const std::string& name)
+    : TRestMetadata(configFilename, name) {
+    LoadConfig();
+}
+TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& instanceName, const YAML::Node& node)
+    : TRestMetadata(instanceName, node) {
+    LoadConfig();
+}
 
 void TRestGeant4PhysicsLists::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4PhysicsLists>(fNode);

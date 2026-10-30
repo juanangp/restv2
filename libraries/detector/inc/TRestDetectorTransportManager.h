@@ -23,7 +23,7 @@
 ///        pressures: [1 bar]
 class TRestDetectorTransportManager : public TRestMetadata {
    public:
-    std::unique_ptr<TRestDetectorMedium> fMedium;  //!
+    std::unique_ptr<TRestDetectorMedium> fMedium;              //!
     std::vector<std::unique_ptr<TRestMetadata>> fSimulations;  //!
 
     TRestDetectorTransportManager(const std::string& instanceName, const YAML::Node& node);

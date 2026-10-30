@@ -58,13 +58,13 @@ class TRestGeant4ParticleSource : public TRestMetadata {
 
    private:
     /// Energy and angle sampled together (formula2, TH2D, cosmic)
-    std::string fJointType;                  //!
-    std::string fJointFormula;               //! formula2
-    std::string fJointFile, fJointName;      //! TH2D and cosmic (histogram name)
-    std::unique_ptr<TF2> fJointFunction;     //!
-    std::unique_ptr<TH2D> fJointHistogram;   //!
-    double fJointEnergyUnit = 1;             //!
-    double fJointAngleUnit = 1;              //!
+    std::string fJointType;                 //!
+    std::string fJointFormula;              //! formula2
+    std::string fJointFile, fJointName;     //! TH2D and cosmic (histogram name)
+    std::unique_ptr<TF2> fJointFunction;    //!
+    std::unique_ptr<TH2D> fJointHistogram;  //!
+    double fJointEnergyUnit = 1;            //!
+    double fJointAngleUnit = 1;             //!
 
     /// Decay0 events, read once and shared by the copies
     std::shared_ptr<const std::vector<std::vector<TRestGeant4ParticleState>>> fDecay0Events;  //!

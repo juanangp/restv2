@@ -16,10 +16,10 @@ static const bool TRestCut_FieldsRegistered = []() {
 
 namespace {
 const bool kRegistered = []() {
-    MetadataClassRegistry::Instance().Register(
-        "TRestCut", [](const std::string& instanceName, const YAML::Node& params) {
-            return std::make_unique<TRestCut>(instanceName, params);
-        });
+    MetadataClassRegistry::Instance().Register("TRestCut",
+                                               [](const std::string& instanceName, const YAML::Node& params) {
+                                                   return std::make_unique<TRestCut>(instanceName, params);
+                                               });
     return true;
 }();
 }  // namespace

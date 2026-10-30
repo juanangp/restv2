@@ -11,8 +11,8 @@ using namespace TRestTools;
 
 TRestGDMLReadout* gdmlReadout = nullptr;
 
-void GenerateGDMLReadout(const std::string& yamlFile = "GDMLReadout.yaml",
-                     const std::string outputFile = "veto_readout_output.root") {
+void REST_Detector_GenerateGDMLReadout(const std::string& yamlFile = "GDMLReadout.yaml",
+                                       const std::string outputFile = "veto_readout_output.root") {
     std::cout << "[+] ROOT Macro -> Instantiating TRestGDMLReadout directly..." << std::endl;
 
     gdmlReadout = new TRestGDMLReadout(yamlFile, "readout");

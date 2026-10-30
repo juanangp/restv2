@@ -198,8 +198,8 @@ class TRestLogScope {
 /// threads are not mixed.
 class TRestLogLine {
    public:
-    TRestLogLine(TRestLogManager::REST_Verbose_Level level, const std::string_view& color,
-                 const char* prefix, const TRestLogContext& context)
+    TRestLogLine(TRestLogManager::REST_Verbose_Level level, const std::string_view& color, const char* prefix,
+                 const TRestLogContext& context)
         : fColor(color), fPrefix(prefix), fName(context.name), fEnabled(level <= context.level) {}
 
     TRestLogLine(const TRestLogLine&) = delete;

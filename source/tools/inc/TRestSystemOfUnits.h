@@ -1,16 +1,17 @@
 #ifndef TRESTSYSTEMOFUNITS_H
 #define TRESTSYSTEMOFUNITS_H
 
-#include <TMath.h>
 #include <Math/Vector3D.h>
+#include <TMath.h>
+#include <yaml-cpp/yaml.h>
+
 #include <cctype>
+#include <cmath>
+#include <iomanip>
 #include <map>
 #include <optional>
 #include <sstream>
 #include <string>
-#include <cmath>
-#include <iomanip>
-#include <yaml-cpp/yaml.h>
 
 #include "TRestLogManager.h"
 #include "TRestTools.h"
@@ -23,7 +24,7 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
     // ================== Energy (base = keV) ==================
     {"meV", {Energy, 1e-6}},
     {"eV", {Energy, 1e-3}},
-    {"keV", {Energy, 1.}},          // base
+    {"keV", {Energy, 1.}},  // base
     {"MeV", {Energy, 1e3}},
     {"GeV", {Energy, 1e6}},
     {"TeV", {Energy, 1e9}},
@@ -32,7 +33,7 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
 
     // ================== Time (base = us) ==================
     {"ns", {Time, 1e-3}},
-    {"us", {Time, 1.}},          // base
+    {"us", {Time, 1.}},  // base
     {"ms", {Time, 1e3}},
     {"s", {Time, 1e6}},
     {"hr", {Time, 3600e6}},
@@ -42,7 +43,7 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
     // ================== Length (base = mm) ==================
     {"nm", {Length, 1e-6}},
     {"um", {Length, 1e-3}},
-    {"mm", {Length, 1.}},        // base
+    {"mm", {Length, 1.}},  // base
     {"cm", {Length, 10.}},
     {"m", {Length, 1000.}},
     {"km", {Length, 1e6}},
@@ -50,12 +51,12 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
     // ================== Mass (base = kg) ==================
     {"mg", {Mass, 1e-6}},
     {"g", {Mass, 1e-3}},
-    {"kg", {Mass, 1.}},          // base
+    {"kg", {Mass, 1.}},  // base
     {"ton", {Mass, 1000.}},
 
     // ================== Voltage (base = V) ==================
     {"mV", {Voltage, 1e-3}},
-    {"V", {Voltage, 1.}},        // base
+    {"V", {Voltage, 1.}},  // base
     {"kV", {Voltage, 1000.}},
 
     // ================== Magnetic field (base = T) ==================
@@ -64,7 +65,7 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
     {"G", {MagneticField, 1e-4}},
 
     // ================== Pressure (base = bar) ==================
-    {"bar", {Pressure, 1.}},     // base
+    {"bar", {Pressure, 1.}},  // base
     {"mbar", {Pressure, 1e-3}},
     {"atm", {Pressure, 1.01325}},
     {"Pa", {Pressure, 1e-5}},
@@ -73,7 +74,7 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
     {"torr", {Pressure, 1.33322e-3}},
 
     // ================== Angle (base = rad) ==================
-    {"rad", {Angle, 1.}},        // base
+    {"rad", {Angle, 1.}},  // base
     {"deg", {Angle, TMath::DegToRad()}},
     {"degree", {Angle, TMath::DegToRad()}},
     {"arcmin", {Angle, TMath::DegToRad() / 60.}},
@@ -87,7 +88,7 @@ inline double ParseUnit(const std::string& UnitsExpr) {
 
     double totalFactor = 1.0;
     bool currentMultiply = true;
-    
+
     size_t i = 0;
     while (i < cleanExpr.length()) {
         if (cleanExpr[i] == '*') {
@@ -113,7 +114,7 @@ inline double ParseUnit(const std::string& UnitsExpr) {
 
         int exp = 1;
         if (i < cleanExpr.length() && cleanExpr[i] == '^') {
-            i++; // saltar el caracter '^'
+            i++;  // saltar el caracter '^'
             size_t startExp = i;
             if (i < cleanExpr.length() && (cleanExpr[i] == '-' || cleanExpr[i] == '+')) {
                 i++;
@@ -151,42 +152,34 @@ inline std::string FormatAs(T value, Physical_Unit quantity) {
     double val = static_cast<double>(value);
     if (val == 0.0) return "0";
 
-    std::string baseUnitSymbol; 
-    double factorToBase = 1.0;  
+    std::string baseUnitSymbol;
+    double factorToBase = 1.0;
 
     if (quantity == Energy) {
         baseUnitSymbol = "eV";
-        factorToBase = 1.0 / REST_Units_Map["eV"].second; // keV -> eV
-    } 
-    else if (quantity == Time) {
+        factorToBase = 1.0 / REST_Units_Map["eV"].second;  // keV -> eV
+    } else if (quantity == Time) {
         baseUnitSymbol = "s";
         factorToBase = 1.0 / REST_Units_Map["s"].second;  // us -> s
-    } 
-    else if (quantity == Length) {
+    } else if (quantity == Length) {
         baseUnitSymbol = "m";
         factorToBase = 1.0 / REST_Units_Map["m"].second;  // mm -> m
-    } 
-    else if (quantity == Voltage) {
+    } else if (quantity == Voltage) {
         baseUnitSymbol = "V";
         factorToBase = 1.0 / REST_Units_Map["V"].second;  // V -> V (1.0)
-    } 
-    else if (quantity == Mass) {
-        baseUnitSymbol = "g"; 
+    } else if (quantity == Mass) {
+        baseUnitSymbol = "g";
         factorToBase = 1.0 / REST_Units_Map["g"].second;  // kg -> g
-    } 
-    else if (quantity == MagneticField) {
+    } else if (quantity == MagneticField) {
         baseUnitSymbol = "T";
         factorToBase = 1.0 / REST_Units_Map["T"].second;  // T -> T (1.0)
-    } 
-    else if (quantity == Pressure) {
+    } else if (quantity == Pressure) {
         baseUnitSymbol = "bar";
-        factorToBase = 1.0 / REST_Units_Map["bar"].second; // bar -> bar (1.0)
-    } 
-    else if (quantity == Angle) {
+        factorToBase = 1.0 / REST_Units_Map["bar"].second;  // bar -> bar (1.0)
+    } else if (quantity == Angle) {
         baseUnitSymbol = "rad";
-        factorToBase = 1.0 / REST_Units_Map["rad"].second; // rad -> rad (1.0)
-    } 
-    else {
+        factorToBase = 1.0 / REST_Units_Map["rad"].second;  // rad -> rad (1.0)
+    } else {
         return std::to_string(val);
     }
 
@@ -196,14 +189,31 @@ inline std::string FormatAs(T value, Physical_Unit quantity) {
     std::string prefix = "";
     double scaleFactor = 1.0;
 
-    if (absValue < 1e-6)       { prefix = "n"; scaleFactor = 1e9; }
-    else if (absValue < 1e-3)  { prefix = "u"; scaleFactor = 1e6; }
-    else if (absValue < 1.0)   { prefix = "m"; scaleFactor = 1e3; }
-    else if (absValue < 1e3)   { prefix = "";  scaleFactor = 1.0; }
-    else if (absValue < 1e6)   { prefix = "k"; scaleFactor = 1e-3; }
-    else if (absValue < 1e9)   { prefix = "M"; scaleFactor = 1e-6; }
-    else if (absValue < 1e12)  { prefix = "G"; scaleFactor = 1e-9; }
-    else                       { prefix = "T"; scaleFactor = 1e-12; }
+    if (absValue < 1e-6) {
+        prefix = "n";
+        scaleFactor = 1e9;
+    } else if (absValue < 1e-3) {
+        prefix = "u";
+        scaleFactor = 1e6;
+    } else if (absValue < 1.0) {
+        prefix = "m";
+        scaleFactor = 1e3;
+    } else if (absValue < 1e3) {
+        prefix = "";
+        scaleFactor = 1.0;
+    } else if (absValue < 1e6) {
+        prefix = "k";
+        scaleFactor = 1e-3;
+    } else if (absValue < 1e9) {
+        prefix = "M";
+        scaleFactor = 1e-6;
+    } else if (absValue < 1e12) {
+        prefix = "G";
+        scaleFactor = 1e-9;
+    } else {
+        prefix = "T";
+        scaleFactor = 1e-12;
+    }
 
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2) << (valueInSI * scaleFactor) << " " << prefix << baseUnitSymbol;
@@ -212,13 +222,10 @@ inline std::string FormatAs(T value, Physical_Unit quantity) {
 
 inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit quantity) {
     std::ostringstream ss;
-    ss << "(" 
-       << FormatAs(vector.X(), quantity) << ", "
-       << FormatAs(vector.Y(), quantity) << ", "
+    ss << "(" << FormatAs(vector.X(), quantity) << ", " << FormatAs(vector.Y(), quantity) << ", "
        << FormatAs(vector.Z(), quantity) << ")";
     return ss.str();
 }
-
 
 /// Sets the TGeoManager default units (mm, MeV, ns). Safe to call multiple times.
 bool SetGeoManagerDefaultUnits();
@@ -249,7 +256,10 @@ struct TRestWithUnits {
 
     operator double&() { return value; }
     operator const double&() const { return value; }
-    TRestWithUnits& operator=(double v) { value = v; return *this; }
+    TRestWithUnits& operator=(double v) {
+        value = v;
+        return *this;
+    }
 };
 
 // ============================================================================
@@ -260,7 +270,7 @@ template <>
 struct convert<TRestWithUnits> {
     static Node encode(const TRestWithUnits& rhs) {
         Node node;
-        node = rhs.value; // Writes back as a clean plain double to the .root file
+        node = rhs.value;  // Writes back as a clean plain double to the .root file
         return node;
     }
 
@@ -275,6 +285,6 @@ struct convert<TRestWithUnits> {
         return true;
     }
 };
-} // namespace YAML
+}  // namespace YAML
 
 #endif

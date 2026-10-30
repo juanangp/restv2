@@ -1,13 +1,11 @@
 
-#include "TRestRun.h"
 #include "TRestEvent.h"
-
+#include "TRestRun.h"
 
 TRestRun* _run = nullptr;
 TRestEvent* _ev = nullptr;
 
-int REST_OpenInputFile(const std::string &filename){
-
+int REST_OpenInputFile(const std::string& filename) {
     std::cout << "--- Opening REST file: " << filename << " ---" << std::endl;
 
     _run = new TRestRun(filename);
@@ -29,9 +27,8 @@ int REST_OpenInputFile(const std::string &filename){
     }
 
     std::cout << "Successfully loaded TRestRun. Event type detected: " << _ev->GetClassName() << std::endl;
-    std::cout << "--> Global pointers '_run' and '_ev' are now fully accessible in your prompt!\n" << std::endl;
+    std::cout << "--> Global pointers '_run' and '_ev' are now fully accessible in your prompt!\n"
+              << std::endl;
 
-  return 0;
+    return 0;
 }
-
-

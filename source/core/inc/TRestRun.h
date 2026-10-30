@@ -21,7 +21,7 @@
 /// and run descriptors used during processing and AOD persistence.
 class TRestRun : public TRestMetadata {
    private:
-    std::vector <TRestMetadata*> fMetadataStore;
+    std::vector<TRestMetadata*> fMetadataStore;
 
    public:
     int fRunNumber = -1;
@@ -49,7 +49,7 @@ class TRestRun : public TRestMetadata {
     double fEndTime = 0;
     Long64_t fEntriesSaved = 0;
 
-    Long64_t fEntry=0;
+    Long64_t fEntry = 0;
 
     Long64_t fInputEntries = 0;
 
@@ -67,12 +67,12 @@ class TRestRun : public TRestMetadata {
     std::map<std::string, TRestEvent*> fOutputEvents;
 
     /// Selected event, see GetEvent/SetEvent
-    TRestEvent *fEvent = nullptr;
+    TRestEvent* fEvent = nullptr;
 
     /// inheritInputRun: the run parameters not given in the configuration nor in the name of the input
     /// file (inputFormat) are taken from the run of the input file
     bool fInheritInputRun = false;
-    int fOutputBasketSize = 1024*1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
+    int fOutputBasketSize = 1024 * 1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
 
     /// \brief Resolves placeholders in file patterns: [parameter], a key of the run (see GetParameter, e.g.
     /// [runNumber] or [runInfo.meshVoltage]), and [version]. Throws for any other.
@@ -228,7 +228,7 @@ class TRestRun : public TRestMetadata {
 
     /// \brief Sets end timestamp.
     /// \param v End time.
-    void SetEndTimeStamp(double v) { fEndTime  = v; }
+    void SetEndTimeStamp(double v) { fEndTime = v; }
 
     /// \brief Opens input ROOT file and initializes input tree bindings.
     /// \param filename Input file path.
@@ -247,19 +247,19 @@ class TRestRun : public TRestMetadata {
     /// \brief Returns number of entries in analysis tree.
     /// \return Entry count or `0` when analysis tree is missing.
     Long64_t GetEntries() const {
-      if (fInputEntries > 0) return fInputEntries;
-      if (!fAnalysisTree) return 0;
-      return fAnalysisTree->GetEntries();
+        if (fInputEntries > 0) return fInputEntries;
+        if (!fAnalysisTree) return 0;
+        return fAnalysisTree->GetEntries();
     }
 
     Long64_t GetSavedEntries() const {
-      if (!fOutputAnalysisTree) return 0;
-      return fOutputAnalysisTree->GetEntries();
+        if (!fOutputAnalysisTree) return 0;
+        return fOutputAnalysisTree->GetEntries();
     }
 
     Long64_t GetEntryWithID(int eventID, int subEventID = -1, const std::string& tag = "");
 
-    void PrintObservables( );
+    void PrintObservables();
 
     /// \brief Loads one entry from input trees.
     /// \param entry Entry index.
@@ -267,9 +267,7 @@ class TRestRun : public TRestMetadata {
     bool GetEntry(Long64_t entry);
     bool GetNextEntry();
 
-    Long64_t GetCurrentEntry() const{
-        return fEntry;
-    }
+    Long64_t GetCurrentEntry() const { return fEntry; }
 
     /// \brief Checks whether an input event tree exists.
     /// \param treeName Event tree/class name.
@@ -292,33 +290,33 @@ class TRestRun : public TRestMetadata {
     /// \brief Registers an output event object and creates its output tree if needed.
     /// \tparam T Event type.
     /// \param className Output tree/class name.
-template <typename T>
-void RegisterEvent(const std::string& className, T& eventObject) {
-    static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
+    template <typename T>
+    void RegisterEvent(const std::string& className, T& eventObject) {
+        static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
 
-    if (!fOutputFile) {
-        throw std::runtime_error("TRestRun: No output file added");
+        if (!fOutputFile) {
+            throw std::runtime_error("TRestRun: No output file added");
+        }
+
+        if (fOutputEventTrees.find(className) == fOutputEventTrees.end()) {
+            fOutputFile->cd();
+            auto* tree = new TTree(className.c_str(), (className + " AOD Event Tree").c_str());
+            tree->SetAutoSave(0);
+            fOutputEventTrees[className] = tree;
+        }
+
+        fOutputEvents[className] = &eventObject;
+
+        eventObject.CreateBranches(fOutputEventTrees[className]);
+        // Larger baskets mean fewer, bigger writes, which helps a lot on network filesystems
+        if (fOutputBasketSize > 0) fOutputEventTrees[className]->SetBasketSize("*", fOutputBasketSize);
+
+        // Event info branches of the analysis tree only once, bound to the first registered event (the
+        // following ones copy its info); with an input analysis tree they are cloned from it
+        if (fOutputAnalysisTree && !fAnalysisTree && !fOutputAnalysisTree->GetBranch("eventID")) {
+            eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
+        }
     }
-
-    if (fOutputEventTrees.find(className) == fOutputEventTrees.end()) {
-        fOutputFile->cd();
-        auto* tree = new TTree(className.c_str(), (className + " AOD Event Tree").c_str());
-        tree->SetAutoSave(0);
-        fOutputEventTrees[className] = tree;
-    }
-
-    fOutputEvents[className] = &eventObject;
-
-    eventObject.CreateBranches(fOutputEventTrees[className]);
-    // Larger baskets mean fewer, bigger writes, which helps a lot on network filesystems
-    if (fOutputBasketSize > 0) fOutputEventTrees[className]->SetBasketSize("*", fOutputBasketSize);
-
-    // Event info branches of the analysis tree only once, bound to the first registered event (the
-    // following ones copy its info); with an input analysis tree they are cloned from it
-    if (fOutputAnalysisTree && !fAnalysisTree && !fOutputAnalysisTree->GetBranch("eventID")) {
-        eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
-    }
-}
 
     /// \brief Registers an observable branch in analysis tree.
     /// \tparam T Observable value type.
@@ -330,14 +328,16 @@ void RegisterEvent(const std::string& className, T& eventObject) {
         TBranch* branch = fOutputAnalysisTree->GetBranch(name.c_str());
 
         if constexpr (std::is_fundamental_v<T>) {
-            if (!branch) fOutputAnalysisTree->Branch(name.c_str(), &variable);
-            else fOutputAnalysisTree->SetBranchAddress(name.c_str(), &variable);
+            if (!branch)
+                fOutputAnalysisTree->Branch(name.c_str(), &variable);
+            else
+                fOutputAnalysisTree->SetBranchAddress(name.c_str(), &variable);
         } else {
             T** ptr = new T*(&variable);
             if (!branch) {
-              fOutputAnalysisTree->Branch(name.c_str(), ptr);
+                fOutputAnalysisTree->Branch(name.c_str(), ptr);
             } else {
-              fOutputAnalysisTree->SetBranchAddress(name.c_str(), ptr);
+                fOutputAnalysisTree->SetBranchAddress(name.c_str(), ptr);
             }
         }
     }
@@ -373,7 +373,7 @@ void RegisterEvent(const std::string& className, T& eventObject) {
     /// \return YAML node (null node if not found).
     YAML::Node GetMetadata(const std::string& instanceName) const;
 
-    TRestMetadata* GetMetadataClass(const std::string &className) const;
+    TRestMetadata* GetMetadataClass(const std::string& className) const;
 
     /// \brief Selects the event of a tree and returns it.
     /// \param treeName Event tree/class name.
@@ -382,15 +382,13 @@ void RegisterEvent(const std::string& className, T& eventObject) {
 
     /// \brief Returns the selected event: the last saved event type (GetOutputEvent) when the file is
     /// opened, or the one set with SetEvent.
-    TRestEvent* GetEvent() {
-        return fEvent;
-    }
+    TRestEvent* GetEvent() { return fEvent; }
 
     /// \brief Selects the event of a tree.
     /// \param treeName Event tree/class name.
     void SetEvent(const std::string& treeName);
 
-    std::map<std::string, TRestEvent*> GetEventMap() const {return fInputEvents;}
+    std::map<std::string, TRestEvent*> GetEventMap() const { return fInputEvents; }
 
     /// \brief Fills all registered output trees for current event.
     void Fill();

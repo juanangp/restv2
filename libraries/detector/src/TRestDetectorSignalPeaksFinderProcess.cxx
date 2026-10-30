@@ -89,10 +89,10 @@ void TRestDetectorSignalPeaksFinderProcess::LoadConfig() {
 }
 
 void TRestDetectorSignalPeaksFinderProcess::InitProcess() {
-    if (fDistance < 0 || fWindow < 0 || fHalfWindow < 1 || fMaxGreaterEqual < 0 ||
-        fAmplitudeHalfWindow < 0) {
+    if (fDistance < 0 || fWindow < 0 || fHalfWindow < 1 || fMaxGreaterEqual < 0 || fAmplitudeHalfWindow < 0) {
         throw std::runtime_error(
-            "TRestDetectorSignalPeaksFinderProcess: distance, window, maxGreaterEqual and amplitudeHalfWindow "
+            "TRestDetectorSignalPeaksFinderProcess: distance, window, maxGreaterEqual and "
+            "amplitudeHalfWindow "
             "must be >= 0 and halfWindow >= 1");
     }
 

@@ -46,7 +46,7 @@ class TRestCut : public TRestMetadata {
     /// Expression with the observables replaced by parameters [i]
     std::unique_ptr<TFormula> fFormula;  //!
     /// Leaf of each parameter of the formula
-    std::vector<TLeaf*> fLeaves;  //!
+    std::vector<TLeaf*> fLeaves;          //!
     mutable std::vector<double> fValues;  //!
 
    public:

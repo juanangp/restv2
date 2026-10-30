@@ -4,8 +4,8 @@
 #include <map>
 #include <set>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 // Modern ROOT vector headers (MathCore GenVector)
 #include <Math/GenVector/Rotation3D.h>
@@ -30,7 +30,6 @@ class TRestGeant4GeometryInfo {
     std::map<std::string, int> fVolumeNameReverseMap;
     std::unordered_map<std::string, std::set<std::string>> fG4ToAltNames;
     std::unordered_map<std::string, std::string> fAltToG4Name;
-
 
    public:
     TRestGeant4GeometryInfo() = default;
@@ -64,7 +63,7 @@ class TRestGeant4GeometryInfo {
 
     inline TGeoManager* GetGeometry() const { return fGeoManager; }
 
-    static std::string GetGeant4NameFiltered (const std::string& g4Name);
+    static std::string GetGeant4NameFiltered(const std::string& g4Name);
 
     // --- Structural Interfaces & ID Maps ---
     inline bool IsAssembly() const { return fIsAssembly; }

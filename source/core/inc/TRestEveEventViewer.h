@@ -16,6 +16,7 @@
 #define RestCore_TRestEveEventViewer
 
 #include <TObject.h>
+
 #include "TRestEventViewer.h"
 
 class TEveManager;
@@ -28,7 +29,7 @@ class TEveProjectionAxes;
 class TEvePointSet;
 class TGeoManager;
 class TBrowser;
-class TPad; 
+class TPad;
 
 class TRestEveEventViewer : public TRestEventViewer {
    protected:
@@ -83,6 +84,5 @@ class TRestEveEventViewer : public TRestEventViewer {
     TRestEveEventViewer();
     // Destructor
     virtual ~TRestEveEventViewer();
-
 };
 #endif

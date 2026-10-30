@@ -211,8 +211,8 @@ bool DivideBy(Spectrum& s, const Spectrum& other, int from, int to) {
 bool ApplyResponse(Spectrum& s, const Spectrum& response, int cutOff) {
     const int n = (int)s.size();
     if (cutOff <= 0 || cutOff >= n / 2) {
-        RESTError << "TRestFFTAnalysis::ApplyResponse: cutOff must be in (0, " << n / 2 << "), got "
-                  << cutOff << RESTendl;
+        RESTError << "TRestFFTAnalysis::ApplyResponse: cutOff must be in (0, " << n / 2 << "), got " << cutOff
+                  << RESTendl;
         return false;
     }
 

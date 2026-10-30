@@ -13,7 +13,6 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
-
 /// \brief Default constructor for FEMDAQ-to-signal conversion.
 TRestRawZeroSupressionToRawProcess::TRestRawZeroSupressionToRawProcess() : TRestEventProcess() {
     fName = "TRestRawZeroSupressionToRawProcess";
@@ -21,14 +20,14 @@ TRestRawZeroSupressionToRawProcess::TRestRawZeroSupressionToRawProcess() : TRest
 
 /// \brief Constructor from an in-memory YAML node.
 TRestRawZeroSupressionToRawProcess::TRestRawZeroSupressionToRawProcess(const std::string& instanceName,
-                                                             const YAML::Node& node)
+                                                                       const YAML::Node& node)
     : TRestEventProcess(instanceName, node) {
     LoadConfig();
 }
 
 /// \brief Constructor from a file and YAML section name.
 TRestRawZeroSupressionToRawProcess::TRestRawZeroSupressionToRawProcess(const std::string& fileName,
-                                                             const std::string& sectionName)
+                                                                       const std::string& sectionName)
     : TRestEventProcess(fileName, sectionName) {
     LoadConfig();
 }
@@ -48,7 +47,7 @@ void TRestRawZeroSupressionToRawProcess::LoadConfig() {
 }
 
 /// \brief Opens input trees, imports run timing metadata, and prepares branch bindings.
-void TRestRawZeroSupressionToRawProcess::InitProcess() { }
+void TRestRawZeroSupressionToRawProcess::InitProcess() {}
 
 /// \brief Converts one tree entry into a TRestRawSignalEvent and fills per-channel samples.
 bool TRestRawZeroSupressionToRawProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
@@ -61,7 +60,6 @@ bool TRestRawZeroSupressionToRawProcess::ProcessEvent(const TRestEvent& input, T
 
     TRestRawZeroSupressionToRawProcess::ZeroSuppressionToRaw(rawEvent);
 
-
     return true;
 }
 
@@ -72,18 +70,17 @@ void TRestRawZeroSupressionToRawProcess::ZeroSuppressionToRaw(TRestRawSignalEven
     for (int i = 0; i < nSignals; ++i) {
         auto& signal = rawEvent->GetSignal(i);
         int nPoints = signal.GetNPoints();
-        
+
         short offset = 0;
         for (int j = 0; j < nPoints; ++j) {
             short val = signal.GetPoint(j);
-            
+
             if (val == 0) continue;
             if (offset == 0) offset = val;
-            
+
             signal.IncreaseBinBy(j, -offset);
         }
     }
 }
 
-void TRestRawZeroSupressionToRawProcess::EndProcess() { }
-
+void TRestRawZeroSupressionToRawProcess::EndProcess() {}

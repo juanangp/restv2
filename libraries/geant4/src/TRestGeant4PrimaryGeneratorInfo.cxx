@@ -97,7 +97,7 @@ string TRestGeant4PrimaryGeneratorInfo::GetGdmlVolume() const {
 }
 
 void TRestGeant4PrimaryGeneratorInfo::SetGdmlPlacement(const ROOT::Math::XYZVector& center,
-                                                      const ROOT::Math::XYZVector& axis, double angle) {
+                                                       const ROOT::Math::XYZVector& axis, double angle) {
     if (auto* shape = dynamic_cast<TRestGeant4SpatialGeneratorShape*>(fSpatialGenerator.get())) {
         shape->SetGdmlPlacement(center, axis, angle);
     }

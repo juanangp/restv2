@@ -106,8 +106,8 @@ void TRestGeant4ToDetectorHitsProcess::InitProcess() {
         fVolumeIDs.insert(ids.begin(), ids.end());
     }
     for (const auto id : fVolumeIDs) {
-        RESTDebug << "TRestGeant4ToDetectorHitsProcess: volume " << geometryInfo.GetVolumeFromID(id) << " (id "
-                  << id << ") selected" << RESTendl;
+        RESTDebug << "TRestGeant4ToDetectorHitsProcess: volume " << geometryInfo.GetVolumeFromID(id)
+                  << " (id " << id << ") selected" << RESTendl;
     }
 
     if (fVolumeIDs.empty()) {

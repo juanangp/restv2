@@ -1,4 +1,5 @@
 #include "TRestGeant4Manager.h"
+
 #include "TRestGeant4Metadata.h"
 #include "TRestGeant4PhysicsLists.h"
 #include "TRestLogManager.h"
@@ -77,9 +78,9 @@ void TRestGeant4Manager::SaveMetadata() {
 }
 
 /// \brief Prints manager-level metadata and its effective YAML configuration.
-void TRestGeant4Manager::PrintMetadata() const{
+void TRestGeant4Manager::PrintMetadata() const {
     RESTMetadata << "=== TRestGeant4Manager ===" << RESTendl;
-    if(fRunInfo)fRunInfo->PrintMetadata();
+    if (fRunInfo) fRunInfo->PrintMetadata();
     if (fG4Metadata) fG4Metadata->PrintMetadata();
     if (fG4PhysicsLists) fG4PhysicsLists->PrintMetadata();
 }

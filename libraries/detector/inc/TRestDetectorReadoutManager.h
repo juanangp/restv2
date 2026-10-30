@@ -27,7 +27,6 @@ class TRestReadoutInfo : public TRestMetadata {
 /// \class TRestDetectorReadoutManager
 /// \brief Loads and owns a set of detector readouts imported from a ROOT geometry container.
 class TRestDetectorReadoutManager : public TRestMetadata {
-
    public:
     /// \brief Builds an empty readout manager.
     TRestDetectorReadoutManager();
@@ -45,7 +44,7 @@ class TRestDetectorReadoutManager : public TRestMetadata {
     /// \brief Parses YAML readout requests (readouts are imported by SetRunInfo or LoadReadout).
     virtual void LoadConfig() override;
     /// \brief Imports requested readouts into the internal lookup map.
-    virtual void Initialize() override { };
+    virtual void Initialize() override {};
 
     /// \brief Imports the requested readouts. Called by SetRunInfo; call it directly to use the manager
     /// without a run (then kSelfFile readouts cannot be loaded).
@@ -71,14 +70,15 @@ class TRestDetectorReadoutManager : public TRestMetadata {
     /// \brief Retrieves a readout by instance name, or nullptr when absent.
     TRestDetectorReadout* GetReadout(const std::string& name) const;
 
-    void ViewReadoutGeometry(const std::vector<std::string>& names = {}, const std::string& option = "ogl") const;
+    void ViewReadoutGeometry(const std::vector<std::string>& names = {},
+                             const std::string& option = "ogl") const;
     void ViewActiveEvent(const std::vector<int>& activeChannels,
-                     const std::vector<std::string>& names = {}) const;
+                         const std::vector<std::string>& names = {}) const;
+
    private:
     void ViewImpl(const std::vector<int>& activeChannels, const std::vector<std::string>& names,
-              const std::string& option) const;
+                  const std::string& option) const;
     mutable TGeoManager* fViewGeo = nullptr;  //!
-
 };
 
 #endif

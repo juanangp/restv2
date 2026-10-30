@@ -9,26 +9,22 @@ class TRestRawSignalEvent;
 
 class TRestNoiseParameters : public TRestMetadata {
    public:
+    double fNoiseAmplitude = 10;  // ADC/Energy units
+    double fNoisePeriod = 50;     // index units
 
-    double fNoiseAmplitude = 10; // ADC/Energy units
-    double fNoisePeriod = 50; //index units
-
-    std::string fNoiseMethod = "white"; //white and sinusoidal(sin) noise implemented
+    std::string fNoiseMethod = "white";  // white and sinusoidal(sin) noise implemented
 
     TRestNoiseParameters();
     TRestNoiseParameters(const std::string& name, const YAML::Node& node);
     void LoadConfig() override;
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestNoiseParameters"; }
-
 };
 
 /// \class TRestRawSignalAddNoiseProcess
 class TRestRawSignalAddNoiseProcess : public TRestEventProcess {
-
    public:
-
-    std::vector<TRestNoiseParameters> fNoiseParams;    
+    std::vector<TRestNoiseParameters> fNoiseParams;
 
     TRestRawSignalAddNoiseProcess();
     TRestRawSignalAddNoiseProcess(const std::string& instanceName, const YAML::Node& node);

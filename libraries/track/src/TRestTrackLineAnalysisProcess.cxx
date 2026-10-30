@@ -8,8 +8,8 @@
 /// * With `projections` (hit types, e.g. [XZ, YZ] for strips): the most energetic track of each
 ///   projection, together. Events with no track in any of them are rejected (not enough information).
 /// Events with no tracks are rejected. The output event holds the tracks of the main track (parent ID =
-/// ID of the input track). The macro ViewTrackLine (libraries/track/macros) browses the events with the
-/// origin and end over the tracks and hits, and the signals split in X and Y.
+/// ID of the input track). The macro REST_Track_ViewTrackLine (libraries/track/macros) browses the events
+/// with the origin and end over the tracks and hits, and the signals split in X and Y.
 ///
 /// Origin and end of each track: the end is the extreme on the half of the track with more energy (the
 /// Bragg peak), TRestHitsAnalysis::GetTrackEnds, which also gives the energy asymmetry of the halves (how
@@ -146,7 +146,8 @@ void OrientTracks(std::vector<TrackLine>& lines) {
         const XYZVector direction = lines[t].end - lines[t].origin;
         double dot = 0;
         for (int a = 0; a < 3; a++) {
-            if (TRestHitsData::IsDefined(lines[t].type, a) && TRestHitsData::IsDefined(lines[reference].type, a)) {
+            if (TRestHitsData::IsDefined(lines[t].type, a) &&
+                TRestHitsData::IsDefined(lines[reference].type, a)) {
                 dot += Get(direction, a) * Get(referenceDirection, a);
             }
         }
@@ -309,9 +310,9 @@ void TRestTrackLineAnalysisProcess::InitProcess() {
     fMethodWarned = false;
 
     // The vector does not change after this, so the registered references stay valid
-    const std::map<std::string, int> hitTypes = {{"X", TRestHitsData::X},   {"Y", TRestHitsData::Y},
-                                                 {"Z", TRestHitsData::Z},   {"XY", TRestHitsData::XY},
-                                                 {"XZ", TRestHitsData::XZ}, {"YZ", TRestHitsData::YZ},
+    const std::map<std::string, int> hitTypes = {{"X", TRestHitsData::X},    {"Y", TRestHitsData::Y},
+                                                 {"Z", TRestHitsData::Z},    {"XY", TRestHitsData::XY},
+                                                 {"XZ", TRestHitsData::XZ},  {"YZ", TRestHitsData::YZ},
                                                  {"XYZ", TRestHitsData::XYZ}};
     fProjectionTracks.clear();
     for (const auto& name : fProjections) {
@@ -431,9 +432,10 @@ bool TRestTrackLineAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         if (fLineAnaMethod == "3D") {
             paired = GetPairedEnds(hits, lines, origin, end);
             if (!paired && !fMethodWarned) {
-                RESTWarning << "TRestTrackLineAnalysisProcess: the projections share no coordinate, the 3D method "
-                               "cannot pair them, using default"
-                            << RESTendl;
+                RESTWarning
+                    << "TRestTrackLineAnalysisProcess: the projections share no coordinate, the 3D method "
+                       "cannot pair them, using default"
+                    << RESTendl;
                 fMethodWarned = true;
             }
         } else if (fLineAnaMethod != "default" && !fMethodWarned) {
@@ -445,7 +447,8 @@ bool TRestTrackLineAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
     }
 
     // Undefined coordinates: NaN in origin and end, 0 in the direction (not in the length)
-    const bool defined[3] = {TRestHitsData::IsDefined(definedType, 0), TRestHitsData::IsDefined(definedType, 1),
+    const bool defined[3] = {TRestHitsData::IsDefined(definedType, 0),
+                             TRestHitsData::IsDefined(definedType, 1),
                              TRestHitsData::IsDefined(definedType, 2)};
     fOriginX = defined[0] ? origin.X() : kNaN;
     fOriginY = defined[1] ? origin.Y() : kNaN;
@@ -491,9 +494,10 @@ bool TRestTrackLineAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
     // The tracks of the main track, as they are
     for (size_t m = 0; m < mainTracks.size(); m++) {
         std::vector<XYZVector> sigmas;
-        for (int h = 0; h < (int)hits[m].GetNumberOfHits(); h++) sigmas.push_back(inputEvent->GetSigma(mainTracks[m], h));
-        outputEvent->AddTrack(outputEvent->GetNumberOfTracks() + 1, inputEvent->GetTrackID(mainTracks[m]), hits[m],
-                              sigmas);
+        for (int h = 0; h < (int)hits[m].GetNumberOfHits(); h++)
+            sigmas.push_back(inputEvent->GetSigma(mainTracks[m], h));
+        outputEvent->AddTrack(outputEvent->GetNumberOfTracks() + 1, inputEvent->GetTrackID(mainTracks[m]),
+                              hits[m], sigmas);
     }
     return true;
 }

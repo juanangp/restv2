@@ -24,7 +24,7 @@ set(ROOT_REQUIRED_LIBRARIES
     Hist
     Physics
     Geom
-    Gui 
+    Gui
     Eve
     RGL
     TreePlayer
@@ -38,9 +38,12 @@ foreach(_root_lib IN LISTS ROOT_REQUIRED_LIBRARIES)
   list(APPEND ROOT_TARGET_LIBRARIES ROOT::${_root_lib})
 endforeach()
 
-# C++17 by default (override with -DCMAKE_CXX_STANDARD=20). If ROOT was built with a newer
-# standard, the ROOT:: targets raise it through their compile features.
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard")
+# C++17 by default (override with -DCMAKE_CXX_STANDARD=20). If ROOT was built
+# with a newer standard, the ROOT:: targets raise it through their compile
+# features.
+set(CMAKE_CXX_STANDARD
+    17
+    CACHE STRING "C++ standard")
 if(CMAKE_CXX_STANDARD LESS 17)
   message(FATAL_ERROR "REST requires C++17 or later.")
 endif()
@@ -51,7 +54,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags
 # ---------------------------------------------------------------------------
 add_compile_options(-fPIC -Wall -Wextra -Wno-unused-parameter)
-# Off by default: each compiler version adds new warnings, which would break the build
+# Off by default: each compiler version adds new warnings, which would break the
+# build
 option(REST_WERROR "Treat compiler warnings as errors" OFF)
 if(REST_WERROR)
   add_compile_options(-Werror -Wno-cast-function-type -Wno-unknown-pragmas)
@@ -60,11 +64,16 @@ endif()
 # ---------------------------------------------------------------------------
 # Install prefix guard - never pollute /usr/local
 # ---------------------------------------------------------------------------
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL
+                                                  "/usr/local")
   if(DEFINED ENV{REST_PATH})
-    set(CMAKE_INSTALL_PREFIX "$ENV{REST_PATH}" CACHE PATH "" FORCE)
+    set(CMAKE_INSTALL_PREFIX
+        "$ENV{REST_PATH}"
+        CACHE PATH "" FORCE)
   else()
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "" FORCE)
+    set(CMAKE_INSTALL_PREFIX
+        "${CMAKE_SOURCE_DIR}/install"
+        CACHE PATH "" FORCE)
   endif()
   message(STATUS "Install prefix set to: ${CMAKE_INSTALL_PREFIX}")
 endif()
@@ -73,23 +82,25 @@ endif()
 # External dependencies
 # ---------------------------------------------------------------------------
 find_package(yaml-cpp REQUIRED)
-# yaml-cpp < 0.8 only exports the target 'yaml-cpp' (or just YAML_CPP_* variables)
+# yaml-cpp < 0.8 only exports the target 'yaml-cpp' (or just YAML_CPP_*
+# variables)
 if(NOT TARGET yaml-cpp::yaml-cpp)
   if(TARGET yaml-cpp)
     add_library(yaml-cpp::yaml-cpp ALIAS yaml-cpp)
   else()
     add_library(yaml-cpp::yaml-cpp INTERFACE IMPORTED)
-    set_target_properties(yaml-cpp::yaml-cpp PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${YAML_CPP_INCLUDE_DIR}"
-      INTERFACE_LINK_LIBRARIES "${YAML_CPP_LIBRARIES}")
+    set_target_properties(
+      yaml-cpp::yaml-cpp
+      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${YAML_CPP_INCLUDE_DIR}"
+                 INTERFACE_LINK_LIBRARIES "${YAML_CPP_LIBRARIES}")
   endif()
 endif()
 
 # ---------------------------------------------------------------------------
-# rest_link_registered_libraries(<target> <lib>...)
-# REST classes register themselves from static initializers, so a library may be needed
-# even if the target uses none of its symbols. Linkers using --as-needed (default on
-# Ubuntu and others, or set in LDFLAGS) would drop it, so the target is linked with
+# rest_link_registered_libraries(<target> <lib>...) REST classes register
+# themselves from static initializers, so a library may be needed even if the
+# target uses none of its symbols. Linkers using --as-needed (default on Ubuntu
+# and others, or set in LDFLAGS) would drop it, so the target is linked with
 # --no-as-needed. Libraries whose target does not exist (disabled) are skipped.
 # ---------------------------------------------------------------------------
 function(rest_link_registered_libraries target)
@@ -118,7 +129,8 @@ function(rest_attach_dictionary target)
   set(options)
   set(oneValueArgs)
   set(multiValueArgs HEADERS INCLUDE_DIRS)
-  cmake_parse_arguments(RAD "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  cmake_parse_arguments(RAD "${options}" "${oneValueArgs}" "${multiValueArgs}"
+                        ${ARGN})
 
   if(NOT RAD_HEADERS)
     return()
@@ -133,10 +145,8 @@ function(rest_attach_dictionary target)
     list(APPEND _dict_options -I${_inc})
   endforeach()
 
-  ROOT_GENERATE_DICTIONARY(G__${target}
-    ${RAD_HEADERS}
-    MODULE ${target}
-    OPTIONS ${_dict_options})
+  root_generate_dictionary(G__${target} ${RAD_HEADERS} MODULE ${target} OPTIONS
+                           ${_dict_options})
 endfunction()
 
 # ---------------------------------------------------------------------------
@@ -173,14 +183,25 @@ if(${CONNECTORS_LIB})
 endif()
 
 # Libraries with registered events/processes, linked by executables and macros
-set(REST_LIBRARIES RestTools RestAnalysis RestCore ${RAW_LIB} ${DETECTOR_LIB} ${TRACK_LIB} ${GEANT4_LIB}
-                   ${CONNECTORS_LIB})
+set(REST_LIBRARIES
+    RestTools
+    RestAnalysis
+    RestCore
+    ${RAW_LIB}
+    ${DETECTOR_LIB}
+    ${TRACK_LIB}
+    ${GEANT4_LIB}
+    ${CONNECTORS_LIB})
 
-option(REST_G4 "Build the optional restG4 package application (requires Geant4)" ON)
+option(REST_G4
+       "Build the optional restG4 package application (requires Geant4)" ON)
 if(REST_G4)
   find_package(Geant4 QUIET)
   if(NOT Geant4_FOUND)
-    message(WARNING "Geant4 not found, restG4 will not be built (set Geant4_DIR or -DREST_G4=OFF)")
+    message(
+      WARNING
+        "Geant4 not found, restG4 will not be built (set Geant4_DIR or -DREST_G4=OFF)"
+    )
     set(REST_G4 OFF)
   endif()
 endif()
@@ -188,12 +209,17 @@ if(REST_G4)
   add_subdirectory(packages/restG4)
 endif()
 
-option(REST_GARFIELD "Build the optional restGarfield package application (requires Garfield++)" ON)
+option(
+  REST_GARFIELD
+  "Build the optional restGarfield package application (requires Garfield++)"
+  ON)
 if(REST_GARFIELD)
   find_package(Garfield QUIET HINTS $ENV{GARFIELD_INSTALL} $ENV{GARFIELD_HOME})
   if(NOT Garfield_FOUND OR NOT TARGET ${DETECTOR_LIB})
-    message(WARNING "Garfield++ or ${DETECTOR_LIB} not found, restGarfield will not be built "
-                    "(set GARFIELD_INSTALL or -DREST_GARFIELD=OFF)")
+    message(
+      WARNING
+        "Garfield++ or ${DETECTOR_LIB} not found, restGarfield will not be built "
+        "(set GARFIELD_INSTALL or -DREST_GARFIELD=OFF)")
     set(REST_GARFIELD OFF)
   endif()
 endif()
@@ -228,17 +254,26 @@ message(STATUS "")
 # Compile macros
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE MACROS_SOURCE "${CMAKE_SOURCE_DIR}/source/macros/*.C")
-file(GLOB_RECURSE MACROS_LIBRARIES "${CMAKE_SOURCE_DIR}/libraries/**/macros/*.C")
+file(GLOB_RECURSE MACROS_LIBRARIES
+     "${CMAKE_SOURCE_DIR}/libraries/**/macros/*.C")
 set(MACROS_PACKAGES "")
 if(REST_GARFIELD)
-  file(GLOB MACROS_PACKAGES "${CMAKE_SOURCE_DIR}/packages/restGarfield/macros/*.C")
+  file(GLOB MACROS_PACKAGES
+       "${CMAKE_SOURCE_DIR}/packages/restGarfield/macros/*.C")
 endif()
-set(ALL_REPOSITORY_MACROS ${MACROS_SOURCE} ${MACROS_LIBRARIES} ${MACROS_PACKAGES})
+set(ALL_REPOSITORY_MACROS ${MACROS_SOURCE} ${MACROS_LIBRARIES}
+                          ${MACROS_PACKAGES})
 
 if(ALL_REPOSITORY_MACROS)
-  install(FILES ${ALL_REPOSITORY_MACROS} DESTINATION macros COMPONENT install)
+  install(
+    FILES ${ALL_REPOSITORY_MACROS}
+    DESTINATION macros
+    COMPONENT install)
 
-  file(GLOB_RECURSE ALL_INC_DIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/**/inc")
+  file(
+    GLOB_RECURSE ALL_INC_DIRS
+    LIST_DIRECTORIES true
+    "${CMAKE_SOURCE_DIR}/**/inc")
 
   foreach(MACRO_PATH IN LISTS ALL_REPOSITORY_MACROS)
     get_filename_component(MACRO_WE ${MACRO_PATH} NAME_WE)
@@ -248,14 +283,15 @@ if(ALL_REPOSITORY_MACROS)
 
     target_include_directories(${MACRO_LIB_NAME} PRIVATE ${ALL_INC_DIRS})
 
-    set_target_properties(${MACRO_LIB_NAME} PROPERTIES
-      PREFIX ""
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/macros_build"
-    )
+    set_target_properties(
+      ${MACRO_LIB_NAME} PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY
+                                             "${CMAKE_BINARY_DIR}/macros_build")
 
-    target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${ROOT_TARGET_LIBRARIES} yaml-cpp::yaml-cpp)
+    target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${ROOT_TARGET_LIBRARIES}
+                                                   yaml-cpp::yaml-cpp)
     rest_link_registered_libraries(${MACRO_LIB_NAME} ${REST_LIBRARIES})
 
-    install(TARGETS ${MACRO_LIB_NAME} LIBRARY DESTINATION macros COMPONENT install)
+    install(TARGETS ${MACRO_LIB_NAME} LIBRARY DESTINATION macros
+                                              COMPONENT install)
   endforeach()
 endif()

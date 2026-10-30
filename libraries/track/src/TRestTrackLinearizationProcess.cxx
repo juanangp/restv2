@@ -105,20 +105,23 @@ void TRestTrackLinearizationProcess::InitProcess() {
     fNotLinearized = 0;
     fNTracks = 0;
     if (fMaxNodes < 2) {
-        RESTError << "TRestTrackLinearizationProcess: maxNodes must be at least 2, the tracks are not linearized"
-                  << RESTendl;
+        RESTError
+            << "TRestTrackLinearizationProcess: maxNodes must be at least 2, the tracks are not linearized"
+            << RESTendl;
     }
     if (fMaxIterations < 1) {
-        RESTWarning << "TRestTrackLinearizationProcess: maxIterations must be at least 1, using 1" << RESTendl;
+        RESTWarning << "TRestTrackLinearizationProcess: maxIterations must be at least 1, using 1"
+                    << RESTendl;
         fMaxIterations = 1;
     }
 }
 
 void TRestTrackLinearizationProcess::EndProcess() {
     if (fNotLinearized > 0) {
-        RESTWarning << "TRestTrackLinearizationProcess: " << fNotLinearized << " of " << fNTracks
-                    << " tracks could not be linearized (no energy or hits of different types), kept as they were"
-                    << RESTendl;
+        RESTWarning
+            << "TRestTrackLinearizationProcess: " << fNotLinearized << " of " << fNTracks
+            << " tracks could not be linearized (no energy or hits of different types), kept as they were"
+            << RESTendl;
     }
 }
 
@@ -162,10 +165,12 @@ bool TRestTrackLinearizationProcess::ProcessEvent(const TRestEvent& input, TRest
 
         if (nodes.empty()) {
             fNotLinearized++;
-            RESTDebug << "TRestTrackLinearizationProcess: event " << inputEvent->GetID() << ", track " << trackID
-                      << " not linearized (no energy or hits of different types), kept as it is" << RESTendl;
+            RESTDebug << "TRestTrackLinearizationProcess: event " << inputEvent->GetID() << ", track "
+                      << trackID << " not linearized (no energy or hits of different types), kept as it is"
+                      << RESTendl;
             std::vector<TRestHitsAnalysis::XYZVector> sigmas;
-            for (size_t h = 0; h < hits.GetNumberOfHits(); h++) sigmas.push_back(inputEvent->GetSigma(t, (int)h));
+            for (size_t h = 0; h < hits.GetNumberOfHits(); h++)
+                sigmas.push_back(inputEvent->GetSigma(t, (int)h));
             outputEvent->AddTrack(outputEvent->GetNumberOfTracks() + 1, trackID, hits, sigmas);
             continue;
         }
@@ -174,9 +179,10 @@ bool TRestTrackLinearizationProcess::ProcessEvent(const TRestEvent& input, TRest
         outputEvent->AddTrack(outputEvent->GetNumberOfTracks() + 1, trackID);
         for (const auto& node : nodes) {
             // Undefined coordinate back to NaN, as in the hits
-            const TRestHitsAnalysis::XYZVector position(TRestHitsData::IsDefined(type, 0) ? node.position.X() : nan,
-                                                        TRestHitsData::IsDefined(type, 1) ? node.position.Y() : nan,
-                                                        TRestHitsData::IsDefined(type, 2) ? node.position.Z() : nan);
+            const TRestHitsAnalysis::XYZVector position(
+                TRestHitsData::IsDefined(type, 0) ? node.position.X() : nan,
+                TRestHitsData::IsDefined(type, 1) ? node.position.Y() : nan,
+                TRestHitsData::IsDefined(type, 2) ? node.position.Z() : nan);
             outputEvent->AddHitToTrack(position, node.energy, 0, type, node.sigma);
         }
         RESTDebug << "TRestTrackLinearizationProcess: track " << trackID << " with " << hits.GetNumberOfHits()

@@ -19,11 +19,12 @@ class TRestRawSignalRecoverSaturationProcess : public TRestEventProcess {
         std::vector<int> SignalsIDsRecovered;
 
         void clear() {
-          AddedAmplitude = 0;
-          AddedIntegral = 0;
-          SignalsSaturated = 0;
-          SignalsRecovered = 0;
-          SignalsIDsRecovered.clear(); }
+            AddedAmplitude = 0;
+            AddedIntegral = 0;
+            SignalsSaturated = 0;
+            SignalsRecovered = 0;
+            SignalsIDsRecovered.clear();
+        }
     };
 
     Observables fObs;

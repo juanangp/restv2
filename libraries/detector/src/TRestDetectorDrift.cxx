@@ -53,8 +53,7 @@ TRestDetectorDrift::TRestDetectorDrift(const std::string& instanceName, const YA
     LoadConfig();
 }
 
-TRestDetectorDrift::TRestDetectorDrift(const std::string& fileName,
-                                                   const std::string& sectionName)
+TRestDetectorDrift::TRestDetectorDrift(const std::string& fileName, const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
     LoadConfig();
 }
@@ -103,8 +102,8 @@ std::string TRestDetectorDrift::SelectTable(const YAML::Node& tables) const {
         if (!best || distance < std::abs(std::log(best->pressure / fPressure))) best = &c;
     }
     if (best) {
-        RESTWarning << "TRestDetectorDrift '" << fName << "': no table at " << fPressure
-                    << " bar, using " << best->key << " scaled with E/p" << RESTendl;
+        RESTWarning << "TRestDetectorDrift '" << fName << "': no table at " << fPressure << " bar, using "
+                    << best->key << " scaled with E/p" << RESTendl;
         return best->key;
     }
     throw std::runtime_error("TRestDetectorDrift '" + fName + "': no table of medium '" + fMedium +
@@ -140,12 +139,12 @@ void TRestDetectorDrift::LoadTransportTable() {
 
     const auto [minField, maxField] = table.GetFieldRange(fPressure);
     if (fElectricField < minField || fElectricField > maxField) {
-        RESTWarning << "TRestDetectorDrift '" << fName << "': electricField out of the range of table "
-                    << key << ", the transport parameters are extrapolated" << RESTendl;
+        RESTWarning << "TRestDetectorDrift '" << fName << "': electricField out of the range of table " << key
+                    << ", the transport parameters are extrapolated" << RESTendl;
     }
     if (std::abs(fTemperature - table.fTemperature) > 0.01) {
-        RESTWarning << "TRestDetectorDrift '" << fName << "': temperature " << fTemperature
-                    << " K but table " << key << " is at " << table.fTemperature << " K" << RESTendl;
+        RESTWarning << "TRestDetectorDrift '" << fName << "': temperature " << fTemperature << " K but table "
+                    << key << " is at " << table.fTemperature << " K" << RESTendl;
     }
     fDriftVelocity = table.GetDriftVelocity(fElectricField, fPressure);
     fLongitudinalDiffusion = table.GetLongitudinalDiffusion(fElectricField, fPressure);
@@ -209,7 +208,7 @@ void TRestDetectorDrift::CheckParameters() const {
 }
 
 bool TRestDetectorDrift::DiffuseElectron(XYZVector& position, const XYZVector& normal, double distance,
-                                               TRandom& random) const {
+                                         TRandom& random) const {
     // Coefficients in sqrt(cm) and 1/cm, distances in mm
     const double distanceCm = distance / 10.;
     if (fAttachment > 0 && random.Uniform() > std::exp(-fAttachment * distanceCm)) return false;

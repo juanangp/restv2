@@ -86,16 +86,15 @@ struct TRestGeant4EventData {
     void clear() {
         auto clear_all = [](auto&... vecs) { (vecs.clear(), ...); };
 
-        clear_all(primaryParticleNames, primaryEnergies, primaryDirections, volumeStored,
-                   volumeStoredNames, volumeDepositedEnergy, trackIDs, parentIDs, trackParticleNames,
-                   trackCreatorProcesses, trackDepositedEnergy, trackInitialEnergies, trackStartIndices,
-                   trackNHits, trackGlobalTimestamps, trackTimeOffsets, trackTimeLengths, trackLengths,
-                   trackWeights, trackSecondariesIDs, trackSecondariesOffsets, trackSecondariesIndices,
-                   trackInitialPositions, crossVolumeNames, crossParticleNames, crossProcessNames,
-                   crossDepositedEnergies, hitProcessID, hitVolumeID, hitKineticEnergy,
-                   hitMomentumDirectionX, hitMomentumDirectionY, hitMomentumDirectionZ,
-                   hitHadronicTargetIsotopeName, hitHadronicTargetIsotopeA,
-                   hitHadronicTargetIsotopeZ);
+        clear_all(primaryParticleNames, primaryEnergies, primaryDirections, volumeStored, volumeStoredNames,
+                  volumeDepositedEnergy, trackIDs, parentIDs, trackParticleNames, trackCreatorProcesses,
+                  trackDepositedEnergy, trackInitialEnergies, trackStartIndices, trackNHits,
+                  trackGlobalTimestamps, trackTimeOffsets, trackTimeLengths, trackLengths, trackWeights,
+                  trackSecondariesIDs, trackSecondariesOffsets, trackSecondariesIndices,
+                  trackInitialPositions, crossVolumeNames, crossParticleNames, crossProcessNames,
+                  crossDepositedEnergies, hitProcessID, hitVolumeID, hitKineticEnergy, hitMomentumDirectionX,
+                  hitMomentumDirectionY, hitMomentumDirectionZ, hitHadronicTargetIsotopeName,
+                  hitHadronicTargetIsotopeA, hitHadronicTargetIsotopeZ);
 
         hitsStorage.clear();
         subEventParticleName.clear();
@@ -120,8 +119,8 @@ class TRestGeant4Event : public TRestEvent {
 
     std::map<std::tuple<std::string, std::string, std::string>, size_t> fCrossIndexMap;
 
-    bool fHasPendingInitialStep = false; //!
-    std::size_t fPendingInitialStepIndex = 0; //!
+    bool fHasPendingInitialStep = false;       //!
+    std::size_t fPendingInitialStepIndex = 0;  //!
 
     ROOT::Math::XYZVector* fPtr_primaryPosition = nullptr;
     std::vector<std::string>* fPtr_primaryParticleNames = nullptr;
@@ -248,7 +247,7 @@ class TRestGeant4Event : public TRestEvent {
 
     TRestHits GetEventHits() const {
         return TRestHits(const_cast<TRestHitsData*>(&fEventData.hitsStorage), 0,
-                          static_cast<int>(fEventData.hitsStorage.x.size()));
+                         static_cast<int>(fEventData.hitsStorage.x.size()));
     }
 
     inline double GetTotalDepositedEnergy() const { return fEventData.totalDepositedEnergy; }
@@ -266,8 +265,8 @@ class TRestGeant4Event : public TRestEvent {
     }
 
     void AddEnergyInVolumeForParticleForProcess(Double_t energy, const std::string& volumeName,
-                                                 const std::string& particleName,
-                                                 const std::string& processName);
+                                                const std::string& particleName,
+                                                const std::string& processName);
 
     void PrintG4Event(int maxTracks = -1, int maxHits = -1) const;
     void PrintEvent() const override { PrintG4Event(); }

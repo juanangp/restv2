@@ -1,9 +1,10 @@
 #ifndef TRestGeant4PhysicsLists_H
 #define TRestGeant4PhysicsLists_H
 
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
+
 #include "TRestMetadata.h"
 
 class TRestPhysicsListOption : public TRestMetadata {
@@ -12,7 +13,9 @@ class TRestPhysicsListOption : public TRestMetadata {
     std::string value;
 
     TRestPhysicsListOption() : TRestMetadata() { fName = "TRestPhysicsListOption"; }
-    TRestPhysicsListOption(const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) { LoadConfig(); }
+    TRestPhysicsListOption(const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+        LoadConfig();
+    }
     void LoadConfig() override { UpdateParamsFromYAML<TRestPhysicsListOption>(fNode); }
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestPhysicsListOption"; }
@@ -24,7 +27,9 @@ class TRestPhysicsListItem : public TRestMetadata {
     std::vector<TRestPhysicsListOption> option;
 
     TRestPhysicsListItem() : TRestMetadata() { fName = "TRestPhysicsListItem"; }
-    TRestPhysicsListItem(const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) { LoadConfig(); }
+    TRestPhysicsListItem(const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+        LoadConfig();
+    }
     void LoadConfig() override { UpdateParamsFromYAML<TRestPhysicsListItem>(fNode); }
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestPhysicsListItem"; }
@@ -69,4 +74,4 @@ class TRestGeant4PhysicsLists : public TRestMetadata {
     virtual ~TRestGeant4PhysicsLists() = default;
 };
 
-#endif // TRestGeant4PhysicsLists_H
+#endif  // TRestGeant4PhysicsLists_H

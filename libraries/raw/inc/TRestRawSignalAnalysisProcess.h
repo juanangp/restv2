@@ -1,7 +1,6 @@
 #ifndef TRESTRAWSIGNALANALYSISPROCESS_H
 #define TRESTRAWSIGNALANALYSISPROCESS_H
 
-
 #include <vector>
 
 #include "TRestEventProcess.h"

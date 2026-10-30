@@ -1,18 +1,19 @@
 #include "TRestDetectorReadout.h"
 
+#include <TGeoBBox.h>
+#include <TGeoManager.h>
+#include <TGeoMatrix.h>
+#include <TGeoMedium.h>
+#include <TGeoNode.h>
+#include <TGeoVolume.h>
+
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <algorithm> 
 
 #include "TDirectory.h"
 #include "TFile.h"
-#include <TGeoBBox.h>
-#include <TGeoMatrix.h>
-#include <TGeoVolume.h>
-#include <TGeoNode.h>
-#include <TGeoManager.h>
-#include <TGeoMedium.h>
 #include "TList.h"
 #include "TObjString.h"
 #include "TRestConstants.h"
@@ -41,7 +42,8 @@ TDirectory* GetOrMakeSubDirectory(TDirectory* parent, const char* name) {
 static const bool TRestDetectorReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestDetectorReadout>("decodingFile", &TRestDetectorReadout::fDecodingFile);
-     reg.RegisterField<TRestDetectorReadout>("volumeToPhysicalIDMap", &TRestDetectorReadout::fPathToPhysicalIDMap);
+    reg.RegisterField<TRestDetectorReadout>("volumeToPhysicalIDMap",
+                                            &TRestDetectorReadout::fPathToPhysicalIDMap);
     return true;
 }();
 
@@ -68,14 +70,16 @@ TRestDetectorReadout::~TRestDetectorReadout() {
 void TRestDetectorReadout::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorReadout>(fNode);
 
-
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestDetectorReadout>(fNode);
 }
 
 void TRestDetectorReadout::InitializeReadout() {
-    if (fGeoManager) { delete fGeoManager; fGeoManager = nullptr; }
-    gGeoManager = nullptr;   // el constructor no debe borrar la geometría de otro readout
+    if (fGeoManager) {
+        delete fGeoManager;
+        fGeoManager = nullptr;
+    }
+    gGeoManager = nullptr;  // el constructor no debe borrar la geometría de otro readout
     fGeoManager = new TGeoManager(fName.c_str(), fName.c_str());
     TGeoManager::SetVerboseLevel(0);
 
@@ -115,14 +119,20 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
 void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const {
     std::vector<ViewItem> items;
     GetViewItems(items);
-    if (items.empty()) { RESTError << "Nothing to draw for readout " << GetName() << RESTendl; return; }
+    if (items.empty()) {
+        RESTError << "Nothing to draw for readout " << GetName() << RESTendl;
+        return;
+    }
     DrawViewItems(items, fViewGeo, option);
 }
 
 void TRestDetectorReadout::ViewActiveEvent(const std::vector<int>& activeChannels) const {
     std::vector<ViewItem> items;
     GetViewItems(items, activeChannels);
-    if (items.empty()) { RESTError << "Nothing to draw for readout " << GetName() << RESTendl; return; }
+    if (items.empty()) {
+        RESTError << "Nothing to draw for readout " << GetName() << RESTendl;
+        return;
+    }
     DrawViewItems(items, fViewGeo);
 }
 
@@ -135,7 +145,7 @@ void TRestDetectorReadout::GetViewItems(std::vector<ViewItem>& items,
     for (const auto& [physID, daqID] : fPhysicalToDAQMap)
         if (activeDAQ.count(daqID)) activeIDs.insert(physID);
 
-    CollectViewItems(activeIDs, items);  
+    CollectViewItems(activeIDs, items);
 }
 
 void TRestDetectorReadout::CollectViewItems(const std::set<int>& activeIDs,
@@ -178,7 +188,10 @@ void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManag
 
     TGeoMedium* topMedium = nullptr;
     for (const auto& item : items)
-        if (item.medium) { topMedium = item.medium; break; }
+        if (item.medium) {
+            topMedium = item.medium;
+            break;
+        }
     if (!topMedium) return;
 
     double half = 0.0;
@@ -206,7 +219,7 @@ void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManag
         viewGeo = nullptr;
     }
 
-    gGeoManager = nullptr;   // el constructor borraría la geometría global existente
+    gGeoManager = nullptr;  // el constructor borraría la geometría global existente
     viewGeo = new TGeoManager("activeEventView", "Active event view");
 
     TGeoVolume* top = viewGeo->MakeBox("TOP", topMedium, half, half, half);
@@ -244,7 +257,10 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
 
     int targetPhysicalID = -1;
     for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {
-        if (channelID == daqID) { targetPhysicalID = physicalID; break; }
+        if (channelID == daqID) {
+            targetPhysicalID = physicalID;
+            break;
+        }
     }
     if (targetPhysicalID < 0) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
 
@@ -253,7 +269,10 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
     if (usePathNavigation) {
         std::string targetPath = "";
         for (const auto& [path, id] : fPathToPhysicalIDMap) {
-            if (id == targetPhysicalID) { targetPath = path; break; }
+            if (id == targetPhysicalID) {
+                targetPath = path;
+                break;
+            }
         }
         if (targetPath.empty()) return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
 
@@ -282,8 +301,7 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
             double globalMasterOrigin[] = {0.0, 0.0, 0.0};
             currentGlobalMatrix->LocalToMaster(localOrigin, globalMasterOrigin);
 
-            return ROOT::Math::XYZVector(globalMasterOrigin[0], globalMasterOrigin[1],
-                                         globalMasterOrigin[2]);
+            return ROOT::Math::XYZVector(globalMasterOrigin[0], globalMasterOrigin[1], globalMasterOrigin[2]);
         }
     }
     return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
@@ -359,7 +377,8 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
 
-    TDirectory* readoutDir = GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
+    TDirectory* readoutDir =
+        GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
     if (!readoutDir) return false;
 
     TGeoManager* prevGeo = gGeoManager;
@@ -398,7 +417,8 @@ bool TRestDetectorReadout::Import(TFile* fIn, const std::string& geometryName,
     if (!ImportGeometry(fIn, geometryName)) return false;
 
     const std::string resolvedGeometryName = geometryName.empty() ? GetName() : geometryName;
-    TDirectory* readoutDir = GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
+    TDirectory* readoutDir =
+        GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
     TDirectory* geometryDecDir = GetSubDirectory(readoutDir, kDecodingsDir);
     if (!geometryDecDir) return false;
 
@@ -458,6 +478,4 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
 
 /// \brief Sets the geometry manager and updates top assembly pointer.
 /// \param geo Geometry manager pointer.
-void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) {
-    fGeoManager = geo; 
-}
+void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) { fGeoManager = geo; }

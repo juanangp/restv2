@@ -32,7 +32,5 @@ class TRestGeant4EventViewer : public TRestEveEventViewer {
     TRestGeant4EventViewer();
     // Destructor
     ~TRestGeant4EventViewer();
-
 };
 #endif
-

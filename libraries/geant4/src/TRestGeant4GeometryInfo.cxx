@@ -9,7 +9,6 @@
 #include <filesystem>
 #include <functional>
 
-
 using namespace std;
 
 namespace {
@@ -60,7 +59,8 @@ void TRestGeant4GeometryInfo::LoadGeometryFromGdml(const std::string& gdmlFilena
 
     // Import the GDML file directly into ROOT's geometry core engine
     // This replaces the old legacy TXMLEngine manual parsing completely
-    // ROOT resolves GDML external entities relative to the working directory, so import from the GDML directory
+    // ROOT resolves GDML external entities relative to the working directory, so import from the GDML
+    // directory
     const auto currentDirectory = filesystem::current_path();
     const auto gdmlDirectory = filesystem::path(gdmlFilename).parent_path();
     if (!gdmlDirectory.empty()) filesystem::current_path(gdmlDirectory);
@@ -114,9 +114,8 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllPhysicalVolumes() const 
 /// \brief Helper method to filter logical volume structures matching an explicit regular expression pattern.
 std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingExpression(
     const std::string& expression) const {
-    
     std::vector<std::string> matched;
-    
+
     std::vector<std::string> allLogical = GetAllLogicalVolumes();
     TPRegexp regex(expression.c_str());
 
@@ -131,7 +130,7 @@ std::vector<std::string> TRestGeant4GeometryInfo::GetAllLogicalVolumesMatchingEx
         for (const auto& pair : fG4ToAltNames) {
             uniqueLogicalNames.insert(pair.second.begin(), pair.second.end());
         }
-        
+
         for (const auto& volName : uniqueLogicalNames) {
             if (regex.MatchB(volName.c_str())) {
                 matched.push_back(volName);
@@ -207,7 +206,7 @@ std::string TRestGeant4GeometryInfo::GetGeant4NameFiltered(const std::string& g4
         size_t imprPos = g4Name.find("_impr_");
         size_t startPos = g4Name.find("_", imprPos + 6);
         size_t endPos = g4Name.rfind("_pv_");
-        
+
         if (startPos != std::string::npos && endPos != std::string::npos && endPos > startPos) {
             return g4Name.substr(startPos + 1, endPos - startPos - 1);
         }
@@ -217,7 +216,6 @@ std::string TRestGeant4GeometryInfo::GetGeant4NameFiltered(const std::string& g4
 
 std::string TRestGeant4GeometryInfo::GetAlternativeNameFromGeant4PhysicalName(
     const std::string& g4Name) const {
-
     auto it = fG4ToAltNames.find(g4Name);
     if (it != fG4ToAltNames.end() && !it->second.empty()) {
         return *(it->second.begin());

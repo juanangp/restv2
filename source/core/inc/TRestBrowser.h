@@ -20,10 +20,8 @@ class TRestEventViewer;
 class TRestEveEventViewer;
 class TRestRun;
 
-
 /// Event browser for different input file
 class TRestBrowser {
-
    protected:
     TGMainFrame* frmMain = nullptr;  //!
     TGMainFrame* frmBot = nullptr;   //!
@@ -65,7 +63,7 @@ class TRestBrowser {
     TRestRun* fRestRun = nullptr;  //!
 
    private:
-    Bool_t pureAnalysis;     //!
+    Bool_t pureAnalysis;         //!
     std::string fInputFileName;  //!
 
     TRestEventViewer* fEventViewer = nullptr;  //!
@@ -86,7 +84,7 @@ class TRestBrowser {
     Bool_t OpenFile(const std::string& filename);
 
     // setters
-    void SetEvent(const std::string &eventType);
+    void SetEvent(const std::string& eventType);
     inline void SetWindowName(const std::string& windowName) { frmMain->SetWindowName(windowName.c_str()); }
 
     // getters

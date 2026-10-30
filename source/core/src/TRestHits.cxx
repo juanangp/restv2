@@ -19,7 +19,6 @@
 #include "TRestEvent.h"
 #include "TRestHitsAnalysis.h"
 
-
 using REST_HitType = TRestHitsData::REST_HitType;
 
 bool TRestHits::areXY() const {
@@ -52,7 +51,7 @@ bool TRestHits::areYZ() const {
 bool TRestHits::areXYZ() const {
     if (fNHits == 0) return false;
     for (int i = 0; i < fNHits; ++i) {
-         const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(i)]);
+        const auto type = static_cast<TRestHitsData::REST_HitType>(fData->type[GetGlobalIdx(i)]);
         if (type != TRestHitsData::XYZ) return false;
     }
     return true;
@@ -179,8 +178,8 @@ void TRestHits::Shuffle(int NLoop) {
 void TRestHits::Sort(std::function<bool(int, int)> compareCondition) {
     if (!fData || fNHits < 2) return;
 
-    auto order = TRestHitsUtils::BuildSortOrder(
-        fNHits, compareCondition, [this](int a, int b) { return GetEnergy(a) < GetEnergy(b); });
+    auto order = TRestHitsUtils::BuildSortOrder(fNHits, compareCondition,
+                                                [this](int a, int b) { return GetEnergy(a) < GetEnergy(b); });
 
     TRestHitsUtils::ApplyPermutation(order, fStartIdx, fData->x, fData->y, fData->z, fData->time,
                                      fData->energy, fData->type);
@@ -369,7 +368,6 @@ double TRestHits::GetDistanceToNode(int n) {
 double TRestHits::GetMaximumHitDistance2() const {
     if (fNHits < 2) return 0;
 
-
     constexpr int kExactThreshold = 500;
     if (fNHits <= kExactThreshold) {
         double maxDistance = 0;
@@ -388,7 +386,10 @@ double TRestHits::GetMaximumHitDistance2() const {
         double bestDist = 0;
         for (int i = 0; i < fNHits; ++i) {
             double d = GetDistance2(from, i);
-            if (d > bestDist) { bestDist = d; best = i; }
+            if (d > bestDist) {
+                bestDist = d;
+                best = i;
+            }
         }
         return std::pair<int, double>{best, bestDist};
     };
@@ -469,7 +470,7 @@ void TRestHits::PrintHits(Int_t nHits) const {
 
     for (int n = 0; n < N; n++) {
         std::cout << "Hit " << n << " X: " << GetX(n) << " Y: " << GetY(n) << " Z: " << GetZ(n)
-             << " Energy: " << GetEnergy(n) << " T: " << GetTime(n);
+                  << " Energy: " << GetEnergy(n) << " T: " << GetTime(n);
         std::cout << std::endl;
     }
 }
@@ -478,7 +479,8 @@ std::vector<ROOT::Math::XYZVector> TRestHits::GetPoints() const {
     std::vector<ROOT::Math::XYZVector> points(fNHits);
     for (int n = 0; n < fNHits; n++) {
         const int type = GetType(n);
-        points[n].SetXYZ(TRestHitsData::IsDefined(type, 0) ? GetX(n) : 0, TRestHitsData::IsDefined(type, 1) ? GetY(n) : 0,
+        points[n].SetXYZ(TRestHitsData::IsDefined(type, 0) ? GetX(n) : 0,
+                         TRestHitsData::IsDefined(type, 1) ? GetY(n) : 0,
                          TRestHitsData::IsDefined(type, 2) ? GetZ(n) : 0);
     }
     return points;
@@ -512,15 +514,15 @@ void Draw3D(const TRestHits& hits, const double min[3], const double max[3], con
     const int merge = totalBins > kMax3DBins ? (int)std::ceil(std::cbrt(totalBins / kMax3DBins)) : 1;
 
     // Also the frame of the lines when there are no hits with the three coordinates
-    auto* h3 = new TH3F("XYZ", "", std::max(1, nBins[0] / merge), min[0], max[0],
-                        std::max(1, nBins[1] / merge), min[1], max[1], std::max(1, nBins[2] / merge), min[2],
-                        max[2]);
+    auto* h3 =
+        new TH3F("XYZ", "", std::max(1, nBins[0] / merge), min[0], max[0], std::max(1, nBins[1] / merge),
+                 min[1], max[1], std::max(1, nBins[2] / merge), min[2], max[2]);
     for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
         if (hits.GetType(n) % REST_HitType::XYZ == 0)
             h3->Fill(hits.GetX(n), hits.GetY(n), hits.GetZ(n), hits.GetEnergy(n));
     }
-    TRestEvent::DrawOwned(h3, h3->GetEntries() > 0 ? "box2" : "", TRestHitsData::kAxisTitles[0], TRestHitsData::kAxisTitles[1],
-                          TRestHitsData::kAxisTitles[2]);
+    TRestEvent::DrawOwned(h3, h3->GetEntries() > 0 ? "box2" : "", TRestHitsData::kAxisTitles[0],
+                          TRestHitsData::kAxisTitles[1], TRestHitsData::kAxisTitles[2]);
 
     const double eMin = hits.GetMinimumHitEnergy(), eMax = hits.GetMaximumHitEnergy();
     const int nColors = TColor::GetNumberOfColors();
@@ -723,9 +725,9 @@ void Draw3DMarkers(const TRestHits& hits, const double min[3], const double max[
     std::vector<TPolyMarker3D*> bands(kEnergyBands, nullptr);
     const double range = maxEnergy - minEnergy;
     for (const auto& p : points) {
-        const int band =
-            range > 0 ? std::min(kEnergyBands - 1, (int)((p[3] - minEnergy) / range * kEnergyBands))
-                      : kEnergyBands - 1;
+        const int band = range > 0
+                             ? std::min(kEnergyBands - 1, (int)((p[3] - minEnergy) / range * kEnergyBands))
+                             : kEnergyBands - 1;
         if (!bands[band]) {
             bands[band] = new TPolyMarker3D();
             bands[band]->SetMarkerStyle(kFullCircle);
@@ -757,7 +759,8 @@ void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
         const int a = TRestHitsData::kPlanes[p][0], b = TRestHitsData::kPlanes[p][1];
         GraphData graph{{}, {}, TRestHitsData::kAxisTitles[a], TRestHitsData::kAxisTitles[b], planeColors[p]};
         for (size_t n = 0; n < GetNumberOfHits(); n++) {
-            if (!TRestHitsData::IsDefined(GetType(n), a) || !TRestHitsData::IsDefined(GetType(n), b)) continue;
+            if (!TRestHitsData::IsDefined(GetType(n), a) || !TRestHitsData::IsDefined(GetType(n), b))
+                continue;
             graph.u.push_back(GetCoordinate(n, a));
             graph.v.push_back(GetCoordinate(n, b));
         }
@@ -870,7 +873,8 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     }
 
     // Only with hits defining at least two coordinates, so it shows points or lines
-    const bool draw3D = !projections.empty() && !values[0].empty() && !values[1].empty() && !values[2].empty();
+    const bool draw3D =
+        !projections.empty() && !values[0].empty() && !values[1].empty() && !values[2].empty();
 
     const int nFirstRow = projections.size() + (draw3D ? 1 : 0);
     const int nColumns = std::max<int>(nFirstRow, distributions.size());

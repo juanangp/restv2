@@ -97,7 +97,6 @@
 
 #include "TRestAnalysisPlot.h"
 
-#include <ROOT/RDataFrame.hxx>
 #include <TApplication.h>
 #include <TAttFill.h>
 #include <TAttLine.h>
@@ -114,6 +113,7 @@
 #include <TTree.h>
 #include <TVirtualX.h>
 
+#include <ROOT/RDataFrame.hxx>
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -166,10 +166,9 @@ const bool kRegistered = []() {
 
 /// EColor of Rtypes.h
 const std::map<std::string, int> kColors = {
-    {"white", kWhite},   {"black", kBlack},   {"gray", kGray},       {"red", kRed},
-    {"green", kGreen},   {"blue", kBlue},     {"yellow", kYellow},   {"magenta", kMagenta},
-    {"cyan", kCyan},     {"orange", kOrange}, {"spring", kSpring},   {"teal", kTeal},
-    {"azure", kAzure},   {"violet", kViolet}, {"pink", kPink}};
+    {"white", kWhite},   {"black", kBlack},   {"gray", kGray},       {"red", kRed},       {"green", kGreen},
+    {"blue", kBlue},     {"yellow", kYellow}, {"magenta", kMagenta}, {"cyan", kCyan},     {"orange", kOrange},
+    {"spring", kSpring}, {"teal", kTeal},     {"azure", kAzure},     {"violet", kViolet}, {"pink", kPink}};
 
 /// ELineStyle of TAttLine.h
 const std::map<std::string, int> kLineStyles = {
@@ -177,13 +176,13 @@ const std::map<std::string, int> kLineStyles = {
 
 /// EFillStyle of TAttFill.h
 const std::map<std::string, int> kFillStyles = {
-    {"empty", kFEmpty}, {"solid", kFSolid}, {"dotted", kFDotted1}, {"dotted1", kFDotted1},
-    {"dotted2", kFDotted2}, {"dotted3", kFDotted3}, {"hatched1", kFHatched1}, {"hatched2", kHatched2},
-    {"hatched3", kFHatched3}, {"hatched4", kFHatched4}, {"wicker", kFWicker}, {"scales", kFScales},
-    {"bricks", kFBricks}, {"snowflakes", kFSnowflakes}, {"circles", kFCircles}, {"tiles", kFTiles},
-    {"mondrian", kFMondrian}, {"diamonds", kFDiamonds}, {"waves1", kFWaves1}, {"dashed", kFDashed1},
-    {"dashed1", kFDashed1}, {"dashed2", kFDashed2}, {"alhambra", kFAlhambra}, {"waves2", kFWaves2},
-    {"stars1", kFStars1}, {"stars2", kFStars2}, {"pyramids", kFPyramids}, {"frieze", kFFrieze},
+    {"empty", kFEmpty},       {"solid", kFSolid},           {"dotted", kFDotted1},    {"dotted1", kFDotted1},
+    {"dotted2", kFDotted2},   {"dotted3", kFDotted3},       {"hatched1", kFHatched1}, {"hatched2", kHatched2},
+    {"hatched3", kFHatched3}, {"hatched4", kFHatched4},     {"wicker", kFWicker},     {"scales", kFScales},
+    {"bricks", kFBricks},     {"snowflakes", kFSnowflakes}, {"circles", kFCircles},   {"tiles", kFTiles},
+    {"mondrian", kFMondrian}, {"diamonds", kFDiamonds},     {"waves1", kFWaves1},     {"dashed", kFDashed1},
+    {"dashed1", kFDashed1},   {"dashed2", kFDashed2},       {"alhambra", kFAlhambra}, {"waves2", kFWaves2},
+    {"stars1", kFStars1},     {"stars2", kFStars2},         {"pyramids", kFPyramids}, {"frieze", kFFrieze},
     {"metopes", kFMetopes}};
 
 /// Identifier, possibly with dots (metadata reference, e.g. run.runTag)
@@ -262,17 +261,17 @@ class Evaluator {
 
         // References with a value; the rest (functions, e.g. sqrt or TMath::Pi) are left to TFormula
         bool valid = true;
-        const std::string formula = TRestTools::ReplaceIdentifiers(
-            withStatistics, kReferencePattern,
-            [&](const std::string& reference) -> std::optional<std::string> {
-                const auto number = numbers.find(reference);
-                if (number != numbers.end()) return Number(number->second);
-                const auto text = Lookup(reference);
-                if (!text) return std::nullopt;
-                const auto value = REST_Units::ParseValueWithUnits(*text);
-                if (!value) valid = false;
-                return value ? Number(*value) : *text;
-            });
+        const std::string formula =
+            TRestTools::ReplaceIdentifiers(withStatistics, kReferencePattern,
+                                           [&](const std::string& reference) -> std::optional<std::string> {
+                                               const auto number = numbers.find(reference);
+                                               if (number != numbers.end()) return Number(number->second);
+                                               const auto text = Lookup(reference);
+                                               if (!text) return std::nullopt;
+                                               const auto value = REST_Units::ParseValueWithUnits(*text);
+                                               if (!value) valid = false;
+                                               return value ? Number(*value) : *text;
+                                           });
         if (!valid) return std::nullopt;
 
         TFormula function("TRestAnalysisPlot", formula.c_str(), false);
@@ -468,12 +467,10 @@ void TRestAnalysisPlot::ReadPanels() {
 void TRestAnalysisPlot::ReadPlots() {
     fPlots.clear();
     if (!fPlotsConfig || fPlotsConfig.IsNull()) return;
-    const std::set<std::string> plotKeys = {"enabled",     "name",       "title",       "xLabel",
-                                            "yLabel",      "logX",       "logY",        "logZ",
-                                            "gridX",       "gridY",      "legend",      "timeDisplay",
-                                            "normalize",   "scale",      "stackOption", "marginLeft",
-                                            "marginRight", "marginTop",  "marginBottom", "save",
-                                            "histos"};
+    const std::set<std::string> plotKeys = {
+        "enabled",     "name",       "title",       "xLabel",    "yLabel",       "logX",      "logY",
+        "logZ",        "gridX",      "gridY",       "legend",    "timeDisplay",  "normalize", "scale",
+        "stackOption", "marginLeft", "marginRight", "marginTop", "marginBottom", "save",      "histos"};
     const std::set<std::string> histoKeys = {"name",      "option",    "cuts",      "variables", "lineColor",
                                              "lineWidth", "lineStyle", "fillColor", "fillStyle", "stats"};
     for (const auto& node : fPlotsConfig) {
@@ -801,7 +798,7 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const TR
             if (plot.legendBox) plot.legendBox->AddEntry(histo.histo.get(), histo.name.c_str(), "lf");
         }
         if (plot.histos.size() > 1 && std::any_of(plot.histos.begin(), plot.histos.end(),
-                                                   [](const Histo& histo) { return histo.stats; })) {
+                                                  [](const Histo& histo) { return histo.stats; })) {
             RESTWarning << "TRestAnalysisPlot: plot " << plot.name
                         << ", stats only for plots of a single histogram" << RESTendl;
         }
@@ -839,8 +836,8 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const TR
             UInt_t screenWidth = 0, screenHeight = 0;
             gVirtualX->GetGeometry(-1, screenX, screenY, screenWidth, screenHeight);
             if (screenWidth > 0 && screenHeight > 0) {
-                factor = std::min(
-                    {1., 0.9 * screenWidth / fCanvasSize[0], 0.9 * screenHeight / fCanvasSize[1]});
+                factor =
+                    std::min({1., 0.9 * screenWidth / fCanvasSize[0], 0.9 * screenHeight / fCanvasSize[1]});
             }
         }
         fCanvas = new TCanvas(fName.c_str(), fName.c_str(), static_cast<int>(factor * fCanvasSize[0]),

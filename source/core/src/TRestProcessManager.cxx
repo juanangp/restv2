@@ -4,8 +4,8 @@
 #include <set>
 #include <stdexcept>
 
-#include "TRestRun.h"
 #include "TRestManager.h"
+#include "TRestRun.h"
 #include "TRestTools.h"
 
 using namespace TRestTools;
@@ -207,7 +207,7 @@ void TRestProcessManager::Run() {
     Long64_t loopEnd = totalEntries;
 
     if (fEntryStart != -1) loopStart = fEntryStart;
-    if (fEntryEnd != -1)   loopEnd = fEntryEnd;
+    if (fEntryEnd != -1) loopEnd = fEntryEnd;
 
     if (fEntryEnd == -1 && fEventsToProcess > 0) {
         loopEnd = loopStart + fEventsToProcess;
@@ -230,9 +230,9 @@ void TRestProcessManager::Run() {
 
     for (Long64_t entry = loopStart; entry < loopEnd; ++entry) {
         if (TRestManager::StopRequested()) {
-          RESTWarning << "TRestProcessManager: stop requested, breaking event loop at entry "
-                    << entry << RESTendl;
-          break;
+            RESTWarning << "TRestProcessManager: stop requested, breaking event loop at entry " << entry
+                        << RESTendl;
+            break;
         }
 
         if (hasInputTree) {
@@ -276,6 +276,5 @@ void TRestProcessManager::Run() {
 
     RESTInfo << "TRestProcessManager: Pipeline finished. Accepted: " << acceptedCount
              << " events, Rejected: " << rejectedCount << " events" << RESTendl;
-    RESTInfo << "Output file name: "<<fRunInfo->GetOutputFileName() << RESTendl;
-    
+    RESTInfo << "Output file name: " << fRunInfo->GetOutputFileName() << RESTendl;
 }

@@ -81,7 +81,8 @@ bool FitLine(const std::vector<XYZVector>& points, const std::vector<double>& en
 }
 }  // namespace
 
-std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vector<XYZVector>& points, double distance,
+std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vector<XYZVector>& points,
+                                                                 double distance,
                                                                  const std::array<bool, 3>& coordinates) {
     const double maxDistance2 = distance * distance;
     auto distance2 = [&](size_t a, size_t b) {
@@ -101,7 +102,8 @@ std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vect
     auto getCell = [&](size_t n) {
         Cell cell = {0, 0, 0};
         for (int axis = 0; axis < 3; axis++) {
-            if (coordinates[axis]) cell[axis] = (long long)std::floor(GetCoordinate(points[n], axis) / cellSize);
+            if (coordinates[axis])
+                cell[axis] = (long long)std::floor(GetCoordinate(points[n], axis) / cellSize);
         }
         return cell;
     };
@@ -161,10 +163,9 @@ std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vect
     return clusters;
 }
 
-std::vector<TRestHitsAnalysis::Node> TRestHitsAnalysis::KMeansClustering(const std::vector<XYZVector>& points,
-                                                                         const std::vector<double>& energies,
-                                                                         const std::vector<XYZVector>& centroids,
-                                                                         int maxIt, bool fixBoundaries) {
+std::vector<TRestHitsAnalysis::Node> TRestHitsAnalysis::KMeansClustering(
+    const std::vector<XYZVector>& points, const std::vector<double>& energies,
+    const std::vector<XYZVector>& centroids, int maxIt, bool fixBoundaries) {
     const int nPoints = (int)points.size();
     const int nodes = (int)centroids.size();
     if (nodes < 2 || nPoints == 0) return {};
@@ -221,7 +222,9 @@ std::vector<TRestHitsAnalysis::Node> TRestHitsAnalysis::KMeansClustering(const s
                 variance[1] += energies[i] * d.Y() * d.Y();
                 variance[2] += energies[i] * d.Z() * d.Z();
             }
-            auto sigma = [&](int a) { return energy > 0 ? std::sqrt(std::max(variance[a] / energy, 0.)) : 0; };
+            auto sigma = [&](int a) {
+                return energy > 0 ? std::sqrt(std::max(variance[a] / energy, 0.)) : 0;
+            };
             result.push_back({centroid[n], energy, XYZVector(sigma(0), sigma(1), sigma(2))});
         }
     }
@@ -254,7 +257,8 @@ std::vector<XYZVector> TRestHitsAnalysis::GetLineNodes(const std::vector<XYZVect
     return result;
 }
 
-double TRestHitsAnalysis::GetLineResidual(const std::vector<XYZVector>& points, const std::vector<double>& energies) {
+double TRestHitsAnalysis::GetLineResidual(const std::vector<XYZVector>& points,
+                                          const std::vector<double>& energies) {
     XYZVector centroid, axis;
     if (!FitLine(points, energies, centroid, axis)) return -1;
 
@@ -279,8 +283,8 @@ double TRestHitsAnalysis::GetMinimumDistance(std::vector<double> values) {
     return minDiff;
 }
 
-void TRestHitsAnalysis::GetBoundaries(const std::vector<double>& values, double binSize, double& max, double& min,
-                                      int& nBins) {
+void TRestHitsAnalysis::GetBoundaries(const std::vector<double>& values, double binSize, double& max,
+                                      double& min, int& nBins) {
     if (values.empty()) {
         min = -1;
         max = 1;
@@ -298,8 +302,9 @@ void TRestHitsAnalysis::GetBoundaries(const std::vector<double>& values, double 
     max = min + nBins * binSize;
 }
 
-double TRestHitsAnalysis::GetTrackEnds(const std::vector<XYZVector>& points, const std::vector<double>& energies,
-                                       XYZVector& origin, XYZVector& end) {
+double TRestHitsAnalysis::GetTrackEnds(const std::vector<XYZVector>& points,
+                                       const std::vector<double>& energies, XYZVector& origin,
+                                       XYZVector& end) {
     if (points.empty()) return 0;
     const XYZVector& first = points.front();
     const XYZVector& last = points.back();
@@ -332,8 +337,8 @@ double TRestHitsAnalysis::GetTrackEnds(const std::vector<XYZVector>& points, con
     return total > 0 ? std::abs(lastEnergy - firstEnergy) / total : 0;
 }
 
-double TRestHitsAnalysis::GetGaussSigma(const std::vector<double>& values, const std::vector<double>& energies,
-                                        double error, int nHitsMin) {
+double TRestHitsAnalysis::GetGaussSigma(const std::vector<double>& values,
+                                        const std::vector<double>& energies, double error, int nHitsMin) {
     const int nHits = (int)values.size();
     if (nHits == 0) return 0;
 
@@ -389,8 +394,8 @@ double TRestHitsAnalysis::GetTwist(const std::vector<XYZVector>& points, size_t 
     return count == 0 ? -1 : sum / count;
 }
 
-double TRestHitsAnalysis::GetTwistWeighted(const std::vector<XYZVector>& points, const std::vector<double>& energies,
-                                           size_t n, size_t m) {
+double TRestHitsAnalysis::GetTwistWeighted(const std::vector<XYZVector>& points,
+                                           const std::vector<double>& energies, size_t n, size_t m) {
     if (m == 0) m = points.size();
     if (m < n + 2) return 0;
 
@@ -399,7 +404,8 @@ double TRestHitsAnalysis::GetTwistWeighted(const std::vector<XYZVector>& points,
     for (size_t N = n + 1; N + 1 < m; N++) {
         const XYZVector a = (points[N - 1] - points[N]).Unit();
         const XYZVector b = (points[N] - points[N + 1]).Unit();
-        const double weight = std::abs(energies[N - 1] - energies[N]) + std::abs(energies[N] - energies[N + 1]);
+        const double weight =
+            std::abs(energies[N - 1] - energies[N]) + std::abs(energies[N] - energies[N + 1]);
         sum += weight * (1 - a.Dot(b)) / 2.;
         count++;
     }

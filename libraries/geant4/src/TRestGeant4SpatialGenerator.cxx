@@ -9,8 +9,8 @@
 
 using namespace std;
 using namespace TRestGeant4PrimaryGeneratorTypes;
-using TRestTools::ToLower;
 using ROOT::Math::XYZVector;
+using TRestTools::ToLower;
 
 static const bool TRestGeant4SpatialGenerator_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -41,7 +41,7 @@ XYZVector ToVector(const array<TRestWithUnits, 3>& values) { return {values[0], 
 // --- TRestGeant4SpatialGenerator ---
 
 unique_ptr<TRestGeant4SpatialGenerator> TRestGeant4SpatialGenerator::Create(const string& name,
-                                                                          const YAML::Node& node) {
+                                                                            const YAML::Node& node) {
     if (!node["type"]) throw runtime_error("TRestGeant4SpatialGenerator: the generator 'type' is missing");
     const auto type = ToLower(node["type"].as<string>());
     if (type == "point") return make_unique<TRestGeant4SpatialGeneratorPoint>(name, node);

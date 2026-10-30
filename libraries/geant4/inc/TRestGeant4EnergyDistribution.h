@@ -25,7 +25,7 @@ class TRestGeant4EnergyDistribution : public TRestMetadata {
 
     /// \brief The derived class of the `type` of the node, configured from it
     static std::unique_ptr<TRestGeant4EnergyDistribution> Create(const std::string& name,
-                                                                const YAML::Node& node);
+                                                                 const YAML::Node& node);
 
     /// \brief A copy without the loaded distribution (LoadDistribution builds its own), for a thread
     virtual std::unique_ptr<TRestGeant4EnergyDistribution> Clone() const = 0;
@@ -135,7 +135,7 @@ class TRestGeant4EnergyDistributionTH1D : public TRestGeant4EnergyDistribution {
 
    private:
     std::shared_ptr<TH1D> fHistogram;  //!
-    double fUnit = 1;                 //!
+    double fUnit = 1;                  //!
 };
 
 /// \class TRestGeant4EnergyDistributionJoint

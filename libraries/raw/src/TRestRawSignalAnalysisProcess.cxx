@@ -1,11 +1,10 @@
 #include "TRestRawSignalAnalysisProcess.h"
-#include "TRestRawSignalEvent.h"
-#include "TRestRun.h"
-
 
 #include <limits>
 
 #include "TRestPulseShapeAnalysis.h"
+#include "TRestRawSignalEvent.h"
+#include "TRestRun.h"
 
 using namespace std;
 using namespace TRestPulseShapeAnalysis;

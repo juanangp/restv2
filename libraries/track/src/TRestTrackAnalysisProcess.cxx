@@ -7,9 +7,9 @@
 /// Track observables (<name>): Energy, NHits; Length (TRestHits::GetTotalDistance) and Volume
 /// (squared distance of the farthest hits); MeanX/Y/Z (energy weighted); SigmaX/Y/Z (energy weighted
 /// size, TRestHits::GetSigmaX, ...); GaussSigmaX/Y/Z (gaussian fit, TRestHitsAnalysis::GetGaussSigma,
-/// only with gaussFit: true, otherwise 0; -1 if the fit fails); Twist, TwistWeighted (TRestHitsAnalysis::GetTwist,
-/// GetTwistWeighted) and TwistLow, TwistHigh (lowest and highest twist of the first and last
-/// twistTailPercentage% of the hits).
+/// only with gaussFit: true, otherwise 0; -1 if the fit fails); Twist, TwistWeighted
+/// (TRestHitsAnalysis::GetTwist, GetTwistWeighted) and TwistLow, TwistHigh (lowest and highest twist of the
+/// first and last twistTailPercentage% of the hits).
 ///
 /// Observables:
 /// * NTracks, TotalEnergy.
@@ -185,8 +185,8 @@ void TRestTrackAnalysisProcess::RegisterTrackObservables(const std::string& pref
     RegisterObservable(prefix + "TwistHigh", obs.twistHigh);
 }
 
-void TRestTrackAnalysisProcess::RegisterCoordinateObservables(const std::string& prefix, TrackObservables& obs,
-                                                              int type) {
+void TRestTrackAnalysisProcess::RegisterCoordinateObservables(const std::string& prefix,
+                                                              TrackObservables& obs, int type) {
     const char* axisNames[3] = {"X", "Y", "Z"};
     double* means[3] = {&obs.meanX, &obs.meanY, &obs.meanZ};
     double* sigmas[3] = {&obs.sigmaX, &obs.sigmaY, &obs.sigmaZ};
@@ -202,9 +202,9 @@ void TRestTrackAnalysisProcess::RegisterCoordinateObservables(const std::string&
 void TRestTrackAnalysisProcess::InitProcess() {
     // Projections and their pairs; the vectors do not change after this, so the registered references
     // stay valid
-    const std::map<std::string, int> hitTypes = {{"X", TRestHitsData::X},   {"Y", TRestHitsData::Y},
-                                                 {"Z", TRestHitsData::Z},   {"XY", TRestHitsData::XY},
-                                                 {"XZ", TRestHitsData::XZ}, {"YZ", TRestHitsData::YZ},
+    const std::map<std::string, int> hitTypes = {{"X", TRestHitsData::X},    {"Y", TRestHitsData::Y},
+                                                 {"Z", TRestHitsData::Z},    {"XY", TRestHitsData::XY},
+                                                 {"XZ", TRestHitsData::XZ},  {"YZ", TRestHitsData::YZ},
                                                  {"XYZ", TRestHitsData::XYZ}};
     fProjectionObs.clear();
     for (const auto& name : fProjections) {
@@ -294,7 +294,8 @@ void TRestTrackAnalysisProcess::InitProcess() {
         RegisterTrackObservables("MaxTrack_" + projection.name + "_", projection.maxTrack, projection.type);
     }
     for (auto& balance : fBalances) {
-        const std::string pair = fProjectionObs[balance.first].name + "_" + fProjectionObs[balance.second].name;
+        const std::string pair =
+            fProjectionObs[balance.first].name + "_" + fProjectionObs[balance.second].name;
         RegisterObservable("EnergyBalance_" + pair, balance.energy);
         RegisterObservable("SigmaBalance_" + pair, balance.sigma);
     }
@@ -368,7 +369,8 @@ bool TRestTrackAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent
         if (fProjectionObs.empty() && outOfRange(fNTracks)) return false;
         for (const auto& projection : fProjectionObs) {
             int nTracks = 0;
-            for (int t = 0; t < fNTracks; t++) nTracks += GetHitsType(event->GetTrack(t).GetHits()) == projection.type;
+            for (int t = 0; t < fNTracks; t++)
+                nTracks += GetHitsType(event->GetTrack(t).GetHits()) == projection.type;
             if (outOfRange(nTracks)) return false;
         }
     }
@@ -419,7 +421,9 @@ bool TRestTrackAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent
     fMaxTrackSkewXY = hasHits ? mainHits.GetSkewXY() : 0;
     fMaxTrackSkewZ = hasHits ? mainHits.GetSkewZ() : 0;
 
-    auto ratio = [](double energy, double mainEnergy) { return energy != 0 ? (energy - mainEnergy) / energy : 0; };
+    auto ratio = [](double energy, double mainEnergy) {
+        return energy != 0 ? (energy - mainEnergy) / energy : 0;
+    };
     fMaxTrackEnergyRatio = ratio(fTotalEnergy, fMaxTrack.energy);
     for (auto& projection : fProjectionObs) {
         projection.maxTrackEnergyRatio = ratio(projection.energy, projection.maxTrack.energy);
@@ -432,8 +436,9 @@ bool TRestTrackAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent
         const auto& a = fProjectionObs[balance.first].maxTrack;
         const auto& b = fProjectionObs[balance.second].maxTrack;
         balance.energy = Balance(a.energy, b.energy);
-        balance.sigma = balance.firstAxis < 0 ? std::numeric_limits<double>::quiet_NaN()
-                                              : Balance(sigmaOf(a, balance.firstAxis), sigmaOf(b, balance.secondAxis));
+        balance.sigma = balance.firstAxis < 0
+                            ? std::numeric_limits<double>::quiet_NaN()
+                            : Balance(sigmaOf(a, balance.firstAxis), sigmaOf(b, balance.secondAxis));
     }
 
     return true;

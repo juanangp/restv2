@@ -2,7 +2,6 @@
 
 #include <TGeoManager.h>
 
-
 #include "TRestConstants.h"
 
 using namespace TRestConstants;
@@ -23,12 +22,9 @@ const bool kRegistered = []() {
 // Modern REST v3 field registry hook for safe, reflection-based YAML initialization
 static const bool TRestGeant4ActiveVolumeMetadata_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("name",
-                                                       &TRestGeant4ActiveVolumeMetadata::fVolumeName);
-    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("chance",
-                                                       &TRestGeant4ActiveVolumeMetadata::fChance);
-    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("maxStep",
-                                                       &TRestGeant4ActiveVolumeMetadata::fMaxStep);
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("name", &TRestGeant4ActiveVolumeMetadata::fVolumeName);
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("chance", &TRestGeant4ActiveVolumeMetadata::fChance);
+    reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("maxStep", &TRestGeant4ActiveVolumeMetadata::fMaxStep);
     reg.RegisterField<TRestGeant4ActiveVolumeMetadata>("sensitive",
                                                        &TRestGeant4ActiveVolumeMetadata::fSensitive);
     return true;
@@ -81,12 +77,12 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4Metadata>("printProgress", &TRestGeant4Metadata::fPrintProgress);
     reg.RegisterField<TRestGeant4Metadata>("activeVolumes", &TRestGeant4Metadata::fActiveVolumesMetadata);
     reg.RegisterField<TRestGeant4Metadata>("killVolumes", &TRestGeant4Metadata::fKillVolumesRegistry);
-    reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes", &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
+    reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes",
+                                           &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
     reg.RegisterField<TRestGeant4Metadata>("biasingVolumes", &TRestGeant4Metadata::fBiasingVolumes);
     // Parsed by TRestGeant4PrimaryGeneratorInfo, which keeps a handle to the section
     reg.RegisterNestedField<TRestGeant4Metadata>("generator",
                                                  &TRestGeant4Metadata::fGeant4PrimaryGeneratorInfo);
-
 
     return true;
 }();
@@ -170,12 +166,11 @@ void TRestGeant4Metadata::SyncMetadataMapsFromRuntime() {
 void TRestGeant4Metadata::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4Metadata>(fNode);
     SyncRuntimeMapsFromMetadata();
-    if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
+    if (fSeed == 0) fSeed = TRestTools::GetRandomSeed();
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
     LoadGeometryFromActiveFile();
     SyncActiveVolumesFromMetadata();
 }
-
 
 /// \brief Copy constructor implementing full internal state replication.
 TRestGeant4Metadata::TRestGeant4Metadata(const TRestGeant4Metadata& metadata) : TRestMetadata(metadata) {
@@ -191,7 +186,7 @@ TRestGeant4Metadata& TRestGeant4Metadata::operator=(const TRestGeant4Metadata& m
     return *this;
 }
 
-  /// \brief Synchronizes runtime active-volume caches from registry-managed entries.
+/// \brief Synchronizes runtime active-volume caches from registry-managed entries.
 void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     fActiveVolumes.clear();
     fChance.clear();
@@ -202,7 +197,8 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     for (const auto& volume : fActiveVolumesMetadata) {
         if (volume.fVolumeName.empty()) continue;
 
-        std::vector<std::string> matchedPhysicals = geometryInfo.GetAllPhysicalVolumesMatchingExpression(volume.fVolumeName);
+        std::vector<std::string> matchedPhysicals =
+            geometryInfo.GetAllPhysicalVolumesMatchingExpression(volume.fVolumeName);
         if (!matchedPhysicals.empty()) {
             for (const auto& physVol : matchedPhysicals) {
                 SetActiveVolume(physVol, volume.fChance, volume.fMaxStep);
@@ -222,11 +218,13 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     fSensitiveVolumes.clear();
 
     for (const auto& sensExpr : sensitiveExpressions) {
-        std::vector<std::string> matchedPhysicals = geometryInfo.GetAllPhysicalVolumesMatchingExpression(sensExpr);
-        
+        std::vector<std::string> matchedPhysicals =
+            geometryInfo.GetAllPhysicalVolumesMatchingExpression(sensExpr);
+
         if (!matchedPhysicals.empty()) {
             for (const auto& physVol : matchedPhysicals) {
-                if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), physVol) == fSensitiveVolumes.end()) {
+                if (std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), physVol) ==
+                    fSensitiveVolumes.end()) {
                     fSensitiveVolumes.push_back(physVol);
                 }
                 RegisterVolumeAlias(sensExpr, physVol);
@@ -244,10 +242,11 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     fKillVolumes.clear();
     fKillVolumes.insert(fKillVolumesRegistry.begin(), fKillVolumesRegistry.end());
     fFullChainStopIsotopes.clear();
-    fFullChainStopIsotopes.insert(fFullChainStopIsotopesRegistry.begin(), fFullChainStopIsotopesRegistry.end());
+    fFullChainStopIsotopes.insert(fFullChainStopIsotopesRegistry.begin(),
+                                  fFullChainStopIsotopesRegistry.end());
 }
 
-  /// \brief Deep copies properties from an external metadata reference instance.
+/// \brief Deep copies properties from an external metadata reference instance.
 void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fIsMerge = true;
     fGeant4GeometryInfo = other.fGeant4GeometryInfo;
@@ -272,11 +271,11 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fResetGlobalTime = other.fResetGlobalTime;
     fResetTimePrecision = other.fResetTimePrecision;
     fFullChainStopIsotopes = other.fFullChainStopIsotopes;
-		fFullChainStopIsotopesRegistry = other.fFullChainStopIsotopesRegistry;
+    fFullChainStopIsotopesRegistry = other.fFullChainStopIsotopesRegistry;
     fSensitiveVolumes = other.fSensitiveVolumes;
     fRemoveUnwantedTracksVolumesToKeep = other.fRemoveUnwantedTracksVolumesToKeep;
     fKillVolumes = other.fKillVolumes;
-		fKillVolumesRegistry = other.fKillVolumesRegistry;
+    fKillVolumesRegistry = other.fKillVolumesRegistry;
     fNEvents += other.fNEvents;  // Cumulative update on events count
     fNRequestedEntries += other.fNRequestedEntries;
     fSimulationMaxTimeSeconds = other.fSimulationMaxTimeSeconds;
@@ -292,7 +291,6 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fRegisterEmptyTracks = other.fRegisterEmptyTracks;
     fMagneticField = other.fMagneticField;
     fActiveVolumesSet = other.fActiveVolumesSet;
-
 }
 
 /// \brief Parses the local Major configuration value from the semantic version string.
@@ -362,20 +360,20 @@ void TRestGeant4Metadata::WriteMetadata(TFile* file) {
     }
 }
 
-//Automatic load of Geometry info in case a root file is opened
+// Automatic load of Geometry info in case a root file is opened
 void TRestGeant4Metadata::LoadGeometryFromActiveFile() {
     if (gFile && !gFile->IsZombie()) {
         TGeoManager* geo = nullptr;
-        
+
         gFile->GetObject("Geometry", geo);
-        
+
         if (geo) {
             fGeant4GeometryInfo.LoadGeometry(geo);
             RESTInfo << "Geometry automatically loaded from ROOT file" << RESTendl;
             return;
         }
     }
-    
+
     if (gGeoManager) {
         fGeant4GeometryInfo.LoadGeometry(gGeoManager);
     }

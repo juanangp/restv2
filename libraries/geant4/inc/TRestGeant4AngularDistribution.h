@@ -30,7 +30,7 @@ class TRestGeant4AngularDistribution : public TRestMetadata {
 
     /// \brief The derived class of the `type` of the node, configured from it
     static std::unique_ptr<TRestGeant4AngularDistribution> Create(const std::string& name,
-                                                                 const YAML::Node& node);
+                                                                  const YAML::Node& node);
 
     /// \brief A copy without the loaded distribution (LoadDistribution builds its own), for a thread
     virtual std::unique_ptr<TRestGeant4AngularDistribution> Clone() const = 0;

@@ -16,8 +16,8 @@ class TRestGeant4Metadata;
 
 class TRestGeant4Track {
    protected:
-    TRestGeant4Event* fEvent = nullptr; //!
-    std::size_t fTrackIndex = 0;        //!
+    TRestGeant4Event* fEvent = nullptr;  //!
+    std::size_t fTrackIndex = 0;         //!
 
     bool IsValid() const;
     std::size_t GetHitStart() const;
@@ -86,9 +86,7 @@ class TRestGeant4Track {
 
     Bool_t GetHadronicOk() const;
     Bool_t ContainsProcessInVolume(Int_t processID, Int_t volumeID = -1) const;
-    Bool_t ContainsProcess(Int_t processID) const {
-        return ContainsProcessInVolume(processID, -1);
-    }
+    Bool_t ContainsProcess(Int_t processID) const { return ContainsProcessInVolume(processID, -1); }
 
     Bool_t ContainsProcessInVolume(const std::string& processName, Int_t volumeID = -1) const;
     Bool_t ContainsProcess(const std::string& processName) const {

@@ -6,15 +6,15 @@
 
 #include <TROOT.h>
 
+#include <csignal>
 #include <iostream>
 #include <string>
-#include <csignal>
 #include <thread>
 
-#include "TRestManager.h"
-#include "TRestTools.h"
 #include "TRestLogManager.h"
+#include "TRestManager.h"
 #include "TRestSystemOfUnits.h"
+#include "TRestTools.h"
 
 void SignalWaiterThread(sigset_t waitSet) {
     int signum = 0;
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
             eventsToProcess = argv[++i];
         } else if ((arg == "--j" || arg == "--threads") && i + 1 < argc) {
             threadNumber = argv[++i];
-        }else {
+        } else {
             std::cerr << "Usage: " << argv[0]
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
@@ -87,49 +87,44 @@ int main(int argc, char** argv) {
 
         auto [runKey, runNode] = TRestTools::GetMetadataClass(managerNode, "TRestRun");
         if (runNode && !runNode.IsNull()) {
-            if (!inputPath.empty())
-              runNode["inputFileName"] = inputPath;
-            if (!outputPath.empty())
-              runNode["outputFileName"] = outputPath;
+            if (!inputPath.empty()) runNode["inputFileName"] = inputPath;
+            if (!outputPath.empty()) runNode["outputFileName"] = outputPath;
         }
 
         auto [pipelineKey, pipelineNode] = TRestTools::GetMetadataClass(managerNode, "TRestProcessManager");
         if (pipelineNode && !pipelineNode.IsNull()) {
-            if (!eventsToProcess.empty())
-              pipelineNode["eventsToProcess"] = eventsToProcess;
-            if (!threadNumber.empty())
-              pipelineNode["nThreads"] = threadNumber;
+            if (!eventsToProcess.empty()) pipelineNode["eventsToProcess"] = eventsToProcess;
+            if (!threadNumber.empty()) pipelineNode["nThreads"] = threadNumber;
         }
 
         unsigned int effectiveThreads = 1;
         if (pipelineNode && !pipelineNode.IsNull()) {
-          YAML::Node nThreadsNode = pipelineNode["nThreads"];
-          if (nThreadsNode && nThreadsNode.IsDefined() && !nThreadsNode.IsNull()) {
-            try {
-              effectiveThreads = nThreadsNode.as<unsigned int>();
-            } catch (const std::exception&) {
-              RESTWarning << "restManager: invalid thread number" << RESTendl;
-              effectiveThreads = 1;
+            YAML::Node nThreadsNode = pipelineNode["nThreads"];
+            if (nThreadsNode && nThreadsNode.IsDefined() && !nThreadsNode.IsNull()) {
+                try {
+                    effectiveThreads = nThreadsNode.as<unsigned int>();
+                } catch (const std::exception&) {
+                    RESTWarning << "restManager: invalid thread number" << RESTendl;
+                    effectiveThreads = 1;
+                }
             }
-          }
-       }
+        }
 
-       if (effectiveThreads > 1) {
-         ROOT::EnableThreadSafety();
-       }
+        if (effectiveThreads > 1) {
+            ROOT::EnableThreadSafety();
+        }
 
-       if (!verboseLevel.empty()) {
-         TRestLogManager::setGlobalVerboseLevel(
-         TRestLogManager::GetVerboseLevelFromString(verboseLevel));
-       }
+        if (!verboseLevel.empty()) {
+            TRestLogManager::setGlobalVerboseLevel(TRestLogManager::GetVerboseLevelFromString(verboseLevel));
+        }
 
-       RESTLog << "\n--- TRestManager ---" << RESTendl;
-       TRestManager mgr(managerKey, managerNode);
-       mgr.CheckConfig();
-       mgr.PrintMetadata();
-       mgr.Run();
-       mgr.SaveMetadata();
-       mgr.RunPlots();
+        RESTLog << "\n--- TRestManager ---" << RESTendl;
+        TRestManager mgr(managerKey, managerNode);
+        mgr.CheckConfig();
+        mgr.PrintMetadata();
+        mgr.Run();
+        mgr.SaveMetadata();
+        mgr.RunPlots();
 
     } catch (const std::exception& ex) {
         std::cerr << "[ERROR] " << ex.what() << "\n";

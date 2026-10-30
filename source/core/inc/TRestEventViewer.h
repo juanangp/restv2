@@ -24,7 +24,6 @@
 #include <TGTextEntry.h>
 #include <TObject.h>
 
-
 class TRestEvent;
 
 class TGeoManager;
@@ -40,8 +39,8 @@ class TRestEventViewer {
 
     Double_t fGeomScale = 1.0;
 
-    TPad* fPad = nullptr;              //!
-    TCanvas* fCanvas = nullptr;        //!
+    TPad* fPad = nullptr;        //!
+    TCanvas* fCanvas = nullptr;  //!
 
     virtual void Initialize();
 

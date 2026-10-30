@@ -15,22 +15,28 @@ using namespace TRestConstants;
 static const bool TRestMicromegasReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
-    reg.RegisterNestedField<TRestMicromegasReadout>("readoutParameters", &TRestMicromegasReadout::fReadoutParams);
+    reg.RegisterNestedField<TRestMicromegasReadout>("readoutParameters",
+                                                    &TRestMicromegasReadout::fReadoutParams);
 
     return true;
 }();
 
-
 static const bool TRestMicromegasReadoutParameters_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestMicromegasReadoutParameters>("positionRelative", &TRestMicromegasReadoutParameters::fPositionRelative);
-    reg.RegisterField<TRestMicromegasReadoutParameters>("globalRotation", &TRestMicromegasReadoutParameters::fGlobalRotation);
-    reg.RegisterField<TRestMicromegasReadoutParameters>("nChannels", &TRestMicromegasReadoutParameters::fNChannels);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("positionRelative",
+                                                        &TRestMicromegasReadoutParameters::fPositionRelative);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("globalRotation",
+                                                        &TRestMicromegasReadoutParameters::fGlobalRotation);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("nChannels",
+                                                        &TRestMicromegasReadoutParameters::fNChannels);
     reg.RegisterField<TRestMicromegasReadoutParameters>("pitch", &TRestMicromegasReadoutParameters::fPitch);
-    reg.RegisterField<TRestMicromegasReadoutParameters>("thickness", &TRestMicromegasReadoutParameters::fThickness);
-    reg.RegisterField<TRestMicromegasReadoutParameters>("gasThickness", &TRestMicromegasReadoutParameters::fGasThickness);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("thickness",
+                                                        &TRestMicromegasReadoutParameters::fThickness);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("gasThickness",
+                                                        &TRestMicromegasReadoutParameters::fGasThickness);
     reg.RegisterField<TRestMicromegasReadoutParameters>("normal", &TRestMicromegasReadoutParameters::fNormal);
-    reg.RegisterField<TRestMicromegasReadoutParameters>("checkOverlaps", &TRestMicromegasReadoutParameters::fCheckOverlaps);
+    reg.RegisterField<TRestMicromegasReadoutParameters>("checkOverlaps",
+                                                        &TRestMicromegasReadoutParameters::fCheckOverlaps);
     return true;
 }();
 
@@ -38,8 +44,9 @@ TRestMicromegasReadoutParameters::TRestMicromegasReadoutParameters() : TRestMeta
     fName = "TRestMicromegasReadoutParameters";
 }
 
-TRestMicromegasReadoutParameters::TRestMicromegasReadoutParameters(
-    const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+TRestMicromegasReadoutParameters::TRestMicromegasReadoutParameters(const std::string& name,
+                                                                   const YAML::Node& node)
+    : TRestMetadata(name, node) {
     LoadConfig();
 }
 
@@ -50,7 +57,6 @@ void TRestMicromegasReadoutParameters::LoadConfig() {
     }
     UpdateYAMLFromParams<TRestMicromegasReadoutParameters>(fNode);
 }
-
 
 namespace {
 /// \brief Registers this metadata type in the REST metadata registry.
@@ -92,7 +98,7 @@ void TRestMicromegasReadout::LoadConfig() {
 /// in a regular `rows x cols` lattice. Every node receives a monotonically
 /// increasing physical identifier stored as `TGeoNode::UniqueID`.
 void TRestMicromegasReadout::BuildGeometry() {
-    if (!fNode || fNode.IsNull() ) {
+    if (!fNode || fNode.IsNull()) {
         throw std::runtime_error(
             "TRestMicromegasReadout: 'readoutParameters' section is missing or fNode is not initialized!");
     }
@@ -140,8 +146,7 @@ void TRestMicromegasReadout::BuildGeometry() {
     const UInt_t kNoPhysicalID = static_cast<UInt_t>(-1);
 
     // Pixel centred at (x, y) in the module frame (before the offsets and positionRelative)
-    auto addPixel = [&](double x, double y, TGeoRotation* localRot, int channelID,
-                        bool isChannelX) {
+    auto addPixel = [&](double x, double y, TGeoRotation* localRot, int channelID, bool isChannelX) {
         double posX = x + offsetX + posRel[0];
         double posY = y + offsetY + posRel[1];
         double posZ = zGlobal + posRel[2];
@@ -209,13 +214,11 @@ void TRestMicromegasReadout::BuildGeometry() {
         // The gas (drift volume) is on the cathode side of the plane
         const double gasZ =
             posRel[2] + fReadoutParams.GetNormalSign() * (visibleThickness / 2.0 + gasH / 2.0);
-        auto* gasMatrix = new TGeoTranslation(posRel[0],
-                                              posRel[1], gasZ);
+        auto* gasMatrix = new TGeoTranslation(posRel[0], posRel[1], gasZ);
 
         TGeoNode* gasNode = readoutGeom->AddNode(gasVol, 0, gasMatrix);
         gasNode->SetUniqueID(gasID);
     }
-
 
     TGeoHMatrix* globalMatrix = new TGeoHMatrix();
     if (fReadoutParams.fGlobalRotation != 0.0) {
@@ -238,7 +241,8 @@ void TRestMicromegasReadout::BuildGeometry() {
         std::cout << "[*] Checking geometry overlaps (sampling)..." << std::endl;
         fGeoManager->ClearOverlaps();
         readoutGeom->CheckOverlaps(0.001, "s1000");
-        std::cout << "[+] Overlaps found: " << fGeoManager->GetListOfOverlaps()->GetEntriesFast() << std::endl;
+        std::cout << "[+] Overlaps found: " << fGeoManager->GetListOfOverlaps()->GetEntriesFast()
+                  << std::endl;
     }
 }
 
@@ -260,8 +264,10 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
         return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 
-    double moduleSizeX = (fReadoutParams.fNChannels + 1) * fReadoutParams.fPitch - 0.5 * fReadoutParams.fPitch;
-    double moduleSizeY = (fReadoutParams.fNChannels + 1) * fReadoutParams.fPitch - 0.75 * fReadoutParams.fPitch;
+    double moduleSizeX =
+        (fReadoutParams.fNChannels + 1) * fReadoutParams.fPitch - 0.5 * fReadoutParams.fPitch;
+    double moduleSizeY =
+        (fReadoutParams.fNChannels + 1) * fReadoutParams.fPitch - 0.75 * fReadoutParams.fPitch;
     double offsetX = -moduleSizeX / 2.0;
     double offsetY = -moduleSizeY / 2.0;
 

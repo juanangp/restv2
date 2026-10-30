@@ -4,8 +4,6 @@
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
 
-
-
 namespace {
 const bool kRegistered = []() {
     EventRegistry::Instance().Register("TRestDetectorHitsEvent",
@@ -92,11 +90,12 @@ void TRestDetectorHitsEvent::PrintDetectorHitsEvent(Int_t nHits) const {
     TRestEvent::PrintEvent();
 
     std::cout << "Total energy : " << GetTotalEnergy() << std::endl;
-    std::cout << "Mean position : ( " << REST_Units::FormatAs(GetMeanPosition(), REST_Units::Length) << std::endl;
+    std::cout << "Mean position : ( " << REST_Units::FormatAs(GetMeanPosition(), REST_Units::Length)
+              << std::endl;
     std::cout << "Number of hits : " << GetNumberOfHits() << std::endl;
     if (nHits != -1) {
         std::cout << "+++++++++++++++++++++++" << std::endl;
-        std::cout << "Printing " << nHits << "out of  "<< GetNumberOfHits() << " hits" << std::endl;
+        std::cout << "Printing " << nHits << "out of  " << GetNumberOfHits() << " hits" << std::endl;
     }
 
     fHits.PrintHits(nHits);

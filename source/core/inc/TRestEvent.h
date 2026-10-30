@@ -28,7 +28,7 @@ struct TRestEventInfo {
     long long timeSeconds = 0;
     int timeNanoSeconds = 0;
     bool ok = true;
-    std::string subEventTag="";
+    std::string subEventTag = "";
 };
 
 /// \class TRestEvent
@@ -40,8 +40,8 @@ class TRestEvent {
    protected:
     /// Logical event class/instance name.
     std::string fName = "";
-    std::string* fPtrSubEventTag = nullptr; 
-    TRestRun *fRestRun = nullptr;
+    std::string* fPtrSubEventTag = nullptr;
+    TRestRun* fRestRun = nullptr;
     mutable TPad* fPad = nullptr;
 
    public:
@@ -147,9 +147,7 @@ class TRestEvent {
 
     /// \brief Sets subevent tag.
     /// \param tag Subevent label.
-    void SetSubEventTag(const std::string& tag) {
-        fInfo.subEventTag = tag;
-    }
+    void SetSubEventTag(const std::string& tag) { fInfo.subEventTag = tag; }
 
     /// \brief Sets event validity state.
     /// \param s Validity flag.
@@ -240,15 +238,15 @@ class TRestEvent {
     /// \brief Copies generic event content from another event.
     /// \param other Source event pointer.
     virtual void CopyFrom(const TRestEvent* other) {
-      this->SetEventInfo(other);
-      this->fPtrSubEventTag = &this->fInfo.subEventTag;
+        this->SetEventInfo(other);
+        this->fPtrSubEventTag = &this->fInfo.subEventTag;
     }
 
     virtual void MoveFrom(TRestEvent* other) {
-    if (!other) return;
-    this->SetEventInfo(other);
-    this->fPtrSubEventTag = &this->fInfo.subEventTag;
-   }
+        if (!other) return;
+        this->SetEventInfo(other);
+        this->fPtrSubEventTag = &this->fInfo.subEventTag;
+    }
 
     /// \brief Prints event summary.
     virtual void PrintEvent() const;

@@ -18,7 +18,6 @@ class TGeoManager;
 class TGeoMedium;
 class TGeoShape;
 
-
 /// \class TRestDetectorReadout
 /// \brief Abstract base class to describe detector readout geometry and decoding.
 ///
@@ -198,7 +197,6 @@ class TRestDetectorReadout : public TRestMetadata {
 
    protected:
     virtual void CollectViewItems(const std::set<int>& activeIDs, std::vector<ViewItem>& items) const;
-
 };
 
 #endif

@@ -6,7 +6,6 @@
 
 using namespace TRestTools;
 
-
 TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& node)
     : fName(instanceName), fNode(node) {
     if (fNode) {
@@ -46,12 +45,10 @@ void TRestMetadata::ReadVerbose() {
     TRestTools::SetNodeParameter(fNode, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
 }
 
-void TRestMetadata::WriteMetadata(TFile* file){
+void TRestMetadata::WriteMetadata(TFile* file) {
+    TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(this, fNode);
 
-  TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(this, fNode);
-
-  TRestMetadata::WriteMetadata(file, fName, fNode);
-
+    TRestMetadata::WriteMetadata(file, fName, fNode);
 }
 
 void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
@@ -176,9 +173,8 @@ void TRestMetadataFieldRegistry::CheckFields(const TRestMetadata* instance, cons
     std::string valid;
     for (const auto& key : keys) valid += " " + key;
     throw std::runtime_error(instance->GetClassName() + " '" + instance->GetName() +
-                             "': unknown parameter(s)" + unknown +
-                             ". Valid parameters: class name verbose" + valid +
-                             (hasChildren ? " and metadata (maps with class)" : ""));
+                             "': unknown parameter(s)" + unknown + ". Valid parameters: class name verbose" +
+                             valid + (hasChildren ? " and metadata (maps with class)" : ""));
 }
 
 std::unique_ptr<TRestMetadata> MetadataClassRegistry::Create(const std::string& type,
@@ -191,6 +187,4 @@ std::unique_ptr<TRestMetadata> MetadataClassRegistry::Create(const std::string& 
     return metadata;
 }
 
-void TRestMetadata::CheckConfig() const {
-    TRestMetadataFieldRegistry::Instance().CheckFields(this, fNode);
-}
+void TRestMetadata::CheckConfig() const { TRestMetadataFieldRegistry::Instance().CheckFields(this, fNode); }

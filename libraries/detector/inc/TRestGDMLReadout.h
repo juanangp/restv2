@@ -18,7 +18,7 @@ class TRestGDMLReadoutInfo : public TRestMetadata {
 
 class TRestGDMLReadoutParameters : public TRestMetadata {
    public:
-    std::string fGDMLFileName = "";   ///< Path to the input external GDML file
+    std::string fGDMLFileName = "";  ///< Path to the input external GDML file
     std::vector<TRestGDMLReadoutInfo> fReadoutInfo;
 
     TRestGDMLReadoutParameters();
@@ -32,7 +32,6 @@ class TRestGDMLReadoutParameters : public TRestMetadata {
 /// \brief Detector readout implementation that imports geometry and channels from GDML naming rules.
 class TRestGDMLReadout : public TRestDetectorReadout {
    public:
-
     TRestGDMLReadoutParameters fReadoutParams;
 
     /// \brief Constructor.

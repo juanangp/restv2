@@ -1,17 +1,16 @@
+#include <TROOT.h>
+#include <TRestLogManager.h>
+#include <TRestSystemOfUnits.h>
+#include <TRestTools.h>
 #include <TRint.h>
 #include <TStyle.h>
 #include <TSystem.h>
-#include <TROOT.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include <TRestLogManager.h>
-#include <TRestSystemOfUnits.h>
-#include <TRestTools.h>
 
 namespace {
 bool InitializeRestRuntimeFromRestPath() {
@@ -35,7 +34,7 @@ bool InitializeRestRuntimeFromRestPath() {
         if (!entry.is_regular_file()) continue;
         const auto fileName = entry.path().filename().string();
         if (fileName.rfind("libRest", 0) == 0 && entry.path().extension() == ".so") {
-            if (fileName == "libRestG4.so") continue; 
+            if (fileName == "libRestG4.so") continue;
             libraries.push_back(entry.path());
         }
     }
@@ -44,7 +43,7 @@ bool InitializeRestRuntimeFromRestPath() {
 
     bool loadedAny = false;
     for (const auto& lib : libraries) {
-        std::cout<<"Loading "<<lib<<std::endl;
+        std::cout << "Loading " << lib << std::endl;
         if (gSystem->Load(lib.string().c_str()) >= 0) {
             loadedAny = true;
         }
@@ -66,13 +65,12 @@ bool InitializeRestRuntimeFromRestPath() {
 
         for (const auto& entry : std::filesystem::directory_iterator(macrosDir)) {
             if (!entry.is_regular_file()) continue;
-            
+
             if (entry.path().extension() == ".C") {
                 gROOT->LoadMacro(entry.path().string().c_str());
             }
         }
     }
-
 
     return true;
 }
@@ -99,7 +97,7 @@ int main(int argc, char* argv[]) {
             fileToOpen = fullPath;
             continue;
         }
-        
+
         cleanArgv.push_back(argv[i]);
     }
 
@@ -114,8 +112,8 @@ int main(int argc, char* argv[]) {
     TRint theApp("App", &cleanArgc, cleanArgvPtr);
 
     if (!fileToOpen.empty()) {
-            std::string command = "REST_OpenInputFile(\"" + fileToOpen + "\");";
-            gROOT->ProcessLine(command.c_str());
+        std::string command = "REST_OpenInputFile(\"" + fileToOpen + "\");";
+        gROOT->ProcessLine(command.c_str());
     }
 
     theApp.Run();

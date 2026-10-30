@@ -10,8 +10,8 @@
 #include <set>
 #include <stdexcept>
 #include <string>
-#include <typeindex>
 #include <type_traits>
+#include <typeindex>
 #include <vector>
 
 #include "TRestLogManager.h"
@@ -61,7 +61,8 @@ class TRestMetadata {
    protected:
     /// \brief Creates a metadata of a section of a container (TRestManager, TRestProcessManager); without
     /// its own `verbose` it takes the one of this instance
-    std::unique_ptr<TRestMetadata> CreateChildMetadata(const std::string& instanceName, YAML::Node node) const;
+    std::unique_ptr<TRestMetadata> CreateChildMetadata(const std::string& instanceName,
+                                                       YAML::Node node) const;
 
    public:
     /// \brief Returns the concrete class name.
@@ -226,7 +227,7 @@ class TRestMetadataFieldRegistry {
     /// \brief A metadata member configured from its own section: SetYAMLNode(node[yamlKey]) and LoadConfig
     template <typename Class, typename Nested,
               std::enable_if_t<std::is_base_of_v<TRestMetadata, Nested>, int> = 0>
-    void RegisterNestedField(const std::string& yamlKey, Nested Class::*memberPtr) {
+    void RegisterNestedField(const std::string& yamlKey, Nested Class::* memberPtr) {
         auto readFunc = [this, yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& node) {
             auto* object = dynamic_cast<Class*>(base);
             if (!object || !node || !node[yamlKey]) return;
@@ -250,7 +251,7 @@ class TRestMetadataFieldRegistry {
     /// \brief A metadata member of a polymorphic class created by factory(yamlKey, node[yamlKey]) (e.g.
     /// TRestGeant4EnergyDistribution::Create from its `type`)
     template <typename Class, typename Pointer, typename Factory>
-    void RegisterFactoryField(const std::string& yamlKey, Pointer Class::*memberPtr, Factory factory) {
+    void RegisterFactoryField(const std::string& yamlKey, Pointer Class::* memberPtr, Factory factory) {
         auto readFunc = [this, yamlKey, memberPtr, factory](TRestMetadata* base, const YAML::Node& node) {
             auto* object = dynamic_cast<Class*>(base);
             if (!object || !node || !node[yamlKey]) return;
@@ -271,7 +272,7 @@ class TRestMetadataFieldRegistry {
     /// \brief A list of metadata, each one built from a map of the sequence node[yamlKey] (or from the map
     /// itself if it is not a sequence)
     template <typename Class, typename T, std::enable_if_t<std::is_base_of_v<TRestMetadata, T>, int> = 0>
-    void RegisterField(const std::string& yamlKey, std::vector<T> Class::*memberPtr) {
+    void RegisterField(const std::string& yamlKey, std::vector<T> Class::* memberPtr) {
         auto readFunc = [this, yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& node) {
             auto* object = dynamic_cast<Class*>(base);
             if (!object || !node || !node[yamlKey]) return;
@@ -314,7 +315,7 @@ class TRestMetadataFieldRegistry {
     /// \brief A member of a type convertible from YAML (YAML::convert), including YAML::Node for structured
     /// configurations read by the class itself
     template <typename Class, typename MemberClass, typename T>
-    void RegisterField(const std::string& yamlKey, T MemberClass::*memberPtr) {
+    void RegisterField(const std::string& yamlKey, T MemberClass::* memberPtr) {
         auto readFunc = [yamlKey, memberPtr](TRestMetadata* base, const YAML::Node& n) {
             auto* object = dynamic_cast<MemberClass*>(base);
             if (object && n && n[yamlKey]) object->*memberPtr = n[yamlKey].as<T>();

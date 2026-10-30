@@ -1,17 +1,17 @@
 #include "TRestRawCommonNoiseReductionProcess.h"
-#include "TRestRawSignalEvent.h"
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
 #include "TRestPulseShapeAnalysis.h"
+#include "TRestRawSignalEvent.h"
 
 using namespace TRestPulseShapeAnalysis;
 
 // --- TRestCommonNoiseBlock ---
 //
-// Example 
+// Example
 //
 //    commonNoiseReduction:
 //      class: "TRestRawCommonNoiseReductionProcess"
@@ -37,9 +37,10 @@ static const bool TRestCommonNoiseBlock_FieldsRegistered = []() {
     reg.RegisterField<TRestCommonNoiseBlock>("minSignalsRequired",
                                              &TRestCommonNoiseBlock::fMinSignalsRequired);
     reg.RegisterField<TRestCommonNoiseBlock>("baselineRange", &TRestCommonNoiseBlock::fBaselineRange);
-    reg.RegisterField<TRestCommonNoiseBlock>("baselineSigmaThreshold", &TRestCommonNoiseBlock::fBaselineSigmaThreshold);
+    reg.RegisterField<TRestCommonNoiseBlock>("baselineSigmaThreshold",
+                                             &TRestCommonNoiseBlock::fBaselineSigmaThreshold);
     reg.RegisterField<TRestCommonNoiseBlock>("signalSigmaThreshold",
-                                         &TRestCommonNoiseBlock::fSignalSigmaThreshold);
+                                             &TRestCommonNoiseBlock::fSignalSigmaThreshold);
     return true;
 }();
 
@@ -67,16 +68,15 @@ bool TRestCommonNoiseBlock::ContainsID(int signalID) const {
 
 static const bool TRestRawCommonNoiseReductionProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestRawCommonNoiseReductionProcess>(
-        "channels", &TRestRawCommonNoiseReductionProcess::fBlocks);
+    reg.RegisterField<TRestRawCommonNoiseReductionProcess>("channels",
+                                                           &TRestRawCommonNoiseReductionProcess::fBlocks);
     return true;
 }();
 
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestRawCommonNoiseReductionProcess",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestRawCommonNoiseReductionProcess", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestRawCommonNoiseReductionProcess>(instanceName, params);
         });
     return true;
@@ -118,7 +118,6 @@ void TRestRawCommonNoiseReductionProcess::LoadConfig() {
 /// average window around it) and subtracts it.
 void TRestRawCommonNoiseReductionProcess::ProcessBlock(TRestRawSignalEvent& signalEvent,
                                                        const TRestCommonNoiseBlock& block) {
-
     std::vector<int> members;
     int nBins = -1;
     for (int s = 0; s < signalEvent.GetNumberOfSignals(); s++) {

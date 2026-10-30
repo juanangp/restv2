@@ -10,7 +10,8 @@ foreach(src ${BIN_SOURCES})
 
   add_executable(${exe_name} ${src})
 
-  # Every REST library, so that all the registered events and processes are available
+  # Every REST library, so that all the registered events and processes are
+  # available
   rest_link_registered_libraries(${exe_name} RestCore ${REST_LIBRARIES})
 
   # Link all configured ROOT libraries in every executable.

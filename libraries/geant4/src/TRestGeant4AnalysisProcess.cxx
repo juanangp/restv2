@@ -204,8 +204,8 @@ void TRestGeant4AnalysisProcess::InitProcess() {
         for (const auto& expression : expressions) {
             const auto matched = fGeometryInfo->GetVolumeIDsMatchingExpression(expression);
             if (matched.empty()) {
-                RESTWarning << "TRestGeant4AnalysisProcess: " << what << ", no volume matches '"
-                            << expression << "'" << RESTendl;
+                RESTWarning << "TRestGeant4AnalysisProcess: " << what << ", no volume matches '" << expression
+                            << "'" << RESTendl;
             }
             ids.insert(matched.begin(), matched.end());
         }

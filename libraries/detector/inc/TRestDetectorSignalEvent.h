@@ -56,20 +56,20 @@ class TRestDetectorSignal {
         int start = fData->offsets[fSignalIdx];
         int nPoints = GetNPoints();
         return std::vector<double>(fData->allSignalsCharge.begin() + start,
-                                  fData->allSignalsCharge.begin() + start + nPoints);
+                                   fData->allSignalsCharge.begin() + start + nPoints);
     }
 
     std::vector<double> GetTime() const {
         int start = fData->offsets[fSignalIdx];
         int nPoints = GetNPoints();
         return std::vector<double>(fData->allSignalsTime.begin() + start,
-                                  fData->allSignalsTime.begin() + start + nPoints);
+                                   fData->allSignalsTime.begin() + start + nPoints);
     }
 
     /// \brief Returns one sample by local signal index.
     std::pair<double, double> GetPoint(int i) const {
         int globalIdx = fData->offsets[fSignalIdx] + i;
-        return { fData->allSignalsTime[globalIdx], fData->allSignalsCharge[globalIdx] };
+        return {fData->allSignalsTime[globalIdx], fData->allSignalsCharge[globalIdx]};
     }
 
     std::vector<std::pair<double, double>> GetPointsVector() const {
@@ -141,7 +141,7 @@ class TRestDetectorSignalEvent : public TRestEvent {
         fPtrTime = &fSignalData.allSignalsTime;
         fPtrIDs = &fSignalData.signalIDs;
         fPtrOffsets = &fSignalData.offsets;
-        
+
         tree->SetBranchAddress("fSigAmplitude", &fPtrAmplitude);
         tree->SetBranchAddress("fSigTime", &fPtrTime);
         tree->SetBranchAddress("fSigIDs", &fPtrIDs);
@@ -168,47 +168,48 @@ class TRestDetectorSignalEvent : public TRestEvent {
     }
 
     bool HasSignalID(int id) const {
-        return std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id) 
-               != fSignalData.signalIDs.end();
+        return std::find(fSignalData.signalIDs.begin(), fSignalData.signalIDs.end(), id) !=
+               fSignalData.signalIDs.end();
     }
 
     /// \brief Appends a new signal waveform associated with a detector channel ID.
     void AddSignal(int sID, const std::vector<std::pair<double, double>>& points) {
-      if (HasSignalID(sID)) {
-        std::cout << "Warning. Signal ID : " << sID
-                  << " already exists. Signal will not be added to signal event" << std::endl;
-        return;
-      }
+        if (HasSignalID(sID)) {
+            std::cout << "Warning. Signal ID : " << sID
+                      << " already exists. Signal will not be added to signal event" << std::endl;
+            return;
+        }
 
-      fSignalData.offsets.push_back((int)fSignalData.allSignalsCharge.size());
-      fSignalData.signalIDs.push_back(sID);
+        fSignalData.offsets.push_back((int)fSignalData.allSignalsCharge.size());
+        fSignalData.signalIDs.push_back(sID);
 
-      fSignalData.allSignalsTime.reserve(fSignalData.allSignalsTime.size() + points.size());
-      fSignalData.allSignalsCharge.reserve(fSignalData.allSignalsCharge.size() + points.size());
+        fSignalData.allSignalsTime.reserve(fSignalData.allSignalsTime.size() + points.size());
+        fSignalData.allSignalsCharge.reserve(fSignalData.allSignalsCharge.size() + points.size());
 
-      for (const auto& point : points) {
-        fSignalData.allSignalsTime.push_back(point.first);
-        fSignalData.allSignalsCharge.push_back(point.second);
-      }
+        for (const auto& point : points) {
+            fSignalData.allSignalsTime.push_back(point.first);
+            fSignalData.allSignalsCharge.push_back(point.second);
+        }
 
-      fSignalsViews.clear();
+        fSignalsViews.clear();
     }
 
-  void AddSignal(int sID, const std::vector<double>& times, const std::vector<double>& amplitudes) {
-      if (times.size() != amplitudes.size()) {
-        std::cout << "Warning. Times and Amplitudes vectors size mismatch for Signal ID: " << sID << std::endl;
-        return;
-      }
+    void AddSignal(int sID, const std::vector<double>& times, const std::vector<double>& amplitudes) {
+        if (times.size() != amplitudes.size()) {
+            std::cout << "Warning. Times and Amplitudes vectors size mismatch for Signal ID: " << sID
+                      << std::endl;
+            return;
+        }
 
-      std::vector<std::pair<double, double>> points;
-      points.reserve(times.size());
-    
-      for (size_t i = 0; i < times.size(); ++i) {
-        points.emplace_back(times[i], amplitudes[i]);
-      }
+        std::vector<std::pair<double, double>> points;
+        points.reserve(times.size());
 
-    AddSignal(sID, points);
-  }
+        for (size_t i = 0; i < times.size(); ++i) {
+            points.emplace_back(times[i], amplitudes[i]);
+        }
+
+        AddSignal(sID, points);
+    }
 
     /// \brief Removes one signal by index and compacts the backing sample storage.
     inline void RemoveSignal(int index) {
@@ -220,10 +221,10 @@ class TRestDetectorSignalEvent : public TRestEvent {
         int sizeToRemove = end - start;
 
         fSignalData.allSignalsCharge.erase(fSignalData.allSignalsCharge.begin() + start,
-                                       fSignalData.allSignalsCharge.begin() + end);
+                                           fSignalData.allSignalsCharge.begin() + end);
         fSignalData.allSignalsTime.erase(fSignalData.allSignalsTime.begin() + start,
-                                     fSignalData.allSignalsTime.begin() + end);
-                                     
+                                         fSignalData.allSignalsTime.begin() + end);
+
         fSignalData.signalIDs.erase(fSignalData.signalIDs.begin() + index);
         fSignalData.offsets.erase(fSignalData.offsets.begin() + index);
 

@@ -3,12 +3,9 @@
 #include "TRestHitsAnalysis.h"
 #include "TRestTrackEvent.h"
 
-TRestTrack::TRestTrack(TRestTrackEvent* event, std::size_t index) 
-    : fEvent(event), fTrackIndex(index) {}
+TRestTrack::TRestTrack(TRestTrackEvent* event, std::size_t index) : fEvent(event), fTrackIndex(index) {}
 
-bool TRestTrack::IsValid() const {
-    return fEvent != nullptr && fTrackIndex < fEvent->fTrackHits.size();
-}
+bool TRestTrack::IsValid() const { return fEvent != nullptr && fTrackIndex < fEvent->fTrackHits.size(); }
 
 std::size_t TRestTrack::GetHitStart() const {
     if (!IsValid()) return 0;
@@ -25,17 +22,11 @@ const TRestHits TRestTrack::GetHits() const {
     return fEvent->fTrackHits[fTrackIndex];
 }
 
-Int_t TRestTrack::GetTrackID() const {
-    return IsValid() ? fEvent->fData.trackID[fTrackIndex] : -1;
-}
+Int_t TRestTrack::GetTrackID() const { return IsValid() ? fEvent->fData.trackID[fTrackIndex] : -1; }
 
-Int_t TRestTrack::GetParentID() const {
-    return IsValid() ? fEvent->fData.parentID[fTrackIndex] : -1;
-}
+Int_t TRestTrack::GetParentID() const { return IsValid() ? fEvent->fData.parentID[fTrackIndex] : -1; }
 
-Int_t TRestTrack::GetNumberOfHits() const {
-    return IsValid() ? fEvent->fData.trackNHits[fTrackIndex] : 0;
-}
+Int_t TRestTrack::GetNumberOfHits() const { return IsValid() ? fEvent->fData.trackNHits[fTrackIndex] : 0; }
 
 Double_t TRestTrack::GetEnergy() const {
     if (!IsValid()) return 0.0;

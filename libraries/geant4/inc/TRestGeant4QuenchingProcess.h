@@ -52,7 +52,7 @@ class TRestGeant4QuenchingProcess : public TRestEventProcess {
 
     TRestGeant4Metadata* fGeant4Metadata = nullptr;
 
-    std::set<std::string> GetVolumes() const {return fVolumes;}
+    std::set<std::string> GetVolumes() const { return fVolumes; }
 
     TRestGeant4QuenchingProcess();
     TRestGeant4QuenchingProcess(const std::string& instanceName, const YAML::Node& node);

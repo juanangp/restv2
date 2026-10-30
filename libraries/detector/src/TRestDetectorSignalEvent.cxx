@@ -1,8 +1,8 @@
 #include "TRestDetectorSignalEvent.h"
 
-#include "TMultiGraph.h"
-
 #include <iostream>
+
+#include "TMultiGraph.h"
 
 // ---------------------------------------------------------------------------
 // Self-registration in EventRegistry (no macro)
@@ -15,8 +15,6 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
-
-
 int TRestDetectorSignal::GetTimeIndex(double t) const {
     int start = fData->offsets[fSignalIdx];
     int nPoints = GetNPoints();
@@ -28,7 +26,6 @@ int TRestDetectorSignal::GetTimeIndex(double t) const {
     }
     return -1;
 }
-
 
 void TRestDetectorSignal::AddPoint(double time, double amplitude) {
     int start = fData->offsets[fSignalIdx];
@@ -44,7 +41,6 @@ void TRestDetectorSignal::AddPoint(double time, double amplitude) {
 }
 
 void TRestDetectorSignal::IncreaseAmplitude(double time, double amplitude) {
-
     int localIndex = GetTimeIndex(time);
 
     if (localIndex >= 0) {
@@ -120,7 +116,7 @@ void TRestDetectorSignal::SignalAddition(const TRestDetectorSignal* inSignal) {
 
     for (int i = 0; i < nPoints; i++) {
         if (fData->allSignalsTime[start + i] != inSignal->fData->allSignalsTime[inStart + i]) {
-            std::cout << "Time : " << fData->allSignalsTime[start + i] 
+            std::cout << "Time : " << fData->allSignalsTime[start + i]
                       << " != " << inSignal->fData->allSignalsTime[inStart + i] << std::endl;
             badallSignalsTimes++;
         }
@@ -148,8 +144,8 @@ TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
         fPad = new TPad(padName, "REST Detector Signal Viewer", 0, 0, 1, 1);
     }
 
-    TVirtualPad* safePad = gPad; 
-    
+    TVirtualPad* safePad = gPad;
+
     fPad->cd();
     fPad->Clear();
 
@@ -158,23 +154,23 @@ TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
     mg->SetTitle(title.Data());
 
     for (int n = 0; n < nSignals; ++n) {
-            const auto& signal = GetSignal(n);
-            int sID = signal.GetSignalID();
-            
-            TGraph* g = (TGraph*)signal.GetGraph().Clone();
-            
-            int color = (sID % 72) + 1;
-            g->SetLineColor(color);
-            g->SetLineWidth(1);
+        const auto& signal = GetSignal(n);
+        int sID = signal.GetSignalID();
 
-            mg->Add(g, "L");
+        TGraph* g = (TGraph*)signal.GetGraph().Clone();
+
+        int color = (sID % 72) + 1;
+        g->SetLineColor(color);
+        g->SetLineWidth(1);
+
+        mg->Add(g, "L");
     }
 
     DrawOwned(mg, "A");
-    
+
     fPad->Modified();
-    
-    if (safePad) safePad->cd(); 
+
+    if (safePad) safePad->cd();
 
     return fPad;
 }
@@ -189,10 +185,9 @@ void TRestDetectorSignalEvent::PrintEvent() const {
         RESTLog << " SignalID " << sig.GetSignalID() << " (nPoints=" << sig.GetNPoints() << "): ";
 
         auto points = sig.GetPointsVector();
-        for (const auto &[t,a] : points) {
-            RESTLog << t << " "<<a<<RESTendl;
+        for (const auto& [t, a] : points) {
+            RESTLog << t << " " << a << RESTendl;
         }
         RESTLog << RESTendl;
     }
 }
-

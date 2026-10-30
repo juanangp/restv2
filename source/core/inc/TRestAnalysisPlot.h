@@ -55,7 +55,7 @@ class TRestAnalysisPlot : public TRestMetadata {
         /// File the pad is saved to alone (empty: none)
         std::string save;
         std::vector<Histo> histos;
-        std::unique_ptr<THStack> stack;     //!
+        std::unique_ptr<THStack> stack;      //!
         std::unique_ptr<TLegend> legendBox;  //!
     };
 

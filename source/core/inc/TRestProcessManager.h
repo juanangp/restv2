@@ -54,7 +54,10 @@ class TRestProcessManager : public TRestMetadata {
     void LoadProcesses();
 
     void SetManager(TRestManager* mgr) { fManager = mgr; }
-    void SetEntryRange(Long64_t start, Long64_t end) { fEntryStart = start; fEntryEnd = end; }
+    void SetEntryRange(Long64_t start, Long64_t end) {
+        fEntryStart = start;
+        fEntryEnd = end;
+    }
 
     /// \brief Output event of the last process of the chain (always stored), empty without processes.
     std::string GetOutputEvent() const {

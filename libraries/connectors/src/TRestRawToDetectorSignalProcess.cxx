@@ -97,7 +97,9 @@ void TRestRawToDetectorSignalProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawToDetectorSignalProcess>(fNode);
 }
 
-void TRestRawToDetectorSignalProcess::InitProcess() { RegisterObservable("NSignalsRejected", fNSignalsRejected); }
+void TRestRawToDetectorSignalProcess::InitProcess() {
+    RegisterObservable("NSignalsRejected", fNSignalsRejected);
+}
 
 bool TRestRawToDetectorSignalProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
     const auto* rawEvent = dynamic_cast<const TRestRawSignalEvent*>(&input);
@@ -124,9 +126,8 @@ bool TRestRawToDetectorSignalProcess::ProcessEvent(const TRestEvent& input, TRes
             auto corrected = CalculateBaselineAndSigma(data, fBaselineRange.first, fBaselineRange.second,
                                                        baseline, baselineSigma, fBaselineOption);
             auto range = fIntegralRange;  // clamped to the signal size by GetPointsOverThreshold
-            for (const auto& [bin, value] : GetPointsOverThreshold(corrected, range, thrParams,
-                                                                   fPointsOverThreshold, fNPointsFlat,
-                                                                   baselineSigma)) {
+            for (const auto& [bin, value] : GetPointsOverThreshold(
+                     corrected, range, thrParams, fPointsOverThreshold, fNPointsFlat, baselineSigma)) {
                 times.push_back(fTriggerStarts + fSampling * bin);
                 amplitudes.push_back(fGain * value);
             }

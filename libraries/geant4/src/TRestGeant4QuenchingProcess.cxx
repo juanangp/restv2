@@ -1,12 +1,13 @@
 #include "TRestGeant4QuenchingProcess.h"
-#include "TRestRun.h"
-#include "TRestGeant4Event.h"
-#include "TRestGeant4Metadata.h"
-#include "TRestGeant4Track.h"
-#include "TRestTools.h"
 
 #include <algorithm>
 #include <cmath>
+
+#include "TRestGeant4Event.h"
+#include "TRestGeant4Metadata.h"
+#include "TRestGeant4Track.h"
+#include "TRestRun.h"
+#include "TRestTools.h"
 
 using namespace std;
 using TRestTools::ToLower;
@@ -15,20 +16,16 @@ static const bool TRestGeant4QuenchingInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestGeant4QuenchingInfo>("name", &TRestGeant4QuenchingInfo::fVolume);
     reg.RegisterField<TRestGeant4QuenchingInfo>("model", &TRestGeant4QuenchingInfo::fModel);
-    reg.RegisterField<TRestGeant4QuenchingInfo>("birksConstant",
-                                                     &TRestGeant4QuenchingInfo::fBirksConstant);
+    reg.RegisterField<TRestGeant4QuenchingInfo>("birksConstant", &TRestGeant4QuenchingInfo::fBirksConstant);
     reg.RegisterField<TRestGeant4QuenchingInfo>("birksFallbackStepLength",
-                                                     &TRestGeant4QuenchingInfo::fBirksFallbackStepLength);
+                                                &TRestGeant4QuenchingInfo::fBirksFallbackStepLength);
     return true;
 }();
 
+TRestGeant4QuenchingInfo::TRestGeant4QuenchingInfo() : TRestMetadata() { fName = "TRestGeant4QuenchingInfo"; }
 
-TRestGeant4QuenchingInfo::TRestGeant4QuenchingInfo() : TRestMetadata() {
-    fName = "TRestGeant4QuenchingInfo";
-}
-
-TRestGeant4QuenchingInfo::TRestGeant4QuenchingInfo(
-    const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+TRestGeant4QuenchingInfo::TRestGeant4QuenchingInfo(const std::string& name, const YAML::Node& node)
+    : TRestMetadata(name, node) {
     LoadConfig();
 }
 
@@ -40,13 +37,12 @@ void TRestGeant4QuenchingInfo::LoadConfig() {
 static const bool TRestGeant4QuenchingProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestGeant4QuenchingProcess>("applyToHitEnergies",
-                                                     &TRestGeant4QuenchingProcess::fApplyToHitEnergies);
-    reg.RegisterField<TRestGeant4QuenchingProcess>("volume",
-                                                     &TRestGeant4QuenchingProcess::fUserVolumes);
+                                                   &TRestGeant4QuenchingProcess::fApplyToHitEnergies);
+    reg.RegisterField<TRestGeant4QuenchingProcess>("volume", &TRestGeant4QuenchingProcess::fUserVolumes);
     reg.RegisterField<TRestGeant4QuenchingProcess>("birksConstant",
-                                                     &TRestGeant4QuenchingProcess::fBirksConstant);
+                                                   &TRestGeant4QuenchingProcess::fBirksConstant);
     reg.RegisterField<TRestGeant4QuenchingProcess>("birksFallbackStepLength",
-                                                     &TRestGeant4QuenchingProcess::fBirksFallbackStepLength);
+                                                   &TRestGeant4QuenchingProcess::fBirksFallbackStepLength);
 
     return true;
 }();
@@ -60,7 +56,6 @@ const bool kRegistered = []() {
         });
     return true;
 }();
-
 
 }  // namespace
 
@@ -116,46 +111,27 @@ bool IsNeutralParticleWithoutBirksQuenching(const string& particleName) {
            name.find("neutrino") != string::npos;
 }
 
-double EstimateStepLength(
-    const TRestGeant4Track& track,
-    int hitIndex,
-    double fallbackStepLength) {
+double EstimateStepLength(const TRestGeant4Track& track, int hitIndex, double fallbackStepLength) {
     const auto nHits = static_cast<int>(track.GetNumberOfHits());
     if (nHits <= 1) {
         return fallbackStepLength;
     }
 
-    const auto volumeId =
-        track.GetHitVolumeID(hitIndex);
+    const auto volumeId = track.GetHitVolumeID(hitIndex);
 
-    const auto position =
-        track.GetHitPosition(hitIndex);
+    const auto position = track.GetHitPosition(hitIndex);
 
-    double stepLength =
-        numeric_limits<double>::max();
+    double stepLength = numeric_limits<double>::max();
 
-    if (hitIndex > 0 &&
-        track.GetHitVolumeID(hitIndex - 1) == volumeId) {
-
-        stepLength = min(
-            stepLength,
-            (position - track.GetHitPosition(hitIndex - 1)).R()
-        );
+    if (hitIndex > 0 && track.GetHitVolumeID(hitIndex - 1) == volumeId) {
+        stepLength = min(stepLength, (position - track.GetHitPosition(hitIndex - 1)).R());
     }
 
-    if (hitIndex + 1 < nHits &&
-        track.GetHitVolumeID(hitIndex + 1) == volumeId) {
-
-        stepLength = min(
-            stepLength,
-            (track.GetHitPosition(hitIndex + 1) - position).R()
-        );
+    if (hitIndex + 1 < nHits && track.GetHitVolumeID(hitIndex + 1) == volumeId) {
+        stepLength = min(stepLength, (track.GetHitPosition(hitIndex + 1) - position).R());
     }
 
-    if (!std::isfinite(stepLength) ||
-        stepLength <= 0 ||
-        stepLength == numeric_limits<double>::max()) {
-
+    if (!std::isfinite(stepLength) || stepLength <= 0 || stepLength == numeric_limits<double>::max()) {
         return fallbackStepLength;
     }
 
@@ -171,7 +147,7 @@ double BirksQuenchingFactor(double energy, double stepLength, double birksConsta
     return Clamp01(1.0 / (1.0 + birksConstant * dEdx));
 }
 
-}
+}  // namespace
 
 /// \brief Default constructor for raw signal analysis processing.
 TRestGeant4QuenchingProcess::TRestGeant4QuenchingProcess() : TRestEventProcess() {
@@ -180,14 +156,14 @@ TRestGeant4QuenchingProcess::TRestGeant4QuenchingProcess() : TRestEventProcess()
 
 /// \brief Constructor from an in-memory YAML node.
 TRestGeant4QuenchingProcess::TRestGeant4QuenchingProcess(const std::string& instanceName,
-                                                             const YAML::Node& node)
+                                                         const YAML::Node& node)
     : TRestEventProcess(instanceName, node) {
     LoadConfig();
 }
 
 /// \brief Constructor from a file and YAML section name.
 TRestGeant4QuenchingProcess::TRestGeant4QuenchingProcess(const std::string& fileName,
-                                                             const std::string& sectionName)
+                                                         const std::string& sectionName)
     : TRestEventProcess(fileName, sectionName) {
     LoadConfig();
 }
@@ -204,23 +180,24 @@ void TRestGeant4QuenchingProcess::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4QuenchingProcess>(fNode);
 
     for (auto& userVolume : fUserVolumes) {
-        if(userVolume.fBirksConstant == 0)userVolume.fBirksConstant = fBirksConstant;
-        if(userVolume.fBirksFallbackStepLength == 0)userVolume.fBirksFallbackStepLength = fBirksFallbackStepLength;
-        //userVolume.UpdateYAML();
+        if (userVolume.fBirksConstant == 0) userVolume.fBirksConstant = fBirksConstant;
+        if (userVolume.fBirksFallbackStepLength == 0)
+            userVolume.fBirksFallbackStepLength = fBirksFallbackStepLength;
+        // userVolume.UpdateYAML();
     }
-    
+
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestGeant4QuenchingProcess>(fNode);
 }
 
 /// \brief Registers all event observables produced by this process.
 void TRestGeant4QuenchingProcess::InitProcess() {
-    if(fRunInfo)fGeant4Metadata = (TRestGeant4Metadata*)fRunInfo->GetMetadataClass("TRestGeant4Metadata");
+    if (fRunInfo) fGeant4Metadata = (TRestGeant4Metadata*)fRunInfo->GetMetadataClass("TRestGeant4Metadata");
     if (!fGeant4Metadata) {
         throw std::runtime_error("TRestGeant4QuenchingProcess: no TRestGeant4Metadata found");
     }
     const auto& geometryInfo = fGeant4Metadata->GetGeant4GeometryInfo();
-    
+
     fVolumes.clear();
     fVolumeModels.clear();
     fVolumeBirksConstants.clear();
@@ -236,8 +213,8 @@ void TRestGeant4QuenchingProcess::InitProcess() {
         const auto volumeNames = geometryInfo.GetVolumesMatchingExpression(userVolume.fVolume);
 
         if (volumeNames.empty()) {
-            RESTError << "TRestGeant4QuenchingProcess: No volume found matching expression: " << userVolume.fVolume
-                        << RESTendl;
+            RESTError << "TRestGeant4QuenchingProcess: No volume found matching expression: "
+                      << userVolume.fVolume << RESTendl;
             continue;
         }
 
@@ -247,8 +224,7 @@ void TRestGeant4QuenchingProcess::InitProcess() {
             fVolumeModels[volumeNameString] =
                 InferQuenchingModel(userVolume.fModel, userVolume.fVolume, volumeNameString);
             fVolumeBirksConstants[volumeNameString] = userVolume.fBirksConstant;
-            fVolumeBirksFallbackStepLengths[volumeNameString] =
-                userVolume.fBirksFallbackStepLength;
+            fVolumeBirksFallbackStepLengths[volumeNameString] = userVolume.fBirksFallbackStepLength;
         }
     }
 
@@ -256,7 +232,6 @@ void TRestGeant4QuenchingProcess::InitProcess() {
     for (const auto& volume : fVolumes) {
         RESTDebug << " " << volume << " (" << fVolumeModels[volume] << ")" << RESTendl;
     }
-
 }
 
 /// \brief Computes per-signal and event-level pulse-shape observables for one event.
@@ -272,9 +247,9 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
     fObs.clear();
     fObs.sensitiveVolumeEnergyBefore = 0.0;
     fObs.sensitiveVolumeEnergyAfter = 0.0;
-    
+
     const auto sensitiveVolumes = fGeant4Metadata->GetSensitiveVolumes();
-    for(const auto &sensitiveVolumeName : sensitiveVolumes){
+    for (const auto& sensitiveVolumeName : sensitiveVolumes) {
         fObs.sensitiveVolumeEnergyBefore += g4Event->GetEnergyInVolume(sensitiveVolumeName);
     }
 
@@ -289,142 +264,102 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
     eventData.crossDepositedEnergies.clear();
     g4Event->RebuildCrossIndex();
 
-    g4Event->ClearCache(); 
+    g4Event->ClearCache();
 
     bool missingHadronicInfoWarningPrinted = false;
 
-     for (int trackIndex = 0; trackIndex < static_cast<int>(g4Event->GetNumberOfTracks()); ++trackIndex) {
+    for (int trackIndex = 0; trackIndex < static_cast<int>(g4Event->GetNumberOfTracks()); ++trackIndex) {
+        auto track = g4Event->GetTrack(trackIndex);
 
-    auto track = g4Event->GetTrack(trackIndex);
+        const std::string particleName = track.GetParticleName();
 
-    const std::string particleName =
-        track.GetParticleName();
+        const size_t nHits = track.GetNumberOfHits();
 
-    const size_t nHits =
-        track.GetNumberOfHits();
+        double trackNewDepositedEnergy = 0.0;
 
-    double trackNewDepositedEnergy = 0.0;
+        for (size_t hitIndex = 0; hitIndex < nHits; ++hitIndex) {
+            const std::string physicalVolumeName = track.GetHitVolumeName(hitIndex);
 
-    for (size_t hitIndex = 0; hitIndex < nHits; ++hitIndex) {
+            std::string cleanVolumeName =
+                fGeant4Metadata->GetGeant4GeometryInfo().GetGeant4NameFiltered(physicalVolumeName);
 
-        const std::string physicalVolumeName =
-            track.GetHitVolumeName(hitIndex);
+            const double depositedEnergy = track.GetHitEnergy(hitIndex);
 
-        std::string cleanVolumeName = fGeant4Metadata->GetGeant4GeometryInfo().GetGeant4NameFiltered(physicalVolumeName);
+            double quenchingFactor = 1.0;
 
-        const double depositedEnergy =
-            track.GetHitEnergy(hitIndex);
+            if ((fVolumes.count(cleanVolumeName) || fVolumes.count(physicalVolumeName)) &&
+                depositedEnergy > 0) {
+                const std::string targetVol =
+                    fVolumes.count(cleanVolumeName) ? cleanVolumeName : physicalVolumeName;
 
-        double quenchingFactor = 1.0;
+                const auto model =
+                    fVolumeModels.count(targetVol) ? fVolumeModels[targetVol] : std::string("lindhard");
 
-        if ((fVolumes.count(cleanVolumeName) ||
-             fVolumes.count(physicalVolumeName)) &&
-            depositedEnergy > 0) {
+                if (model == "birks") {
+                    if (!IsNeutralParticleWithoutBirksQuenching(particleName)) {
+                        const double stepLength = EstimateStepLength(
+                            track, static_cast<int>(hitIndex), fVolumeBirksFallbackStepLengths[targetVol]);
 
-            const std::string targetVol =
-                fVolumes.count(cleanVolumeName)
-                    ? cleanVolumeName
-                    : physicalVolumeName;
-
-            const auto model =
-                fVolumeModels.count(targetVol)
-                    ? fVolumeModels[targetVol]
-                    : std::string("lindhard");
-
-            if (model == "birks") {
-
-                if (!IsNeutralParticleWithoutBirksQuenching(
-                        particleName)) {
-
-                    const double stepLength =
-                        EstimateStepLength(
-                            track,
-                            static_cast<int>(hitIndex),
-                            fVolumeBirksFallbackStepLengths[targetVol]
-                        );
-
-                    quenchingFactor =
-                        BirksQuenchingFactor(
-                            depositedEnergy,
-                            stepLength,
-                            fVolumeBirksConstants[targetVol]
-                        );
-                }
-
-            } else if (model == "lindhard") {
-
-                if (track.GetHadronicOk()) {
-
-                    const std::string isotopeName =
-                        track.GetHitHadronicTargetIsotopeName(hitIndex);
-
-                    const int isotopeA =
-                        track.GetHitHadronicTargetIsotopeA(hitIndex);
-
-                    const int isotopeZ =
-                        track.GetHitHadronicTargetIsotopeZ(hitIndex);
-
-                    if (!isotopeName.empty()) {
-                        quenchingFactor =
-                            LindhardQuenchingFactor(
-                                depositedEnergy,
-                                isotopeA,
-                                isotopeZ
-                            );
+                        quenchingFactor = BirksQuenchingFactor(depositedEnergy, stepLength,
+                                                               fVolumeBirksConstants[targetVol]);
                     }
 
-                } else if (!missingHadronicInfoWarningPrinted) {
+                } else if (model == "lindhard") {
+                    if (track.GetHadronicOk()) {
+                        const std::string isotopeName = track.GetHitHadronicTargetIsotopeName(hitIndex);
 
-                    RESTWarning
-                        << "TRestGeant4QuenchingProcess: "
-                           "Lindhard quenching requested but "
-                           "hadronic target info not available."
-                        << RESTendl;
+                        const int isotopeA = track.GetHitHadronicTargetIsotopeA(hitIndex);
 
-                    missingHadronicInfoWarningPrinted = true;
+                        const int isotopeZ = track.GetHitHadronicTargetIsotopeZ(hitIndex);
+
+                        if (!isotopeName.empty()) {
+                            quenchingFactor = LindhardQuenchingFactor(depositedEnergy, isotopeA, isotopeZ);
+                        }
+
+                    } else if (!missingHadronicInfoWarningPrinted) {
+                        RESTWarning << "TRestGeant4QuenchingProcess: "
+                                       "Lindhard quenching requested but "
+                                       "hadronic target info not available."
+                                    << RESTendl;
+
+                        missingHadronicInfoWarningPrinted = true;
+                    }
                 }
+            }
+
+            const auto visibleEnergy = depositedEnergy * quenchingFactor;
+
+            if (fApplyToHitEnergies) {
+                track.SetHitEnergy(hitIndex, visibleEnergy);
+            }
+
+            if (visibleEnergy > 0) {
+                trackNewDepositedEnergy += visibleEnergy;
+
+                g4Event->AddEnergyInVolumeForParticleForProcess(
+                    visibleEnergy, physicalVolumeName, particleName,
+                    track.GetProcessName(track.GetHitProcess(hitIndex)));
             }
         }
 
-        const auto visibleEnergy =
-            depositedEnergy * quenchingFactor;
-
-        if (fApplyToHitEnergies) {
-            track.SetHitEnergy(
-                hitIndex,
-                visibleEnergy
-            );
-        }
-
-        if (visibleEnergy > 0) {
-
-            trackNewDepositedEnergy +=
-                visibleEnergy;
-
-            g4Event->AddEnergyInVolumeForParticleForProcess(
-                visibleEnergy, physicalVolumeName, particleName,
-                track.GetProcessName(track.GetHitProcess(hitIndex)));
-        }
+        g4Event->fEventData.trackDepositedEnergy[trackIndex] = trackNewDepositedEnergy;
     }
 
-    g4Event->fEventData.trackDepositedEnergy[trackIndex] =
-        trackNewDepositedEnergy;
-}
-
-    g4Event->ClearCache(); 
+    g4Event->ClearCache();
     g4Event->RefreshViews();
 
-    for(const auto &sensitiveVolumeName : sensitiveVolumes){  
-      fObs.sensitiveVolumeEnergyAfter += g4Event->GetEnergyInVolume(sensitiveVolumeName);
+    for (const auto& sensitiveVolumeName : sensitiveVolumes) {
+        fObs.sensitiveVolumeEnergyAfter += g4Event->GetEnergyInVolume(sensitiveVolumeName);
     }
     g4Event->fEventData.sensitiveVolumeEnergy = fObs.sensitiveVolumeEnergyAfter;
 
-    fObs.sensitiveQuenched = TMath::Abs(fObs.sensitiveVolumeEnergyAfter - fObs.sensitiveVolumeEnergyBefore) > 1e-2;
-    RESTDebug << fObs.sensitiveVolumeEnergyBefore << " " << fObs.sensitiveVolumeEnergyAfter << " " << fObs.sensitiveQuenched << RESTendl;
+    fObs.sensitiveQuenched =
+        TMath::Abs(fObs.sensitiveVolumeEnergyAfter - fObs.sensitiveVolumeEnergyBefore) > 1e-2;
+    RESTDebug << fObs.sensitiveVolumeEnergyBefore << " " << fObs.sensitiveVolumeEnergyAfter << " "
+              << fObs.sensitiveQuenched << RESTendl;
 
     return true;
 }
-
 
 /// \brief Finalization hook for the analysis process.
 void TRestGeant4QuenchingProcess::EndProcess() {}

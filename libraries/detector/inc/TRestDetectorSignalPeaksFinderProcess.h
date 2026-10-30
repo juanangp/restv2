@@ -42,7 +42,7 @@ class TRestDetectorSignalPeaksFinderProcess : public TRestEventProcess {
     double fThreshold = 100;
 
     /// Minimum time between two peaks of the same signal
-    TRestWithUnits fDistance = 2; //us
+    TRestWithUnits fDistance = 2;  // us
 
     /// Half of the number of points of the moving average used to find the peaks
     int fHalfWindow = 5;
@@ -57,7 +57,7 @@ class TRestDetectorSignalPeaksFinderProcess : public TRestEventProcess {
     int fAmplitudeHalfWindow = 1;
 
     /// A coincidence window starts at the earliest peak not yet in a window and contains all the peaks up to
-    TRestWithUnits fWindow = 1; //us
+    TRestWithUnits fWindow = 1;  // us
 
     TRestDetectorSignalPeaksFinderProcess();
     TRestDetectorSignalPeaksFinderProcess(const std::string& instanceName, const YAML::Node& node);

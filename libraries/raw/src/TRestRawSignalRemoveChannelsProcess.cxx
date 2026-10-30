@@ -1,13 +1,12 @@
 #include "TRestRawSignalRemoveChannelsProcess.h"
 
-#include "TRestRawSignalEvent.h"
-
 #include <algorithm>
 #include <stdexcept>
 
+#include "TRestRawSignalEvent.h"
 
 //---Example---
-//removeChannels:
+// removeChannels:
 //  class: "TRestRawSignalRemoveChannelsProcess"
 //  name: "rmChannels"
 //  channelIds: [17, 19, 27]
@@ -17,8 +16,8 @@
 
 static const bool TRestRawSignalRemoveChannelsProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestRawSignalRemoveChannelsProcess>(
-        "channelIds", &TRestRawSignalRemoveChannelsProcess::fChannelIds);
+    reg.RegisterField<TRestRawSignalRemoveChannelsProcess>("channelIds",
+                                                           &TRestRawSignalRemoveChannelsProcess::fChannelIds);
     reg.RegisterField<TRestRawSignalRemoveChannelsProcess>(
         "channelRange", &TRestRawSignalRemoveChannelsProcess::fChannelRange);
     return true;
@@ -27,8 +26,7 @@ static const bool TRestRawSignalRemoveChannelsProcess_FieldsRegistered = []() {
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestRawSignalRemoveChannelsProcess",
-        [](const std::string& instanceName, const YAML::Node& params) {
+        "TRestRawSignalRemoveChannelsProcess", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestRawSignalRemoveChannelsProcess>(instanceName, params);
         });
     return true;
@@ -95,15 +93,15 @@ bool TRestRawSignalRemoveChannelsProcess::ProcessEvent(const TRestEvent& input, 
     const int nSignals = outEvent->GetNumberOfSignals();
     for (int s = nSignals - 1; s >= 0; --s) {
         const auto& sig = outEvent->GetSignal(s);
-        
+
         if (IsRemoved(sig.GetSignalID())) {
-            outEvent->RemoveSignal(s); 
+            outEvent->RemoveSignal(s);
         }
     }
 
     outEvent->RefreshViews();
 
-    if(outEvent->GetNumberOfSignals() == 0)return false;
+    if (outEvent->GetNumberOfSignals() == 0) return false;
 
     return true;
 }

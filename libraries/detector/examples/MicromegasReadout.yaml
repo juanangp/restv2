@@ -3,10 +3,9 @@ readout:
   name: "IAXO_D1_Readout"
   decodingFile: "iaxo_d1_iaxolab.dec"
   readoutParameters:
-    nChannels: 120 
+    nChannels: 120
     pitch: 0.5
     thickness: 1 um
     gasThickness: 30 mm
     positionRelative: [0.0, 0.0, -1.50 cm]
     globalRotation: 45 deg
-

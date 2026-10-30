@@ -48,7 +48,7 @@ class TRestTrackAnalysisProcess : public TRestEventProcess {
         std::string name;
         int type = 0;
         int nTracks = 0;
-        double energy = 0;                ///< Energy of the tracks of this type
+        double energy = 0;               ///< Energy of the tracks of this type
         double maxTrackEnergyRatio = 0;  ///< (energy - maxTrack.energy) / energy
         TrackObservables maxTrack;
         int maxTrackIndex = -1;  ///< Track index in the event, -1 if none

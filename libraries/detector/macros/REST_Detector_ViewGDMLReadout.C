@@ -4,14 +4,16 @@
 #include "TSystem.h"
 
 // Directly include your class headers
-#include "TRestMicromegasReadout.h"
+#include "TRestGDMLReadout.h"
 #include "TRestTools.h"
+
+TRestGDMLReadout* gmdlReadout = nullptr;
 
 using namespace TRestTools;
 
-void ViewMicromegasReadout(const std::string& instanceName = "IAXO_D1_Readout",
-                 const std::string& decodingName = "nominal_decoding",
-                 const std::string inputFile = "iaxo_readout_output.root") {
+void REST_Detector_ViewGDMLReadout(const std::string& instanceName = "Veto_Readout",
+                                   const std::string& decodingName = "veto_decoding",
+                                   const std::string inputFile = "veto_readout_output.root") {
     TFile* fIn = TFile::Open(inputFile.c_str(), "READ");
     auto configNode = TRestMetadata::ReadMetadata(fIn, instanceName);
 
@@ -37,24 +39,18 @@ void ViewMicromegasReadout(const std::string& instanceName = "IAXO_D1_Readout",
     readout->Import(fIn, instanceName, decodingName);
     readout->PrintMetadata();
 
-    double testX = 0.5;
-    double testY = 0.5;
-    double testZ = 110.0;  // Math matched to the YAML relative offset [-10 mm]
-
     std::cout << "\n--- TESTING SPATIAL LOOKUP ---" << std::endl;
 
-    int daqChannel = readout->GetChannelFromPosition(testX, testY, testZ);
-    std::cout << "Hit at (" << testX << ", " << testY << ", " << testZ
-              << ") mm maps to DAQ ID: " << daqChannel << std::endl;
+    int daqChannel = readout->GetChannelFromPosition(0, 327, 189.5);
+    std::cout << "Hit at (" << 0 << ", " << 327 << ", " << 189.5 << ") mm maps to DAQ ID: " << daqChannel
+              << std::endl;
 
-    std::vector ev = {200, 201, 202, daqChannel - 1, daqChannel, daqChannel + 1};
+    std::vector ev = {289, 290, 291, 292};
 
-    if (daqChannel != -1) {
-        for (const auto& ch : ev) {
-            ROOT::Math::XYZVector centroid = readout->GetPositionFromChannel(ch);
-            std::cout << "DAQ ID " << ch << " back-projects to centroid: (" << centroid.X() << ", "
-                      << centroid.Y() << ", " << centroid.Z() << ") mm" << std::endl;
-        }
+    for (const auto& ch : ev) {
+        ROOT::Math::XYZVector centroid = readout->GetPositionFromChannel(ch);
+        std::cout << "DAQ ID " << ch << " back-projects to centroid: (" << centroid.X() << ", "
+                  << centroid.Y() << ", " << centroid.Z() << ") mm" << std::endl;
     }
 
     // =========================================================================
@@ -62,5 +58,4 @@ void ViewMicromegasReadout(const std::string& instanceName = "IAXO_D1_Readout",
     // =========================================================================
     std::cout << "\n[+] Spawning interactive 3D geometry viewer window..." << std::endl;
     readout->ViewActiveEvent(ev);  // Spawns ROOT high-speed OpenGL window
-    // mmReadout->ViewReadoutGeometry();
 }

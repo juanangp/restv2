@@ -1,9 +1,9 @@
 #include "TRestGeant4Track.h"
 
+#include <TMath.h>
+
 #include <algorithm>
 #include <iostream>
-
-#include <TMath.h>
 
 #include "TRestGeant4Event.h"
 #include "TRestGeant4Metadata.h"
@@ -19,21 +19,13 @@ bool TRestGeant4Track::IsValid() const {
     const auto& data = fEvent->fEventData;
     const std::size_t n = data.trackIDs.size();
 
-    return fTrackIndex < n &&
-           data.parentIDs.size() == n &&
-           data.trackParticleNames.size() == n &&
-           data.trackCreatorProcesses.size() == n &&
-           data.trackDepositedEnergy.size() == n &&
-           data.trackInitialEnergies.size() == n &&
-           data.trackStartIndices.size() == n &&
-           data.trackNHits.size() == n &&
-           data.trackGlobalTimestamps.size() == n &&
-           data.trackTimeOffsets.size() == n &&
-           data.trackTimeLengths.size() == n &&
-           data.trackLengths.size() == n &&
-           data.trackWeights.size() == n &&
-           data.trackInitialPositions.size() == n &&
-           data.trackSecondariesIndices.size() == n &&
+    return fTrackIndex < n && data.parentIDs.size() == n && data.trackParticleNames.size() == n &&
+           data.trackCreatorProcesses.size() == n && data.trackDepositedEnergy.size() == n &&
+           data.trackInitialEnergies.size() == n && data.trackStartIndices.size() == n &&
+           data.trackNHits.size() == n && data.trackGlobalTimestamps.size() == n &&
+           data.trackTimeOffsets.size() == n && data.trackTimeLengths.size() == n &&
+           data.trackLengths.size() == n && data.trackWeights.size() == n &&
+           data.trackInitialPositions.size() == n && data.trackSecondariesIndices.size() == n &&
            data.trackSecondariesOffsets.size() == n;
 }
 
@@ -51,19 +43,13 @@ TRestHits TRestGeant4Track::GetHits() const {
     if (!IsValid()) return TRestHits();
 
     const auto& data = fEvent->fEventData;
-    return TRestHits(
-        const_cast<TRestHitsData*>(&data.hitsStorage),
-        static_cast<int>(GetHitStart()),
-        static_cast<int>(GetHitCount()));
+    return TRestHits(const_cast<TRestHitsData*>(&data.hitsStorage), static_cast<int>(GetHitStart()),
+                     static_cast<int>(GetHitCount()));
 }
 
-Int_t TRestGeant4Track::GetTrackID() const {
-    return fEvent->fEventData.trackIDs.at(fTrackIndex);
-}
+Int_t TRestGeant4Track::GetTrackID() const { return fEvent->fEventData.trackIDs.at(fTrackIndex); }
 
-Int_t TRestGeant4Track::GetParentID() const {
-    return fEvent->fEventData.parentIDs.at(fTrackIndex);
-}
+Int_t TRestGeant4Track::GetParentID() const { return fEvent->fEventData.parentIDs.at(fTrackIndex); }
 
 const std::string& TRestGeant4Track::GetParticleName() const {
     return fEvent->fEventData.trackParticleNames.at(fTrackIndex);
@@ -93,30 +79,22 @@ ROOT::Math::XYZVector TRestGeant4Track::GetInitialPosition() const {
     return fEvent->fEventData.trackInitialPositions.at(fTrackIndex);
 }
 
-Double_t TRestGeant4Track::GetWeight() const {
-    return fEvent->fEventData.trackWeights.at(fTrackIndex);
-}
+Double_t TRestGeant4Track::GetWeight() const { return fEvent->fEventData.trackWeights.at(fTrackIndex); }
 
-Double_t TRestGeant4Track::GetTotalEnergy() const {
-    return GetHits().GetTotalEnergy();
-}
+Double_t TRestGeant4Track::GetTotalEnergy() const { return GetHits().GetTotalEnergy(); }
 
 Double_t TRestGeant4Track::GetDepositedEnergy() const {
     return fEvent->fEventData.trackDepositedEnergy.at(fTrackIndex);
 }
 
-Double_t TRestGeant4Track::GetLength() const {
-    return fEvent->fEventData.trackLengths.at(fTrackIndex);
-}
+Double_t TRestGeant4Track::GetLength() const { return fEvent->fEventData.trackLengths.at(fTrackIndex); }
 
 const TRestGeant4Metadata* TRestGeant4Track::GetGeant4Metadata() const {
     if (fEvent == nullptr) return nullptr;
     return fEvent->GetGeant4Metadata();
 }
 
-void TRestGeant4Track::SetEvent(TRestGeant4Event* event) {
-    fEvent = event;
-}
+void TRestGeant4Track::SetEvent(TRestGeant4Event* event) { fEvent = event; }
 
 Int_t TRestGeant4Track::GetHitProcess(size_t hit) const {
     return fEvent->fEventData.hitProcessID.at(GetHitStart() + hit);
@@ -126,11 +104,10 @@ Int_t TRestGeant4Track::GetHitVolumeID(size_t hit) const {
     return fEvent->fEventData.hitVolumeID.at(GetHitStart() + hit);
 }
 
-
 std::string TRestGeant4Track::GetHitVolumeName(size_t hit) const {
-  const auto* metadata = GetGeant4Metadata();
-  std::string volumeName = metadata->GetGeant4GeometryInfo().GetVolumeFromID(GetHitVolumeID(hit));
-  return volumeName;
+    const auto* metadata = GetGeant4Metadata();
+    std::string volumeName = metadata->GetGeant4GeometryInfo().GetVolumeFromID(GetHitVolumeID(hit));
+    return volumeName;
 }
 
 Double_t TRestGeant4Track::GetHitKineticEnergy(size_t hit) const {
@@ -139,7 +116,8 @@ Double_t TRestGeant4Track::GetHitKineticEnergy(size_t hit) const {
 
 ROOT::Math::XYZVector TRestGeant4Track::GetHitMomentumDirection(size_t hit) const {
     const auto idx = GetHitStart() + hit;
-    return {fEvent->fEventData.hitMomentumDirectionX.at(idx), fEvent->fEventData.hitMomentumDirectionY.at(idx),
+    return {fEvent->fEventData.hitMomentumDirectionX.at(idx),
+            fEvent->fEventData.hitMomentumDirectionY.at(idx),
             fEvent->fEventData.hitMomentumDirectionZ.at(idx)};
 }
 
@@ -147,8 +125,8 @@ ROOT::Math::XYZVector TRestGeant4Track::GetHitPosition(size_t hit) const {
     double x = fEvent->fEventData.hitsStorage.x.at(GetHitStart() + hit);
     double y = fEvent->fEventData.hitsStorage.y.at(GetHitStart() + hit);
     double z = fEvent->fEventData.hitsStorage.z.at(GetHitStart() + hit);
-    
-    return ROOT::Math::XYZVector(x,y,z);
+
+    return ROOT::Math::XYZVector(x, y, z);
 }
 
 std::string TRestGeant4Track::GetHitHadronicTargetIsotopeName(size_t hit) const {
@@ -188,14 +166,18 @@ std::string TRestGeant4Track::GetProcessName(Int_t processID) const {
 EColor TRestGeant4Track::GetParticleColor() const {
     EColor color = kGray;
 
-    if (GetParticleName() == "e-") color = kRed;
-    else if (GetParticleName() == "e+") color = kBlue;
-    else if (GetParticleName() == "alpha") color = kOrange;
-    else if (GetParticleName() == "mu-") color = kViolet;
-    else if (GetParticleName() == "gamma") color = kGreen;
+    if (GetParticleName() == "e-")
+        color = kRed;
+    else if (GetParticleName() == "e+")
+        color = kBlue;
+    else if (GetParticleName() == "alpha")
+        color = kOrange;
+    else if (GetParticleName() == "mu-")
+        color = kViolet;
+    else if (GetParticleName() == "gamma")
+        color = kGreen;
     else
-        cout << "TRestGeant4Track::GetParticleColor. Particle NOT found! Returning gray color."
-             << endl;
+        cout << "TRestGeant4Track::GetParticleColor. Particle NOT found! Returning gray color." << endl;
 
     return color;
 }
@@ -230,8 +212,7 @@ Double_t TRestGeant4Track::GetEnergyInVolume(Int_t volID) const {
     const auto hits = GetHits();
     Double_t energy = 0;
     for (size_t i = 0; i < GetHitCount(); ++i) {
-        if (GetHitVolumeID(i) == volID)
-            energy += hits.GetEnergy(static_cast<int>(i));
+        if (GetHitVolumeID(i) == volID) energy += hits.GetEnergy(static_cast<int>(i));
     }
     return energy;
 }
@@ -247,10 +228,9 @@ ROOT::Math::XYZVector TRestGeant4Track::GetMeanPositionInVolume(Int_t volID) con
         if (GetHitVolumeID(i) != volID) continue;
 
         const Double_t energy = hits.GetEnergy(static_cast<int>(i));
-        position += energy * ROOT::Math::XYZVector(
-            hits.GetX(static_cast<int>(i)),
-            hits.GetY(static_cast<int>(i)),
-            hits.GetZ(static_cast<int>(i)));
+        position +=
+            energy * ROOT::Math::XYZVector(hits.GetX(static_cast<int>(i)), hits.GetY(static_cast<int>(i)),
+                                           hits.GetZ(static_cast<int>(i)));
         totalEnergy += energy;
     }
 
@@ -355,8 +335,7 @@ Double_t TRestGeant4Track::GetEnergyInVolume(const std::string& volumeName, bool
         TRestGeant4Track track = tracks.back();
         tracks.pop_back();
         energy += track.GetEnergyInVolume(volumeId);
-        for (const auto& secondaryTrack : track.GetSecondaryTracks())
-            tracks.push_back(secondaryTrack);
+        for (const auto& secondaryTrack : track.GetSecondaryTracks()) tracks.push_back(secondaryTrack);
     }
     return energy;
 }
@@ -376,30 +355,22 @@ Bool_t TRestGeant4Track::ContainsProcessInVolume(Int_t processID, Int_t volumeID
 }
 
 double TRestGeant4Track::GetHitEnergy(size_t hit) const {
-  return fEvent->fEventData.hitsStorage.energy.at(GetHitStart() + hit);
+    return fEvent->fEventData.hitsStorage.energy.at(GetHitStart() + hit);
 }
-
 
 Bool_t TRestGeant4Track::GetHadronicOk() const {
     return !fEvent->fEventData.hitHadronicTargetIsotopeName.empty();
 }
 
-void TRestGeant4Track::SetHitEnergy(
-    size_t hit,
-    Double_t energy) {
-
+void TRestGeant4Track::SetHitEnergy(size_t hit, Double_t energy) {
     if (!IsValid()) return;
 
-    const auto absoluteHit =
-        GetHitStart() + hit;
+    const auto absoluteHit = GetHitStart() + hit;
 
-    fEvent->fEventData.hitsStorage.energy.at(absoluteHit) =
-        energy;
+    fEvent->fEventData.hitsStorage.energy.at(absoluteHit) = energy;
 }
 
-
-Bool_t TRestGeant4Track::ContainsProcessInVolume(const std::string& processName,
-                                                  Int_t volumeID) const {
+Bool_t TRestGeant4Track::ContainsProcessInVolume(const std::string& processName, Int_t volumeID) const {
     const auto* metadata = GetGeant4Metadata();
     if (metadata == nullptr) return false;
 
@@ -408,8 +379,7 @@ Bool_t TRestGeant4Track::ContainsProcessInVolume(const std::string& processName,
 }
 
 void TRestGeant4Track::PrintTrack(int maxHits) const {
-    std::cout << " * TrackID: " << GetTrackID()
-              << " - Particle: " << GetParticleName()
+    std::cout << " * TrackID: " << GetTrackID() << " - Particle: " << GetParticleName()
               << " - ParentID: " << GetParentID();
 
     const auto parent = GetParentTrack();
@@ -419,20 +389,18 @@ void TRestGeant4Track::PrintTrack(int maxHits) const {
         std::cout << " - Parent particle: 'PrimaryGenerator'";
     }
 
-    std::cout << " - Created by '" << GetCreatorProcess()
-              << "' in volume '" << GetInitialVolume()
+    std::cout << " - Created by '" << GetCreatorProcess() << "' in volume '" << GetInitialVolume()
               << "' with initial KE of " << REST_Units::FormatAs(GetInitialEnergy(), REST_Units::Energy)
               << " - Initial position " << REST_Units::FormatAs(GetInitialPosition(), REST_Units::Length)
               << " - Time length of " << REST_Units::FormatAs(GetTimeLength(), REST_Units::Time)
-              << " and spatial length of " << REST_Units::FormatAs(GetLength(), REST_Units::Length) 
+              << " and spatial length of " << REST_Units::FormatAs(GetLength(), REST_Units::Length)
               << std::endl;
 
     std::cout << "   Initial position " << REST_Units::FormatAs(GetInitialPosition(), REST_Units::Length)
-              << " at time " << REST_Units::FormatAs(GetGlobalTime(), REST_Units::Time)
-              << " - Time offset " << REST_Units::FormatAs(GetTimeOffset(), REST_Units::Time)
-              << " - Time length of " << REST_Units::FormatAs(GetTimeLength(), REST_Units::Time)
-              << " and spatial length of " << REST_Units::FormatAs(GetLength(), REST_Units::Length) 
-              << std::endl;
+              << " at time " << REST_Units::FormatAs(GetGlobalTime(), REST_Units::Time) << " - Time offset "
+              << REST_Units::FormatAs(GetTimeOffset(), REST_Units::Time) << " - Time length of "
+              << REST_Units::FormatAs(GetTimeLength(), REST_Units::Time) << " and spatial length of "
+              << REST_Units::FormatAs(GetLength(), REST_Units::Length) << std::endl;
 
     const auto hits = GetHits();
     const int nHits = static_cast<int>(hits.GetNumberOfHits());
@@ -444,13 +412,12 @@ void TRestGeant4Track::PrintTrack(int maxHits) const {
     for (int i = 0; i < nToPrint; ++i) {
         ROOT::Math::XYZVector hitPos(hits.GetX(i), hits.GetY(i), hits.GetZ(i));
 
-        std::cout << "      - Hit " << i 
+        std::cout << "      - Hit " << i
                   << " - Energy: " << REST_Units::FormatAs(hits.GetEnergy(i), REST_Units::Energy)
                   << " - Process: " << GetProcessName(GetHitProcess(i))
-                  << " - Volume: " << GetHitVolumeName(i) 
+                  << " - Volume: " << GetHitVolumeName(i)
                   << " - Position: " << REST_Units::FormatAs(hitPos, REST_Units::Length)
-                  << " - Time: " << REST_Units::FormatAs(hits.GetTime(i), REST_Units::Time)
-                  << std::endl;
+                  << " - Time: " << REST_Units::FormatAs(hits.GetTime(i), REST_Units::Time) << std::endl;
     }
 }
 

@@ -21,9 +21,7 @@ void TRestEvent::InitializeReferences(TRestRun* run) {
     SetSubRunOrigin(run->GetSubRunNumber());
 }
 
-void TRestEvent::SetRestRun(TRestRun* run){
-  fRestRun = run;
-}
+void TRestEvent::SetRestRun(TRestRun* run) { fRestRun = run; }
 
 void TRestEvent::PrintEvent() const {
     RESTLog << "\nEventID: " << fInfo.eventID << "  SubEventID: " << fInfo.subEventID << RESTendl;

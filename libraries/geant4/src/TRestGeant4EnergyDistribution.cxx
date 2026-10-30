@@ -55,7 +55,7 @@ void CheckRange(const pair<TRestWithUnits, TRestWithUnits>& range, const string&
 // --- TRestGeant4EnergyDistribution ---
 
 unique_ptr<TRestGeant4EnergyDistribution> TRestGeant4EnergyDistribution::Create(const string& name,
-                                                                              const YAML::Node& node) {
+                                                                                const YAML::Node& node) {
     if (!node || !node["type"]) {
         throw runtime_error("TRestGeant4EnergyDistribution: the energy 'type' is missing");
     }

@@ -1,11 +1,11 @@
 #include "TRestManager.h"
 
+#include <TFile.h>
+#include <TFileMerger.h>
+
 #include <filesystem>
 #include <stdexcept>
 #include <thread>
-
-#include <TFile.h>
-#include <TFileMerger.h>
 
 #include "TRestAnalysisPlot.h"
 #include "TRestLogManager.h"
@@ -89,11 +89,10 @@ void TRestManager::Run() {
             "an outputFileName");
     }
 
-    if(!fileExists(fRunInfo->GetInputFileName())){
-        throw std::runtime_error(
-            "TRestManager::Run - input file "+fRunInfo->GetInputFileName()+ " not found");
+    if (!fileExists(fRunInfo->GetInputFileName())) {
+        throw std::runtime_error("TRestManager::Run - input file " + fRunInfo->GetInputFileName() +
+                                 " not found");
     }
-
 
     fProcessManager->SetManager(this);
 
@@ -122,15 +121,16 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     }
 
     if (totalEntries <= 0) {
-        RESTError << "TRestManager::RunMultithreaded: cannot determine the number of entries to run, falling back to single-thread." << RESTendl;
+        RESTError << "TRestManager::RunMultithreaded: cannot determine the number of entries to run, falling "
+                     "back to single-thread."
+                  << RESTendl;
         fProcessManager->Run();
         return;
     }
 
     auto [runKeyOrig, runNodeOrig] = TRestTools::GetMetadataClass(fNode, "TRestRun");
     if (runNodeOrig && !runNodeOrig.IsNull()) {
-        TRestTools::OverrideYAMLParam(runNodeOrig, "runNumber",
-                                      std::to_string(fRunInfo->GetRunNumber()));
+        TRestTools::OverrideYAMLParam(runNodeOrig, "runNumber", std::to_string(fRunInfo->GetRunNumber()));
     }
 
     const std::string baseOutput = fRunInfo->GetOutputFileName();
@@ -189,7 +189,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     if (nullOutput) return;
 
     TFileMerger merger(kFALSE);
-    merger.SetFastMethod(kFALSE); 
+    merger.SetFastMethod(kFALSE);
 
     merger.SetMergeOptions(TString("no-fast unbosom"));
     merger.OutputFile(baseOutput.c_str(), "RECREATE");
@@ -201,12 +201,11 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
 
     fRunInfo->OpenOutputFile(baseOutput, "UPDATE");
 
-    if (StopRequested()){
-      RESTError<<"TRestManager::RunMultithreaded: Stop requested, output file may be cropped"<<RESTendl;
+    if (StopRequested()) {
+        RESTError << "TRestManager::RunMultithreaded: Stop requested, output file may be cropped" << RESTendl;
     }
 
-    RESTLog << "TRestManager: " << nThreads << " file merged in " << baseOutput
-            << RESTendl;
+    RESTLog << "TRestManager: " << nThreads << " file merged in " << baseOutput << RESTendl;
 }
 
 void TRestManager::SaveMetadata() {

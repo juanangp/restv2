@@ -37,11 +37,11 @@
 #include <stdexcept>
 
 #include "TRestConstants.h"
-#include "TRestDetectorHitsEvent.h"
 #include "TRestDetectorDrift.h"
+#include "TRestDetectorHitsEvent.h"
 #include "TRestDetectorReadout.h"
-#include "TRestDetectorSignalEvent.h"
 #include "TRestDetectorReadoutManager.h"
+#include "TRestDetectorSignalEvent.h"
 #include "TRestManager.h"
 #include "TRestPulseShapeAnalysis.h"
 
@@ -245,10 +245,9 @@ bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRe
             if (hit.first >= 0 && hit.second > 0) hits.push_back(hit);  // fits return -1 on failure
         }
 
-        const auto [driftOffset, driftSlope] = fDriftVelocity > 0
-                                                   ? GetDriftLine(*fReadout, daqID, channelPos, fAxis,
-                                                                  fDriftDirection)
-                                                   : std::pair<double, double>{0, 0};
+        const auto [driftOffset, driftSlope] =
+            fDriftVelocity > 0 ? GetDriftLine(*fReadout, daqID, channelPos, fAxis, fDriftDirection)
+                               : std::pair<double, double>{0, 0};
         for (const auto& [time, energy] : hits) {
             auto position = channelPos;
             if (fDriftVelocity > 0) {

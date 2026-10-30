@@ -18,7 +18,7 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
     double fADCGain = 1;    //!
     double fADCOffset = 0;  //!
     /// Observables
-    double fTriggerTime = 0;    //!
+    double fTriggerTime = 0;     //!
     int fNSaturatedSignals = 0;  //!
 
     /// \brief Trigger time of the event (see the class description). Returns false if there is none

@@ -1,13 +1,13 @@
 #include "TRestRawFemDAQToSignalProcess.h"
 
 #include <TFile.h>
-#include <TTree.h>
-#include "TRestRawSignalEvent.h"
-#include "TRestRun.h"
-
 #include <TObjString.h>
+#include <TTree.h>
 
 #include <iostream>
+
+#include "TRestRawSignalEvent.h"
+#include "TRestRun.h"
 
 using namespace std;
 

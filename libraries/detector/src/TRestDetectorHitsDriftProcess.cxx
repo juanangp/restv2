@@ -128,7 +128,6 @@ void TRestDetectorHitsDriftProcess::InitProcess() {
 }
 
 bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
-    
     const auto* inputEvent = dynamic_cast<const TRestDetectorHitsEvent*>(&input);
     auto* outputEvent = dynamic_cast<TRestDetectorHitsEvent*>(&output);
     if (!inputEvent || !outputEvent) {

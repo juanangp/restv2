@@ -16,16 +16,13 @@
 ///
 ///_______________________________________________________________________________
 
-
-#include "TRestEvent.h"
 #include "TRestEventViewer.h"
 
-#include <TPad.h>
-#include <TCanvas.h>
 #include <TBrowser.h>
+#include <TCanvas.h>
+#include <TPad.h>
 
-
-
+#include "TRestEvent.h"
 
 using namespace std;
 

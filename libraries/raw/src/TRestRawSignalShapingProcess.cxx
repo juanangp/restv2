@@ -1,11 +1,13 @@
 #include "TRestRawSignalShapingProcess.h"
-#include "TRestRawSignalEvent.h"
-#include "TRestPulseShapeAnalysis.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+
+#include "TRestPulseShapeAnalysis.h"
+#include "TRestRawSignalEvent.h"
 
 static const bool TRestRawSignalShapingProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -15,7 +17,7 @@ static const bool TRestRawSignalShapingProcess_FieldsRegistered = []() {
                                                     &TRestRawSignalShapingProcess::fShapingTime);
     reg.RegisterField<TRestRawSignalShapingProcess>("gain", &TRestRawSignalShapingProcess::fShapingGain);
     reg.RegisterField<TRestRawSignalShapingProcess>("baselineRange",
-                                                &TRestRawSignalShapingProcess::fBaselineRange);
+                                                    &TRestRawSignalShapingProcess::fBaselineRange);
     return true;
 }();
 
@@ -69,7 +71,6 @@ void TRestRawSignalShapingProcess::InitProcess() {
     }
 }
 
-
 bool TRestRawSignalShapingProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
     const auto* inEvent = dynamic_cast<const TRestRawSignalEvent*>(&input);
     auto* outEvent = dynamic_cast<TRestRawSignalEvent*>(&output);
@@ -94,7 +95,7 @@ bool TRestRawSignalShapingProcess::ProcessEvent(const TRestEvent& input, TRestEv
         std::vector<double> centered(data.begin(), data.end());
         if (useBaseline) {
             TRestPulseShapeAnalysis::GetBaselineSigma(data, fBaselineRange.first, fBaselineRange.second,
-                                                  baseline, sigma);
+                                                      baseline, sigma);
             for (double& v : centered) v -= baseline;
         }
 

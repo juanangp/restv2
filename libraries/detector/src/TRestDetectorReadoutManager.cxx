@@ -1,14 +1,12 @@
 #include "TRestDetectorReadoutManager.h"
 
-
-#include "TRestDetectorReadout.h"
-#include "TRestRun.h"
-#include "TRestTools.h"
-
 #include <algorithm>
 #include <iostream>
 
 #include "TFile.h"
+#include "TRestDetectorReadout.h"
+#include "TRestRun.h"
+#include "TRestTools.h"
 
 // Anonymous namespace to avoid global name pollution during compilation
 namespace {
@@ -36,12 +34,10 @@ static const bool TRestReadoutInfo_FieldsRegistered = []() {
     return true;
 }();
 
-TRestReadoutInfo::TRestReadoutInfo() : TRestMetadata() {
-    fName = "TRestReadoutInfo";
-}
+TRestReadoutInfo::TRestReadoutInfo() : TRestMetadata() { fName = "TRestReadoutInfo"; }
 
-TRestReadoutInfo::TRestReadoutInfo(
-    const std::string& name, const YAML::Node& node) : TRestMetadata(name, node) {
+TRestReadoutInfo::TRestReadoutInfo(const std::string& name, const YAML::Node& node)
+    : TRestMetadata(name, node) {
     LoadConfig();
 }
 
@@ -51,14 +47,18 @@ void TRestReadoutInfo::LoadConfig() {
 }
 
 /// \brief Constructs a generic readout metadata object with default name.
-TRestDetectorReadoutManager::TRestDetectorReadoutManager() : TRestMetadata() { fName = "TRestDetectorReadoutManager"; }
+TRestDetectorReadoutManager::TRestDetectorReadoutManager() : TRestMetadata() {
+    fName = "TRestDetectorReadoutManager";
+}
 
-TRestDetectorReadoutManager::TRestDetectorReadoutManager(const std::string& instanceName, const YAML::Node& node)
+TRestDetectorReadoutManager::TRestDetectorReadoutManager(const std::string& instanceName,
+                                                         const YAML::Node& node)
     : TRestMetadata(instanceName, node) {
     LoadConfig();
 }
 
-TRestDetectorReadoutManager::TRestDetectorReadoutManager(const std::string& fileName, const std::string& sectionName)
+TRestDetectorReadoutManager::TRestDetectorReadoutManager(const std::string& fileName,
+                                                         const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
     LoadConfig();
 }
@@ -82,7 +82,6 @@ void TRestDetectorReadoutManager::LoadConfig() {
 /// \brief Phase 2: Initialize (automatic selective import execution).
 // =========================================================================
 void TRestDetectorReadoutManager::LoadReadout() {
-
     for (auto& [name, ptr] : fReadoutMap) {
         delete ptr;
     }
@@ -102,7 +101,8 @@ void TRestDetectorReadoutManager::LoadReadout() {
             }
         } else {
             if (!TRestTools::isRootFile(readoutInfo.fInputFileName)) {
-                RESTError << "Input file " << readoutInfo.fInputFileName << " not found, readout will not be loaded" << RESTendl;
+                RESTError << "Input file " << readoutInfo.fInputFileName
+                          << " not found, readout will not be loaded" << RESTendl;
                 continue;
             }
 
@@ -116,7 +116,8 @@ void TRestDetectorReadoutManager::LoadReadout() {
 
         auto yamlConfig = TRestMetadata::ReadMetadata(fIn, readoutInfo.fInstanceName);
         if (!yamlConfig) {
-            RESTError << "Metadata instance " << readoutInfo.fInstanceName << " not found in file " << readoutInfo.fInputFileName << RESTendl;
+            RESTError << "Metadata instance " << readoutInfo.fInstanceName << " not found in file "
+                      << readoutInfo.fInputFileName << RESTendl;
             continue;
         }
 
@@ -135,8 +136,8 @@ void TRestDetectorReadoutManager::LoadReadout() {
             RESTError << "Cannot cast metadata to TRestDetectorReadout." << RESTendl;
             continue;
         }
-        
-        metadata.release(); 
+
+        metadata.release();
 
         // The decoding name is the one given to Export when the readout file was written
         const std::string& decodingName = readoutInfo.fDecodingName;
@@ -147,15 +148,15 @@ void TRestDetectorReadoutManager::LoadReadout() {
                 available += " '" + name + "'";
             }
             RESTError << "Decoding '" << decodingName << "' of readout '" << readoutInfo.fInstanceName
-                      << "' (or its geometry) not found in " << readoutInfo.fInputFileName << ". Available:" << available
-                      << RESTendl;
+                      << "' (or its geometry) not found in " << readoutInfo.fInputFileName
+                      << ". Available:" << available << RESTendl;
             continue;
         }
 
         fReadoutMap[readoutInfo.fInstanceName] = readout.release();
         RESTInfo << "Successfully imported readout instance '" << readoutInfo.fInstanceName
                  << "' with decoding '" << decodingName << "'" << RESTendl;
-                 
+
         fReadoutMap[readoutInfo.fInstanceName]->PrintMetadata();
     }
 }
@@ -187,12 +188,10 @@ void TRestDetectorReadoutManager::WriteMetadata(TFile* file) {
     TRestMetadata::WriteMetadata(file, fName, node);
 }
 
-void TRestDetectorReadoutManager::ListReadouts(){
-
-  for (auto& [name, ptr] : fReadoutMap) {
-        std::cout<<name<<" "<<ptr->GetClassName()<<std::endl;
+void TRestDetectorReadoutManager::ListReadouts() {
+    for (auto& [name, ptr] : fReadoutMap) {
+        std::cout << name << " " << ptr->GetClassName() << std::endl;
     }
-
 }
 
 TRestDetectorReadout* TRestDetectorReadoutManager::GetReadout(const std::string& name) const {

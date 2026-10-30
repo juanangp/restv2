@@ -259,7 +259,7 @@ class TRestGeant4Metadata : public TRestMetadata {
     inline int isBiasingActive() const { return static_cast<int>(fBiasingVolumes.size()); }
 
     // --- Sensitive Volumes Management ---
-    inline std::string GetSensitiveVolume(int n ) const { return fSensitiveVolumes.at(n); }
+    inline std::string GetSensitiveVolume(int n) const { return fSensitiveVolumes.at(n); }
     inline size_t GetNumberOfSensitiveVolumes() const { return fSensitiveVolumes.size(); }
     inline const std::vector<std::string>& GetSensitiveVolumes() const { return fSensitiveVolumes; }
     /// \brief The `name` (expression) of each sensitive entry of `activeVolumes`, as written in the YAML
@@ -277,7 +277,10 @@ class TRestGeant4Metadata : public TRestMetadata {
         }
     }
 
-    bool IsSensitiveVolume( const std::string &volumeName ) { return std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), volumeName) != fSensitiveVolumes.end();}
+    bool IsSensitiveVolume(const std::string& volumeName) {
+        return std::find(fSensitiveVolumes.begin(), fSensitiveVolumes.end(), volumeName) !=
+               fSensitiveVolumes.end();
+    }
 
     // --- Fast Lookup and Modernized Volume Properties ---
     inline unsigned int GetNumberOfActiveVolumes() const {

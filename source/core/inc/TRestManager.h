@@ -48,7 +48,8 @@ class TRestManager : public TRestMetadata {
         return nullptr;
     }
 
-    /// \brief Metadata objects of class T or derived from it (e.g. all the drift media), in declaration order.
+    /// \brief Metadata objects of class T or derived from it (e.g. all the drift media), in declaration
+    /// order.
     template <class T>
     std::vector<T*> GetMetadataOfType() const {
         std::vector<T*> result;

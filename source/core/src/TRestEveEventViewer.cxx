@@ -13,28 +13,28 @@
 ///_______________________________________________________________________________
 
 #include "TRestEveEventViewer.h"
-#include "TRestTools.h"
-#include "TRestLogManager.h"
 
-#include <map>
-#include <TString.h>
-#include <TGeoManager.h>
-
-#include <TEveManager.h>
 #include <TEveBrowser.h>
-#include <TEveWindow.h>
 #include <TEveEventManager.h>
-#include <TEveViewer.h>
-#include <TEveScene.h>
-#include <TEveProjectionManager.h>
-#include <TEvePointSet.h>
 #include <TEveGeoNode.h>
-#include <TGTab.h>
+#include <TEveManager.h>
+#include <TEvePointSet.h>
 #include <TEveProjectionAxes.h>
-
-#include <TGLViewer.h>
+#include <TEveProjectionManager.h>
+#include <TEveScene.h>
+#include <TEveViewer.h>
+#include <TEveWindow.h>
 #include <TGLRnrCtx.h>
 #include <TGLUtil.h>
+#include <TGLViewer.h>
+#include <TGTab.h>
+#include <TGeoManager.h>
+#include <TString.h>
+
+#include <map>
+
+#include "TRestLogManager.h"
+#include "TRestTools.h"
 
 using namespace std;
 using namespace TRestTools;

@@ -77,7 +77,7 @@ class TRestGeant4AnalysisProcess : public TRestEventProcess {
         double meanPosX = 0, meanPosY = 0, meanPosZ = 0;
         double firstHitTime = 0;
         int nTracks = 0;
-        std::vector<double> splitEnergy;  ///< One per splitParticles
+        std::vector<double> splitEnergy;   ///< One per splitParticles
         std::vector<size_t> trackIndices;  ///< Tracks with energy in the selection, for the entering one
         EnteringObservables enteringObs;
     };

@@ -50,6 +50,12 @@ class TRestDetectorSignalPeaksFinderProcess : public TRestEventProcess {
     /// Maximum number of points of the moving average window greater or equal than a peak
     int fMaxGreaterEqual = 3;
 
+    /// Moves the peak to the highest smoothed point within distance after it (false for legacy vetoes)
+    bool fRefineMaximum = true;
+
+    /// The peak amplitude is the average of the points within this number of points of the peak
+    int fAmplitudeHalfWindow = 1;
+
     /// A coincidence window starts at the earliest peak not yet in a window and contains all the peaks up to
     TRestWithUnits fWindow = 1; //us
 

@@ -27,14 +27,21 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     int fCharge = 0;
     /// Decay0 file, instead of the particle, energy and angular
     std::string fUse;
+    /// `energy` and `angular` sections, of the distribution class of their `type`
+    std::unique_ptr<TRestGeant4EnergyDistribution> fEnergy;    //!
+    std::unique_ptr<TRestGeant4AngularDistribution> fAngular;  //!
 
+    /// Only movable: a copy (with its own distributions) is made with Clone
     TRestGeant4ParticleSource() = default;
     TRestGeant4ParticleSource(const std::string& name, const YAML::Node& node);
+    TRestGeant4ParticleSource(TRestGeant4ParticleSource&&) = default;
+    TRestGeant4ParticleSource& operator=(TRestGeant4ParticleSource&&) = default;
     void LoadConfig() override;
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestGeant4ParticleSource"; }
 
-    /// \brief A copy with its own distributions not loaded yet (LoadDistributions), for a thread
+    /// \brief A copy with its own distributions not loaded yet (LoadDistributions), e.g. for a thread: built
+    /// again from its section, which has the values used. The Decay0 events are shared
     TRestGeant4ParticleSource Clone() const;
 
     /// \brief Builds the formulas and reads the histograms and the Decay0 file, needed only to sample
@@ -50,15 +57,12 @@ class TRestGeant4ParticleSource : public TRestMetadata {
     inline const TRestGeant4AngularDistribution* GetAngularDistribution() const { return fAngular.get(); }
 
    private:
-    std::shared_ptr<TRestGeant4EnergyDistribution> fEnergy;    //!
-    std::shared_ptr<TRestGeant4AngularDistribution> fAngular;  //!
-
     /// Energy and angle sampled together (formula2, TH2D, cosmic)
     std::string fJointType;                  //!
     std::string fJointFormula;               //! formula2
     std::string fJointFile, fJointName;      //! TH2D and cosmic (histogram name)
-    std::shared_ptr<TF2> fJointFunction;     //!
-    std::shared_ptr<TH2D> fJointHistogram;   //!
+    std::unique_ptr<TF2> fJointFunction;     //!
+    std::unique_ptr<TH2D> fJointHistogram;   //!
     double fJointEnergyUnit = 1;             //!
     double fJointAngleUnit = 1;              //!
 

@@ -8,6 +8,7 @@ static const bool TRestGeant4PrimaryGeneratorInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>(
         "spatialDensityFunction", &TRestGeant4PrimaryGeneratorInfo::fSpatialDensityFunction);
+    reg.RegisterField<TRestGeant4PrimaryGeneratorInfo>("source", &TRestGeant4PrimaryGeneratorInfo::fSources);
     return true;
 }();
 
@@ -16,23 +17,38 @@ TRestGeant4PrimaryGeneratorInfo::TRestGeant4PrimaryGeneratorInfo(const string& n
     LoadConfig();
 }
 
+TRestGeant4PrimaryGeneratorInfo::TRestGeant4PrimaryGeneratorInfo(const TRestGeant4PrimaryGeneratorInfo& other)
+    : TRestMetadata(other) {
+    CopyGenerator(other);
+}
+
+TRestGeant4PrimaryGeneratorInfo& TRestGeant4PrimaryGeneratorInfo::operator=(
+    const TRestGeant4PrimaryGeneratorInfo& other) {
+    if (this != &other) {
+        TRestMetadata::operator=(other);
+        CopyGenerator(other);
+    }
+    return *this;
+}
+
+void TRestGeant4PrimaryGeneratorInfo::CopyGenerator(const TRestGeant4PrimaryGeneratorInfo& other) {
+    // Its own section: writing the copy must not modify the section of the original (nor its sources)
+    fNode = YAML::Clone(other.fNode);
+    fSpatialDensityFunction = other.fSpatialDensityFunction;
+    fSources.clear();
+    for (const auto& source : other.fSources) fSources.push_back(source.Clone());
+    // Not rebuilt from the section: SetGdmlPlacement and SetCosmicRadius modify it
+    fSpatialGenerator = other.fSpatialGenerator ? other.fSpatialGenerator->Clone() : nullptr;
+}
+
 void TRestGeant4PrimaryGeneratorInfo::LoadConfig() {
+    // The sources (`source`, one or a list) are a registered field
+    fSources.clear();
     UpdateParamsFromYAML<TRestGeant4PrimaryGeneratorInfo>(fNode);
 
     // The spatial generator reads its fields (type, from, shape...) from the generator section itself
     fSpatialGenerator = TRestGeant4SpatialGenerator::Create("generator", fNode);
 
-    // The sources are created here, not as a registered field, so their errors are not ignored; they
-    // keep a handle to their section, so what they write is stored with the generator
-    fSources.clear();
-    const YAML::Node& node = fNode;
-    if (!node["source"]) throw runtime_error(GetClassName() + ": no 'source' in the generator");
-    YAML::Node sources = fNode["source"];
-    if (sources.IsSequence()) {
-        for (auto source : sources) fSources.emplace_back("source", source);
-    } else {
-        fSources.emplace_back("source", sources);
-    }
     if (fSources.empty()) throw runtime_error(GetClassName() + ": no 'source' in the generator");
 
     if (!fSpatialDensityFunction.empty() &&
@@ -46,6 +62,10 @@ void TRestGeant4PrimaryGeneratorInfo::LoadConfig() {
     }
 
     UpdateYAMLFromParams<TRestGeant4PrimaryGeneratorInfo>(fNode);
+}
+
+std::set<std::string> TRestGeant4PrimaryGeneratorInfo::GetSharedNodeKeys() const {
+    return TRestMetadataFieldRegistry::Instance().GetFieldKeys(fSpatialGenerator.get());
 }
 
 void TRestGeant4PrimaryGeneratorInfo::LoadDistributions() {

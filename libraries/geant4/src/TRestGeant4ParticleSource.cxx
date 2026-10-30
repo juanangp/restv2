@@ -22,6 +22,8 @@ static const bool TRestGeant4ParticleSource_FieldsRegistered = []() {
     reg.RegisterField<Source>("excitedLevel", &Source::fExcitedLevel);
     reg.RegisterField<Source>("charge", &Source::fCharge);
     reg.RegisterField<Source>("use", &Source::fUse);
+    reg.RegisterFactoryField<Source>("energy", &Source::fEnergy, &TRestGeant4EnergyDistribution::Create);
+    reg.RegisterFactoryField<Source>("angular", &Source::fAngular, &TRestGeant4AngularDistribution::Create);
     return true;
 }();
 
@@ -105,22 +107,21 @@ TRestGeant4ParticleSource::TRestGeant4ParticleSource(const string& name, const Y
 }
 
 void TRestGeant4ParticleSource::LoadConfig() {
+    // The distributions keep a handle to their section, so what they write is stored with the source
+    fEnergy.reset();
+    fAngular.reset();
     UpdateParamsFromYAML<TRestGeant4ParticleSource>(fNode);
 
-    const YAML::Node& node = fNode;
     if (IsDecay0()) {
-        if (!fParticleName.empty() || node["energy"] || node["angular"]) {
+        if (!fParticleName.empty() || fEnergy || fAngular) {
             throw runtime_error(GetClassName() +
                                 ": a Decay0 source ('use') gives the particles, it cannot have 'particle', "
                                 "'energy' or 'angular'");
         }
     } else {
-        if (!node["energy"] || !node["angular"]) {
+        if (!fEnergy || !fAngular) {
             throw runtime_error(GetClassName() + ": 'energy' and 'angular' are needed");
         }
-        // The distributions keep a handle to their section, so what they write is stored with the source
-        fEnergy = TRestGeant4EnergyDistribution::Create("energy", fNode["energy"]);
-        fAngular = TRestGeant4AngularDistribution::Create("angular", fNode["angular"]);
         if (fEnergy->IsJoint() || fAngular->IsJoint()) CheckJoint();
         if (fParticleName.empty()) throw runtime_error(GetClassName() + ": 'particle' is needed");
     }
@@ -165,11 +166,8 @@ void TRestGeant4ParticleSource::CheckJoint() {
 }
 
 TRestGeant4ParticleSource TRestGeant4ParticleSource::Clone() const {
-    TRestGeant4ParticleSource copy(*this);
-    if (fEnergy) copy.fEnergy = fEnergy->Clone();
-    if (fAngular) copy.fAngular = fAngular->Clone();
-    copy.fJointFunction.reset();
-    copy.fJointHistogram.reset();
+    TRestGeant4ParticleSource copy(GetName(), YAML::Clone(fNode));
+    copy.fDecay0Events = fDecay0Events;
     return copy;
 }
 
@@ -196,7 +194,7 @@ void TRestGeant4ParticleSource::LoadJointDistribution() {
 
     if (fJointType == "formula2") {
         // Energy in keV and angle in rad
-        fJointFunction = make_shared<TF2>(EnergyAndAngularDistributionFormulasToRootFormula(
+        fJointFunction = make_unique<TF2>(EnergyAndAngularDistributionFormulasToRootFormula(
             StringToEnergyAndAngularDistributionFormulas(fJointFormula)));
         const double energyMin = std::max<double>(energyRange.first, fJointFunction->GetXmin());
         const double energyMax = std::min<double>(energyRange.second, fJointFunction->GetXmax());

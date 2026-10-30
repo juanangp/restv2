@@ -28,6 +28,8 @@ class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
     Double_t fEndTimestamp = 0;
 
    public:
+    /// FEMDAQ file to read, the input file of the run if not given
+    std::string fInputFileName;
     bool fUseFeminosDaqRunInfo = true;
     bool fSetRunStartEndFromEvents = false;
 

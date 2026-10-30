@@ -57,7 +57,6 @@ TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& instanceName
 
 void TRestGeant4PhysicsLists::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4PhysicsLists>(fNode);
-    ReadYAMLVerbose(fNode);
     UpdateYAMLFromParams<TRestGeant4PhysicsLists>(fNode);
 }
 

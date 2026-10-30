@@ -19,6 +19,8 @@ std::atomic<bool> TRestManager::fStopRequested{false};
 
 namespace {
 const bool kRegistered = []() {
+    // The metadata of the manager (run, pipeline, readouts...)
+    TRestMetadataFieldRegistry::Instance().RegisterChildMetadata<TRestManager>();
     MetadataClassRegistry::Instance().Register(
         "TRestManager", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestManager>(instanceName, params);
@@ -48,7 +50,7 @@ void TRestManager::LoadConfig() {
 
         if (!value || value.IsScalar() || !value.IsMap()) continue;
 
-        auto meta = MetadataClassRegistry::Instance().Create(key, value);
+        auto meta = CreateChildMetadata(key, value);
         if (!meta) continue;
 
         if (auto* processManager = dynamic_cast<TRestProcessManager*>(meta.get())) {
@@ -81,6 +83,12 @@ void TRestManager::Run() {
             "TRestManager::Run - no TRestProcessManager configured under manager section.");
     }
 
+    if (fRunInfo->HasNullOutput() && !GetMetadataOfType<TRestAnalysisPlot>().empty()) {
+        throw std::runtime_error(
+            "TRestManager::Run - the plots are made with the output of the pipeline: the TRestRun needs "
+            "an outputFileName");
+    }
+
     if(!fileExists(fRunInfo->GetInputFileName())){
         throw std::runtime_error(
             "TRestManager::Run - input file "+fRunInfo->GetInputFileName()+ " not found");
@@ -94,6 +102,10 @@ void TRestManager::Run() {
         RunMultithreaded(nThreads);
     } else {
         fProcessManager->Run();
+    }
+
+    if (fRunInfo->HasNullOutput()) {
+        RESTError << "TRestManager: no outputFileName in the TRestRun, nothing has been saved" << RESTendl;
     }
 }
 
@@ -122,6 +134,8 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     }
 
     const std::string baseOutput = fRunInfo->GetOutputFileName();
+    // Without output (/dev/null) the threads do not write either, and there is nothing to merge
+    const bool nullOutput = fRunInfo->HasNullOutput();
     std::filesystem::path outPath(baseOutput);
     const std::string stem = outPath.stem().string();
     const std::string ext = outPath.extension().string();
@@ -138,6 +152,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
 
     for (unsigned int t = 0; t < nThreads; ++t) {
         threadOutputs[t] = (dir.empty() ? "" : dir + "/") + stem + ".thread" + std::to_string(t) + ext;
+        if (nullOutput) threadOutputs[t] = baseOutput;
 
         workers.emplace_back([this, t, &ranges, &threadOutputs] {
             YAML::Node threadManagerNode = YAML::Clone(fNode);
@@ -170,6 +185,8 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     }
 
     for (auto& w : workers) w.join();
+
+    if (nullOutput) return;
 
     TFileMerger merger(kFALSE);
     merger.SetFastMethod(kFALSE); 
@@ -216,27 +233,10 @@ void TRestManager::RunPlots() {
     if (fRunInfo == nullptr) {
         throw std::runtime_error("TRestManager::RunPlots - no TRestRun configured under manager section.");
     }
-    // The output of the pipeline if there is one (read and then updated), otherwise the input of the run
-    std::string fileName = fRunInfo->GetInputFileName();
-    std::string outputFileName = fRunInfo->GetOutputFileName();
-    if (outputFileName == "Null") outputFileName.clear();
-    const bool pipelineOutput = fRunInfo->HasOutputFileOpen();
-    if (pipelineOutput) {
-        fileName = outputFileName;
-        fRunInfo->CloseFiles();
-    } else if (!outputFileName.empty()) {
-        // The input file itself (e.g. same pattern and inheritInputRun) is updated, keeping its run
-        std::error_code error;
-        const bool inputFile = std::filesystem::equivalent(fileName, outputFileName, error);
-        fRunInfo->CloseFiles();
-        // Otherwise a new file of plots; both with the metadata of the manager (as the pipeline output)
-        std::unique_ptr<TFile> file(TFile::Open(outputFileName.c_str(), inputFile ? "UPDATE" : "RECREATE"));
-        if (!file || file->IsZombie()) {
-            throw std::runtime_error("TRestManager::RunPlots - cannot open " + outputFileName);
-        }
-        for (const auto& meta : fMetaObjects) {
-            if (!inputFile || meta.get() != fRunInfo) meta->WriteMetadata(file.get());
-        }
-    }
-    for (auto* plot : plots) plot->PlotCombinedCanvas(fileName, outputFileName, this);
+    // The output of the pipeline if there is one, otherwise the input of the run; closed, so the plots
+    // can update it (outputFileName of each plot)
+    const std::string fileName =
+        fProcessManager ? fRunInfo->GetOutputFileName() : fRunInfo->GetInputFileName();
+    fRunInfo->CloseFiles();
+    for (auto* plot : plots) plot->PlotCombinedCanvas(fileName, this);
 }

@@ -89,6 +89,9 @@ class TRestAnalysisPlot : public TRestMetadata {
     std::vector<std::string> fCutNames = {};
     /// Image of the combined canvas (pdf, png...), {expression} are replaced. Empty: not saved
     std::string fSave = "";
+    /// ROOT file of the canvas and the histograms, [parameter] of the run and {expression} are replaced.
+    /// A data file (with analysis tree) is updated, otherwise it is created. Empty: not written
+    std::string fOutputFileName = "";
     /// If true the canvas is shown, and saved when Enter is pressed (it can be modified before)
     bool fPreviewPlot = true;
     int fPaletteStyle = 57;
@@ -97,6 +100,9 @@ class TRestAnalysisPlot : public TRestMetadata {
     std::vector<double> fCanvasDivisionMargins = {0.01, 0.01};
     /// Legend box (x1, y1, x2, y2) in pad coordinates
     std::vector<double> fLegendPosition = {0.7, 0.75, 0.88, 0.88};
+    /// `panels` and `plots` as written, read by ReadPanels and ReadPlots
+    YAML::Node fPanelsConfig;
+    YAML::Node fPlotsConfig;
 
     TRestAnalysisPlot();
     TRestAnalysisPlot(const std::string& instanceName, const YAML::Node& node);
@@ -110,11 +116,9 @@ class TRestAnalysisPlot : public TRestMetadata {
 
     /// \brief Draws (and saves) the combined canvas with the analysis trees of the files.
     /// \param fileName ROOT file or pattern of files (e.g. R*_ANA.root).
-    /// \param outputFileName ROOT file (the output of the run) where the canvas and the histograms are
-    /// written. Empty: not written.
-    /// \param manager Manager with the TRestCut used (needed only if there are cuts).
-    void PlotCombinedCanvas(const std::string& fileName, const std::string& outputFileName = "",
-                            const TRestManager* manager = nullptr);
+    /// \param manager Manager with the TRestCut used (needed only if there are cuts); its metadata are
+    /// written in a new outputFileName. The [parameter] of outputFileName are those of the run (fRunInfo).
+    void PlotCombinedCanvas(const std::string& fileName, const TRestManager* manager = nullptr);
 
     TCanvas* GetCanvas() const { return fCanvas; }
 };

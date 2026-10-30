@@ -50,8 +50,6 @@ class TRestGeant4ActiveVolumeMetadata : public TRestMetadata {
 
 /// \brief The main class to store the *Geant4* simulation conditions that will be used by *restG4*.
 class TRestGeant4Metadata : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestGeant4Metadata)
-
    public:
     /// Defines if metadata is the result of a merge of other metadata
     bool fIsMerge = false;

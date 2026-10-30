@@ -69,6 +69,12 @@ std::vector<float> CalculateBaselineAndSigmaExcludeOutliers(const std::vector<T>
 template <typename T>
 double GetAverage(const std::vector<T>& signal, int startBin, int endBin);
 
+/// \brief Moving average of 2 * halfWindow + 1 points, shrunk at the edges to the existing points
+template <typename T>
+std::vector<double> GetMovingAverage(const std::vector<T>& values, int halfWindow);
+
+/// \brief Moving average of averagingPoints (made odd) points; the points closer than half of them to the
+/// edges take the average of the closest full window
 template <typename T>
 std::vector<float> GetSignalSmoothed(const std::vector<T>& signal, int averagingPoints = 3);
 
@@ -113,14 +119,17 @@ double GetMaxPeakWidth(const std::vector<T>& signal);
 /// \brief Finds all the peaks of a baseline subtracted signal given as (time, value) points sorted in time,
 /// e.g. TRestDetectorSignal::GetPointsVector. A point of the signal smoothed with a moving average of
 /// 2 * halfWindow + 1 consecutive points is a peak candidate if it is over threshold and at most
-/// maxGreaterEqual of the other points of that window are greater or equal. The peak is the highest
-/// smoothed point within `distance` (time units) after the candidate, and the next peak must be at least
-/// `distance` after it. Returns (time, amplitude) pairs, with the amplitude as the average of the peak
-/// point and its neighbours. The legacy TRestRawPeaksFinderProcess used halfWindow = 5, maxGreaterEqual = 3
-/// for TPC signals and halfWindow = 2, maxGreaterEqual = 0 for veto signals.
+/// maxGreaterEqual of the other points of that window are greater or equal. With refineMaximum the peak is
+/// the highest smoothed point within `distance` (time units) after the candidate (on flat tops the candidate
+/// is at the left of the maximum), otherwise the candidate itself; the next peak must be at least `distance`
+/// after it. Returns (time, amplitude) pairs, with the amplitude as the average of the (not smoothed) points
+/// within amplitudeHalfWindow of the peak (0: the peak point alone). The legacy TRestRawPeaksFinderProcess
+/// used the defaults for TPC signals (TRestRawSignal::GetPeaks) and halfWindow = 2, maxGreaterEqual = 0,
+/// refineMaximum = false, amplitudeHalfWindow = 0 for veto signals (TRestRawSignal::GetPeaksVeto).
 std::vector<std::pair<double, double>> GetPeaks(const std::vector<std::pair<double, double>>& points,
                                                 double threshold, double distance, int halfWindow = 5,
-                                                int maxGreaterEqual = 3);
+                                                int maxGreaterEqual = 3, bool refineMaximum = true,
+                                                int amplitudeHalfWindow = 1);
 
 template <typename T>
 double GetSlopeIntegral(const std::vector<std::pair<T, float>>& signal);

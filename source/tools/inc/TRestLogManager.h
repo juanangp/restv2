@@ -5,7 +5,9 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -104,22 +106,15 @@ class TRestLogManager {
 
     static inline std::string GetStringFromVerbose(REST_Verbose_Level vLevel) {
         auto it = inverseVerboseMap.find(vLevel);
-        if (it != inverseVerboseMap.end()) {
-            return it->second;
-        } else {
-            std::cout << "ERROR verbose level " << (int)vLevel << " not found" << std::endl;
-        }
-        return GetStringFromVerbose(globalVerboseLevel);
+        if (it != inverseVerboseMap.end()) return it->second;
+        throw std::invalid_argument("unknown verbose level " + std::to_string(static_cast<int>(vLevel)));
     }
 
+    /// \brief Level of a verbose string (silent, error, warning, info or debug), throws if unknown
     static inline REST_Verbose_Level GetVerboseLevelFromString(const std::string& vStr) {
         auto it = verboseMap.find(vStr);
-        if (it != verboseMap.end()) {
-            return it->second;
-        } else {
-            std::cout << "ERROR verbose string " << vStr << " not found" << std::endl;
-        }
-        return globalVerboseLevel;
+        if (it != verboseMap.end()) return it->second;
+        throw std::invalid_argument("unknown verbose '" + vStr + "' (silent, error, warning, info or debug)");
     }
 
     static TRestLogManager& instance() {
@@ -127,32 +122,24 @@ class TRestLogManager {
         return mgr;
     }
 
-    void inline SetLevel(const std::string& className, REST_Verbose_Level lvl) {
-        classLevels[className] = lvl;
-    }
-
-    REST_Verbose_Level GetVerboseLevel(const std::string& className) const {
-        auto it = classLevels.find(className);
-        if (it != classLevels.end()) {
-            return it->second;
-        }
-        return globalVerboseLevel;
-    }
-
     void SetLogFile(const std::string& filename) {
+        std::lock_guard<std::mutex> lock(fMutex);
         if (logFile.is_open()) logFile.close();
         logFile.open(filename, std::ios::out | std::ios::app);
     }
 
-    std::ofstream& GetLogFile() { return logFile; }
-    bool hasFile() const { return logFile.is_open(); }
+    /// \brief Writes a message to the console (with color) and to the log file if any, from any thread
+    void Write(const std::string_view& color, const std::string& prefix, const std::string& name,
+               const std::string& msg);
 
+    /// \brief Verbose level of the messages written outside a metadata, and of the metadata without
+    /// `verbose`
     static inline REST_Verbose_Level globalVerboseLevel = REST_Verbose_Level::REST_Info;
     static inline void setGlobalVerboseLevel(REST_Verbose_Level lvl) { globalVerboseLevel = lvl; }
 
    private:
-    std::map<std::string, REST_Verbose_Level> classLevels;
     std::ofstream logFile;
+    std::mutex fMutex;
     TRestLogManager() = default;
 };
 
@@ -168,72 +155,99 @@ class TRestLogger {
     static constexpr std::string_view COLOR_MAGENTA = "\033[35m"; /* Magenta */
     static constexpr std::string_view COLOR_CYAN = "\033[36m";    /* Cyan */
     static constexpr std::string_view COLOR_WHITE = "\033[37m";   /* White */
-
-    static void log(TRestLogManager::REST_Verbose_Level level, const std::string_view& color,
-                    const std::string& prefix, const std::string& className, const std::string& msg);
 };
 
-inline thread_local const std::string* currentClassNamePtr = nullptr;
+// ---------------- Log context ----------------
+/// \brief Who writes a message: its verbose level and name (in the log file)
+struct TRestLogContext {
+    TRestLogManager::REST_Verbose_Level level;
+    /// e.g. the name of the metadata instance, nullptr outside a metadata
+    const std::string* name = nullptr;
+};
 
-#define DECLARE_LOG_CLASS(CLASSNAME)                                   \
-    static inline const std::string& getLogClassName() {               \
-        static const std::string name = #CLASSNAME;                    \
-        return name;                                                   \
-    }                                                                  \
-    struct LogClassSetter {                                            \
-        LogClassSetter() { currentClassNamePtr = &getLogClassName(); } \
-    } _logClassSetter;
+/// \brief Context set by TRestLogScope in this thread, nullptr if none
+inline thread_local const TRestLogContext* currentLogContext = nullptr;
 
-// ---------------- LogStream ----------------
-class TRestLogBuffer : public std::stringbuf {
+/// \brief Context of the messages written outside a metadata (the metadata have their own
+/// TRestMetadata::GetLogContext, found first inside their methods): the one of the TRestLogScope of the
+/// thread (e.g. the process running, for the events), otherwise the global verbose level
+inline TRestLogContext GetLogContext() {
+    if (currentLogContext) return *currentLogContext;
+    return {TRestLogManager::globalVerboseLevel, nullptr};
+}
+
+/// \brief Sets the context of the messages written outside a metadata in this thread while it lives
+class TRestLogScope {
    public:
-    TRestLogBuffer(TRestLogManager::REST_Verbose_Level lvl, const std::string_view& color,
-                   const std::string& prefix)
-        : level(lvl), color(color), prefix(prefix) {}
+    explicit TRestLogScope(const TRestLogContext& context) : fContext(context), fPrevious(currentLogContext) {
+        currentLogContext = &fContext;
+    }
+    ~TRestLogScope() { currentLogContext = fPrevious; }
 
-    int sync() override {
-        if (!str().empty()) {
-            std::string className = currentClassNamePtr ? *currentClassNamePtr : "Global";
+    TRestLogScope(const TRestLogScope&) = delete;
+    TRestLogScope& operator=(const TRestLogScope&) = delete;
 
-            TRestLogger::log(level, color, prefix, className, str());
-            str("");
+   private:
+    TRestLogContext fContext;
+    const TRestLogContext* fPrevious;
+};
+
+// ---------------- Log line ----------------
+/// \brief One message, written when the statement ends (RESTInfo << ... << RESTendl;) if its level is
+/// enabled by the verbose of the context. Each statement has its own buffer, so messages of different
+/// threads are not mixed.
+class TRestLogLine {
+   public:
+    TRestLogLine(TRestLogManager::REST_Verbose_Level level, const std::string_view& color,
+                 const char* prefix, const TRestLogContext& context)
+        : fColor(color), fPrefix(prefix), fName(context.name), fEnabled(level <= context.level) {}
+
+    TRestLogLine(const TRestLogLine&) = delete;
+    TRestLogLine& operator=(const TRestLogLine&) = delete;
+
+    ~TRestLogLine() {
+        if (!fEnabled) return;
+        const std::string message = fStream.str();
+        if (!message.empty()) {
+            TRestLogManager::instance().Write(fColor, fPrefix, fName ? *fName : "Global", message);
         }
-        return 0;
+    }
+
+    template <typename T>
+    TRestLogLine& operator<<(const T& value) {
+        if (fEnabled) fStream << value;
+        return *this;
+    }
+
+    /// \brief Manipulators as RESTendl or std::endl
+    TRestLogLine& operator<<(std::ostream& (*manipulator)(std::ostream&)) {
+        if (fEnabled) manipulator(fStream);
+        return *this;
     }
 
    private:
-    TRestLogManager::REST_Verbose_Level level;
-    std::string_view color;
-    std::string prefix;
-};
-
-class TRestLogStream : public std::ostream {
-   public:
-    TRestLogStream(TRestLogManager::REST_Verbose_Level lvl, const std::string_view& color,
-                   const std::string& prefix)
-        : std::ostream(&buf), buf(lvl, color, prefix) {}
-
-   private:
-    TRestLogBuffer buf;
+    std::string_view fColor;
+    const char* fPrefix;
+    const std::string* fName;
+    bool fEnabled;
+    std::ostringstream fStream;
 };
 
 inline std::ostream& RESTendl(std::ostream& os) {
     os.put('\n');
-    os.flush();
     return os;
 }
 
-inline TRestLogStream RESTError(TRestLogManager::REST_Verbose_Level::REST_Error, TRestLogger::COLOR_RED,
-                                " ERROR ");
-inline TRestLogStream RESTWarning(TRestLogManager::REST_Verbose_Level::REST_Warning,
-                                  TRestLogger::COLOR_YELLOW, " WARNING ");
-inline TRestLogStream RESTMetadata(TRestLogManager::REST_Verbose_Level::REST_Warning,
-                                   TRestLogger::COLOR_GREEN, " METADATA ");
-inline TRestLogStream RESTLog(TRestLogManager::REST_Verbose_Level::REST_Warning, TRestLogger::COLOR_BLUE,
-                              " LOG ");
-inline TRestLogStream RESTInfo(TRestLogManager::REST_Verbose_Level::REST_Info, TRestLogger::COLOR_BLUE,
-                               " INFO ");
-inline TRestLogStream RESTDebug(TRestLogManager::REST_Verbose_Level::REST_Debug, TRestLogger::COLOR_RESET,
-                                " DEBUG ");
+// The verbose level of a message is that of the metadata writing it (its `verbose`, otherwise the global
+// one), or the global one outside a metadata
+#define REST_LOG_LINE(LEVEL, COLOR, PREFIX) \
+    TRestLogLine(TRestLogManager::REST_Verbose_Level::LEVEL, TRestLogger::COLOR, PREFIX, GetLogContext())
+
+#define RESTError REST_LOG_LINE(REST_Error, COLOR_RED, " ERROR ")
+#define RESTWarning REST_LOG_LINE(REST_Warning, COLOR_YELLOW, " WARNING ")
+#define RESTMetadata REST_LOG_LINE(REST_Warning, COLOR_GREEN, " METADATA ")
+#define RESTLog REST_LOG_LINE(REST_Warning, COLOR_BLUE, " LOG ")
+#define RESTInfo REST_LOG_LINE(REST_Info, COLOR_BLUE, " INFO ")
+#define RESTDebug REST_LOG_LINE(REST_Debug, COLOR_RESET, " DEBUG ")
 
 #endif

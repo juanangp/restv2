@@ -20,8 +20,6 @@
 /// `TRestRun` owns input/output ROOT files, event trees, event object bindings,
 /// and run descriptors used during processing and AOD persistence.
 class TRestRun : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestRun)
-
    private:
     std::vector <TRestMetadata*> fMetadataStore;
 
@@ -38,7 +36,9 @@ class TRestRun : public TRestMetadata {
     std::map<std::string, std::string> fRunInformation;
 
     std::string fInputFileName = "Null";
-    std::string fOutputFileName = "rest_default.root";
+    /// Output file; "/dev/null" (default, also "Null" or empty) for no output: the pipeline runs but
+    /// nothing is written
+    std::string fOutputFileName = "/dev/null";
     std::string fMainDataPath = "";
     std::string fInputFormat = "";
     /// Last saved event type: output event of the last process of the chain that wrote the file (e.g.
@@ -74,8 +74,8 @@ class TRestRun : public TRestMetadata {
     bool fInheritInputRun = false;
     int fOutputBasketSize = 1024*1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
 
-    /// \brief Resolves placeholders in file patterns: [parameter] (see GetParameter, e.g. [runNumber] or
-    /// [runInfo.meshVoltage]; also [fRunNumber]), [version].
+    /// \brief Resolves placeholders in file patterns: [parameter], a key of the run (see GetParameter, e.g.
+    /// [runNumber] or [runInfo.meshVoltage]), and [version]. Throws for any other.
     /// \param pattern Input filename pattern.
     /// \return Resolved filename.
     std::string ResolveFilePattern(const std::string& pattern) const;
@@ -84,6 +84,10 @@ class TRestRun : public TRestMetadata {
     /// \param fileName Input filename.
     /// \return Resolved full path.
     std::string PrefixMainDataPath(const std::string& fileName) const;
+
+    /// \brief Resolves the pattern of outputFileName and the main data path; "Null" or empty: "/dev/null".
+    /// Throws if it is the input file (it would be overwritten).
+    void ResolveOutputFileName();
 
     void FormOutputFile();
 
@@ -165,6 +169,9 @@ class TRestRun : public TRestMetadata {
     /// \brief Indicates whether output file is currently open.
     /// \return `true` when output file is open.
     bool HasOutputFileOpen() const { return fOutputFile != nullptr; }
+
+    /// \brief Whether there is no output (outputFileName "/dev/null"): nothing is written.
+    bool HasNullOutput() const { return fOutputFileName == "/dev/null"; }
 
     /// \brief Returns the last saved event type (see fOutputEvent), empty if unknown.
     std::string GetOutputEvent() const { return fOutputEvent; }

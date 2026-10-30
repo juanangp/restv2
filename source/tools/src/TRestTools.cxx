@@ -516,6 +516,20 @@ std::string TRestTools::ReplaceIdentifiers(const std::string& expression, const 
     return result + expression.substr(last);
 }
 
+void TRestTools::CheckYAMLKeys(const YAML::Node& node, const std::set<std::string>& allowed,
+                               const std::string& context) {
+    if (!node || !node.IsMap()) return;
+    std::string unknown;
+    for (const auto& element : node) {
+        const auto key = element.first.as<std::string>();
+        if (allowed.count(key) == 0) unknown += " '" + key + "'";
+    }
+    if (unknown.empty()) return;
+    std::string valid;
+    for (const auto& key : allowed) valid += " " + key;
+    throw std::runtime_error(context + ": unknown parameter(s)" + unknown + ". Valid parameters:" + valid);
+}
+
 std::string TRestTools::Trim(const std::string& str, const std::string& characters) {
     const size_t first = str.find_first_not_of(characters);
     if (first == std::string::npos) return "";

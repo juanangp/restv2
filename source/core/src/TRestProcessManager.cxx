@@ -18,6 +18,8 @@ static const bool TRestProcessManager_FieldsRegistered = []() {
     reg.RegisterField<TRestProcessManager>("outputEventStorage", &TRestProcessManager::fOutputEventStorage);
     reg.RegisterField<TRestProcessManager>("eventsToProcess", &TRestProcessManager::fEventsToProcess);
     reg.RegisterField<TRestProcessManager>("nThreads", &TRestProcessManager::fNThreads);
+    // The processes and the metadata of the pipeline
+    reg.RegisterChildMetadata<TRestProcessManager>();
     return true;
 }();
 
@@ -53,7 +55,6 @@ void TRestProcessManager::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestProcessManager>(fNode);
-    ReadYAMLVerbose(fNode);
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestProcessManager>(fNode);
 
@@ -73,7 +74,7 @@ void TRestProcessManager::LoadProcesses() {
 
         if (!value || value.IsScalar() || !value.IsMap()) continue;
 
-        auto meta = MetadataClassRegistry::Instance().Create(key, value);
+        auto meta = CreateChildMetadata(key, value);
 
         if (!meta) continue;
         meta->PrintMetadata();
@@ -122,6 +123,7 @@ void TRestProcessManager::Run() {
     for (auto& proc : fProcessChain) {
         proc->SetRunInfo(fRunInfo);
         proc->SetManager(fManager);
+        TRestLogScope logScope(proc->GetLogContext());
         proc->Initialize();
     }
     // Once all the observables are registered
@@ -242,6 +244,8 @@ void TRestProcessManager::Run() {
             TRestEvent& outputEvent = *fStageOutputs[i];
             const TRestEvent& inputEvent = fStageInputs[i] ? *fStageInputs[i] : outputEvent;
 
+            // The messages of the events and tools used by the process take its verbose
+            TRestLogScope logScope(fProcessChain[i]->GetLogContext());
             if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent) || !fProcessChain[i]->PassCuts()) {
                 eventAccepted = false;
                 break;
@@ -266,6 +270,7 @@ void TRestProcessManager::Run() {
     std::cout << "\n";
 
     for (auto& proc : fProcessChain) {
+        TRestLogScope logScope(proc->GetLogContext());
         proc->EndProcess();
     }
 

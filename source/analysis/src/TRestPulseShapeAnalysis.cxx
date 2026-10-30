@@ -250,6 +250,35 @@ template double TRestPulseShapeAnalysis::GetAverage<float>(const std::vector<flo
                                                            int endBin);
 
 ///////////////////////////////////////////////
+/// \brief Return the moving average of 2 * halfWindow + 1
+/// points, shrunk at the edges to the existing points
+///
+template <typename T>
+std::vector<double> TRestPulseShapeAnalysis::GetMovingAverage(const std::vector<T>& values, int halfWindow) {
+    const int nPoints = values.size();
+    halfWindow = std::max(0, halfWindow);
+
+    // Prefix sums, so that the averages do not accumulate rounding errors
+    std::vector<double> sum(nPoints + 1, 0);
+    for (int i = 0; i < nPoints; i++) sum[i + 1] = sum[i] + values[i];
+
+    std::vector<double> average(nPoints, 0);
+    for (int i = 0; i < nPoints; i++) {
+        const int startBin = std::max(0, i - halfWindow);
+        const int endBin = std::min(nPoints - 1, i + halfWindow);
+        average[i] = (sum[endBin + 1] - sum[startBin]) / (endBin - startBin + 1);
+    }
+
+    return average;
+}
+template std::vector<double> TRestPulseShapeAnalysis::GetMovingAverage<short>(
+    const std::vector<short>& values, int halfWindow);
+template std::vector<double> TRestPulseShapeAnalysis::GetMovingAverage<float>(
+    const std::vector<float>& values, int halfWindow);
+template std::vector<double> TRestPulseShapeAnalysis::GetMovingAverage<double>(
+    const std::vector<double>& values, int halfWindow);
+
+///////////////////////////////////////////////
 /// \brief Return smoothing of signal as the
 /// moving average of the data
 ///
@@ -260,9 +289,7 @@ template <typename T>
 std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed(const std::vector<T>& signal,
                                                               int averagingPoints) {
     const int pulseDepth = signal.size();
-    std::vector<float> smoothed(pulseDepth, 0);
-
-    if (pulseDepth == 0) return smoothed;
+    if (pulseDepth == 0) return {};
 
     averagingPoints = std::max(1, averagingPoints);
     if (averagingPoints > pulseDepth) averagingPoints = pulseDepth;
@@ -271,22 +298,13 @@ std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed(const std::vector<
     if (averagingPoints <= 0) averagingPoints = 1;
 
     const int halfWindow = averagingPoints / 2;
-    float sumAvg = TRestPulseShapeAnalysis::GetAverage(signal, 0, averagingPoints);
+    const auto average = GetMovingAverage(signal, halfWindow);
 
-    // Points at the beginning, where we can calculate a moving average
-    for (int i = 0; i <= halfWindow && i < pulseDepth; i++) smoothed[i] = sumAvg;
-
-    for (int i = halfWindow + 1; i < pulseDepth - halfWindow; i++) {
-        int removeIndex = i - halfWindow - 1;
-        sumAvg -= signal[removeIndex] / averagingPoints;
-
-        int addIndex = i + halfWindow;
-        sumAvg += signal[addIndex] / averagingPoints;
-        smoothed[i] = sumAvg;
-    }
-
-    // Points at the end, where we can calculate a moving average
-    for (int i = std::max(0, pulseDepth - halfWindow); i < pulseDepth; i++) smoothed[i] = sumAvg;
+    // The points closer than halfWindow to the edges take the average of the closest full window
+    const int first = std::min(halfWindow, pulseDepth - 1);
+    const int last = std::max(first, pulseDepth - halfWindow - 1);
+    std::vector<float> smoothed(pulseDepth);
+    for (int i = 0; i < pulseDepth; i++) smoothed[i] = average[std::clamp(i, first, last)];
 
     return smoothed;
 }
@@ -294,6 +312,8 @@ template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed<short>(
     const std::vector<short>& signal, int averagingPoints);
 template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed<float>(
     const std::vector<float>& signal, int averagingPoints);
+template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed<double>(
+    const std::vector<double>& signal, int averagingPoints);
 
 ///////////////////////////////////////////////
 /// \brief Return smoothing of signal, the points
@@ -309,43 +329,17 @@ std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers(co
                                                                               double& baseLine,
                                                                               double& baseLineSigma) {
     const int pulseDepth = signal.size();
-    std::vector<float> smoothed(pulseDepth, 0);
-
-    if (pulseDepth == 0) return smoothed;
+    if (pulseDepth == 0) return {};
 
     CalculateBaselineAndSigmaIQR(signal, 5, int(pulseDepth - 5), baseLine, baseLineSigma);
 
-    averagingPoints = std::max(1, averagingPoints);
-    if (averagingPoints > pulseDepth) averagingPoints = pulseDepth;
-    averagingPoints = (averagingPoints / 2) * 2 + 1;  // make it odd >= averagingPoints
-    if (averagingPoints > pulseDepth) averagingPoints -= 1;
-    if (averagingPoints <= 0) averagingPoints = 1;
-
-    const int halfWindow = averagingPoints / 2;
-    float sumAvg = TRestPulseShapeAnalysis::GetAverage(signal, 0, averagingPoints);
-
-    // Points at the beginning, where we can calculate a moving average
-    for (int i = 0; i <= halfWindow && i < pulseDepth; i++) smoothed[i] = sumAvg;
-
-    // Points in the middle
-    float amplitude;
-    for (int i = halfWindow + 1; i < pulseDepth - halfWindow; i++) {
-        int removeIndex = i - halfWindow - 1;
-        amplitude = signal[removeIndex];
-        sumAvg -= (std::abs(amplitude - baseLine) > 3 * baseLineSigma) ? baseLine / averagingPoints
-                                                                       : amplitude / averagingPoints;
-
-        int addIndex = i + halfWindow;
-        amplitude = signal[addIndex];
-        sumAvg += (std::abs(amplitude - baseLine) > 3 * baseLineSigma) ? baseLine / averagingPoints
-                                                                       : amplitude / averagingPoints;
-        smoothed[i] = sumAvg;
+    // Outliers (more than 3 sigma from the baseline) are replaced by the baseline
+    std::vector<double> cleaned(pulseDepth);
+    for (int i = 0; i < pulseDepth; i++) {
+        cleaned[i] = (std::abs(signal[i] - baseLine) > 3 * baseLineSigma) ? baseLine : signal[i];
     }
 
-    // Points at the end, where we can calculate a moving average
-    for (int i = std::max(0, pulseDepth - halfWindow); i < pulseDepth; i++) smoothed[i] = sumAvg;
-
-    return smoothed;
+    return GetSignalSmoothed(cleaned, averagingPoints);
 }
 
 template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers<Short_t>(
@@ -571,21 +565,17 @@ template double TRestPulseShapeAnalysis::GetMaxPeakWidth(const std::vector<float
 ///
 std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetPeaks(
     const std::vector<std::pair<double, double>>& points, double threshold, double distance, int halfWindow,
-    int maxGreaterEqual) {
+    int maxGreaterEqual, bool refineMaximum, int amplitudeHalfWindow) {
     std::vector<std::pair<double, double>> peaks;
     const int nPoints = points.size();
     if (nPoints == 0) return peaks;
 
     halfWindow = std::max(1, halfWindow);
+    amplitudeHalfWindow = std::max(0, amplitudeHalfWindow);
 
-    // Moving average of 2 * halfWindow + 1 points, shrunk at the edges
-    std::vector<double> smoothed(nPoints, 0);
-    for (int i = 0; i < nPoints; i++) {
-        const int startBin = std::max(0, i - halfWindow);
-        const int endBin = std::min(nPoints - 1, i + halfWindow);
-        for (int j = startBin; j <= endBin; j++) smoothed[i] += points[j].second;
-        smoothed[i] /= endBin - startBin + 1;
-    }
+    std::vector<double> values(nPoints);
+    for (int i = 0; i < nPoints; i++) values[i] = points[i].second;
+    const auto smoothed = GetMovingAverage(values, halfWindow);
 
     int lastPeak = -1;
     for (int i = halfWindow; i < nPoints - halfWindow; i++) {
@@ -600,12 +590,13 @@ std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetPeaks(
 
         // On flat tops the candidate is at the left of the actual maximum
         int maxBin = i;
-        for (int j = i + 1; j < nPoints && points[j].first - points[i].first <= distance; j++) {
+        for (int j = i + 1; refineMaximum && j < nPoints && points[j].first - points[i].first <= distance;
+             j++) {
             if (smoothed[j] > smoothed[maxBin]) maxBin = j;
         }
 
-        const int startBin = std::max(0, maxBin - 1);
-        const int endBin = std::min(nPoints - 1, maxBin + 1);
+        const int startBin = std::max(0, maxBin - amplitudeHalfWindow);
+        const int endBin = std::min(nPoints - 1, maxBin + amplitudeHalfWindow);
         double amplitude = 0;
         for (int j = startBin; j <= endBin; j++) amplitude += points[j].second;
         amplitude /= endBin - startBin + 1;

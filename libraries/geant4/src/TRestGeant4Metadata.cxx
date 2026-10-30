@@ -83,6 +83,9 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4Metadata>("killVolumes", &TRestGeant4Metadata::fKillVolumesRegistry);
     reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes", &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
     reg.RegisterField<TRestGeant4Metadata>("biasingVolumes", &TRestGeant4Metadata::fBiasingVolumes);
+    // Parsed by TRestGeant4PrimaryGeneratorInfo, which keeps a handle to the section
+    reg.RegisterNestedField<TRestGeant4Metadata>("generator",
+                                                 &TRestGeant4Metadata::fGeant4PrimaryGeneratorInfo);
 
 
     return true;
@@ -166,14 +169,7 @@ void TRestGeant4Metadata::SyncMetadataMapsFromRuntime() {
 /// \brief Modern framework configuration entry point.
 void TRestGeant4Metadata::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4Metadata>(fNode);
-    // The generator section is parsed by TRestGeant4PrimaryGeneratorInfo, which keeps a handle to it
-    const YAML::Node& node = fNode;
-    if (node["generator"]) {
-        fGeant4PrimaryGeneratorInfo.SetYAMLNode(fNode["generator"]);
-        fGeant4PrimaryGeneratorInfo.LoadConfig();
-    }
     SyncRuntimeMapsFromMetadata();
-    ReadYAMLVerbose(fNode);
     if(fSeed==0)fSeed=TRestTools::GetRandomSeed();
     UpdateYAMLFromParams<TRestGeant4Metadata>(fNode);
     LoadGeometryFromActiveFile();

@@ -1,7 +1,6 @@
 readout:
   class: "TRestGDMLReadout"
   name: "Veto_Readout"
-  title: "Veto geometry from GDML file"
   decodingFile: "veto.dec"
   readoutParameters:
     gdmlFileName: "/home/juanan/restv2/packages/restG4/examples/13.IAXO/geometry/setup.gdml"

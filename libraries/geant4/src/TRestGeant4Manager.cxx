@@ -11,6 +11,8 @@ using namespace TRestTools;
 // ---------------------------------------------------------------------------
 namespace {
 const bool kRegistered = []() {
+    // The run, the Geant4 metadata and the physics lists
+    TRestMetadataFieldRegistry::Instance().RegisterChildMetadata<TRestGeant4Manager>();
     MetadataClassRegistry::Instance().Register(
         "TRestGeant4Manager", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestGeant4Manager>(instanceName, params);

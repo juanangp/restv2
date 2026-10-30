@@ -4,13 +4,15 @@
 /// are read with an RDataFrame: all the histograms and statistics are filled in a single loop.
 /// TRestManager runs it after the pipeline, on its output file, or without pipeline on the inputFileName
 /// of the run (`restManager --c plots.yaml --i "R*_ANA.root"`); from restRoot,
-/// PlotCombinedCanvas(fileName, outputFileName, manager).
-/// The combined canvas and the histograms are written in the outputFileName of the TRestRun (its pattern,
-/// e.g. "R[runNumber]_[fRunTag]_plots.root"): the output of the pipeline, or without pipeline a new file
-/// with the metadata of the manager. Not written if it is empty.
+/// PlotCombinedCanvas(fileName, manager).
 ///
 /// ### Parameters
 /// * cuts: names of the TRestCut (defined in the manager) applied to all the data.
+/// * outputFileName: ROOT file of the combined canvas and the histograms, its own (not the one of the
+///   TRestRun); [parameter] of the run (e.g. "R[runNumber]_[runTag]_plots.root") and {expressions} are
+///   replaced. A data file (with analysis tree, e.g. the output of the pipeline) is updated, keeping its
+///   data; otherwise the file is created with the metadata of the manager (the following plots of the
+///   same execution update it). Empty (default): not written.
 /// * save: image of the combined canvas (pdf, png...; {expressions} are replaced, e.g.
 ///   "Plots_{run.runTag}.pdf"). Empty: not saved.
 /// * previewPlot: if true the canvas is shown, scaled to fit in the screen, and the files are saved
@@ -109,6 +111,7 @@
 #include <TROOT.h>
 #include <TStyle.h>
 #include <TSystem.h>
+#include <TTree.h>
 #include <TVirtualX.h>
 
 #include <algorithm>
@@ -119,15 +122,18 @@
 #include <iostream>
 #include <optional>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <thread>
 
 #include "TRestCut.h"
 #include "TRestManager.h"
+#include "TRestRun.h"
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
 
+using TRestTools::CheckYAMLKeys;
 using TRestTools::GetYAMLList;
 using TRestTools::GetYAMLParam;
 using TRestTools::Trim;
@@ -138,12 +144,15 @@ const bool kFieldsRegistered = []() {
     using P = TRestAnalysisPlot;
     reg.RegisterField<P>("cuts", &P::fCutNames);
     reg.RegisterField<P>("save", &P::fSave);
+    reg.RegisterField<P>("outputFileName", &P::fOutputFileName);
     reg.RegisterField<P>("previewPlot", &P::fPreviewPlot);
     reg.RegisterField<P>("paletteStyle", &P::fPaletteStyle);
     reg.RegisterField<P>("canvasSize", &P::fCanvasSize);
     reg.RegisterField<P>("canvasDivisions", &P::fCanvasDivisions);
     reg.RegisterField<P>("canvasDivisionMargins", &P::fCanvasDivisionMargins);
     reg.RegisterField<P>("legendPosition", &P::fLegendPosition);
+    reg.RegisterField<P>("panels", &P::fPanelsConfig);
+    reg.RegisterField<P>("plots", &P::fPlotsConfig);
     return true;
 }();
 
@@ -413,7 +422,6 @@ void TRestAnalysisPlot::LoadConfig() {
         return;
     }
     UpdateParamsFromYAML<TRestAnalysisPlot>(fNode);
-    ReadYAMLVerbose(fNode);
     if (fCanvasSize.size() != 2 || fCanvasDivisions.size() != 2 || fCanvasDivisionMargins.size() != 2 ||
         fLegendPosition.size() != 4) {
         throw std::runtime_error("TRestAnalysisPlot '" + fName +
@@ -427,8 +435,10 @@ void TRestAnalysisPlot::LoadConfig() {
 
 void TRestAnalysisPlot::ReadPanels() {
     fPanels.clear();
-    if (!fNode["panels"]) return;
-    for (const auto& node : fNode["panels"]) {
+    if (!fPanelsConfig || fPanelsConfig.IsNull()) return;
+    const std::string context = "TRestAnalysisPlot '" + fName + "', panel";
+    for (const auto& node : fPanelsConfig) {
+        CheckYAMLKeys(node, {"enabled", "textSize", "precision", "cuts", "labels"}, context);
         if (!GetYAMLParam<bool>(node, "enabled", true)) continue;
         Panel panel;
         panel.textSize = GetYAMLParam<TRestWithUnits>(node, "textSize", panel.textSize);
@@ -436,6 +446,7 @@ void TRestAnalysisPlot::ReadPanels() {
         panel.cuts = GetYAMLList(node, "cuts");
         if (node["labels"]) {
             for (const auto& labelNode : node["labels"]) {
+                CheckYAMLKeys(labelNode, {"text", "position"}, context + " label");
                 Label label;
                 label.text = GetYAMLParam<std::string>(labelNode, "text");
                 if (labelNode["position"]) {
@@ -456,8 +467,20 @@ void TRestAnalysisPlot::ReadPanels() {
 
 void TRestAnalysisPlot::ReadPlots() {
     fPlots.clear();
-    if (!fNode["plots"]) return;
-    for (const auto& node : fNode["plots"]) {
+    if (!fPlotsConfig || fPlotsConfig.IsNull()) return;
+    const std::set<std::string> plotKeys = {"enabled",     "name",       "title",       "xLabel",
+                                            "yLabel",      "logX",       "logY",        "logZ",
+                                            "gridX",       "gridY",      "legend",      "timeDisplay",
+                                            "normalize",   "scale",      "stackOption", "marginLeft",
+                                            "marginRight", "marginTop",  "marginBottom", "save",
+                                            "histos"};
+    const std::set<std::string> histoKeys = {"name",      "option",    "cuts",      "variables", "lineColor",
+                                             "lineWidth", "lineStyle", "fillColor", "fillStyle", "stats"};
+    for (const auto& node : fPlotsConfig) {
+        // Without histos the plot is also its single histogram
+        std::set<std::string> keys = plotKeys;
+        if (!node["histos"]) keys.insert(histoKeys.begin(), histoKeys.end());
+        CheckYAMLKeys(node, keys, "TRestAnalysisPlot '" + fName + "', plot");
         if (!GetYAMLParam<bool>(node, "enabled", true)) continue;
         Plot plot;
         plot.name = GetYAMLParam<std::string>(node, "name", "plot_" + std::to_string(fPlots.size()));
@@ -481,12 +504,17 @@ void TRestAnalysisPlot::ReadPlots() {
         plot.save = GetYAMLParam<std::string>(node, "save");
 
         auto readHisto = [&](const YAML::Node& histoNode) {
+            if (node["histos"]) {
+                CheckYAMLKeys(histoNode, histoKeys, "TRestAnalysisPlot '" + fName + "', plot " + plot.name);
+            }
             Histo histo;
             histo.name = GetYAMLParam<std::string>(histoNode, "name", plot.name);
             histo.drawOption = GetYAMLParam<std::string>(histoNode, "option");
             histo.cuts = GetYAMLList(histoNode, "cuts");
             if (histoNode["variables"]) {
                 for (const auto& variableNode : histoNode["variables"]) {
+                    CheckYAMLKeys(variableNode, {"name", "nBins", "range"},
+                                  "TRestAnalysisPlot '" + fName + "', plot " + plot.name + " variable");
                     Variable variable;
                     variable.name = GetYAMLParam<std::string>(variableNode, "name");
                     variable.nBins = GetYAMLParam<int>(variableNode, "nBins", variable.nBins);
@@ -531,8 +559,7 @@ void TRestAnalysisPlot::ReadPlots() {
     }
 }
 
-void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const std::string& outputFileName,
-                                           const TRestManager* manager) {
+void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const TRestManager* manager) {
     TChain chain("AnalysisTree");
     if (chain.Add(fileName.c_str()) <= 0) {
         throw std::runtime_error("TRestAnalysisPlot '" + fName + "': no files " + fileName);
@@ -830,6 +857,12 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const st
         DrawPlot(&canvas, plot);
         canvas.Print(global.Replace(plot.save).c_str());
     }
+    std::string outputFileName = fOutputFileName;
+    if (!outputFileName.empty()) {
+        if (fRunInfo) outputFileName = fRunInfo->ResolveFilePattern(outputFileName);
+        outputFileName = global.Replace(outputFileName);
+        if (fRunInfo) outputFileName = fRunInfo->PrefixMainDataPath(outputFileName);
+    }
     if (!fSave.empty() || !outputFileName.empty()) {
         TCanvas canvas(("save_" + fName).c_str(), fName.c_str(), fCanvasSize[0], fCanvasSize[1]);
         canvas.SetName(fName.c_str());  // name in a root file; no clash with the preview canvas when built
@@ -839,11 +872,26 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const st
             canvas.Print(saveFileName.c_str());
             RESTInfo << "TRestAnalysisPlot '" << fName << "': saved " << saveFileName << RESTendl;
         }
-        // Canvas and histograms in the output of the run (the metadata are written by the manager)
+        // A data file (e.g. the output of the pipeline or the input file) or a file already written by a
+        // plot of this execution is updated; otherwise a new file with the metadata of the manager
         if (!outputFileName.empty()) {
-            std::unique_ptr<TFile> file(TFile::Open(outputFileName.c_str(), "UPDATE"));
+            static std::set<std::string> createdFiles;
+            bool update = createdFiles.count(outputFileName) > 0;
+            if (!update && !gSystem->AccessPathName(outputFileName.c_str())) {
+                std::unique_ptr<TFile> existing(TFile::Open(outputFileName.c_str()));
+                update = existing && !existing->IsZombie() && existing->Get<TTree>("AnalysisTree");
+            }
+            std::unique_ptr<TFile> file(TFile::Open(outputFileName.c_str(), update ? "UPDATE" : "RECREATE"));
             if (!file || file->IsZombie()) {
                 throw std::runtime_error("TRestAnalysisPlot '" + fName + "': cannot open " + outputFileName);
+            }
+            if (!update) {
+                createdFiles.insert(outputFileName);
+                if (manager) {
+                    for (auto* meta : manager->GetMetadataOfType<TRestMetadata>()) {
+                        meta->WriteMetadata(file.get());
+                    }
+                }
             }
             file->cd();
             canvas.Write("", TObject::kOverwrite);

@@ -17,8 +17,6 @@ class TRestRun;
 class TRestManager;
 
 class TRestProcessManager : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestProcessManager)
-
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
     std::vector<std::unique_ptr<TRestEventProcess>> fProcessChain;

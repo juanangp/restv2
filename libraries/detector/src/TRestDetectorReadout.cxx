@@ -68,7 +68,6 @@ TRestDetectorReadout::~TRestDetectorReadout() {
 void TRestDetectorReadout::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorReadout>(fNode);
 
-    ReadYAMLVerbose(fNode);
 
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestDetectorReadout>(fNode);

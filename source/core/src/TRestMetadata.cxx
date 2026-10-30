@@ -12,6 +12,7 @@ TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& 
     if (fNode) {
         fName = ReadYAMLParamOrDefault<std::string>(fNode, "name", fName);
     }
+    ReadVerbose();
 }
 
 TRestMetadata::TRestMetadata(const std::string& fileName, const std::string& sectionName)
@@ -22,22 +23,32 @@ TRestMetadata::TRestMetadata(const std::string& fileName, const std::string& sec
     if (fNode) {
         fName = ReadYAMLParamOrDefault<std::string>(fNode, "name", sectionName);
     }
+    ReadVerbose();
 }
 
-void TRestMetadata::ReadYAMLVerbose(YAML::Node& node) {
-    const std::string verboseValue = ReadYAMLParamOrDefault<std::string>(
-        node, "verbose", TRestLogManager::GetStringFromVerbose(TRestLogManager::globalVerboseLevel));
-    fVerboseLevel = TRestLogManager::GetVerboseLevelFromString(verboseValue);
-    auto& logMgr = TRestLogManager::instance();
-    logMgr.SetLevel(this->GetClassName(), fVerboseLevel);
-    TRestTools::SetNodeParameter(node, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
+std::unique_ptr<TRestMetadata> TRestMetadata::CreateChildMetadata(const std::string& instanceName,
+                                                                  YAML::Node node) const {
+    if (node.IsMap() && !node["verbose"]) {
+        node["verbose"] = TRestLogManager::GetStringFromVerbose(fVerboseLevel);
+    }
+    return MetadataClassRegistry::Instance().Create(instanceName, node);
+}
+
+void TRestMetadata::ReadVerbose() {
+    if (!fNode || !fNode.IsMap()) return;
+    if (fNode["verbose"]) {
+        try {
+            fVerboseLevel = TRestLogManager::GetVerboseLevelFromString(fNode["verbose"].as<std::string>());
+        } catch (const std::exception& error) {
+            throw std::runtime_error(GetClassName() + " '" + fName + "': " + error.what());
+        }
+    }
+    TRestTools::SetNodeParameter(fNode, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
 }
 
 void TRestMetadata::WriteMetadata(TFile* file){
 
-  std::type_index typeIdx(typeid(*this));
-
-  TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(typeIdx, this, fNode);
+  TRestMetadataFieldRegistry::Instance().ApplyFieldsToYAML(this, fNode);
 
   TRestMetadata::WriteMetadata(file, fName, fNode);
 
@@ -109,4 +120,77 @@ void TRestMetadata::PrintMetadata() const {
         RESTMetadata << "===" << GetClassName() << "===" << RESTendl;
         RESTMetadata << YAML::Dump(fNode) << RESTendl;
     }
+}
+
+void TRestMetadataFieldRegistry::ApplyFields(TRestMetadata* instance, const YAML::Node& params) {
+    if (!instance || !params) return;
+    for (const auto& [type, fields] : fFieldMaps) {
+        for (const auto& field : fields) {
+            if (!field.appliesTo(instance)) continue;
+            try {
+                field.readFunc(instance, params);
+            } catch (const std::exception& error) {
+                throw std::runtime_error(instance->GetClassName() + " '" + instance->GetName() + "': '" +
+                                         field.yamlKey + "': " + error.what());
+            }
+        }
+    }
+}
+
+void TRestMetadataFieldRegistry::ApplyFieldsToYAML(TRestMetadata* instance, YAML::Node& params) {
+    if (!instance) return;
+    for (const auto& [type, fields] : fFieldMaps) {
+        for (const auto& field : fields) {
+            if (field.appliesTo(instance)) field.writeFunc(instance, params);
+        }
+    }
+}
+
+std::set<std::string> TRestMetadataFieldRegistry::GetFieldKeys(const TRestMetadata* instance) const {
+    std::set<std::string> keys;
+    if (!instance) return keys;
+    for (const auto& [type, fields] : fFieldMaps) {
+        for (const auto& field : fields) {
+            if (field.appliesTo(instance)) keys.insert(field.yamlKey);
+        }
+    }
+    return keys;
+}
+
+void TRestMetadataFieldRegistry::CheckFields(const TRestMetadata* instance, const YAML::Node& node) const {
+    if (!instance || !node || !node.IsMap()) return;
+    std::set<std::string> keys = GetFieldKeys(instance);
+    for (const auto& key : instance->GetSharedNodeKeys()) keys.insert(key);
+    bool hasChildren = false;
+    for (const auto& isContainer : fChildContainers) hasChildren = hasChildren || isContainer(instance);
+
+    std::string unknown;
+    for (const auto& element : node) {
+        const auto key = element.first.as<std::string>();
+        if (keys.count(key) || key == "class" || key == "name" || key == "verbose") continue;
+        if (hasChildren && element.second.IsMap() && element.second["class"]) continue;
+        unknown += " '" + key + "'";
+    }
+    if (unknown.empty()) return;
+
+    std::string valid;
+    for (const auto& key : keys) valid += " " + key;
+    throw std::runtime_error(instance->GetClassName() + " '" + instance->GetName() +
+                             "': unknown parameter(s)" + unknown +
+                             ". Valid parameters: class name verbose" + valid +
+                             (hasChildren ? " and metadata (maps with class)" : ""));
+}
+
+std::unique_ptr<TRestMetadata> MetadataClassRegistry::Create(const std::string& type,
+                                                             const std::string& instanceName,
+                                                             const YAML::Node& params, bool check) const {
+    auto it = creators.find(type);
+    if (it == creators.end()) throw std::runtime_error("MetadataClassRegistry: unknown type '" + type + "'");
+    auto metadata = it->second(instanceName, params);
+    if (check && metadata) TRestMetadataFieldRegistry::Instance().CheckFields(metadata.get(), params);
+    return metadata;
+}
+
+void TRestMetadata::CheckConfig() const {
+    TRestMetadataFieldRegistry::Instance().CheckFields(this, fNode);
 }

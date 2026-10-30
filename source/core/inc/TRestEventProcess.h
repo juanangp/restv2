@@ -15,8 +15,6 @@ class TRestRun;
 /// Returning `false` from `ProcessEvent` indicates that the event is rejected. The event is also rejected
 /// after the process if it does not pass the TRestCut of `cuts` (names of TRestCut in the manager).
 class TRestEventProcess : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestEventProcess)
-
    private:
     /// The TRestCut of fCutNames, resolved in InitCuts
     std::vector<TRestCut*> fCuts;  //!

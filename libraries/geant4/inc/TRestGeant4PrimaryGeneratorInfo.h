@@ -23,13 +23,19 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     /// TF3 formula of x, y, z (mm) in [0, 1], the probability to accept a volume or surface position
     std::string fSpatialDensityFunction;
 
-    std::vector<TRestGeant4ParticleSource> fSources;
+    std::vector<TRestGeant4ParticleSource> fSources;  //!
 
     TRestGeant4PrimaryGeneratorInfo() = default;
     TRestGeant4PrimaryGeneratorInfo(const std::string& name, const YAML::Node& node);
+    /// \brief The copies have their own spatial generator and sources (Clone)
+    TRestGeant4PrimaryGeneratorInfo(const TRestGeant4PrimaryGeneratorInfo& other);
+    TRestGeant4PrimaryGeneratorInfo& operator=(const TRestGeant4PrimaryGeneratorInfo& other);
     void LoadConfig() override;
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestGeant4PrimaryGeneratorInfo"; }
+
+    /// \brief The fields of the spatial generator, which reads this same section
+    std::set<std::string> GetSharedNodeKeys() const override;
 
     /// \brief Builds the distributions of the sources, needed only to generate (it checks them before
     /// the simulation, each thread loads its own copy)
@@ -57,7 +63,9 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     void Print() const;
 
    private:
-    std::shared_ptr<TRestGeant4SpatialGenerator> fSpatialGenerator;  //!
+    std::unique_ptr<TRestGeant4SpatialGenerator> fSpatialGenerator;  //!
+
+    void CopyGenerator(const TRestGeant4PrimaryGeneratorInfo& other);
 };
 
 #endif

@@ -13,6 +13,8 @@ using namespace std;
 
 static const bool TRestRawFemDAQToSignalProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
+    reg.RegisterField<TRestRawFemDAQToSignalProcess>("inputFileName",
+                                                     &TRestRawFemDAQToSignalProcess::fInputFileName);
     reg.RegisterField<TRestRawFemDAQToSignalProcess>("useFeminosDaqRunInfo",
                                                      &TRestRawFemDAQToSignalProcess::fUseFeminosDaqRunInfo);
     reg.RegisterField<TRestRawFemDAQToSignalProcess>(
@@ -66,11 +68,7 @@ void TRestRawFemDAQToSignalProcess::LoadConfig() {
 
 /// \brief Opens input trees, imports run timing metadata, and prepares branch bindings.
 void TRestRawFemDAQToSignalProcess::InitProcess() {
-    // Read parameters from YAML
-    std::string inputFilename;
-    if (fNode["inputFileName"]) {
-        inputFilename = fNode["inputFileName"].as<std::string>();
-    }
+    std::string inputFilename = fInputFileName;
     if ((inputFilename.empty() || inputFilename == "Null") && fRunInfo) {
         inputFilename = fRunInfo->GetInputFileName();
     }
@@ -78,10 +76,6 @@ void TRestRawFemDAQToSignalProcess::InitProcess() {
         throw std::runtime_error(
             "TRestRawFemDAQToSignalProcess: missing input file in process config and TRestRun");
     }
-
-    if (fNode["useFeminosDaqRunInfo"]) fUseFeminosDaqRunInfo = fNode["useFeminosDaqRunInfo"].as<bool>();
-    if (fNode["setRunStartEndFromEvents"])
-        fSetRunStartEndFromEvents = fNode["setRunStartEndFromEvents"].as<bool>();
 
     if (inputFilename.substr(inputFilename.size() - 5) != ".root") {
         throw std::runtime_error("TRestRawFemDAQToSignalProcess: Input file is not a root file");

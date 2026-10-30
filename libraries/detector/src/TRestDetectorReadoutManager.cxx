@@ -121,7 +121,9 @@ void TRestDetectorReadoutManager::LoadReadout() {
         }
 
         std::string className = yamlConfig["class"].as<std::string>();
-        std::unique_ptr<TRestMetadata> metadata = MetadataClassRegistry::Instance().Create(className, readoutInfo.fInstanceName, yamlConfig);
+        // Written by REST (Export): not checked
+        std::unique_ptr<TRestMetadata> metadata =
+            MetadataClassRegistry::Instance().Create(className, readoutInfo.fInstanceName, yamlConfig, false);
 
         if (!metadata) {
             RESTError << className << " not found in MetadataRegistry." << RESTendl;

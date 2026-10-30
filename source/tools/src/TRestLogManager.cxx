@@ -1,20 +1,20 @@
 #include "TRestLogManager.h"
 
-void TRestLogger::log(TRestLogManager::REST_Verbose_Level level, const std::string_view& color,
-                      const std::string& prefix, const std::string& className, const std::string& msg) {
-    TRestLogManager::REST_Verbose_Level minLevel = TRestLogManager::instance().GetVerboseLevel(className);
-    if (level > minLevel) return;
+#include <ctime>
+
+void TRestLogManager::Write(const std::string_view& color, const std::string& prefix, const std::string& name,
+                            const std::string& msg) {
+    std::lock_guard<std::mutex> lock(fMutex);
 
     // -------- Console output (with colors) --------
-    std::cout << color << msg << COLOR_RESET;
+    std::cout << color << msg << TRestLogger::COLOR_RESET << std::flush;
 
     // -------- File output (without colors) --------
-    if (!TRestLogManager::instance().hasFile()) return;
+    if (!logFile.is_open()) return;
 
     // Timestamp
     std::time_t t = std::time(nullptr);
     char timebuf[20];
     std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", std::localtime(&t));
-    auto& file = TRestLogManager::instance().GetLogFile();
-    file << timebuf << " [" << className << "] " << prefix << msg << std::endl;
+    logFile << timebuf << " [" << name << "] " << prefix << msg << std::endl;
 }

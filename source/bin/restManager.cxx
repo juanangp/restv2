@@ -125,6 +125,7 @@ int main(int argc, char** argv) {
 
        RESTLog << "\n--- TRestManager ---" << RESTendl;
        TRestManager mgr(managerKey, managerNode);
+       mgr.CheckConfig();
        mgr.PrintMetadata();
        mgr.Run();
        mgr.SaveMetadata();

@@ -34,7 +34,7 @@ class TRestManager : public TRestMetadata {
 
     /// \brief Draws every TRestAnalysisPlot of the manager, in declaration order, with the output file of
     /// the pipeline (closed first, call after SaveMetadata) or, without pipeline, the input file name of
-    /// the run (it can be a pattern, e.g. R*_ANA.root).
+    /// the run (it can be a pattern, e.g. R*_ANA.root). Each plot writes in its own outputFileName.
     void RunPlots();
 
     void LoadConfig() override;

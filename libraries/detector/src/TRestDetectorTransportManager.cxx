@@ -4,6 +4,8 @@
 
 namespace {
 const bool kRegistered = []() {
+    // The medium and the transport simulations
+    TRestMetadataFieldRegistry::Instance().RegisterChildMetadata<TRestDetectorTransportManager>();
     MetadataClassRegistry::Instance().Register(
         "TRestDetectorTransportManager", [](const std::string& instanceName, const YAML::Node& params) {
             return std::make_unique<TRestDetectorTransportManager>(instanceName, params);

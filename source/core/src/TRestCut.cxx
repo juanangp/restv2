@@ -42,7 +42,6 @@ void TRestCut::LoadConfig() {
         return;
     }
     UpdateParamsFromYAML<TRestCut>(fNode);
-    ReadYAMLVerbose(fNode);
     for (const auto& [name, condition] : fConditions) {
         if (condition.empty()) throw std::runtime_error("TRestCut '" + fName + "': empty condition " + name);
     }

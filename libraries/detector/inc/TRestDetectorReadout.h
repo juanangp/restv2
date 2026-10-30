@@ -27,7 +27,6 @@ class TGeoShape;
 /// Derived classes must implement `BuildGeometry` to define a concrete readout
 /// technology.
 class TRestDetectorReadout : public TRestMetadata {
-    DECLARE_LOG_CLASS(TRestDetectorReadout)
    protected:
     /// ROOT geometry manager used for geometry navigation and position lookup.
     TGeoManager* fGeoManager = nullptr;

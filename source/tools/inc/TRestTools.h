@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -59,6 +60,10 @@ std::string ReplaceIdentifiers(const std::string& expression, const std::string&
                                const TextReplacement& replacement);
 /// \brief The string without the leading and trailing characters of `characters` (whitespace)
 std::string Trim(const std::string& str, const std::string& characters = " \t\n\r");
+
+/// \brief Throws if the map node has keys that are not in `allowed` (for the structures read by a class,
+/// e.g. the plots of TRestAnalysisPlot); `context` names the node in the message
+void CheckYAMLKeys(const YAML::Node& node, const std::set<std::string>& allowed, const std::string& context);
 
 // ==================================================
 /// \brief Generic template helpers.

@@ -29,7 +29,6 @@ TRestEventProcess::TRestEventProcess(const std::string& fileName, const std::str
 /// \brief Initializes geometry and decoding from YAML.
 void TRestEventProcess::LoadConfig() {
     UpdateParamsFromYAML<TRestEventProcess>(fNode);
-    ReadYAMLVerbose(fNode);
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestEventProcess>(fNode);
 }

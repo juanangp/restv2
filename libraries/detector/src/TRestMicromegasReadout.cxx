@@ -256,7 +256,7 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
         }
     }
     if (targetPhysicalID < 0) {
-        RESTError << "DaqID " << daqID << " not found in Micromegas map" << RESTendl;
+        RESTWarning << "DaqID " << daqID << " not found in Micromegas map" << RESTendl;
         return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
     }
 

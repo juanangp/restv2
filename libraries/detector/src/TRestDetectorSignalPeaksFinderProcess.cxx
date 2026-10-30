@@ -4,8 +4,9 @@
 /// detector signals, whose baseline is already subtracted and whose times are physical, so there is no
 /// baseline, time conversion or calibration; and channels are not selected by type, the signals of each
 /// detector (e.g. vetoes and Micromegas) are split beforehand with TRestRawSignalRemoveChannelsProcess
-/// and analysed separately. Legacy veto signals used halfWindow 2 and maxGreaterEqual 0. Legacy windows
-/// contained the peaks up to window / 2 after the first one.
+/// and analysed separately. Legacy veto signals (TRestRawSignal::GetPeaksVeto) used halfWindow 2,
+/// maxGreaterEqual 0, refineMaximum false and amplitudeHalfWindow 0. Legacy windows contained the peaks up
+/// to window / 2 after the first one.
 ///
 /// Observables, the peaks sorted by time and then by signal ID:
 /// - PeaksSignalID, PeaksTime, PeaksAmplitude, PeaksWindowIndex: one entry per peak.
@@ -13,7 +14,8 @@
 ///   the peak amplitudes): one entry per window.
 /// - NPeaks, NPeaksSignals (signals with at least one peak), NWindows, PeaksAmplitudeSum.
 ///
-/// Parameters: threshold (100), distance (0.4 us), halfWindow (5), maxGreaterEqual (3), window (0.2 us).
+/// Parameters: threshold (100), distance (0.4 us), halfWindow (5), maxGreaterEqual (3), refineMaximum (true),
+/// amplitudeHalfWindow (1), window (0.2 us).
 ///
 /// Example:
 ///
@@ -41,6 +43,8 @@ static const bool TRestDetectorSignalPeaksFinderProcess_FieldsRegistered = []() 
     reg.RegisterField<P>("distance", &P::fDistance);
     reg.RegisterField<P>("halfWindow", &P::fHalfWindow);
     reg.RegisterField<P>("maxGreaterEqual", &P::fMaxGreaterEqual);
+    reg.RegisterField<P>("refineMaximum", &P::fRefineMaximum);
+    reg.RegisterField<P>("amplitudeHalfWindow", &P::fAmplitudeHalfWindow);
     reg.RegisterField<P>("window", &P::fWindow);
     return true;
 }();
@@ -85,10 +89,11 @@ void TRestDetectorSignalPeaksFinderProcess::LoadConfig() {
 }
 
 void TRestDetectorSignalPeaksFinderProcess::InitProcess() {
-    if (fDistance < 0 || fWindow < 0 || fHalfWindow < 1 || fMaxGreaterEqual < 0) {
+    if (fDistance < 0 || fWindow < 0 || fHalfWindow < 1 || fMaxGreaterEqual < 0 ||
+        fAmplitudeHalfWindow < 0) {
         throw std::runtime_error(
-            "TRestDetectorSignalPeaksFinderProcess: distance, window and maxGreaterEqual must be >= 0 and "
-            "halfWindow >= 1");
+            "TRestDetectorSignalPeaksFinderProcess: distance, window, maxGreaterEqual and amplitudeHalfWindow "
+            "must be >= 0 and halfWindow >= 1");
     }
 
     RegisterObservable("PeaksSignalID", fObs.PeaksSignalID);
@@ -122,8 +127,9 @@ bool TRestDetectorSignalPeaksFinderProcess::ProcessEvent(const TRestEvent& input
     std::set<int> peakSignals;
     for (int s = 0; s < signalEvent->GetNumberOfSignals(); s++) {
         const auto& signal = signalEvent->GetSignal(s);
-        for (const auto& [time, amplitude] : TRestPulseShapeAnalysis::GetPeaks(
-                 signal.GetPointsVector(), fThreshold, fDistance, fHalfWindow, fMaxGreaterEqual)) {
+        for (const auto& [time, amplitude] :
+             TRestPulseShapeAnalysis::GetPeaks(signal.GetPointsVector(), fThreshold, fDistance, fHalfWindow,
+                                               fMaxGreaterEqual, fRefineMaximum, fAmplitudeHalfWindow)) {
             peaks.emplace_back(time, signal.GetSignalID(), amplitude);
             peakSignals.insert(signal.GetSignalID());
         }

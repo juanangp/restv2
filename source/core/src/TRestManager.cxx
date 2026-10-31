@@ -73,20 +73,35 @@ void TRestManager::LoadConfig() {
 }
 
 void TRestManager::Run() {
+    const auto plotList = GetMetadataOfType<TRestAnalysisPlot>();
+    const bool plots = !plotList.empty();
+    // Only plots (RunPlots): each one with its own input, no TRestRun
+    if (fProcessManager == nullptr && fRunInfo == nullptr && plots) return;
+    if (fProcessManager == nullptr && plots) {
+        throw std::runtime_error(
+            "TRestManager::Run - a manager with only plots has no TRestRun: remove the TRestRun section '" +
+            fRunInfo->GetName() +
+            "', the input is the inputFileName of each TRestAnalysisPlot (--i sets it when there is no "
+            "TRestRun)");
+    }
+    if (fProcessManager == nullptr) {
+        throw std::runtime_error(
+            "TRestManager::Run - no TRestProcessManager configured under manager section (a TRestRun is the "
+            "input of the pipeline; for only plots, the input is the inputFileName of each "
+            "TRestAnalysisPlot, "
+            "or --i)");
+    }
     if (fRunInfo == nullptr) {
         throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
     }
-    if (fProcessManager == nullptr) {
-        // Only plots (RunPlots), on the input file of the run
-        if (!GetMetadataOfType<TRestAnalysisPlot>().empty()) return;
-        throw std::runtime_error(
-            "TRestManager::Run - no TRestProcessManager configured under manager section.");
-    }
 
-    if (fRunInfo->HasNullOutput() && !GetMetadataOfType<TRestAnalysisPlot>().empty()) {
-        throw std::runtime_error(
-            "TRestManager::Run - the plots are made with the output of the pipeline: the TRestRun needs "
-            "an outputFileName");
+    // The plots without inputFileName are made with the output of the pipeline
+    for (const auto* plot : plotList) {
+        if (plot->fInputFileName.empty() && fRunInfo->HasNullOutput()) {
+            throw std::runtime_error("TRestManager::Run - the TRestAnalysisPlot '" + plot->GetName() +
+                                     "' is made with the output of the pipeline: the TRestRun needs an "
+                                     "outputFileName");
+        }
     }
 
     if (!fileExists(fRunInfo->GetInputFileName())) {
@@ -209,11 +224,8 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
 }
 
 void TRestManager::SaveMetadata() {
-    if (fRunInfo == nullptr) {
-        throw std::runtime_error("TRestManager::Run - no TRestRun configured under manager section.");
-    }
     // Without pipeline (only plots) there is no output file
-    if (!fRunInfo->HasOutputFileOpen()) return;
+    if (fRunInfo == nullptr || !fRunInfo->HasOutputFileOpen()) return;
 
     fRunInfo->AddHistoricMetadata();
 
@@ -229,13 +241,19 @@ void TRestManager::SaveMetadata() {
 void TRestManager::RunPlots() {
     const auto plots = GetMetadataOfType<TRestAnalysisPlot>();
     if (plots.empty()) return;
-    if (fRunInfo == nullptr) {
-        throw std::runtime_error("TRestManager::RunPlots - no TRestRun configured under manager section.");
+    // The output of the pipeline, for the plots without inputFileName; closed, so the plots can update it
+    // (outputFileName of each plot)
+    std::string pipelineOutput;
+    if (fProcessManager && fRunInfo) {
+        pipelineOutput = fRunInfo->GetOutputFileName();
+        fRunInfo->CloseFiles();
     }
-    // The output of the pipeline if there is one, otherwise the input of the run; closed, so the plots
-    // can update it (outputFileName of each plot)
-    const std::string fileName =
-        fProcessManager ? fRunInfo->GetOutputFileName() : fRunInfo->GetInputFileName();
-    fRunInfo->CloseFiles();
-    for (auto* plot : plots) plot->PlotCombinedCanvas(fileName, this);
+    for (auto* plot : plots) {
+        const std::string fileName = plot->fInputFileName.empty() ? pipelineOutput : plot->fInputFileName;
+        if (fileName.empty()) {
+            throw std::runtime_error("TRestManager::RunPlots - the TRestAnalysisPlot '" + plot->GetName() +
+                                     "' has no input: its inputFileName (or --i), or a pipeline");
+        }
+        plot->PlotCombinedCanvas(fileName, this);
+    }
 }

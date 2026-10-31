@@ -16,7 +16,8 @@ class TRestProcessManager;
 ///
 /// `TRestManager` parses configuration and instantiates metadata objects.
 /// Event pipeline execution is delegated to `TRestProcessManager`; after it, RunPlots draws the
-/// TRestAnalysisPlot of the manager.
+/// TRestAnalysisPlot of the manager. The TRestRun is the input of the pipeline; a manager with only plots
+/// has no TRestRun: each plot has its own input (inputFileName: a run file, a dataset or a pattern).
 class TRestManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
@@ -32,9 +33,9 @@ class TRestManager : public TRestMetadata {
 
     void Run();
 
-    /// \brief Draws every TRestAnalysisPlot of the manager, in declaration order, with the output file of
-    /// the pipeline (closed first, call after SaveMetadata) or, without pipeline, the input file name of
-    /// the run (it can be a pattern, e.g. R*_ANA.root). Each plot writes in its own outputFileName.
+    /// \brief Draws every TRestAnalysisPlot of the manager, in declaration order, with its inputFileName (a
+    /// run file, a dataset or a pattern, e.g. R*_ANA.root) or, if it has none, the output file of the
+    /// pipeline (closed first, call after SaveMetadata). Each plot writes in its own outputFileName.
     void RunPlots();
 
     void LoadConfig() override;

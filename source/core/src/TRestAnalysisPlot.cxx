@@ -2,17 +2,24 @@
 /// Combined canvas with the observables of the analysis tree of one or several files (a pattern, e.g.
 /// R*_ANA.root): first one pad per panel (text) and then one pad per plot (histograms). The analysis trees
 /// are read with an RDataFrame: all the histograms and statistics are filled in a single loop.
-/// TRestManager runs it after the pipeline, on its output file, or without pipeline on the inputFileName
-/// of the run (`restManager --c plots.yaml --i "R*_ANA.root"`); from restRoot,
-/// PlotCombinedCanvas(fileName, manager).
+/// The input is its inputFileName: a run file, a dataset or a pattern of them (all run files or all
+/// datasets), from which a TRestDataSet is generated in memory (TRestDataSet::Generate, nothing written:
+/// the same reading of the runs, a run twice or a run file without TRestRun is an error), so the run times
+/// and run.key are those of its runs; a manager with only plots has no TRestRun nor
+/// TRestDataSet section (`restManager --c plots.yaml --i "R*_ANA.root"`: --i is the inputFileName of every
+/// plot). Without inputFileName, TRestManager runs it after the pipeline, on its output file. From
+/// restRoot, PlotCombinedCanvas(fileName, manager), or PlotCombinedCanvas(dataSet, manager) with the data
+/// frame of a TRestDataSet (e.g. with columns added with Define).
 ///
 /// ### Parameters
+/// * inputFileName: a run file, a dataset or a pattern of files (e.g. R*_ANA.root). Empty (default): the
+///   output of the pipeline of the manager.
 /// * cuts: names of the TRestCut (defined in the manager) applied to all the data.
 /// * outputFileName: ROOT file of the combined canvas and the histograms, its own (not the one of the
-///   TRestRun); [parameter] of the run (e.g. "R[runNumber]_[runTag]_plots.root") and {expressions} are
-///   replaced. A data file (with analysis tree, e.g. the output of the pipeline) is updated, keeping its
-///   data; otherwise the file is created with the metadata of the manager (the following plots of the
-///   same execution update it). Empty (default): not written.
+///   TRestRun); [parameter] of the run (the first run of the input) (e.g. "R[runNumber]_[runTag]_plots.root")
+///   and {expressions} are replaced. A data file (with analysis tree, e.g. the output of the pipeline) is
+///   updated, keeping its data; otherwise the file is created with the metadata of the manager (the following
+///   plots of the same execution update it). Empty (default): not written.
 /// * save: image of the combined canvas (pdf, png...; {expressions} are replaced, e.g.
 ///   "Plots_{run.runTag}.pdf"). Empty: not saved.
 /// * previewPlot: if true the canvas is shown, scaled to fit in the screen, and the files are saved
@@ -26,10 +33,10 @@
 /// names, besides the global ones), enabled (true) and `labels`: list of text and position ([x, y] in
 /// pad coordinates). In the text, each {expression|format} is replaced by its value; the format is
 /// optional, printf style (%.2f) or a number of significant digits. In the expression:
-/// * entries, runLength (hours, from the start and end time of each file, not affected by the cuts;
+/// * entries, runLength (hours, from the start and end time of each run, not affected by the cuts;
 ///   without them, from the first and last timeSeconds), meanRate (Hz),
 ///   startTime and endTime (dates), cuts (expression of the cuts of the panel);
-/// * run.key (TRestRun of the first file, e.g. run.runTag, and its runInfo, e.g. run.runInfo.meshVoltage)
+/// * run.key (TRestRunInfo of the first run, e.g. run.runTag, and its runInfo, e.g. run.runInfo.meshVoltage)
 ///   and instance.key... (any metadata of the first file, e.g. driftMedium.electricField);
 /// * mean(obs), sigma(obs), min(obs), max(obs): of an observable with the cuts of the panel (only its
 ///   finite values: NaN, e.g. a line observable not defined, are ignored);
@@ -100,7 +107,6 @@
 #include <TApplication.h>
 #include <TAttFill.h>
 #include <TAttLine.h>
-#include <TChain.h>
 #include <TColor.h>
 #include <TFile.h>
 #include <TFormula.h>
@@ -128,6 +134,7 @@
 #include <thread>
 
 #include "TRestCut.h"
+#include "TRestDataSet.h"
 #include "TRestManager.h"
 #include "TRestRun.h"
 #include "TRestSystemOfUnits.h"
@@ -142,6 +149,7 @@ namespace {
 const bool kFieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     using P = TRestAnalysisPlot;
+    reg.RegisterField<P>("inputFileName", &P::fInputFileName);
     reg.RegisterField<P>("cuts", &P::fCutNames);
     reg.RegisterField<P>("save", &P::fSave);
     reg.RegisterField<P>("outputFileName", &P::fOutputFileName);
@@ -557,44 +565,31 @@ void TRestAnalysisPlot::ReadPlots() {
 }
 
 void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const TRestManager* manager) {
-    TChain chain("AnalysisTree");
-    if (chain.Add(fileName.c_str()) <= 0) {
-        throw std::runtime_error("TRestAnalysisPlot '" + fName + "': no files " + fileName);
-    }
+    // A dataset of the files in memory (run files, or datasets merged), nothing written
+    TRestDataSet dataSet;
+    dataSet.SetName(fName);
+    dataSet.fFilePattern = fileName;
+    dataSet.Generate();
+    PlotCombinedCanvas(dataSet, manager);
+}
 
-    // Metadata of the first file and start and end times of all of them
+void TRestAnalysisPlot::PlotCombinedCanvas(TRestDataSet& dataSet, const TRestManager* manager) {
+    // Metadata: those of the (first) input file and the configuration of the dataset if it has one; run:
+    // its first run; times of all its runs
     std::map<std::string, YAML::Node> metadata;
+    for (const auto& entry : dataSet.GetInputMetadata())
+        metadata[entry.first.as<std::string>()] = entry.second;
+    const YAML::Node config = dataSet.GetConfig();
+    if (config && config.IsMap()) metadata[dataSet.GetName()] = config;
     YAML::Node run;
-    double startTime = 0, endTime = 0, duration = 0;
-    bool firstFile = true;
-    for (const auto* element : *chain.GetListOfFiles()) {
-        std::unique_ptr<TFile> file(TFile::Open(element->GetTitle()));
-        if (!file || file->IsZombie()) {
-            throw std::runtime_error("TRestAnalysisPlot '" + fName + "': cannot open " + element->GetTitle());
-        }
-        YAML::Node fileRun;
-        if (auto* directory = file->GetDirectory("RESTMetadataStore")) {
-            for (const auto* key : *directory->GetListOfKeys()) {
-                const std::string instance = key->GetName();
-                YAML::Node node = TRestMetadata::ReadMetadata(file.get(), instance);
-                if (!node || !node["class"]) continue;
-                if (node["class"].as<std::string>() == "TRestRun") fileRun.reset(node);
-                if (firstFile) metadata[instance] = node;
-            }
-        }
-        if (fileRun) {
-            const double start = GetYAMLParam<double>(fileRun, "startTime", 0);
-            const double end = GetYAMLParam<double>(fileRun, "endTime", 0);
-            if (firstFile || start < startTime) startTime = start;
-            if (firstFile || end > endTime) endTime = end;
-            duration += end - start;
-        } else {
-            RESTWarning << "TRestAnalysisPlot: no TRestRun in " << element->GetTitle() << RESTendl;
-        }
-        if (firstFile) run.reset(fileRun);
-        firstFile = false;
-    }
+    if (!dataSet.GetRuns().empty()) run.reset(dataSet.GetRuns().front().run->GetYAMLNode());
+    DrawFrame(dataSet.GetDataFrame(), metadata, run, dataSet.GetStartTime(), dataSet.GetEndTime(),
+              dataSet.GetTotalTime(), manager);
+}
 
+void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::string, YAML::Node>& metadata,
+                                  const YAML::Node& run, double startTime, double endTime, double duration,
+                                  const TRestManager* manager) {
     auto cutExpression = [&](const std::vector<std::string>& names) {
         std::string expression;
         for (const auto& name : names) {
@@ -617,9 +612,8 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const TR
     };
 
     // All the results are booked before the loop, run once when the first one is read
-    ROOT::RDataFrame frame(chain);
     const std::string globalCuts = cutExpression(fCutNames);
-    ROOT::RDF::RNode all(frame);
+    ROOT::RDF::RNode all = frame;
     if (!globalCuts.empty()) all = all.Filter(globalCuts);
     auto withCuts = [&](const std::vector<std::string>& names) -> ROOT::RDF::RNode {
         const std::string expression = cutExpression(names);
@@ -856,7 +850,11 @@ void TRestAnalysisPlot::PlotCombinedCanvas(const std::string& fileName, const TR
     }
     std::string outputFileName = fOutputFileName;
     if (!outputFileName.empty()) {
-        if (fRunInfo) outputFileName = fRunInfo->ResolveFilePattern(outputFileName);
+        if (fRunInfo) {
+            outputFileName = fRunInfo->ResolveFilePattern(outputFileName);
+        } else if (run && run.IsMap()) {
+            outputFileName = TRestRunInfo::FromConfig("run", run)->ResolveFilePattern(outputFileName);
+        }
         outputFileName = global.Replace(outputFileName);
         if (fRunInfo) outputFileName = fRunInfo->PrefixMainDataPath(outputFileName);
     }

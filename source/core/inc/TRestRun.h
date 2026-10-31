@@ -12,29 +12,20 @@
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
+#include "TRestRunInfo.h"
 #include "TRestTools.h"
 
 /// \class TRestRun
 /// \brief Run-level container for metadata and ROOT I/O orchestration.
 ///
 /// `TRestRun` owns input/output ROOT files, event trees, event object bindings,
-/// and run descriptors used during processing and AOD persistence.
-class TRestRun : public TRestMetadata {
+/// and run descriptors used during processing and AOD persistence. The description of the run (numbers,
+/// tags, runInfo, times) is its base TRestRunInfo.
+class TRestRun : public TRestRunInfo {
    private:
     std::vector<TRestMetadata*> fMetadataStore;
 
    public:
-    int fRunNumber = -1;
-    int fSubRunNumber = 0;
-    std::string fRunType = "Null";
-    std::string fRunUser = "Null";
-    std::string fRunTag = "Null";
-    std::string fRunDescription = "Null";
-    std::string fExperimentName = "Null";
-    /// Information of the run (`runInfo`), e.g. driftVoltage: 1000 V, gain: 50, as written (with units):
-    /// the one of the input file, with the keys of the configuration added or replacing it
-    std::map<std::string, std::string> fRunInformation;
-
     std::string fInputFileName = "Null";
     /// Output file; "/dev/null" (default, also "Null" or empty) for no output: the pipeline runs but
     /// nothing is written
@@ -45,10 +36,6 @@ class TRestRun : public TRestMetadata {
     /// TRestTrackEvent), preserved from the input file otherwise. Selected event (GetEvent) when the file
     /// is opened
     std::string fOutputEvent = "";
-    double fStartTime = 0;
-    double fEndTime = 0;
-    Long64_t fEntriesSaved = 0;
-
     Long64_t fEntry = 0;
 
     Long64_t fInputEntries = 0;
@@ -73,12 +60,6 @@ class TRestRun : public TRestMetadata {
     /// file (inputFormat) are taken from the run of the input file
     bool fInheritInputRun = false;
     int fOutputBasketSize = 1024 * 1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
-
-    /// \brief Resolves placeholders in file patterns: [parameter], a key of the run (see GetParameter, e.g.
-    /// [runNumber] or [runInfo.meshVoltage]), and [version]. Throws for any other.
-    /// \param pattern Input filename pattern.
-    /// \return Resolved filename.
-    std::string ResolveFilePattern(const std::string& pattern) const;
 
     /// \brief Prefixes main data path to a relative filename.
     /// \param fileName Input filename.
@@ -119,45 +100,6 @@ class TRestRun : public TRestMetadata {
     /// \return Class name string.
     std::string GetClassName() const override { return "TRestRun"; }
 
-    /// \brief Returns run number.
-    /// \return Run number.
-    int GetRunNumber() const { return fRunNumber; }
-
-    /// \brief Returns parent run number.
-    /// \return Parent run number.
-    int GetSubRunNumber() const { return fSubRunNumber; }
-
-    /// \brief Returns run type label.
-    /// \return Run type.
-    std::string GetRunType() const { return fRunType; }
-
-    /// \brief Returns run user label.
-    /// \return Run user.
-    std::string GetRunUser() const { return fRunUser; }
-
-    /// \brief Returns run tag.
-    /// \return Run tag.
-    std::string GetRunTag() const { return fRunTag; }
-
-    /// \brief Returns experiment name.
-    /// \return Experiment name.
-    std::string GetExperimentName() const { return fExperimentName; }
-
-    /// \brief Returns the information of the run (`runInfo`), key: value as written.
-    const std::map<std::string, std::string>& GetRunInformation() const { return fRunInformation; }
-
-    /// \brief Parameters of the run (registered fields, current values) as a YAML node.
-    YAML::Node GetParameters() const;
-
-    /// \brief Returns a parameter of the run as written, e.g. "runNumber", "runTag" or "runInfo.meshVoltage"
-    /// (a key of runInfo). From other metadata through their run, e.g. fRunInfo->GetParameter(...).
-    /// \return Text of the parameter, nullopt if it does not exist.
-    std::optional<std::string> GetParameter(const std::string& name) const;
-
-    /// \brief Returns a numerical parameter of the run in REST units, e.g. "runInfo.meshVoltage" (300 V).
-    /// \return Value, nullopt if it does not exist or it is not a number.
-    std::optional<double> GetParameterValue(const std::string& name) const;
-
     /// \brief Returns input file name.
     /// \return Input file path.
     std::string GetInputFileName() const { return fInputFileName; }
@@ -176,30 +118,6 @@ class TRestRun : public TRestMetadata {
     /// \brief Returns the last saved event type (see fOutputEvent), empty if unknown.
     std::string GetOutputEvent() const { return fOutputEvent; }
 
-    /// \brief Sets run number.
-    /// \param v Run number.
-    void SetRunNumber(int v) { fRunNumber = v; }
-
-    /// \brief Sets parent run number.
-    /// \param v Parent run number.
-    void SetSubRunNumber(int v) { fSubRunNumber = v; }
-
-    /// \brief Sets run type.
-    /// \param v Run type string.
-    void SetRunType(const std::string& v) { fRunType = v; }
-
-    /// \brief Sets run user.
-    /// \param v Run user string.
-    void SetRunUser(const std::string& v) { fRunUser = v; }
-
-    /// \brief Sets run tag.
-    /// \param v Run tag string.
-    void SetRunTag(const std::string& v) { fRunTag = v; }
-
-    /// \brief Sets run description.
-    /// \param v Run description string.
-    void SetRunDescription(const std::string& v) { fRunDescription = v; }
-
     /// \brief Sets input file name and mirrors value into YAML node when available.
     /// \param v Input file path.
     void SetInputFileName(const std::string& v) {
@@ -217,18 +135,6 @@ class TRestRun : public TRestMetadata {
         fOutputEvent = v;
         if (fNode) TRestTools::SetNodeParameter(fNode, "outputEvent", fOutputEvent);
     }
-
-    /// \brief Sets experiment name.
-    /// \param v Experiment name.
-    void SetExperimentName(const std::string& v) { fExperimentName = v; }
-
-    /// \brief Sets start timestamp.
-    /// \param v Start time.
-    void SetStartTimeStamp(double v) { fStartTime = v; }
-
-    /// \brief Sets end timestamp.
-    /// \param v End time.
-    void SetEndTimeStamp(double v) { fEndTime = v; }
 
     /// \brief Opens input ROOT file and initializes input tree bindings.
     /// \param filename Input file path.

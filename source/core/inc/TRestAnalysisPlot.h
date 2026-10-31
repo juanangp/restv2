@@ -7,6 +7,7 @@
 #include <TLatex.h>
 #include <TLegend.h>
 
+#include <ROOT/RDataFrame.hxx>
 #include <map>
 #include <memory>
 #include <string>
@@ -15,6 +16,7 @@
 #include "TRestMetadata.h"
 
 class TRestCut;
+class TRestDataSet;
 class TRestManager;
 
 /// \class TRestAnalysisPlot
@@ -84,7 +86,17 @@ class TRestAnalysisPlot : public TRestMetadata {
     void ReadPanels();
     void ReadPlots();
 
+    /// \brief Draws (and saves) the combined canvas with the frame. metadata: instance -> configuration
+    /// ({instance.key}), run: TRestRun ({run.key}), times of the runs (seconds; duration 0: from the first
+    /// and last timeSeconds)
+    void DrawFrame(ROOT::RDF::RNode frame, const std::map<std::string, YAML::Node>& metadata,
+                   const YAML::Node& run, double startTime, double endTime, double duration,
+                   const TRestManager* manager);
+
    public:
+    /// Input: a run file, a dataset or a pattern of them (e.g. R*_ANA.root). Empty: the output of the
+    /// pipeline of the manager
+    std::string fInputFileName = "";
     /// Names of the TRestCut (in the manager) applied to all the data
     std::vector<std::string> fCutNames = {};
     /// Image of the combined canvas (pdf, png...), {expression} are replaced. Empty: not saved
@@ -114,11 +126,16 @@ class TRestAnalysisPlot : public TRestMetadata {
     void LoadConfig() override;
     void Initialize() override {}
 
-    /// \brief Draws (and saves) the combined canvas with the analysis trees of the files.
+    /// \brief Draws (and saves) the combined canvas with the analysis trees of the files: a TRestDataSet is
+    /// generated in memory from them (run files or datasets) and drawn as PlotCombinedCanvas(dataSet).
     /// \param fileName ROOT file or pattern of files (e.g. R*_ANA.root).
     /// \param manager Manager with the TRestCut used (needed only if there are cuts); its metadata are
-    /// written in a new outputFileName. The [parameter] of outputFileName are those of the run (fRunInfo).
+    /// written in a new outputFileName. The [parameter] of outputFileName are those of the run of the
+    /// pipeline (fRunInfo), otherwise those of the first run of the input.
     void PlotCombinedCanvas(const std::string& fileName, const TRestManager* manager = nullptr);
+
+    /// \brief Draws (and saves) the combined canvas with the data frame of a dataset (generated or opened).
+    void PlotCombinedCanvas(TRestDataSet& dataSet, const TRestManager* manager = nullptr);
 
     TCanvas* GetCanvas() const { return fCanvas; }
 };

@@ -10,14 +10,27 @@
 #include <string>
 #include <vector>
 
+class TFile;
+
 namespace TRestTools {
 
 std::vector<std::string> GetFilesMatchingPattern(const std::string& filePattern);
 std::string GetTimeStampFromUnixTime(const double tm);
+/// \brief Unix time of a local date, "YYYY/MM/DD", "YYYY-MM-DD" and optionally " HH:MM" or " HH:MM:SS" (as
+/// legacy REST_StringHelper::StringToTimeStamp). Throws if it is not a valid date.
+double StringToTimeStamp(const std::string& date);
 std::string GetFullPath(const std::string& filename);
 bool fileExists(const std::string& filename);
 bool isRootFile(const std::string& filename);
 bool isValidTRestRun(const std::string& filename);
+/// \brief Whether the file is a dataset (TRestDataSet: AnalysisTree and RESTMetadataStore/RESTDataSetInfo)
+bool isDataSet(const std::string& filename);
+/// \brief Metadata stored in a REST file (directory RESTMetadataStore, a YAML TObjString per instance),
+/// read without creating them (no TRestRun is opened): map instance name -> configuration (with `class`).
+/// Empty if the file has no metadata. Throws if a configuration cannot be parsed.
+YAML::Node ReadMetadataStore(TFile* file);
+/// \brief ReadMetadataStore of a file name; throws if the file cannot be opened
+YAML::Node ReadMetadataStore(const std::string& fileName);
 std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
 std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);
 bool StringToBool(std::string booleanString);

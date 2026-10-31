@@ -18,25 +18,12 @@ using namespace TRestTools;
 static const bool TRestRun_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
-    reg.RegisterField<TRestRun>("runNumber", &TRestRun::fRunNumber);
-    reg.RegisterField<TRestRun>("subRunNumber", &TRestRun::fSubRunNumber);
-    reg.RegisterField<TRestRun>("runType", &TRestRun::fRunType);
-    reg.RegisterField<TRestRun>("runUser", &TRestRun::fRunUser);
-    reg.RegisterField<TRestRun>("runTag", &TRestRun::fRunTag);
-    reg.RegisterField<TRestRun>("runDescription", &TRestRun::fRunDescription);
-    reg.RegisterField<TRestRun>("experimentName", &TRestRun::fExperimentName);
-    reg.RegisterField<TRestRun>("runInfo", &TRestRun::fRunInformation);
-
+    // The description of the run (runNumber, runTag, runInfo, times...): fields of TRestRunInfo
     reg.RegisterField<TRestRun>("inputFileName", &TRestRun::fInputFileName);
     reg.RegisterField<TRestRun>("outputFileName", &TRestRun::fOutputFileName);
     reg.RegisterField<TRestRun>("mainDataPath", &TRestRun::fMainDataPath);
     reg.RegisterField<TRestRun>("inputFormat", &TRestRun::fInputFormat);
     reg.RegisterField<TRestRun>("outputEvent", &TRestRun::fOutputEvent);
-
-    reg.RegisterField<TRestRun>("startTime", &TRestRun::fStartTime);
-    reg.RegisterField<TRestRun>("endTime", &TRestRun::fEndTime);
-    reg.RegisterField<TRestRun>("entriesSaved", &TRestRun::fEntriesSaved);
-
     reg.RegisterField<TRestRun>("inheritInputRun", &TRestRun::fInheritInputRun);
     reg.RegisterField<TRestRun>("outputBasketSize", &TRestRun::fOutputBasketSize);
 
@@ -65,12 +52,12 @@ TRestRun::TRestRun(const std::string& inputFileName) {
 }
 
 TRestRun::TRestRun(const std::string& instanceName, const YAML::Node& node)
-    : TRestMetadata(instanceName, node) {
+    : TRestRunInfo(instanceName, node) {
     LoadConfig();
 }
 
 TRestRun::TRestRun(const std::string& fileName, const std::string& sectionName)
-    : TRestMetadata(fileName, sectionName) {
+    : TRestRunInfo(fileName, sectionName) {
     LoadConfig();
 }
 
@@ -160,8 +147,8 @@ void TRestRun::LoadConfig() {
             inherited[key] = inputRun[key];
         }
     }
-    // A process reading raw data sets them again
-    for (const std::string key : {"startTime", "endTime"}) {
+    // A process reading raw data sets them again; the merged subruns of the data
+    for (const std::string key : {"startTime", "endTime", "mergedSubRuns"}) {
         if (!config[key] && hasInputRun && inputRun[key]) inherited[key] = inputRun[key];
     }
     UpdateParamsFromYAML<TRestRun>(inherited);
@@ -544,48 +531,6 @@ void TRestRun::PrintMetadata() const {
 
 void TRestRun::PrintAllMetadata() const {
     for (auto* metadata : fMetadataStore) metadata->PrintMetadata();
-}
-
-YAML::Node TRestRun::GetParameters() const {
-    // From the members, the setters do not update the node
-    YAML::Node parameters(YAML::NodeType::Map);
-    const_cast<TRestRun*>(this)->UpdateYAMLFromParams<TRestRun>(parameters);
-    return parameters;
-}
-
-std::optional<std::string> TRestRun::GetParameter(const std::string& name) const {
-    const YAML::Node node = GetNodeAtPath(GetParameters(), name);
-    if (!node || !node.IsScalar()) return std::nullopt;
-    return node.Scalar();
-}
-
-std::optional<double> TRestRun::GetParameterValue(const std::string& name) const {
-    const YAML::Node node = GetNodeAtPath(GetParameters(), name);
-    if (!node || !node.IsScalar()) return std::nullopt;
-    return REST_Units::ParseValueWithUnits(node.Scalar());
-}
-
-std::string TRestRun::ResolveFilePattern(const std::string& pattern) const {
-    const YAML::Node parameters = GetParameters();
-    return ReplaceDelimited(pattern, '[', ']', [&](const std::string& name) -> std::optional<std::string> {
-        char number[32];
-        if (name == "runNumber") {
-            snprintf(number, sizeof(number), "%05d", fRunNumber);
-            return number;
-        }
-        if (name == "subRunNumber") {
-            snprintf(number, sizeof(number), "%03d", fSubRunNumber);
-            return number;
-        }
-        if (name == "version") return "2.0.0";
-        const YAML::Node node = GetNodeAtPath(parameters, name);
-        if (!node || !node.IsScalar()) {
-            throw std::runtime_error("TRestRun: [" + name + "] in \"" + pattern +
-                                     "\" is not a parameter of the run (its keys, e.g. [runNumber] or "
-                                     "[runTag], or [runInfo.key])");
-        }
-        return CleanString(node.Scalar());
-    });
 }
 
 std::string TRestRun::PrefixMainDataPath(const std::string& fileName) const {

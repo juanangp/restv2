@@ -10,8 +10,10 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -77,6 +79,22 @@ std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
     std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
 
     return std::string(tmpstm);
+}
+
+double TRestTools::StringToTimeStamp(const std::string& date) {
+    std::tm time{};
+    const char separator = date.find('/') != std::string::npos ? '/' : '-';
+    const std::string format = std::string("%d") + separator + "%d" + separator + "%d %d:%d:%d";
+    const int fields = std::sscanf(date.c_str(), format.c_str(), &time.tm_year, &time.tm_mon, &time.tm_mday,
+                                   &time.tm_hour, &time.tm_min, &time.tm_sec);
+    if (fields != 3 && fields != 5 && fields != 6) {
+        throw std::runtime_error("TRestTools::StringToTimeStamp: not a valid date \"" + date +
+                                 "\" (YYYY/MM/DD or YYYY-MM-DD, optionally HH:MM or HH:MM:SS)");
+    }
+    time.tm_year -= 1900;
+    time.tm_mon--;
+    time.tm_isdst = -1;
+    return static_cast<double>(std::mktime(&time));
 }
 
 bool TRestTools::fileExists(const std::string& filename) { return std::filesystem::exists(filename); }
@@ -178,6 +196,41 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
 
     file->Close();
     return hasRestRunMetadata;
+}
+
+bool TRestTools::isDataSet(const std::string& filename) {
+    if (!TRestTools::isRootFile(filename)) return false;
+    std::unique_ptr<TFile> file(TFile::Open(filename.c_str(), "READ"));
+    if (!file || file->IsZombie()) return false;
+    TDirectory* directory = file->GetDirectory("RESTMetadataStore/RESTDataSetInfo");
+    return file->Get("AnalysisTree") && directory && directory->GetListOfKeys()->GetSize() > 0;
+}
+
+YAML::Node TRestTools::ReadMetadataStore(TFile* file) {
+    YAML::Node store(YAML::NodeType::Map);
+    if (!file || file->IsZombie()) return store;
+    TDirectory* directory = file->GetDirectory("RESTMetadataStore");
+    if (!directory) return store;
+    for (const auto* key : *directory->GetListOfKeys()) {
+        const std::string instance = key->GetName();
+        std::unique_ptr<TObjString> text(directory->Get<TObjString>(instance.c_str()));
+        if (!text) continue;
+        try {
+            store[instance] = YAML::Load(text->GetString().Data());
+        } catch (const std::exception& error) {
+            throw std::runtime_error("TRestTools::ReadMetadataStore: cannot read '" + instance + "' of " +
+                                     file->GetName() + ": " + error.what());
+        }
+    }
+    return store;
+}
+
+YAML::Node TRestTools::ReadMetadataStore(const std::string& fileName) {
+    std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
+    if (!file || file->IsZombie()) {
+        throw std::runtime_error("TRestTools::ReadMetadataStore: cannot open " + fileName);
+    }
+    return ReadMetadataStore(file.get());
 }
 
 int TRestTools::GetRunNumberAuto() {

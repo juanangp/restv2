@@ -91,6 +91,15 @@ int main(int argc, char** argv) {
             if (!outputPath.empty()) runNode["outputFileName"] = outputPath;
         }
 
+        // Only plots (no run): the input of every TRestAnalysisPlot (a run file, a dataset or a pattern)
+        if ((!runNode || runNode.IsNull()) && !inputPath.empty()) {
+            for (auto element : managerNode) {
+                YAML::Node node = element.second;
+                if (node.IsMap() && node["class"] && node["class"].as<std::string>() == "TRestAnalysisPlot")
+                    node["inputFileName"] = inputPath;
+            }
+        }
+
         auto [pipelineKey, pipelineNode] = TRestTools::GetMetadataClass(managerNode, "TRestProcessManager");
         if (pipelineNode && !pipelineNode.IsNull()) {
             if (!eventsToProcess.empty()) pipelineNode["eventsToProcess"] = eventsToProcess;

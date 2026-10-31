@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
         std::string arg = argv[i];
         std::string fullPath = TRestTools::GetFullPath(arg);
 
-        if (TRestTools::isValidTRestRun(fullPath)) {
+        if (TRestTools::isDataSet(fullPath) || TRestTools::isValidTRestRun(fullPath)) {
             fileToOpen = fullPath;
             continue;
         }

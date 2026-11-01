@@ -152,8 +152,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// If activated will remove tracks not present in volumes marked as "keep" or "sensitive"
     bool fRemoveUnwantedTracks = false;
 
-    /// Store event tracks (default is false)
-    bool fStoreTracks = false;
+    /// Store the tracks and hits of the events (true by default, as legacy); false: only the event summary
+    bool fStoreTracks = true;
 
     /// Option for removeUnwantedTracks to keep zero energy tracks such as neutron captures
     bool fRemoveUnwantedTracksKeepZeroEnergyTracks = false;
@@ -320,6 +320,10 @@ class TRestGeant4Metadata : public TRestMetadata {
 
     /// \brief Computes effective source generation surface in cm2 when available.
     double GetCosmicGeneratorSurfaceCm2() const;
+    /// \brief cry generator: showers simulated and their exposure (time simulated by CRY, us), to normalize
+    /// to a rate (0 for another generator)
+    inline int64_t GetCRYShowersUsed() const { return fGeant4PrimaryGeneratorInfo.GetCRYShowersUsed(); }
+    inline double GetCRYExposureTime() const { return fGeant4PrimaryGeneratorInfo.GetCRYExposureTime(); }
     inline double GetSimulationWallTime() const { return fSimulationTime; }
     inline void SetSimulationWallTime(double time) { fSimulationTime = time; }
 

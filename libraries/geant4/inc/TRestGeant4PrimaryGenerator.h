@@ -24,7 +24,8 @@ class TRestGeant4PrimaryGenerator {
     TRestGeant4PrimaryGenerator(const TRestGeant4PrimaryGeneratorInfo& info, unsigned int seed);
     virtual ~TRestGeant4PrimaryGenerator() = default;
 
-    /// \brief The primaries of a new event: name, excitation, charge, energy, direction and origin
+    /// \brief The primaries of a new event: name, excitation, charge, energy, direction, origin and time.
+    /// Empty for the cry generator when all the showers of the file were simulated
     std::vector<TRestGeant4ParticleState> Generate();
 
     inline TRandom& GetRandom() { return fRandom; }

@@ -6,14 +6,17 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "TRestGeant4ParticleState.h"
 #include "TRestMetadata.h"
 
 /// \class TRestGeant4SpatialGenerator
-/// \brief Where the primaries start: the generator `type` (point, volume, surface or cosmic) selects the
+/// \brief Where the primaries start: the generator `type` (point, volume, surface, cosmic or cry) selects the
 /// derived class, which reads its own fields from the `generator` section. Positions in mm, world
 /// coordinates. See TRestGeant4PrimaryGenerator for the options.
 class TRestGeant4SpatialGenerator : public TRestMetadata {
@@ -151,6 +154,61 @@ class TRestGeant4SpatialGeneratorCosmic : public TRestGeant4SpatialGenerator {
     void SetDefaultRadius(double radius);
     /// \brief Generation surface (the sphere cross section) in cm2, to normalize to a flux
     double GetSurfaceCm2() const { return M_PI * fRadius * fRadius * 0.01; }
+};
+
+/// \class TRestGeant4SpatialGeneratorCRY
+/// \brief `type: "cry"`: the particles and positions of the showers of a restCRY file (`filename`, see
+/// TRestGeant4CRYShowers), one per event, in order. The CRY plane (z = 0) is centered at `position` and its
+/// +Z (up) is `verticalAxis`. The showers are read by all the copies (threads) from the same file, each one
+/// once; the generator has no sources.
+class TRestGeant4SpatialGeneratorCRY : public TRestGeant4SpatialGenerator {
+   public:
+    std::string fFilename;
+    std::array<TRestWithUnits, 3> fPosition = {0.0, 0.0, 0.0};
+    std::array<TRestWithUnits, 3> fVerticalAxis = {0.0, 1.0, 0.0};
+
+    /// Results, written at the end of the simulation: showers simulated and their exposure (time simulated
+    /// by CRY times the fraction of the showers of the file simulated)
+    int64_t fShowersUsed = 0;
+    TRestWithUnits fExposureTime = 0.0;
+
+    TRestGeant4SpatialGeneratorCRY() = default;
+    TRestGeant4SpatialGeneratorCRY(const std::string& name, const YAML::Node& node);
+    void LoadConfig() override;
+    std::string GetClassName() const override { return "TRestGeant4SpatialGeneratorCRY"; }
+
+    /// \brief A copy reading the same file (the showers are shared)
+    std::unique_ptr<TRestGeant4SpatialGenerator> Clone() const override {
+        return std::make_unique<TRestGeant4SpatialGeneratorCRY>(*this);
+    }
+    /// \brief Not used, the positions are the ones of the showers (NextShower)
+    ROOT::Math::XYZVector Sample(TRandom& random) override;
+    ROOT::Math::XYZVector GetCenter() const override;
+
+    /// \brief Opens the file, shared by the copies made after it (restG4 master thread)
+    void Open();
+    /// \brief The particles of the next shower not simulated yet, in world coordinates (thread safe).
+    /// False if all the showers of the file were simulated
+    bool NextShower(std::vector<TRestGeant4ParticleState>& particles);
+
+    /// \brief Showers in the file (the file must be open)
+    int64_t GetShowersInFile() const;
+
+    /// \brief The corners of the CRY square (subBoxLength of the file) in world coordinates, to check that
+    /// it is inside the world (the file must be open)
+    std::vector<ROOT::Math::XYZVector> GetPlaneCorners() const;
+
+    /// \brief Sets showersUsed and exposureTime from the showers taken (all the copies), also in the YAML
+    void UpdateExposure();
+    /// \brief Sets showersUsed and exposureTime, also in the YAML (e.g. a sum of runs)
+    void SetExposure(int64_t showers, double exposureTime);
+
+   private:
+    struct Reader;
+    std::shared_ptr<Reader> fReader;  //!
+
+    /// \brief From CRY coordinates (+Z up) to the world: rotation of +Z to verticalAxis
+    ROOT::Math::XYZVector RotateToWorld(const ROOT::Math::XYZVector& v) const;
 };
 
 #endif

@@ -255,7 +255,11 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fProcessNamesMap = other.fProcessNamesMap;
     fParticleNamesMap = other.fParticleNamesMap;
     fProcessTypesMap = other.fProcessTypesMap;
+    // The showers and the exposure of the cry generator add up, as the events
+    const int64_t showers = GetCRYShowersUsed() + other.GetCRYShowersUsed();
+    const double exposure = GetCRYExposureTime() + other.GetCRYExposureTime();
     fGeant4PrimaryGeneratorInfo = other.fGeant4PrimaryGeneratorInfo;
+    fGeant4PrimaryGeneratorInfo.SetCRYExposure(showers, exposure);
     fGeant4Version = other.fGeant4Version;
     fGeometryPath = other.fGeometryPath;
     fGdmlFilename = other.fGdmlFilename;

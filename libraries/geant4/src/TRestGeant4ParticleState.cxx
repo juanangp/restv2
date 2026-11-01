@@ -21,6 +21,7 @@ void TRestGeant4ParticleState::SetParticle(const TRestGeant4ParticleState& parti
     fDirection = particle.GetMomentumDirection();
     fOrigin = particle.GetOrigin();
     fCharge = particle.GetParticleCharge();
+    fTime = particle.GetTime();
 }
 
 ///////////////////////////////////////////////
@@ -34,6 +35,7 @@ void TRestGeant4ParticleState::Print() const {
     std::cout << "Excitation level : " << GetExcitationLevel() << std::endl;
     std::cout << "X : " << GetOrigin().X() << "mm Y : " << GetOrigin().Y() << "mm Z : " << GetOrigin().Z()
               << "mm" << std::endl;
+    std::cout << "Time : " << GetTime() << " us" << std::endl;
     std::cout << "Px : " << GetMomentumDirection().X() << " Py : " << GetMomentumDirection().Y()
               << " Pz : " << GetMomentumDirection().Z() << std::endl;
     std::cout << " ---------------------- " << std::endl;

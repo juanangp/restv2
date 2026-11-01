@@ -39,6 +39,8 @@ void TRestGeant4PrimaryGeneratorInfo::CopyGenerator(const TRestGeant4PrimaryGene
     for (const auto& source : other.fSources) fSources.push_back(source.Clone());
     // Not rebuilt from the section: SetGdmlPlacement and SetCosmicRadius modify it
     fSpatialGenerator = other.fSpatialGenerator ? other.fSpatialGenerator->Clone() : nullptr;
+    // It writes to the section of the copy (e.g. the cry exposure), not to the one of the original
+    if (fSpatialGenerator) fSpatialGenerator->SetYAMLNode(fNode);
 }
 
 void TRestGeant4PrimaryGeneratorInfo::LoadConfig() {
@@ -49,7 +51,13 @@ void TRestGeant4PrimaryGeneratorInfo::LoadConfig() {
     // The spatial generator reads its fields (type, from, shape...) from the generator section itself
     fSpatialGenerator = TRestGeant4SpatialGenerator::Create("generator", fNode);
 
-    if (fSources.empty()) throw runtime_error(GetClassName() + ": no 'source' in the generator");
+    if (IsCRY()) {
+        if (!fSources.empty()) {
+            throw runtime_error(GetClassName() + ": the cry generator has no 'source' (the file gives them)");
+        }
+    } else if (fSources.empty()) {
+        throw runtime_error(GetClassName() + ": no 'source' in the generator");
+    }
 
     if (!fSpatialDensityFunction.empty() &&
         !dynamic_cast<const TRestGeant4SpatialGeneratorShape*>(fSpatialGenerator.get())) {
@@ -70,6 +78,7 @@ std::set<std::string> TRestGeant4PrimaryGeneratorInfo::GetSharedNodeKeys() const
 
 void TRestGeant4PrimaryGeneratorInfo::LoadDistributions() {
     for (auto& source : fSources) source.LoadDistributions();
+    if (auto* cry = dynamic_cast<TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get())) cry->Open();
 }
 
 bool TRestGeant4PrimaryGeneratorInfo::HasDecay0Sources() const {
@@ -81,6 +90,42 @@ bool TRestGeant4PrimaryGeneratorInfo::HasDecay0Sources() const {
 
 bool TRestGeant4PrimaryGeneratorInfo::IsCosmic() const {
     return dynamic_cast<const TRestGeant4SpatialGeneratorCosmic*>(fSpatialGenerator.get()) != nullptr;
+}
+
+bool TRestGeant4PrimaryGeneratorInfo::IsCRY() const {
+    return dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get()) != nullptr;
+}
+
+int64_t TRestGeant4PrimaryGeneratorInfo::GetCRYShowersInFile() const {
+    const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
+    return cry ? cry->GetShowersInFile() : 0;
+}
+
+vector<ROOT::Math::XYZVector> TRestGeant4PrimaryGeneratorInfo::GetCRYPlaneCorners() const {
+    const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
+    return cry ? cry->GetPlaneCorners() : vector<ROOT::Math::XYZVector>();
+}
+
+void TRestGeant4PrimaryGeneratorInfo::UpdateCRYExposure() {
+    if (auto* cry = dynamic_cast<TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get())) {
+        cry->UpdateExposure();
+    }
+}
+
+int64_t TRestGeant4PrimaryGeneratorInfo::GetCRYShowersUsed() const {
+    const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
+    return cry ? cry->fShowersUsed : 0;
+}
+
+double TRestGeant4PrimaryGeneratorInfo::GetCRYExposureTime() const {
+    const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
+    return cry ? double(cry->fExposureTime) : 0;
+}
+
+void TRestGeant4PrimaryGeneratorInfo::SetCRYExposure(int64_t showers, double exposureTime) {
+    if (auto* cry = dynamic_cast<TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get())) {
+        cry->SetExposure(showers, exposureTime);
+    }
 }
 
 bool TRestGeant4PrimaryGeneratorInfo::IsGdml() const {
@@ -120,6 +165,10 @@ void TRestGeant4PrimaryGeneratorInfo::Print() const {
     if (IsGdml()) RESTMetadata << "Generator volume: " << GetGdmlVolume() << RESTendl;
     if (IsCosmic()) {
         RESTMetadata << "Cosmic generation surface: " << GetCosmicSurfaceCm2() << " cm2" << RESTendl;
+    }
+    if (IsCRY()) {
+        const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
+        RESTMetadata << "CRY showers file: " << cry->fFilename << RESTendl;
     }
     if (!fSpatialDensityFunction.empty()) {
         RESTMetadata << "Density: " << fSpatialDensityFunction << RESTendl;

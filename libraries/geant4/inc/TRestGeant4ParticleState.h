@@ -15,6 +15,8 @@ class TRestGeant4ParticleState {
     double fEnergy = 0;
     int fCharge = 0;
     ROOT::Math::XYZVector fOrigin;
+    /// Start time (us), e.g. of the particles of a cosmic shower relative to its first one
+    double fTime = 0;
 
    public:
     inline std::string GetParticleName() const { return fParticleName; }
@@ -24,6 +26,7 @@ class TRestGeant4ParticleState {
     inline int GetParticleCharge() const { return fCharge; }
     inline ROOT::Math::XYZVector GetOrigin() const { return fOrigin; }
     inline ROOT::Math::XYZVector GetDirection() const { return fDirection; }
+    inline double GetTime() const { return fTime; }
 
     /// \brief Copies all particle fields from another particle instance.
     void SetParticle(const TRestGeant4ParticleState& particle);
@@ -40,6 +43,7 @@ class TRestGeant4ParticleState {
     void SetDirection(const ROOT::Math::XYZVector& dir) { fDirection = dir.Unit(); }
     void SetEnergy(double en) { fEnergy = en; }
     void SetOrigin(const ROOT::Math::XYZVector& pos) { fOrigin = pos; }
+    void SetTime(double time) { fTime = time; }
 
     /// \brief Prints particle identity, energy, direction and origin.
     void Print() const;

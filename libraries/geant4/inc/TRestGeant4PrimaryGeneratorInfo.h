@@ -3,6 +3,7 @@
 
 #include <Math/Vector3D.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,7 +15,8 @@
 /// \class TRestGeant4PrimaryGeneratorInfo
 /// \brief The `generator` section of TRestGeant4Metadata: the spatial generator (its `type` selects a
 /// TRestGeant4SpatialGenerator, which reads its fields from this same section), the optional
-/// `spatialDensityFunction` and the `source` (one or a list of TRestGeant4ParticleSource). Each part is
+/// `spatialDensityFunction` and the `source` (one or a list of TRestGeant4ParticleSource; none for the
+/// cry generator, which gives the particles). Each part is
 /// configured with UpdateParamsFromYAML and written back with UpdateYAMLFromParams, so the stored YAML
 /// has the values used (e.g. the cosmic radius). The options are documented in
 /// TRestGeant4PrimaryGenerator, which samples the primaries.
@@ -37,8 +39,9 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     /// \brief The fields of the spatial generator, which reads this same section
     std::set<std::string> GetSharedNodeKeys() const override;
 
-    /// \brief Builds the distributions of the sources, needed only to generate (it checks them before
-    /// the simulation, each thread loads its own copy)
+    /// \brief Builds the distributions of the sources and opens the cry showers file, needed only to
+    /// generate (it checks them before the simulation, each thread loads its own copy of the
+    /// distributions, the showers file is shared)
     void LoadDistributions();
 
     inline const TRestGeant4SpatialGenerator* GetSpatialGenerator() const { return fSpatialGenerator.get(); }
@@ -46,6 +49,19 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     bool HasDecay0Sources() const;
 
     bool IsCosmic() const;
+    /// \brief True for the cry generator (the showers of a restCRY file, no sources)
+    bool IsCRY() const;
+    /// \brief Showers in the file of the cry generator, once open (0 if not cry)
+    int64_t GetCRYShowersInFile() const;
+    /// \brief The corners of the CRY square of the cry generator in world coordinates (empty if not cry)
+    std::vector<ROOT::Math::XYZVector> GetCRYPlaneCorners() const;
+    /// \brief The cry generator: sets the showers used and their exposure from the showers taken
+    void UpdateCRYExposure();
+    /// \brief Showers of the cry generator used and their exposure (time simulated, us), 0 if not cry
+    int64_t GetCRYShowersUsed() const;
+    double GetCRYExposureTime() const;
+    /// \brief Sets the showers used and the exposure of the cry generator (e.g. a sum of runs)
+    void SetCRYExposure(int64_t showers, double exposureTime);
     /// \brief True if the positions are in a GDML volume (`from`) or on its surface
     bool IsGdml() const;
     bool IsGdmlSurface() const;

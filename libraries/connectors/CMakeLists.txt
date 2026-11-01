@@ -37,10 +37,10 @@ rest_add_connector(TRestGeant4ToDetectorHitsProcess ${GEANT4_LIB}
                    ${DETECTOR_LIB})
 rest_add_connector(TRestDetectorSignalToRawSignalProcess ${DETECTOR_LIB}
                    ${RAW_LIB})
-# Legacy connectors not migrated yet: TRestRawReadoutAnalysisProcess (raw,
-# detector) TRestRawReadoutMetadataProcess         (raw, detector)
-# TRestDetectorHitsToTrackFastProcess    (detector, track)
-# TRestTrackToDetectorHitsProcess        (track, detector)
+# Legacy connectors not migrated: TRestRawReadoutAnalysisProcess and
+# TRestRawReadoutMetadataProcess (not needed), TRestTrackToDetectorHitsProcess
+# (undecided), TRestDetectorHitsToTrackFastProcess
+# (TRestDetectorHitsToTrackProcess is as fast).
 
 if(NOT CONNECTORS_SOURCES)
   message(

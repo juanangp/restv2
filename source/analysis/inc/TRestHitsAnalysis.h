@@ -29,6 +29,16 @@ using XYZVector = ROOT::Math::XYZVector;
 std::vector<std::vector<size_t>> FindClusters(const std::vector<XYZVector>& points, double distance,
                                               const std::array<bool, 3>& coordinates = {true, true, true});
 
+/// \brief Order of the points along the shortest path through all of them (travelling salesman), open
+/// (from any point to any other) or, with `cyclic`, closed (back to the first point). Exact (Held-Karp
+/// dynamic programming) up to `maxExactPoints` points (at most 16, time and memory grow as 2^n);
+/// with more points, nearest neighbour paths (from every point, or from the farthest point from the
+/// centroid with more than 200 points) improved with 2-opt (reversing segments while the path gets
+/// shorter), which is not always the shortest one.
+/// \return Indices of `points` in the order of the path (the input order with less than 3 points).
+std::vector<size_t> GetShortestPath(const std::vector<XYZVector>& points, bool cyclic = false,
+                                    size_t maxExactPoints = 12);
+
 /// \brief A point with energy, e.g. a node of a reduced track.
 struct Node {
     XYZVector position;
@@ -45,6 +55,18 @@ struct Node {
 std::vector<Node> KMeansClustering(const std::vector<XYZVector>& points, const std::vector<double>& energies,
                                    const std::vector<XYZVector>& centroids, int maxIt = 100,
                                    bool fixBoundaries = false);
+
+/// \brief Reduces the points to nodes merging the close ones, as legacy TRestTrackReductionProcess: the
+/// pairs of nodes closer than a distance are merged (energy weighted position, summed energy) until
+/// there are none, starting with `startingDistance` and multiplying it by `distanceStepFactor` while it is
+/// below `minimumDistance` or there are more than `maxNodes` nodes (at least 1). The sigma of each node is
+/// the energy weighted spread of its points, including their own `sigmas` (if given, same order as the
+/// points), e.g. for points that are already nodes.
+/// \return The nodes, in the order of their first point. Empty without points. Throws if
+/// startingDistance <= 0 or distanceStepFactor <= 1.
+std::vector<Node> MergePoints(const std::vector<XYZVector>& points, const std::vector<double>& energies,
+                              double startingDistance, double minimumDistance, double distanceStepFactor,
+                              size_t maxNodes, const std::vector<XYZVector>& sigmas = {});
 
 /// \brief Segment of the line that best fits the points: through their energy weighted mean, along the
 /// direction of largest spread (principal axis of the energy weighted covariance, i.e. the line

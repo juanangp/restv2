@@ -13,6 +13,9 @@
 ///
 /// Methods (energy, time of each hit):
 /// - onlyMax, tripleMax, tripleMaxAverage, gaussFit, landauFit, agetFit: one hit at the pulse maximum.
+///   With smoothingPoints > 1, onlyMax, tripleMax and tripleMaxAverage take the maximum of the signal
+///   smoothed with a moving average of that number of points (TRestPulseShapeAnalysis::GetSignalSmoothed;
+///   the fits already average the noise), with the energy of the smoothed signal.
 /// - integral: one hit with the charge integrated in integralRange (whole signal if empty) at the time
 ///   of the maximum in that range. For pulses without drift (scintillators, solid state, bolometers).
 /// - qCenter: one hit at the charge-weighted mean time, energy = mean charge per point (as legacy).
@@ -21,8 +24,8 @@
 ///
 /// Parameters: readout (name in TRestDetectorReadoutManager, optional if only one), driftVelocity (0:
 /// from the TRestDetectorDrift driftMedium, optional if only one, or no drift if there is none),
-/// driftMedium (""), driftAxis ("Z"), method ("tripleMaxAverage"), intWindow (5), threshold (100),
-/// integralRange ([0, 0]).
+/// driftMedium (""), driftAxis ("Z"), method ("tripleMaxAverage"), smoothingPoints (5), intWindow (5),
+/// threshold (100), integralRange ([0, 0]).
 ///
 /// Example:
 ///
@@ -55,6 +58,7 @@ static const bool TRestDetectorSignalToHitsProcess_FieldsRegistered = []() {
     reg.RegisterField<P>("driftMedium", &P::fDriftMediumName);
     reg.RegisterField<P>("driftAxis", &P::fDriftAxis);
     reg.RegisterField<P>("method", &P::fMethod);
+    reg.RegisterField<P>("smoothingPoints", &P::fSmoothingPoints);
     reg.RegisterField<P>("intWindow", &P::fIntWindow);
     reg.RegisterField<P>("threshold", &P::fThreshold);
     reg.RegisterField<P>("integralRange", &P::fIntegralRange);
@@ -241,6 +245,12 @@ bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRe
         } else if (fMethod == "all") {
             for (int j = 0; j < signal.GetNPoints(); j++) hits.push_back(signal.GetPoint(j));
         } else {
+            const bool smooth = fSmoothingPoints > 1 && (fMethod == "onlyMax" || fMethod == "tripleMax" ||
+                                                         fMethod == "tripleMaxAverage");
+            if (smooth) {
+                const auto smoothed = GetSignalSmoothed(signal.GetCharge(), fSmoothingPoints);
+                for (int j = 0; j < graph.GetN(); j++) graph.SetPointY(j, smoothed[j]);
+            }
             const auto hit = GetMax(graph, fMethod);
             if (hit.first >= 0 && hit.second > 0) hits.push_back(hit);  // fits return -1 on failure
         }

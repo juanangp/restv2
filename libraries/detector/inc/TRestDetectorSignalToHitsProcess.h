@@ -51,6 +51,11 @@ class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
     /// (one hit per integration window).
     std::string fMethod = "tripleMaxAverage";
 
+    /// Points of the moving average applied to the signal before taking its maximum with onlyMax,
+    /// tripleMax and tripleMaxAverage (odd, 1 or less: no smoothing), so the noise does not spread the
+    /// times; the energy is then the maximum of the smoothed signal
+    int fSmoothingPoints = 5;
+
     /// Time window to integrate when method is intWindow
     TRestWithUnits fIntWindow = 5;
 

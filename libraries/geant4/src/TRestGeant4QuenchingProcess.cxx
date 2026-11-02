@@ -258,9 +258,9 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
     auto& eventData = g4Event->fEventData;
     eventData.totalDepositedEnergy = 0.0;
     std::fill(eventData.volumeDepositedEnergy.begin(), eventData.volumeDepositedEnergy.end(), 0.0);
-    eventData.crossVolumeNames.clear();
-    eventData.crossParticleNames.clear();
-    eventData.crossProcessNames.clear();
+    eventData.crossVolumeIDs.clear();
+    eventData.crossParticleIDs.clear();
+    eventData.crossProcessIDs.clear();
     eventData.crossDepositedEnergies.clear();
     g4Event->RebuildCrossIndex();
 
@@ -306,13 +306,12 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
 
                 } else if (model == "lindhard") {
                     if (track.GetHadronicOk()) {
-                        const std::string isotopeName = track.GetHitHadronicTargetIsotopeName(hitIndex);
-
                         const int isotopeA = track.GetHitHadronicTargetIsotopeA(hitIndex);
 
                         const int isotopeZ = track.GetHitHadronicTargetIsotopeZ(hitIndex);
 
-                        if (!isotopeName.empty()) {
+                        // A = 0: no hadronic target nucleus in this hit
+                        if (isotopeA > 0) {
                             quenchingFactor = LindhardQuenchingFactor(depositedEnergy, isotopeA, isotopeZ);
                         }
 
@@ -336,9 +335,9 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
             if (visibleEnergy > 0) {
                 trackNewDepositedEnergy += visibleEnergy;
 
-                g4Event->AddEnergyInVolumeForParticleForProcess(
-                    visibleEnergy, physicalVolumeName, particleName,
-                    track.GetProcessName(track.GetHitProcess(hitIndex)));
+                g4Event->AddEnergyInVolumeForParticleForProcess(visibleEnergy, track.GetHitVolumeID(hitIndex),
+                                                                track.GetParticleID(),
+                                                                track.GetHitProcess(hitIndex));
             }
         }
 

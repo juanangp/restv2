@@ -17,13 +17,13 @@ class TRestCommonNoiseBlock : public TRestMetadata {
     std::vector<std::pair<int, int>> fChannelRange;
 
     /// Correction method: 0 = median bin, 1 = average of a center window.
-    Int_t fMode = 0;
+    int fMode = 0;
 
     /// Percentage of signals around the center used for the average in mode 1.
-    Int_t fCenterWidth = 10;
+    int fCenterWidth = 10;
 
     /// Minimum number of signals in this block required to apply the correction.
-    Int_t fMinSignalsRequired = 20;
+    int fMinSignalsRequired = 20;
 
     /// Range used to estimate each signal's baseline before correction.
     std::pair<int, int> fBaselineRange = {20, 150};
@@ -32,11 +32,11 @@ class TRestCommonNoiseBlock : public TRestMetadata {
     /// which a channel is considered to carry real signal in a given bin, and is
     /// therefore excluded from that bin's common-noise estimate (though it still
     /// receives the correction).
-    Double_t fSignalSigmaThreshold = 7.0;
+    double fSignalSigmaThreshold = 7.0;
 
     /// Sigma threshold (relative to each channel's own baseline sigma) above
     /// which a channel noise is corrected
-    Double_t fBaselineSigmaThreshold = 2.3;
+    double fBaselineSigmaThreshold = 2.3;
 
     TRestCommonNoiseBlock();
     TRestCommonNoiseBlock(const std::string& name, const YAML::Node& node);

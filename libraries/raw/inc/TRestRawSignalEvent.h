@@ -217,7 +217,7 @@ class TRestRawSignalEvent : public TRestEvent {
     }
 
     void PrintEvent() const override;
-    TPad* DrawEvent(const TString& option = "") const override;
+    TPad* DrawEvent(const std::string& option = "") const override;
 
     TRestRawSignalEvent() = default;
     ~TRestRawSignalEvent() = default;

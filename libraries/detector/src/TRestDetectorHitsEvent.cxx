@@ -12,8 +12,7 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
-void TRestDetectorHitsEvent::AddHit(Double_t x, Double_t y, Double_t z, Double_t en, Double_t t,
-                                    REST_HitType type) {
+void TRestDetectorHitsEvent::AddHit(double x, double y, double z, double en, double t, REST_HitType type) {
     fHitsData.x.push_back((float)x);
     fHitsData.y.push_back((float)y);
     fHitsData.z.push_back((float)z);
@@ -23,7 +22,7 @@ void TRestDetectorHitsEvent::AddHit(Double_t x, Double_t y, Double_t z, Double_t
     RebuildHitsView();
 }
 
-void TRestDetectorHitsEvent::AddHit(const XYZVector& position, Double_t energy, Double_t time,
+void TRestDetectorHitsEvent::AddHit(const XYZVector& position, double energy, double time,
                                     REST_HitType type) {
     AddHit(position.X(), position.Y(), position.Z(), energy, time, type);
 }
@@ -86,7 +85,7 @@ TRestHits* TRestDetectorHitsEvent::GetXYZHits() {
     return &fXYZHitsView;
 }
 
-void TRestDetectorHitsEvent::PrintDetectorHitsEvent(Int_t nHits) const {
+void TRestDetectorHitsEvent::PrintDetectorHitsEvent(int nHits) const {
     TRestEvent::PrintEvent();
 
     std::cout << "Total energy : " << GetTotalEnergy() << std::endl;
@@ -101,9 +100,9 @@ void TRestDetectorHitsEvent::PrintDetectorHitsEvent(Int_t nHits) const {
     fHits.PrintHits(nHits);
 }
 
-TPad* TRestDetectorHitsEvent::DrawEvent(const TString& option) const {
+TPad* TRestDetectorHitsEvent::DrawEvent(const std::string& option) const {
     std::vector<std::string> options;
-    for (const auto& opt : TRestTools::Split(option.Data(), ':')) {
+    for (const auto& opt : TRestTools::Split(option, ':')) {
         if (opt == "print") {
             PrintEvent();
         } else if (!opt.empty()) {

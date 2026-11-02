@@ -33,7 +33,7 @@ void TRestEventProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestEventProcess>(fNode);
 }
 
-Long64_t TRestEventProcess::GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
+long long TRestEventProcess::GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
 
 bool TRestEventProcess::ShouldRegisterObservable(const std::string& name) const {
     if (!fRunInfo) return false;

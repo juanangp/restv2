@@ -45,7 +45,7 @@ class TRestDetectorReadout : public TRestMetadata {
         TGeoMedium* medium = nullptr;
         std::unique_ptr<TGeoHMatrix> matrix;
         Color_t color = kGray;
-        Char_t transparency = 0;
+        char transparency = 0;
         std::string name;
     };
 

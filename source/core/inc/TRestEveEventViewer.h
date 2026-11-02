@@ -55,8 +55,8 @@ class TRestEveEventViewer : public TRestEventViewer {
 
     char pointName[256];
 
-    Double_t fMinRadius = 0.2;
-    Double_t fMaxRadius = 3.0;
+    double fMinRadius = 0.2;
+    double fMaxRadius = 3.0;
 
    public:
     virtual void Initialize();
@@ -77,8 +77,8 @@ class TRestEveEventViewer : public TRestEventViewer {
     void SetGeometry(TGeoManager* geo);
     void Update();
 
-    void SetMinRadius(Double_t rmin) { fMinRadius = rmin; }
-    void SetMaxRadius(Double_t rmax) { fMaxRadius = rmax; }
+    void SetMinRadius(double rmin) { fMinRadius = rmin; }
+    void SetMaxRadius(double rmax) { fMaxRadius = rmax; }
 
     // Constructor
     TRestEveEventViewer();

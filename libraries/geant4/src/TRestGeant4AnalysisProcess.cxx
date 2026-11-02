@@ -346,19 +346,21 @@ bool TRestGeant4AnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEven
     fObs.nTracks = static_cast<int>(event->GetNumberOfTracks());
 
     fObs.energyPrimary = data.primaryEnergies.empty() ? nan : data.primaryEnergies[0];
-    fObs.xOriginPrimary = data.primaryPosition.X();
-    fObs.yOriginPrimary = data.primaryPosition.Y();
-    fObs.zOriginPrimary = data.primaryPosition.Z();
-    const ROOT::Math::XYZVector direction = data.primaryDirections.empty()
+    const auto origin = event->GetPrimaryPosition();
+    fObs.xOriginPrimary = origin.X();
+    fObs.yOriginPrimary = origin.Y();
+    fObs.zOriginPrimary = origin.Z();
+    const ROOT::Math::XYZVector direction = event->GetNumberOfPrimaries() == 0
                                                 ? ROOT::Math::XYZVector(nan, nan, nan)
-                                                : data.primaryDirections[0].Unit();
+                                                : event->GetPrimaryDirection(0).Unit();
     fObs.xDirectionPrimary = direction.X();
     fObs.yDirectionPrimary = direction.Y();
     fObs.zDirectionPrimary = direction.Z();
     fObs.thetaPrimary = direction.Theta();
     fObs.phiPrimary = direction.Phi();
-    fObs.eventPrimaryParticleName = data.primaryParticleNames.empty() ? "" : data.primaryParticleNames[0];
-    fObs.subEventPrimaryParticleName = event->IsSubEvent() ? data.subEventParticleName : "generator";
+    fObs.eventPrimaryParticleName =
+        event->GetNumberOfPrimaries() == 0 ? "" : event->GetPrimaryParticleName(0);
+    fObs.subEventPrimaryParticleName = event->IsSubEvent() ? event->GetSubEventParticleName() : "generator";
 
     ProcessSelections(*event);
     for (auto& selection : fSelectionObs) {
@@ -390,7 +392,7 @@ void TRestGeant4AnalysisProcess::ProcessSelections(const TRestGeant4Event& event
     bool anyHit = false;
 
     for (size_t t = 0; t < data.trackIDs.size(); t++) {
-        const auto& particle = data.trackParticleNames[t];
+        const auto particle = event.GetParticleName(data.trackParticleIDs[t]);
         const size_t start = data.trackStartIndices[t];
         const size_t end = start + data.trackNHits[t];
 
@@ -484,16 +486,16 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
     if (enteringTracks.empty()) return;
 
     const size_t t = enteringTracks.begin()->second;
-    entering.particle = data.trackParticleNames[t];
+    entering.particle = event.GetParticleName(data.trackParticleIDs[t]);
     const auto parent = indexOfID.find(data.parentIDs[t]);
     if (data.parentIDs[t] != 0 && parent != indexOfID.end()) {
-        entering.parentParticle = data.trackParticleNames[parent->second];
+        entering.parentParticle = event.GetParticleName(data.trackParticleIDs[parent->second]);
     }
-    entering.creatorProcess = data.trackCreatorProcesses[t];
+    entering.creatorProcess = event.GetProcessName(data.trackCreatorProcessIDs[t]);
     entering.initialEnergy = data.trackInitialEnergies[t];
-    entering.initialX = data.trackInitialPositions[t].X();
-    entering.initialY = data.trackInitialPositions[t].Y();
-    entering.initialZ = data.trackInitialPositions[t].Z();
+    entering.initialX = data.trackInitialPositionX[t];
+    entering.initialY = data.trackInitialPositionY[t];
+    entering.initialZ = data.trackInitialPositionZ[t];
 
     // First and last hits in the volumes, the track entered them so there is at least one
     const size_t start = data.trackStartIndices[t];

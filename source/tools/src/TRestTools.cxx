@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -629,6 +630,19 @@ std::string TRestTools::ToLower(std::string str) {
     std::transform(str.begin(), str.end(), str.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return str;
+}
+
+std::string TRestTools::Format(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    va_list argsCopy;
+    va_copy(argsCopy, args);
+    const int size = std::vsnprintf(nullptr, 0, format, argsCopy);
+    va_end(argsCopy);
+    std::string result(size > 0 ? size : 0, '\0');
+    if (size > 0) std::vsnprintf(result.data(), size + 1, format, args);
+    va_end(args);
+    return result;
 }
 
 std::string TRestTools::ToTimeStringLong(double seconds) {

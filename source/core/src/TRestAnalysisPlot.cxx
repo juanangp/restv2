@@ -630,7 +630,7 @@ void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::st
     }
 
     struct PanelResults {
-        ROOT::RDF::RResultPtr<ULong64_t> entries;
+        ROOT::RDF::RResultPtr<unsigned long long> entries;
         std::map<std::string, ROOT::RDF::RResultPtr<double>> statistics;
         std::string cuts;
     };
@@ -826,8 +826,8 @@ void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::st
         // The window is scaled (same aspect ratio) to fit in the screen, so all the pads are visible
         double factor = 1;
         if (gVirtualX) {
-            Int_t screenX = 0, screenY = 0;
-            UInt_t screenWidth = 0, screenHeight = 0;
+            int screenX = 0, screenY = 0;
+            unsigned int screenWidth = 0, screenHeight = 0;
             gVirtualX->GetGeometry(-1, screenX, screenY, screenWidth, screenHeight);
             if (screenWidth > 0 && screenHeight > 0) {
                 factor =

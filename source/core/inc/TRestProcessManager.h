@@ -33,8 +33,8 @@ class TRestProcessManager : public TRestMetadata {
 
     TRestManager* fManager = nullptr;
 
-    Long64_t fEntryStart = -1;
-    Long64_t fEntryEnd = -1;
+    long long fEntryStart = -1;
+    long long fEntryEnd = -1;
 
    public:
     int fEventsToProcess = 0;
@@ -54,7 +54,7 @@ class TRestProcessManager : public TRestMetadata {
     void LoadProcesses();
 
     void SetManager(TRestManager* mgr) { fManager = mgr; }
-    void SetEntryRange(Long64_t start, Long64_t end) {
+    void SetEntryRange(long long start, long long end) {
         fEntryStart = start;
         fEntryEnd = end;
     }

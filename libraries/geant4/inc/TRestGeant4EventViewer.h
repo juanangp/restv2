@@ -21,12 +21,12 @@ class TRestGeant4EventViewer : public TRestEveEventViewer {
     void DeleteCurrentEvent();
     void AddEvent(TRestEvent* event);
 
-    void NextTrackVertex(Int_t trkID, ROOT::Math::XYZVector to);
-    void AddTrack(Int_t trkID, Int_t parentID, ROOT::Math::XYZVector from, TString name);
-    void AddParentTrack(Int_t trkID, ROOT::Math::XYZVector from, TString name);
+    void NextTrackVertex(int trkID, ROOT::Math::XYZVector to);
+    void AddTrack(int trkID, int parentID, ROOT::Math::XYZVector from, const std::string& name);
+    void AddParentTrack(int trkID, ROOT::Math::XYZVector from, const std::string& name);
 
-    void AddText(TString text, ROOT::Math::XYZVector at);
-    void AddMarker(Int_t trkID, ROOT::Math::XYZVector at, TString name);
+    void AddText(const std::string& text, ROOT::Math::XYZVector at);
+    void AddMarker(int trkID, ROOT::Math::XYZVector at, const std::string& name);
 
     // Constructor
     TRestGeant4EventViewer();

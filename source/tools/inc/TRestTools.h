@@ -60,6 +60,8 @@ std::string CleanString(const std::string& str);
 void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
 /// \brief The string in lower case (ASCII)
 std::string ToLower(std::string str);
+/// \brief printf-style formatted string (replaces TString::Format)
+std::string Format(const char* format, ...) __attribute__((format(printf, 1, 2)));
 /// Replacement of a match (or of the content between delimiters), nullopt: kept as it is
 using TextReplacement = std::function<std::optional<std::string>(const std::string&)>;
 /// \brief Text with each `open`content`close` (e.g. [runNumber], {entries|%.1f}) replaced by

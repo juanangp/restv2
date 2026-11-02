@@ -32,7 +32,7 @@ class TRestRunInfo : public TRestMetadata {
     std::map<std::string, std::string> fRunInformation;
     double fStartTime = 0;
     double fEndTime = 0;
-    Long64_t fEntriesSaved = 0;
+    long long fEntriesSaved = 0;
 
     TRestRunInfo() = default;
     TRestRunInfo(const std::string& instanceName, const YAML::Node& node)
@@ -62,7 +62,7 @@ class TRestRunInfo : public TRestMetadata {
     const std::map<std::string, std::string>& GetRunInformation() const { return fRunInformation; }
     double GetStartTime() const { return fStartTime; }
     double GetEndTime() const { return fEndTime; }
-    Long64_t GetEntriesSaved() const { return fEntriesSaved; }
+    long long GetEntriesSaved() const { return fEntriesSaved; }
 
     void SetRunNumber(int v) { fRunNumber = v; }
     void SetSubRunNumber(int v) { fSubRunNumber = v; }

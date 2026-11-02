@@ -226,7 +226,7 @@ void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManag
     viewGeo->SetTopVolume(top);
 
     // Items are grouped in assemblies: a single volume with too many daughters (~1e5) overflows the
-    // Int_t buffer size computed in TGeoVoxelFinder::SortAll, corrupting the heap at CloseGeometry
+    // int buffer size computed in TGeoVoxelFinder::SortAll, corrupting the heap at CloseGeometry
     const int kItemsPerGroup = 1000;
     TGeoVolumeAssembly* group = nullptr;
     int i = 0;

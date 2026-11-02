@@ -90,10 +90,8 @@ class TRestDetectorHitsEvent : public TRestEvent {
         }
     }
 
-    void AddHit(Double_t x, Double_t y, Double_t z, Double_t en, Double_t t = 0,
-                REST_HitType type = REST_HitType::XYZ);
-    void AddHit(const XYZVector& position, Double_t energy, Double_t time,
-                REST_HitType type = REST_HitType::XYZ);
+    void AddHit(double x, double y, double z, double en, double t = 0, REST_HitType type = REST_HitType::XYZ);
+    void AddHit(const XYZVector& position, double energy, double time, REST_HitType type = REST_HitType::XYZ);
 
     // Usage event.Sort([&event](int a, int b) { return event.GetEnergy(a) > event.GetEnergy(b); });
     void Sort(std::function<bool(int, int)> compareCondition = nullptr);
@@ -103,46 +101,46 @@ class TRestDetectorHitsEvent : public TRestEvent {
     inline TRestHits* GetHits() { return &fHits; }
     inline const TRestHits* GetHits() const { return &fHits; }
 
-    inline Double_t GetX(int n) const { return fHits.GetX(n); }
-    inline Double_t GetY(int n) const { return fHits.GetY(n); }
-    inline Double_t GetZ(int n) const { return fHits.GetZ(n); }
+    inline double GetX(int n) const { return fHits.GetX(n); }
+    inline double GetY(int n) const { return fHits.GetY(n); }
+    inline double GetZ(int n) const { return fHits.GetZ(n); }
     inline REST_HitType GetType(int n) const { return fHits.GetType(n); }
-    inline Double_t GetDistance2(int n, int m) const { return fHits.GetDistance2(n, m); }
-    inline Double_t GetEnergy(int n) const { return fHits.GetEnergy(n); }
-    inline Double_t GetTime(int n) const { return fHits.GetTime(n); }
+    inline double GetDistance2(int n, int m) const { return fHits.GetDistance2(n, m); }
+    inline double GetEnergy(int n) const { return fHits.GetEnergy(n); }
+    inline double GetTime(int n) const { return fHits.GetTime(n); }
 
     TRestHits* GetXZHits();
     TRestHits* GetYZHits();
     TRestHits* GetXYZHits();
 
     inline void PrintEvent() const override { PrintDetectorHitsEvent(-1); }
-    void PrintDetectorHitsEvent(Int_t nHits) const;
+    void PrintDetectorHitsEvent(int nHits) const;
 
     inline XYZVector GetPosition(int n) const { return fHits.GetPosition(n); }
     inline XYZVector GetMeanPosition() const { return fHits.GetMeanPosition(); }
 
-    inline Int_t GetNumberOfHitsX() const { return fHits.GetNumberOfHitsX(); }
-    inline Int_t GetNumberOfHitsY() const { return fHits.GetNumberOfHitsY(); }
+    inline int GetNumberOfHitsX() const { return fHits.GetNumberOfHitsX(); }
+    inline int GetNumberOfHitsY() const { return fHits.GetNumberOfHitsY(); }
 
-    inline Double_t GetMeanPositionX() const { return fHits.GetMeanPositionX(); }
-    inline Double_t GetMeanPositionY() const { return fHits.GetMeanPositionY(); }
-    inline Double_t GetMeanPositionZ() const { return fHits.GetMeanPositionZ(); }
-    inline Double_t GetSigmaXY2() const { return fHits.GetSigmaXY2(); }
-    inline Double_t GetSigmaX() const { return fHits.GetSigmaX(); }
-    inline Double_t GetSigmaY() const { return fHits.GetSigmaY(); }
-    inline Double_t GetSigmaZ2() const { return fHits.GetSigmaZ2(); }
-    inline Double_t GetSkewXY() const { return fHits.GetSkewXY(); }
-    inline Double_t GetSkewZ() const { return fHits.GetSkewZ(); }
+    inline double GetMeanPositionX() const { return fHits.GetMeanPositionX(); }
+    inline double GetMeanPositionY() const { return fHits.GetMeanPositionY(); }
+    inline double GetMeanPositionZ() const { return fHits.GetMeanPositionZ(); }
+    inline double GetSigmaXY2() const { return fHits.GetSigmaXY2(); }
+    inline double GetSigmaX() const { return fHits.GetSigmaX(); }
+    inline double GetSigmaY() const { return fHits.GetSigmaY(); }
+    inline double GetSigmaZ2() const { return fHits.GetSigmaZ2(); }
+    inline double GetSkewXY() const { return fHits.GetSkewXY(); }
+    inline double GetSkewZ() const { return fHits.GetSkewZ(); }
 
-    inline Double_t GetMaximumHitEnergy() const { return fHits.GetMaximumHitEnergy(); }
-    inline Double_t GetMinimumHitEnergy() const { return fHits.GetMinimumHitEnergy(); }
-    inline Double_t GetMeanHitEnergy() const { return fHits.GetMeanHitEnergy(); }
+    inline double GetMaximumHitEnergy() const { return fHits.GetMaximumHitEnergy(); }
+    inline double GetMinimumHitEnergy() const { return fHits.GetMinimumHitEnergy(); }
+    inline double GetMeanHitEnergy() const { return fHits.GetMeanHitEnergy(); }
 
-    inline Double_t GetEnergyX() const { return fHits.GetEnergyX(); }
-    inline Double_t GetEnergyY() const { return fHits.GetEnergyY(); }
-    inline Double_t GetTotalEnergy() const { return fHits.GetTotalEnergy(); }
+    inline double GetEnergyX() const { return fHits.GetEnergyX(); }
+    inline double GetEnergyY() const { return fHits.GetEnergyY(); }
+    inline double GetTotalEnergy() const { return fHits.GetTotalEnergy(); }
 
-    inline Int_t GetClosestHit(const XYZVector& position) { return fHits.GetClosestHit(position); }
+    inline int GetClosestHit(const XYZVector& position) { return fHits.GetClosestHit(position); }
 
     // NOTA: métodos de geometría (cilindro/prisma) pendientes de confirmar/portar.
 
@@ -155,7 +153,7 @@ class TRestDetectorHitsEvent : public TRestEvent {
     ///   (TRestHits::DrawHistograms with markers3D);
     /// - print: PrintEvent.
     /// Default: "hist(Cont1,col)".
-    TPad* DrawEvent(const TString& option = "") const override;
+    TPad* DrawEvent(const std::string& option = "") const override;
 
     TRestDetectorHitsEvent() = default;
     ~TRestDetectorHitsEvent() override = default;

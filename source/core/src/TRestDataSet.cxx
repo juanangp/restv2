@@ -319,7 +319,8 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
     if (!fRunConditions.empty()) {
         ROOT::RDF::RNode runFrame =
             ROOT::RDataFrame(fRuns.size())
-                .Define("runIndex", [](ULong64_t entry) { return static_cast<int>(entry); }, {"rdfentry_"});
+                .Define("runIndex", [](unsigned long long entry) { return static_cast<int>(entry); },
+                        {"rdfentry_"});
         for (const auto& [name, condition] : fRunConditions) {
             runFrame = runFrame.Filter(DefineRunParameters(runFrame, condition), name);
         }
@@ -455,9 +456,9 @@ void TRestDataSet::Write(const std::string& fileName) {
     TRestProgressBar progress;
     auto readEntries = ROOT::RDF::RNode(*fFrame).Count();
     if (showProgress && fInputEntries > 0) {
-        const ULong64_t step = std::max<ULong64_t>(fInputEntries / 200, 1);
+        const unsigned long long step = std::max<unsigned long long>(fInputEntries / 200, 1);
         readEntries.OnPartialResult(
-            step, [&progress](ULong64_t& entries) { progress.Update(static_cast<int>(entries)); });
+            step, [&progress](unsigned long long& entries) { progress.Update(static_cast<int>(entries)); });
         RESTInfo << "TRestDataSet '" << fName << "': writing " << fileName << RESTendl;
         progress.Reset(static_cast<int>(fInputEntries), 30, "Entries");
     }
@@ -516,8 +517,8 @@ std::optional<std::vector<TRestDataSet::Run>> TRestDataSet::ReadRuns(TFile* file
         run.run =
             TRestRunInfo::FromConfig(GetYAMLParam<std::string>(runNode, "name", key->GetName()), runNode);
         run.fileName = GetYAMLParam<std::string>(node, "fileName");
-        run.entries = GetYAMLParam<Long64_t>(node, "entries", 0);
-        run.selectedEntries = GetYAMLParam<Long64_t>(node, "selectedEntries", 0);
+        run.entries = GetYAMLParam<long long>(node, "entries", 0);
+        run.selectedEntries = GetYAMLParam<long long>(node, "selectedEntries", 0);
         byIndex[GetYAMLParam<int>(node, "runIndex", byIndex.size())] = run;
     }
     std::vector<Run> runs;
@@ -590,7 +591,7 @@ void TRestDataSet::PrintDataSetInfo() const {
     if (!pattern.empty()) RESTMetadata << " - Generated from: " << pattern << RESTendl;
     if (!input.empty()) RESTMetadata << " - Input dataset: " << input << RESTendl;
     RESTMetadata << " - File: " << GetYAMLParam<std::string>(config, "outputFileName", "") << RESTendl;
-    Long64_t entries = 0, selectedEntries = 0;
+    long long entries = 0, selectedEntries = 0;
     for (const auto& run : fRuns) {
         entries += run.entries;
         selectedEntries += run.selectedEntries;

@@ -339,8 +339,8 @@ std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers(co
     return GetSignalSmoothed(cleaned, averagingPoints);
 }
 
-template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers<Short_t>(
-    const std::vector<Short_t>& signal, int averagingPoints, double& baseLine, double& baseLineSigma);
+template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers<short>(
+    const std::vector<short>& signal, int averagingPoints, double& baseLine, double& baseLineSigma);
 template std::vector<float> TRestPulseShapeAnalysis::GetSignalSmoothed_ExcludeOutliers<float>(
     const std::vector<float>& signal, int averagingPoints, double& baseLine, double& baseLineSigma);
 
@@ -361,7 +361,7 @@ std::vector<float> TRestPulseShapeAnalysis::GetDerivative(const std::vector<T>& 
 }
 
 template std::vector<float> TRestPulseShapeAnalysis::GetDerivative(const std::vector<float>& signal);
-template std::vector<float> TRestPulseShapeAnalysis::GetDerivative(const std::vector<Short_t>& signal);
+template std::vector<float> TRestPulseShapeAnalysis::GetDerivative(const std::vector<short>& signal);
 
 ///////////////////////////////////////////////
 /// \brief It returns a vector of the data points
@@ -459,7 +459,7 @@ std::vector<std::pair<int, float>> TRestPulseShapeAnalysis::GetPointsOverThresho
 
     return pointsOverThreshold;
 }
-template std::vector<std::pair<int, float>> TRestPulseShapeAnalysis::GetPointsOverThreshold<Short_t>(
+template std::vector<std::pair<int, float>> TRestPulseShapeAnalysis::GetPointsOverThreshold<short>(
     const std::vector<short>& signal, std::pair<int, int>& range, const std::pair<double, double>& thrPar,
     int nPointsOver, int nPointsFlat, double baseLineSigma);
 template std::vector<std::pair<int, float>> TRestPulseShapeAnalysis::GetPointsOverThreshold<float>(

@@ -30,9 +30,9 @@ class TRestDataSet : public TRestMetadata {
         /// File the run was read from (the run file, also when it comes from another dataset)
         std::string fileName;
         /// Entries of the analysis tree of the run file
-        Long64_t entries = 0;
+        long long entries = 0;
         /// Entries in the dataset (after the cuts), set by Write
-        Long64_t selectedEntries = 0;
+        long long selectedEntries = 0;
     };
 
    private:
@@ -40,7 +40,7 @@ class TRestDataSet : public TRestMetadata {
     /// Input files of the last Generate
     std::vector<std::string> fInputFiles;
     /// Entries of the analysis trees of the input files (progress of Write)
-    Long64_t fInputEntries = 0;
+    long long fInputEntries = 0;
     /// Columns written by Write
     std::vector<std::string> fColumns;
     /// `columns` as written (ordered: a column can use the previous ones)

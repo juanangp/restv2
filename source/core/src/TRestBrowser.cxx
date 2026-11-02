@@ -46,12 +46,12 @@ TRestBrowser::TRestBrowser() {
     }
 }
 
-TRestBrowser::TRestBrowser(const string& viewerName, Double_t geomScale) {
+TRestBrowser::TRestBrowser(const string& viewerName, double geomScale) {
     Initialize("I");
     SetViewer(viewerName, geomScale);
 }
 
-TRestBrowser::TRestBrowser(TRestEventViewer* viewer, Double_t geomScale) {
+TRestBrowser::TRestBrowser(TRestEventViewer* viewer, double geomScale) {
     Initialize("I");
     if (viewer == nullptr) viewer = new TRestEventViewer();
     SetViewer(viewer, geomScale);
@@ -100,7 +100,7 @@ void TRestBrowser::Initialize(const string& opt) {
     // frmMain->MapWindow();
 }
 
-void TRestBrowser::SetViewer(TRestEventViewer* eV, Double_t geomScale) {
+void TRestBrowser::SetViewer(TRestEventViewer* eV, double geomScale) {
     if (fEventViewer != nullptr) {
         cout << "Event viewer has already been set!" << endl;
         return;
@@ -114,7 +114,7 @@ void TRestBrowser::SetViewer(TRestEventViewer* eV, Double_t geomScale) {
     }
 }
 
-void TRestBrowser::SetViewer(const std::string& viewerName, Double_t geomScale) {
+void TRestBrowser::SetViewer(const std::string& viewerName, double geomScale) {
     if (CountString((string)viewerName, "Viewer") > 0) {
         TClass* cl = TClass::GetClass(viewerName.c_str());
         if (!cl) {
@@ -146,7 +146,7 @@ void TRestBrowser::SetLeftPanelButtons() {
     fVFrame->AddFrame(fEventRowLabel, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
 
     fEventRowNumberBox = new TGNumberEntry(fVFrame, fEventRow);
-    fEventRowNumberBox->Connect("ValueSet(Long_t)", "TRestBrowser", this, "RowValueChangedAction(Long_t)");
+    fEventRowNumberBox->Connect("ValueSet(Long_t)", "TRestBrowser", this, "RowValueChangedAction(long)");
     fVFrame->AddFrame(fEventRowNumberBox, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
 
     // event id and sub event id
@@ -163,12 +163,11 @@ void TRestBrowser::SetLeftPanelButtons() {
     auto numberBoxBar = new TGHorizontalFrame(fVFrame);
     {
         fEventIdNumberBox = new TGNumberEntry(numberBoxBar, fEventId);
-        fEventIdNumberBox->Connect("ValueSet(Long_t)", "TRestBrowser", this, "IdValueChangedAction(Long_t)");
+        fEventIdNumberBox->Connect("ValueSet(Long_t)", "TRestBrowser", this, "IdValueChangedAction(long)");
         numberBoxBar->AddFrame(fEventIdNumberBox, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
 
         fEventSubIdNumberBox = new TGNumberEntry(numberBoxBar, fEventSubId);
-        fEventSubIdNumberBox->Connect("ValueSet(Long_t)", "TRestBrowser", this,
-                                      "IdValueChangedAction(Long_t)");
+        fEventSubIdNumberBox->Connect("ValueSet(Long_t)", "TRestBrowser", this, "IdValueChangedAction(long)");
         numberBoxBar->AddFrame(fEventSubIdNumberBox, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
     }
     fVFrame->AddFrame(numberBoxBar, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
@@ -178,7 +177,7 @@ void TRestBrowser::SetLeftPanelButtons() {
     fVFrame->AddFrame(fEventTypeLabel, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
 
     fEventTypeComboBox = new TGComboBox(fVFrame);
-    fEventTypeComboBox->Connect("Selected(Int_t)", "TRestBrowser", this, "EventTypeChangedAction(Int_t)");
+    fEventTypeComboBox->Connect("Selected(Int_t)", "TRestBrowser", this, "EventTypeChangedAction(int)");
     fVFrame->AddFrame(fEventTypeComboBox, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
 
     // plot option buttons
@@ -257,7 +256,7 @@ void TRestBrowser::SetBottomPanelButtons() {
 
 void TRestBrowser::InitFromConfigFile() { cout << __PRETTY_FUNCTION__ << endl; }
 
-Bool_t TRestBrowser::LoadEventEntry(Int_t n) {
+bool TRestBrowser::LoadEventEntry(int n) {
     if (fRestRun->fInputFile == nullptr || fRestRun->fInputFile->IsZombie()) {
         RESTWarning << "TRestBrowser::LoadEventEntry. No File..." << RESTendl;
         return kFALSE;
@@ -300,7 +299,7 @@ Bool_t TRestBrowser::LoadEventEntry(Int_t n) {
     return kTRUE;
 }
 
-Bool_t TRestBrowser::LoadEventId(Int_t eventID, Int_t subEventID) {
+bool TRestBrowser::LoadEventId(int eventID, int subEventID) {
     if (fRestRun->fInputFile == nullptr || fRestRun->fInputFile->IsZombie()) {
         RESTWarning << "TRestBrowser::LoadEventEntry. No File..." << RESTendl;
         return kFALSE;
@@ -344,7 +343,7 @@ Bool_t TRestBrowser::LoadEventId(Int_t eventID, Int_t subEventID) {
     return kTRUE;
 }
 
-Bool_t TRestBrowser::OpenFile(const std::string& filename) {
+bool TRestBrowser::OpenFile(const std::string& filename) {
     if (filename.find("http") != std::string::npos || TRestTools::fileExists(filename)) {
         fInputFileName = filename;
 
@@ -430,9 +429,9 @@ void TRestBrowser::PlotAction() {
     }
 }
 
-void TRestBrowser::RowValueChangedAction(Long_t val) {
+void TRestBrowser::RowValueChangedAction(long val) {
     int eventRow = fEventRow;
-    fEventRow = (Int_t)fEventRowNumberBox->GetNumber();
+    fEventRow = (int)fEventRowNumberBox->GetNumber();
 
     RESTDebug << "TRestBrowser::LoadEventAction. Entry:" << fEventRow << RESTendl;
 
@@ -444,7 +443,7 @@ void TRestBrowser::RowValueChangedAction(Long_t val) {
     }
 }
 
-void TRestBrowser::EventTypeChangedAction(Int_t id) {
+void TRestBrowser::EventTypeChangedAction(int id) {
     string eventType = fEventTypeComboBox->GetSelectedEntry()->GetTitle();
 
     if (!eventType.empty()) {
@@ -453,12 +452,12 @@ void TRestBrowser::EventTypeChangedAction(Int_t id) {
     }
 }
 
-void TRestBrowser::IdValueChangedAction(Long_t val) {
+void TRestBrowser::IdValueChangedAction(long val) {
     int eventID = fEventId;
     int subEventID = fEventSubId;
 
-    fEventId = (Int_t)fEventIdNumberBox->GetNumber();
-    fEventSubId = (Int_t)fEventSubIdNumberBox->GetNumber();
+    fEventId = (int)fEventIdNumberBox->GetNumber();
+    fEventSubId = (int)fEventSubIdNumberBox->GetNumber();
 
     RESTDebug << "TRestBrowser::LoadEventAction. Event ID: " << fEventId << ", Sub ID: " << fEventSubId
               << RESTendl;
@@ -537,11 +536,12 @@ void TRestBrowser::LoadFileAction() {
     TGFileInfo fi;
     new TGFileDialog(gClient->GetRoot(), gClient->GetRoot(), kFDOpen, &fi);
 
-    TString dir = fi.fFilename;
+    if (fi.fFilename == nullptr) return;
+    const std::string dir = fi.fFilename;
 
-    cout << "Opening " << dir.Data() << endl;
+    cout << "Opening " << dir << endl;
 
-    OpenFile(dir.Data());
+    OpenFile(dir);
 }
 
 void TRestBrowser::ExitAction() { gSystem->Exit(0); }

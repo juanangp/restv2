@@ -1,12 +1,15 @@
 #include "TRestRawSignalEvent.h"
 
 #include <TMultiGraph.h>
-#include <TObjString.h>
 #include <TPad.h>
 
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <iostream>
 
 #include "TRestLogManager.h"
+#include "TRestTools.h"
 
 // ---------------------------------------------------------------------------
 // Self-registration in EventRegistry (no macro)
@@ -35,7 +38,7 @@ void TRestRawSignalEvent::PrintEvent() const {
     }
 }
 
-TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
+TPad* TRestRawSignalEvent::DrawEvent(const std::string& option) const {
     const int nSignals = GetNumberOfSignals();
     if (nSignals == 0) {
         std::cout << "Empty event " << std::endl;
@@ -43,8 +46,8 @@ TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
     }
 
     if (fPad == nullptr) {
-        TString padName = Form("pad_event_%d", this->GetID());
-        fPad = new TPad(padName, "REST Event Viewer", 0, 0, 1, 1);
+        const std::string padName = "pad_event_" + std::to_string(GetID());
+        fPad = new TPad(padName.c_str(), "REST Event Viewer", 0, 0, 1, 1);
     }
 
     TVirtualPad* safePad = gPad;
@@ -57,40 +60,37 @@ TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
     int sRangeInit = 0;
     int sRangeEnd = 0;
 
-    TString optStr = option;
-    optStr.ToLower();
-
-    if (optStr.Contains("ids[")) {
-        int startIdx = optStr.Index("ids[") + 4;
-        int endIdx = optStr.Index("]", startIdx);
-        if (endIdx > startIdx) {
-            TString rangeStr = optStr(startIdx, endIdx - startIdx);
-
-            TString sep = "-";
-            if (rangeStr.Contains(",")) sep = ",";
-
-            TObjArray* tokens = rangeStr.Tokenize(sep);
-            if (tokens->GetEntries() >= 2) {
-                sRangeInit = ((TObjString*)tokens->At(0))->GetString().Atoi();
-                sRangeEnd = ((TObjString*)tokens->At(1))->GetString().Atoi();
-                hasFilter = true;
-            }
-            delete tokens;
+    const std::string optStr = TRestTools::ToLower(option);
+    const auto isNumber = [](const std::string& str) {
+        return !str.empty() && std::all_of(str.begin(), str.end(), ::isdigit);
+    };
+    // A range "first-last" or "first,last" (empty parts are skipped)
+    const auto readRange = [&](const std::string& range, char sep) {
+        std::vector<std::string> parts;
+        for (const auto& part : TRestTools::Split(range, sep)) {
+            if (!part.empty()) parts.push_back(part);
         }
-    } else if (optStr.Contains("-")) {
-        TObjArray* tokens = optStr.Tokenize("-");
-        if (tokens->GetEntries() >= 2) {
-            sRangeInit = ((TObjString*)tokens->At(0))->GetString().Atoi();
-            sRangeEnd = ((TObjString*)tokens->At(1))->GetString().Atoi();
-            hasFilter = true;
+        if (parts.size() < 2) return;
+        sRangeInit = std::atoi(parts[0].c_str());
+        sRangeEnd = std::atoi(parts[1].c_str());
+        hasFilter = true;
+    };
+
+    if (const size_t idsPos = optStr.find("ids["); idsPos != std::string::npos) {
+        const size_t startIdx = idsPos + 4;
+        const size_t endIdx = optStr.find(']', startIdx);
+        if (endIdx != std::string::npos && endIdx > startIdx) {
+            const std::string rangeStr = optStr.substr(startIdx, endIdx - startIdx);
+            readRange(rangeStr, rangeStr.find(',') != std::string::npos ? ',' : '-');
         }
-        delete tokens;
-    } else if (!optStr.IsNull() && optStr.IsDigit()) {
-        signalIDs.push_back(optStr.Atoi());
+    } else if (optStr.find('-') != std::string::npos) {
+        readRange(optStr, '-');
+    } else if (isNumber(optStr)) {
+        signalIDs.push_back(std::atoi(optStr.c_str()));
         hasFilter = true;
     }
 
-    if (!hasFilter || optStr.IsNull()) {
+    if (!hasFilter || optStr.empty()) {
         for (int n = 0; n < nSignals; n++) {
             signalIDs.push_back(GetSignal(n).GetSignalID());
         }
@@ -110,15 +110,15 @@ TPad* TRestRawSignalEvent::DrawEvent(const TString& option) const {
         return fPad;
     }
 
-    if (optStr.Contains("printids")) {
+    if (optStr.find("printids") != std::string::npos) {
         std::cout << "SignalIDs a pintar:";
         for (const auto& id : signalIDs) std::cout << " " << id;
         std::cout << std::endl;
     }
 
     TMultiGraph* mg = new TMultiGraph();
-    TString title = Form("Event ID %d;Time Bin;ADC Channels", this->GetID());
-    mg->SetTitle(title.Data());
+    const std::string title = "Event ID " + std::to_string(GetID()) + ";Time Bin;ADC Channels";
+    mg->SetTitle(title.c_str());
 
     for (int sID : signalIDs) {
         const auto& signal = GetSignalByID(sID);

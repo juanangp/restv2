@@ -186,7 +186,7 @@ bool TrackLineViewer::ReadLine(double origin[3], double end[3]) const {
     for (const auto& name : names) {
         formulas.push_back(std::make_unique<TTreeFormula>(name.c_str(), name.c_str(), tree));
     }
-    const Long64_t entry = run->GetCurrentEntry();
+    const long long entry = run->GetCurrentEntry();
     if (tree->GetEntry(entry) <= 0) return false;
     for (int i = 0; i < 3; i++) {
         origin[i] = formulas[i]->EvalInstance();

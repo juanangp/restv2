@@ -29,9 +29,9 @@
 #include <TGLViewer.h>
 #include <TGTab.h>
 #include <TGeoManager.h>
-#include <TString.h>
 
 #include <map>
+#include <string>
 
 #include "TRestLogManager.h"
 #include "TRestTools.h"
@@ -65,7 +65,7 @@ TRestEveEventViewer::~TRestEveEventViewer() {
 }
 
 void InitializePerspectiveView() {
-    const std::map<TString, TGLViewer::ECameraType> projectionsMap = {
+    const std::map<std::string, TGLViewer::ECameraType> projectionsMap = {
         {"Projection XY", TGLViewer::kCameraOrthoXOY},   //
         {"Projection XZ", TGLViewer::kCameraOrthoXnOZ},  //
         {"Projection YZ", TGLViewer::kCameraOrthoZOY}    //
@@ -73,7 +73,7 @@ void InitializePerspectiveView() {
     for (const auto& [name, cameraType] : projectionsMap) {
         auto slot = TEveWindow::CreateWindowInTab(gEve->GetBrowser()->GetTabRight());
         auto pack = slot->MakePack();
-        pack->SetElementName(name);
+        pack->SetElementName(name.c_str());
         pack->SetHorizontal();
         pack->SetShowTitleBar(kFALSE);
         pack->NewSlot()->MakeCurrent();

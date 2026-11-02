@@ -261,6 +261,17 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
                 auto eventObj = EventRegistry::Instance().Create(className, className);
                 eventObj->Initialize();
+                // The branch layout of the file must be one this version of the event class reads
+                const int version = TRestEvent::ReadFormatVersion(tree);
+                if (version < eventObj->GetMinimumFormatVersion() || version > eventObj->GetFormatVersion()) {
+                    throw std::runtime_error("TRestRun: the " + className + " of " + fInputFile->GetName() +
+                                             " has format version " + std::to_string(version) +
+                                             (version == 0 ? " (no version, older format)" : "") +
+                                             ", this REST reads versions " +
+                                             std::to_string(eventObj->GetMinimumFormatVersion()) + " to " +
+                                             std::to_string(eventObj->GetFormatVersion()));
+                }
+                eventObj->SetInputFormatVersion(version);
                 eventObj->SetBranchAddresses(tree);
                 eventObj->SetRestRun(this);
 
@@ -329,7 +340,7 @@ void TRestRun::SetEvent(const std::string& treeName) {
     fEvent = it->second;
 }
 
-bool TRestRun::GetEntry(Long64_t entry) {
+bool TRestRun::GetEntry(long long entry) {
     if (fInputEventTrees.empty()) return false;
     bool success = false;
     for (auto& [treeName, tree] : fInputEventTrees) {
@@ -350,7 +361,7 @@ bool TRestRun::GetEntry(Long64_t entry) {
 
 bool TRestRun::GetNextEntry() { return GetEntry(++fEntry); }
 
-Long64_t TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string& tag) {
+long long TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string& tag) {
     if (!fAnalysisTree) return -1;
 
     TTreeReader reader(fAnalysisTree);
@@ -384,7 +395,7 @@ Long64_t TRestRun::GetEntryWithID(int eventID, int subEventID, const std::string
                 }
             }
 
-            Long64_t currentEntry = reader.GetCurrentEntry();
+            long long currentEntry = reader.GetCurrentEntry();
             this->GetEntry(currentEntry);
             return currentEntry;
         }

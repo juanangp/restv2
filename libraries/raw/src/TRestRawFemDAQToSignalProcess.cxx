@@ -95,11 +95,11 @@ void TRestRawFemDAQToSignalProcess::InitProcess() {
     TObjString* tsObj = (TObjString*)fInputFile->Get("startTime");
     TObjString* etObj = (TObjString*)fInputFile->Get("endTime");
     if (tsObj && fRunInfo) {
-        Double_t startTimestamp = std::stod(tsObj->GetString().Data());
+        double startTimestamp = std::stod(tsObj->GetString().Data());
         fRunInfo->SetStartTimeStamp(startTimestamp);
     }
     if (etObj && fRunInfo) {
-        Double_t endTimestamp = std::stod(etObj->GetString().Data());
+        double endTimestamp = std::stod(etObj->GetString().Data());
         fRunInfo->SetEndTimeStamp(endTimestamp);
     }
 

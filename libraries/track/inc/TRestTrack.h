@@ -31,12 +31,12 @@ class TRestTrack {
     std::size_t GetIndex() const { return fTrackIndex; }
 
     const TRestHits GetHits() const;
-    Int_t GetTrackID() const;
-    Int_t GetParentID() const;
-    Int_t GetNumberOfHits() const;
-    Double_t GetEnergy() const;
-    Double_t GetLength() const;
-    Double_t GetVolume() const;
+    int GetTrackID() const;
+    int GetParentID() const;
+    int GetNumberOfHits() const;
+    double GetEnergy() const;
+    double GetLength() const;
+    double GetVolume() const;
 
     /// \brief Origin and end of the track (TRestHitsAnalysis::GetTrackEnds).
     void GetBoundaries(XYZVector& orig, XYZVector& end) const;

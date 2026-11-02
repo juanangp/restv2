@@ -20,6 +20,11 @@ class TRestGeant4PhysicsInfo {
 
     std::map<std::string, std::string> fProcessTypesMap;  // Process name -> Process type
 
+    /// Process IDs of REST (Geant4 IDs are type * 1000 + subtype, 0 the initial step "Init"): a hit killed in
+    /// a kill volume and the creator of the primary tracks
+    static constexpr int kKillProcessID = 1000000;
+    static constexpr int kPrimaryGeneratorProcessID = 1000001;
+
     TRestGeant4PhysicsInfo() = default;
     virtual ~TRestGeant4PhysicsInfo() = default;
 

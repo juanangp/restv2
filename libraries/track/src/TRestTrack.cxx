@@ -22,23 +22,23 @@ const TRestHits TRestTrack::GetHits() const {
     return fEvent->fTrackHits[fTrackIndex];
 }
 
-Int_t TRestTrack::GetTrackID() const { return IsValid() ? fEvent->fData.trackID[fTrackIndex] : -1; }
+int TRestTrack::GetTrackID() const { return IsValid() ? fEvent->fData.trackID[fTrackIndex] : -1; }
 
-Int_t TRestTrack::GetParentID() const { return IsValid() ? fEvent->fData.parentID[fTrackIndex] : -1; }
+int TRestTrack::GetParentID() const { return IsValid() ? fEvent->fData.parentID[fTrackIndex] : -1; }
 
-Int_t TRestTrack::GetNumberOfHits() const { return IsValid() ? fEvent->fData.trackNHits[fTrackIndex] : 0; }
+int TRestTrack::GetNumberOfHits() const { return IsValid() ? fEvent->fData.trackNHits[fTrackIndex] : 0; }
 
-Double_t TRestTrack::GetEnergy() const {
+double TRestTrack::GetEnergy() const {
     if (!IsValid()) return 0.0;
     return fEvent->GetTrackEnergy(fTrackIndex);
 }
 
-Double_t TRestTrack::GetLength() const {
+double TRestTrack::GetLength() const {
     if (!IsValid()) return 0.0;
     return fEvent->fTrackHits[fTrackIndex].GetTotalDistance();
 }
 
-Double_t TRestTrack::GetVolume() const {
+double TRestTrack::GetVolume() const {
     if (!IsValid()) return 0.0;
     return fEvent->fTrackHits[fTrackIndex].GetMaximumHitDistance2();
 }

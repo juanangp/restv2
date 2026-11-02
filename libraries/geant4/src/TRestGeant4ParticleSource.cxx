@@ -248,7 +248,7 @@ vector<TRestGeant4ParticleState> TRestGeant4ParticleSource::Generate(TRandom& ra
                                                                      const XYZVector& center, bool inward) {
     if (IsDecay0()) {
         if (!fDecay0Events) throw runtime_error(GetClassName() + ": the Decay0 file is not loaded");
-        auto particles = (*fDecay0Events)[random.Integer(static_cast<UInt_t>(fDecay0Events->size()))];
+        auto particles = (*fDecay0Events)[random.Integer(static_cast<unsigned int>(fDecay0Events->size()))];
         for (auto& particle : particles) particle.SetOrigin(origin);
         return particles;
     }

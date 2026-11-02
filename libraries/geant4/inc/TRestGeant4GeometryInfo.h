@@ -45,7 +45,7 @@ class TRestGeant4GeometryInfo {
 
     /// \brief True if a physical node has this name or path (node names below the top joined by the path
     /// separator). As all the physical node queries, it walks the node tree: TGeoManager::GetListOfNodes is
-    /// only the current navigation branch and FindNode(const char*) is FindNode(Bool_t)
+    /// only the current navigation branch and FindNode(const char*) is FindNode(bool)
     bool IsValidPhysicalVolume(const std::string& volume) const;
 
     // --- Modernized Spatial Analytics Getters (Replacing TVector3/TRotation) ---

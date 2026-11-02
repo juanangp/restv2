@@ -3,7 +3,7 @@
 
 #include <TH1.h>
 #include <TPad.h>
-#include <TString.h>
+#include <TParameter.h>
 #include <TTree.h>
 
 #include <algorithm>
@@ -43,6 +43,8 @@ class TRestEvent {
     std::string* fPtrSubEventTag = nullptr;
     TRestRun* fRestRun = nullptr;
     mutable TPad* fPad = nullptr;
+    /// Format version of the input tree (TRestRun), for SetBranchAddresses
+    int fInputFormatVersion = 0;
 
    public:
     /// Generic event metadata block.
@@ -65,7 +67,7 @@ class TRestEvent {
     /// \brief Draws event representation.
     /// \param option Draw option string.
     /// \return Pointer to generated pad.
-    virtual TPad* DrawEvent(const TString& option = "") const = 0;
+    virtual TPad* DrawEvent(const std::string& option = "") const = 0;
 
     /// \brief One DrawEvent option written as name(rootOption)[value], e.g. hist(Cont1,col)[3]; the
     /// parts in brackets are optional (empty rootOption, value 0).
@@ -233,6 +235,37 @@ class TRestEvent {
     }
 
     /// \brief Refreshes cached views after ROOT read operations.
+    /// \brief Version of the branch layout of the event class, stored in the UserInfo of its tree
+    /// (TParameter<int> "formatVersion", written by TRestRun::RegisterEvent) to read files written with
+    /// older layouts. Increase it in the class when its branches change, and convert the older ones in
+    /// SetBranchAddresses (GetInputFormatVersion) or raise GetMinimumFormatVersion
+    virtual int GetFormatVersion() const { return 1; }
+
+    /// \brief Oldest format version that SetBranchAddresses reads; 0: also the trees without version
+    /// (written before 2026-11-02)
+    virtual int GetMinimumFormatVersion() const { return 0; }
+
+    /// \brief Format version of the input tree (0 without version), set by TRestRun before
+    /// SetBranchAddresses
+    int GetInputFormatVersion() const { return fInputFormatVersion; }
+    void SetInputFormatVersion(int version) { fInputFormatVersion = version; }
+
+    static constexpr const char* kFormatVersionKey = "formatVersion";
+
+    /// \brief Writes GetFormatVersion in the UserInfo of the tree (once)
+    void WriteFormatVersion(TTree* tree) const {
+        auto* userInfo = tree->GetUserInfo();
+        if (userInfo->FindObject(kFormatVersionKey)) return;
+        userInfo->Add(new TParameter<int>(kFormatVersionKey, GetFormatVersion()));
+    }
+
+    /// \brief The format version in the UserInfo of the tree, 0 without version
+    static int ReadFormatVersion(TTree* tree) {
+        const auto* version =
+            dynamic_cast<TParameter<int>*>(tree->GetUserInfo()->FindObject(kFormatVersionKey));
+        return version ? version->GetVal() : 0;
+    }
+
     virtual void RefreshViews() const {}
 
     /// \brief Copies generic event content from another event.

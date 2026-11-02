@@ -50,25 +50,18 @@ void TRestGeant4Event::RebuildTrackIndex() const {
 
 void TRestGeant4Event::RebuildVolumeIndex() {
     fVolumeIndexMap.clear();
-
-    const std::size_t n =
-        std::min(fEventData.volumeStoredNames.size(), fEventData.volumeDepositedEnergy.size());
-
-    for (std::size_t i = 0; i < n; ++i) {
-        fVolumeIndexMap[fEventData.volumeStoredNames[i]] = i;
-    }
+    const std::size_t n = std::min(fEventData.volumeIDs.size(), fEventData.volumeDepositedEnergy.size());
+    for (std::size_t i = 0; i < n; ++i) fVolumeIndexMap[fEventData.volumeIDs[i]] = i;
 }
 
 void TRestGeant4Event::RebuildCrossIndex() {
     fCrossIndexMap.clear();
-
     const std::size_t n =
-        std::min({fEventData.crossVolumeNames.size(), fEventData.crossParticleNames.size(),
-                  fEventData.crossProcessNames.size(), fEventData.crossDepositedEnergies.size()});
-
+        std::min({fEventData.crossVolumeIDs.size(), fEventData.crossParticleIDs.size(),
+                  fEventData.crossProcessIDs.size(), fEventData.crossDepositedEnergies.size()});
     for (std::size_t i = 0; i < n; ++i) {
-        fCrossIndexMap[std::make_tuple(fEventData.crossVolumeNames[i], fEventData.crossParticleNames[i],
-                                       fEventData.crossProcessNames[i])] = i;
+        fCrossIndexMap[std::make_tuple(fEventData.crossVolumeIDs[i], fEventData.crossParticleIDs[i],
+                                       fEventData.crossProcessIDs[i])] = i;
     }
 }
 
@@ -80,22 +73,27 @@ void TRestGeant4Event::CreateBranches(TTree* tree) {
     tree->Branch("fSensitiveVolumeEnergy", &fEventData.sensitiveVolumeEnergy);
     tree->Branch("fEventTimeWall", &fEventData.eventTimeWall);
     tree->Branch("fEventTimeWallPrimaryGeneration", &fEventData.eventTimeWallPrimaryGeneration);
-    tree->Branch("fNVolumes", &fEventData.nVolumes);
-
-    tree->Branch("fPrimaryPosition", &fEventData.primaryPosition);
-    tree->Branch("fSubEventPosition", &fEventData.subEventPosition);
-    tree->Branch("fSubEventDirection", &fEventData.subEventDirection);
-    tree->Branch("fSubEventParticleName", &fEventData.subEventParticleName);
-    tree->Branch("fPrimaryParticleNames", &fEventData.primaryParticleNames);
+    tree->Branch("fPrimaryPositionX", &fEventData.primaryPositionX);
+    tree->Branch("fPrimaryPositionY", &fEventData.primaryPositionY);
+    tree->Branch("fPrimaryPositionZ", &fEventData.primaryPositionZ);
+    tree->Branch("fSubEventParticleID", &fEventData.subEventParticleID);
+    tree->Branch("fSubEventPositionX", &fEventData.subEventPositionX);
+    tree->Branch("fSubEventPositionY", &fEventData.subEventPositionY);
+    tree->Branch("fSubEventPositionZ", &fEventData.subEventPositionZ);
+    tree->Branch("fSubEventDirectionX", &fEventData.subEventDirectionX);
+    tree->Branch("fSubEventDirectionY", &fEventData.subEventDirectionY);
+    tree->Branch("fSubEventDirectionZ", &fEventData.subEventDirectionZ);
+    tree->Branch("fPrimaryParticleIDs", &fEventData.primaryParticleIDs);
     tree->Branch("fPrimaryEnergies", &fEventData.primaryEnergies);
-    tree->Branch("fPrimaryDirections", &fEventData.primaryDirections);
-    tree->Branch("fVolumeStored", &fEventData.volumeStored);
-    tree->Branch("fVolumeStoredNames", &fEventData.volumeStoredNames);
+    tree->Branch("fPrimaryDirectionX", &fEventData.primaryDirectionX);
+    tree->Branch("fPrimaryDirectionY", &fEventData.primaryDirectionY);
+    tree->Branch("fPrimaryDirectionZ", &fEventData.primaryDirectionZ);
+    tree->Branch("fVolumeIDs", &fEventData.volumeIDs);
     tree->Branch("fVolumeDepositedEnergy", &fEventData.volumeDepositedEnergy);
     tree->Branch("fTrackIDs", &fEventData.trackIDs);
     tree->Branch("fTrackParentIDs", &fEventData.parentIDs);
-    tree->Branch("fTrackParticleNames", &fEventData.trackParticleNames);
-    tree->Branch("fTrackCreatorProcesses", &fEventData.trackCreatorProcesses);
+    tree->Branch("fTrackParticleIDs", &fEventData.trackParticleIDs);
+    tree->Branch("fTrackCreatorProcessIDs", &fEventData.trackCreatorProcessIDs);
     tree->Branch("fTrackDepositedEnergy", &fEventData.trackDepositedEnergy);
     tree->Branch("fTrackInitialEnergies", &fEventData.trackInitialEnergies);
     tree->Branch("fTrackStartIndices", &fEventData.trackStartIndices);
@@ -108,7 +106,9 @@ void TRestGeant4Event::CreateBranches(TTree* tree) {
     tree->Branch("fTrackSecondariesIDs", &fEventData.trackSecondariesIDs);
     tree->Branch("fTrackSecondariesIndex", &fEventData.trackSecondariesIndices);
     tree->Branch("fTrackSecondariesOffsets", &fEventData.trackSecondariesOffsets);
-    tree->Branch("fTrackInitialPosition", &fEventData.trackInitialPositions);
+    tree->Branch("fTrackInitialPositionX", &fEventData.trackInitialPositionX);
+    tree->Branch("fTrackInitialPositionY", &fEventData.trackInitialPositionY);
+    tree->Branch("fTrackInitialPositionZ", &fEventData.trackInitialPositionZ);
     tree->Branch("fHitX", &fEventData.hitsStorage.x);
     tree->Branch("fHitY", &fEventData.hitsStorage.y);
     tree->Branch("fHitZ", &fEventData.hitsStorage.z);
@@ -121,12 +121,11 @@ void TRestGeant4Event::CreateBranches(TTree* tree) {
     tree->Branch("fHitMomentumDirectionX", &fEventData.hitMomentumDirectionX);
     tree->Branch("fHitMomentumDirectionY", &fEventData.hitMomentumDirectionY);
     tree->Branch("fHitMomentumDirectionZ", &fEventData.hitMomentumDirectionZ);
-    tree->Branch("fHitHadronicTargetIsotopeName", &fEventData.hitHadronicTargetIsotopeName);
     tree->Branch("fHitHadronicTargetIsotopeA", &fEventData.hitHadronicTargetIsotopeA);
     tree->Branch("fHitHadronicTargetIsotopeZ", &fEventData.hitHadronicTargetIsotopeZ);
-    tree->Branch("fCrossVolumeNames", &fEventData.crossVolumeNames);
-    tree->Branch("fCrossParticleNames", &fEventData.crossParticleNames);
-    tree->Branch("fCrossProcessNames", &fEventData.crossProcessNames);
+    tree->Branch("fCrossVolumeIDs", &fEventData.crossVolumeIDs);
+    tree->Branch("fCrossParticleIDs", &fEventData.crossParticleIDs);
+    tree->Branch("fCrossProcessIDs", &fEventData.crossProcessIDs);
     tree->Branch("fCrossDepositedEnergies", &fEventData.crossDepositedEnergies);
 }
 
@@ -138,22 +137,28 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     tree->SetBranchAddress("fSensitiveVolumeEnergy", &fEventData.sensitiveVolumeEnergy);
     tree->SetBranchAddress("fEventTimeWall", &fEventData.eventTimeWall);
     tree->SetBranchAddress("fEventTimeWallPrimaryGeneration", &fEventData.eventTimeWallPrimaryGeneration);
-    tree->SetBranchAddress("fNVolumes", &fEventData.nVolumes);
+    tree->SetBranchAddress("fPrimaryPositionX", &fEventData.primaryPositionX);
+    tree->SetBranchAddress("fPrimaryPositionY", &fEventData.primaryPositionY);
+    tree->SetBranchAddress("fPrimaryPositionZ", &fEventData.primaryPositionZ);
+    tree->SetBranchAddress("fSubEventParticleID", &fEventData.subEventParticleID);
+    tree->SetBranchAddress("fSubEventPositionX", &fEventData.subEventPositionX);
+    tree->SetBranchAddress("fSubEventPositionY", &fEventData.subEventPositionY);
+    tree->SetBranchAddress("fSubEventPositionZ", &fEventData.subEventPositionZ);
+    tree->SetBranchAddress("fSubEventDirectionX", &fEventData.subEventDirectionX);
+    tree->SetBranchAddress("fSubEventDirectionY", &fEventData.subEventDirectionY);
+    tree->SetBranchAddress("fSubEventDirectionZ", &fEventData.subEventDirectionZ);
 
-    fPtr_primaryPosition = &fEventData.primaryPosition;
-    fPtr_subEventPosition = &fEventData.subEventPosition;
-    fPtr_subEventDirection = &fEventData.subEventDirection;
-    fPtr_subEventParticleName = &fEventData.subEventParticleName;
-    fPtr_primaryParticleNames = &fEventData.primaryParticleNames;
+    fPtr_primaryParticleIDs = &fEventData.primaryParticleIDs;
     fPtr_primaryEnergies = &fEventData.primaryEnergies;
-    fPtr_primaryDirections = &fEventData.primaryDirections;
-    fPtr_volumeStored = &fEventData.volumeStored;
-    fPtr_volumeStoredNames = &fEventData.volumeStoredNames;
+    fPtr_primaryDirectionX = &fEventData.primaryDirectionX;
+    fPtr_primaryDirectionY = &fEventData.primaryDirectionY;
+    fPtr_primaryDirectionZ = &fEventData.primaryDirectionZ;
+    fPtr_volumeIDs = &fEventData.volumeIDs;
     fPtr_volumeDepositedEnergy = &fEventData.volumeDepositedEnergy;
     fPtr_trackIDs = &fEventData.trackIDs;
     fPtr_trackParentIDs = &fEventData.parentIDs;
-    fPtr_trackParticleNames = &fEventData.trackParticleNames;
-    fPtr_trackCreatorProcesses = &fEventData.trackCreatorProcesses;
+    fPtr_trackParticleIDs = &fEventData.trackParticleIDs;
+    fPtr_trackCreatorProcessIDs = &fEventData.trackCreatorProcessIDs;
     fPtr_trackDepositedEnergy = &fEventData.trackDepositedEnergy;
     fPtr_trackInitialEnergies = &fEventData.trackInitialEnergies;
     fPtr_trackStartIndices = &fEventData.trackStartIndices;
@@ -166,7 +171,9 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     fPtr_trackSecondariesIDs = &fEventData.trackSecondariesIDs;
     fPtr_trackSecondariesIndex = &fEventData.trackSecondariesIndices;
     fPtr_trackSecondariesOffsets = &fEventData.trackSecondariesOffsets;
-    fPtr_trackInitialPosition = &fEventData.trackInitialPositions;
+    fPtr_trackInitialPositionX = &fEventData.trackInitialPositionX;
+    fPtr_trackInitialPositionY = &fEventData.trackInitialPositionY;
+    fPtr_trackInitialPositionZ = &fEventData.trackInitialPositionZ;
     fPtr_hitX = &fEventData.hitsStorage.x;
     fPtr_hitY = &fEventData.hitsStorage.y;
     fPtr_hitZ = &fEventData.hitsStorage.z;
@@ -179,28 +186,24 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     fPtr_hitMomentumDirectionX = &fEventData.hitMomentumDirectionX;
     fPtr_hitMomentumDirectionY = &fEventData.hitMomentumDirectionY;
     fPtr_hitMomentumDirectionZ = &fEventData.hitMomentumDirectionZ;
-    fPtr_hitHadronicTargetIsotopeName = &fEventData.hitHadronicTargetIsotopeName;
     fPtr_hitHadronicTargetIsotopeA = &fEventData.hitHadronicTargetIsotopeA;
     fPtr_hitHadronicTargetIsotopeZ = &fEventData.hitHadronicTargetIsotopeZ;
-    fPtr_crossVolumeNames = &fEventData.crossVolumeNames;
-    fPtr_crossParticleNames = &fEventData.crossParticleNames;
-    fPtr_crossProcessNames = &fEventData.crossProcessNames;
+    fPtr_crossVolumeIDs = &fEventData.crossVolumeIDs;
+    fPtr_crossParticleIDs = &fEventData.crossParticleIDs;
+    fPtr_crossProcessIDs = &fEventData.crossProcessIDs;
     fPtr_crossDepositedEnergies = &fEventData.crossDepositedEnergies;
 
-    tree->SetBranchAddress("fPrimaryPosition", &fPtr_primaryPosition);
-    tree->SetBranchAddress("fSubEventPosition", &fPtr_subEventPosition);
-    tree->SetBranchAddress("fSubEventDirection", &fPtr_subEventDirection);
-    tree->SetBranchAddress("fSubEventParticleName", &fPtr_subEventParticleName);
-    tree->SetBranchAddress("fPrimaryParticleNames", &fPtr_primaryParticleNames);
+    tree->SetBranchAddress("fPrimaryParticleIDs", &fPtr_primaryParticleIDs);
     tree->SetBranchAddress("fPrimaryEnergies", &fPtr_primaryEnergies);
-    tree->SetBranchAddress("fPrimaryDirections", &fPtr_primaryDirections);
-    tree->SetBranchAddress("fVolumeStored", &fPtr_volumeStored);
-    tree->SetBranchAddress("fVolumeStoredNames", &fPtr_volumeStoredNames);
+    tree->SetBranchAddress("fPrimaryDirectionX", &fPtr_primaryDirectionX);
+    tree->SetBranchAddress("fPrimaryDirectionY", &fPtr_primaryDirectionY);
+    tree->SetBranchAddress("fPrimaryDirectionZ", &fPtr_primaryDirectionZ);
+    tree->SetBranchAddress("fVolumeIDs", &fPtr_volumeIDs);
     tree->SetBranchAddress("fVolumeDepositedEnergy", &fPtr_volumeDepositedEnergy);
     tree->SetBranchAddress("fTrackIDs", &fPtr_trackIDs);
     tree->SetBranchAddress("fTrackParentIDs", &fPtr_trackParentIDs);
-    tree->SetBranchAddress("fTrackParticleNames", &fPtr_trackParticleNames);
-    tree->SetBranchAddress("fTrackCreatorProcesses", &fPtr_trackCreatorProcesses);
+    tree->SetBranchAddress("fTrackParticleIDs", &fPtr_trackParticleIDs);
+    tree->SetBranchAddress("fTrackCreatorProcessIDs", &fPtr_trackCreatorProcessIDs);
     tree->SetBranchAddress("fTrackDepositedEnergy", &fPtr_trackDepositedEnergy);
     tree->SetBranchAddress("fTrackInitialEnergies", &fPtr_trackInitialEnergies);
     tree->SetBranchAddress("fTrackStartIndices", &fPtr_trackStartIndices);
@@ -213,7 +216,9 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     tree->SetBranchAddress("fTrackSecondariesIDs", &fPtr_trackSecondariesIDs);
     tree->SetBranchAddress("fTrackSecondariesIndex", &fPtr_trackSecondariesIndex);
     tree->SetBranchAddress("fTrackSecondariesOffsets", &fPtr_trackSecondariesOffsets);
-    tree->SetBranchAddress("fTrackInitialPosition", &fPtr_trackInitialPosition);
+    tree->SetBranchAddress("fTrackInitialPositionX", &fPtr_trackInitialPositionX);
+    tree->SetBranchAddress("fTrackInitialPositionY", &fPtr_trackInitialPositionY);
+    tree->SetBranchAddress("fTrackInitialPositionZ", &fPtr_trackInitialPositionZ);
     tree->SetBranchAddress("fHitX", &fPtr_hitX);
     tree->SetBranchAddress("fHitY", &fPtr_hitY);
     tree->SetBranchAddress("fHitZ", &fPtr_hitZ);
@@ -226,12 +231,11 @@ void TRestGeant4Event::SetBranchAddresses(TTree* tree) {
     tree->SetBranchAddress("fHitMomentumDirectionX", &fPtr_hitMomentumDirectionX);
     tree->SetBranchAddress("fHitMomentumDirectionY", &fPtr_hitMomentumDirectionY);
     tree->SetBranchAddress("fHitMomentumDirectionZ", &fPtr_hitMomentumDirectionZ);
-    tree->SetBranchAddress("fHitHadronicTargetIsotopeName", &fPtr_hitHadronicTargetIsotopeName);
     tree->SetBranchAddress("fHitHadronicTargetIsotopeA", &fPtr_hitHadronicTargetIsotopeA);
     tree->SetBranchAddress("fHitHadronicTargetIsotopeZ", &fPtr_hitHadronicTargetIsotopeZ);
-    tree->SetBranchAddress("fCrossVolumeNames", &fPtr_crossVolumeNames);
-    tree->SetBranchAddress("fCrossParticleNames", &fPtr_crossParticleNames);
-    tree->SetBranchAddress("fCrossProcessNames", &fPtr_crossProcessNames);
+    tree->SetBranchAddress("fCrossVolumeIDs", &fPtr_crossVolumeIDs);
+    tree->SetBranchAddress("fCrossParticleIDs", &fPtr_crossParticleIDs);
+    tree->SetBranchAddress("fCrossProcessIDs", &fPtr_crossProcessIDs);
     tree->SetBranchAddress("fCrossDepositedEnergies", &fPtr_crossDepositedEnergies);
 
     RebuildTrackIndex();
@@ -361,34 +365,16 @@ TRestGeant4Track TRestGeant4Event::GetTrackByID(int id) const {
 }
 
 void TRestGeant4Event::ClearTracks() {
-    fEventData.trackIDs.clear();
-    fEventData.parentIDs.clear();
-    fEventData.trackParticleNames.clear();
-    fEventData.trackCreatorProcesses.clear();
-    fEventData.trackDepositedEnergy.clear();
-    fEventData.trackInitialEnergies.clear();
-    fEventData.trackStartIndices.clear();
-    fEventData.trackNHits.clear();
-    fEventData.trackGlobalTimestamps.clear();
-    fEventData.trackTimeOffsets.clear();
-    fEventData.trackTimeLengths.clear();
-    fEventData.trackLengths.clear();
-    fEventData.trackWeights.clear();
-    fEventData.trackSecondariesIDs.clear();
-    fEventData.trackSecondariesOffsets.clear();
-    fEventData.trackSecondariesIndices.clear();
-    fEventData.trackInitialPositions.clear();
-
-    fEventData.hitsStorage.clear();
-    fEventData.hitProcessID.clear();
-    fEventData.hitVolumeID.clear();
-    fEventData.hitKineticEnergy.clear();
-    fEventData.hitMomentumDirectionX.clear();
-    fEventData.hitMomentumDirectionY.clear();
-    fEventData.hitMomentumDirectionZ.clear();
-    fEventData.hitHadronicTargetIsotopeName.clear();
-    fEventData.hitHadronicTargetIsotopeA.clear();
-    fEventData.hitHadronicTargetIsotopeZ.clear();
+    auto& d = fEventData;
+    auto clear_all = [](auto&... vecs) { (vecs.clear(), ...); };
+    clear_all(d.trackIDs, d.parentIDs, d.trackParticleIDs, d.trackCreatorProcessIDs, d.trackDepositedEnergy,
+              d.trackInitialEnergies, d.trackStartIndices, d.trackNHits, d.trackGlobalTimestamps,
+              d.trackTimeOffsets, d.trackTimeLengths, d.trackLengths, d.trackWeights, d.trackSecondariesIDs,
+              d.trackSecondariesOffsets, d.trackSecondariesIndices, d.trackInitialPositionX,
+              d.trackInitialPositionY, d.trackInitialPositionZ, d.hitProcessID, d.hitVolumeID,
+              d.hitKineticEnergy, d.hitMomentumDirectionX, d.hitMomentumDirectionY, d.hitMomentumDirectionZ,
+              d.hitHadronicTargetIsotopeA, d.hitHadronicTargetIsotopeZ);
+    d.hitsStorage.clear();
 
     fTrackIDToTrackIndex.clear();
     fHasPendingInitialStep = false;
@@ -423,7 +409,6 @@ void TRestGeant4Event::RemoveTrackHits(std::size_t trackIndex) {
     eraseRange(fEventData.hitMomentumDirectionX);
     eraseRange(fEventData.hitMomentumDirectionY);
     eraseRange(fEventData.hitMomentumDirectionZ);
-    eraseRange(fEventData.hitHadronicTargetIsotopeName);
     eraseRange(fEventData.hitHadronicTargetIsotopeA);
     eraseRange(fEventData.hitHadronicTargetIsotopeZ);
 
@@ -434,42 +419,53 @@ void TRestGeant4Event::RemoveTrackHits(std::size_t trackIndex) {
     fEventData.trackNHits[trackIndex] = 0;
 }
 
-void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(Double_t energy, const std::string& volumeName,
-                                                              const std::string& particleName,
-                                                              const std::string& processName) {
+void TRestGeant4Event::AddEnergyInVolumeForParticleForProcess(double energy, int volumeID, int particleID,
+                                                              int processID) {
     if (energy <= 0) return;
 
     fEventData.totalDepositedEnergy += energy;
 
-    const auto key = std::make_tuple(volumeName, particleName, processName);
-
-    auto itCross = fCrossIndexMap.find(key);
+    const auto key = std::make_tuple(volumeID, particleID, processID);
+    const auto itCross = fCrossIndexMap.find(key);
     if (itCross != fCrossIndexMap.end()) {
         fEventData.crossDepositedEnergies[itCross->second] += energy;
     } else {
-        const std::size_t newIdx = fEventData.crossVolumeNames.size();
-
-        fEventData.crossVolumeNames.push_back(volumeName);
-        fEventData.crossParticleNames.push_back(particleName);
-        fEventData.crossProcessNames.push_back(processName);
+        fCrossIndexMap[key] = fEventData.crossVolumeIDs.size();
+        fEventData.crossVolumeIDs.push_back(volumeID);
+        fEventData.crossParticleIDs.push_back(particleID);
+        fEventData.crossProcessIDs.push_back(processID);
         fEventData.crossDepositedEnergies.push_back(energy);
-
-        fCrossIndexMap[key] = newIdx;
     }
 
-    auto itVolume = fVolumeIndexMap.find(volumeName);
+    const auto itVolume = fVolumeIndexMap.find(volumeID);
     if (itVolume != fVolumeIndexMap.end()) {
         fEventData.volumeDepositedEnergy[itVolume->second] += energy;
     } else {
-        const std::size_t newVolumeIdx = fEventData.volumeStoredNames.size();
-
-        fEventData.volumeStoredNames.push_back(volumeName);
+        fVolumeIndexMap[volumeID] = fEventData.volumeIDs.size();
+        fEventData.volumeIDs.push_back(volumeID);
         fEventData.volumeDepositedEnergy.push_back(energy);
-        fEventData.volumeStored.push_back(fEventData.nVolumes);
-
-        fVolumeIndexMap[volumeName] = newVolumeIdx;
-        ++fEventData.nVolumes;
     }
+}
+
+double TRestGeant4Event::GetEnergyInVolume(const std::string& volumeName) const {
+    const auto* metadata = GetGeant4Metadata();
+    if (!metadata) return 0.0;
+    return GetEnergyInVolume(metadata->GetGeant4GeometryInfo().GetIDFromVolume(volumeName));
+}
+
+std::string TRestGeant4Event::GetParticleName(int particleID) const {
+    const auto* metadata = GetGeant4Metadata();
+    return metadata ? metadata->GetGeant4PhysicsInfo().GetParticleName(particleID) : "";
+}
+
+std::string TRestGeant4Event::GetProcessName(int processID) const {
+    const auto* metadata = GetGeant4Metadata();
+    return metadata ? metadata->GetGeant4PhysicsInfo().GetProcessName(processID) : "";
+}
+
+std::string TRestGeant4Event::GetVolumeName(int volumeID) const {
+    const auto* metadata = GetGeant4Metadata();
+    return metadata ? metadata->GetGeant4GeometryInfo().GetVolumeFromID(volumeID) : "";
 }
 
 void TRestGeant4Event::PrintG4Event(int maxTracks, int maxHits) const {
@@ -490,17 +486,17 @@ void TRestGeant4Event::PrintG4Event(int maxTracks, int maxHits) const {
     std::cout << "- Event Wall Time: " << REST_Units::FormatAs(fEventData.eventTimeWall, REST_Units::Time)
               << std::endl;
     std::cout << "- Primary source position: "
-              << REST_Units::FormatAs(fEventData.primaryPosition, REST_Units::Length) << std::endl;
+              << REST_Units::FormatAs(GetPrimaryPosition(), REST_Units::Length) << std::endl;
 
-    std::cout << "- Primary Particles (" << fEventData.primaryParticleNames.size() << "):" << std::endl;
+    std::cout << "- Primary Particles (" << GetNumberOfPrimaries() << "):" << std::endl;
 
-    for (std::size_t i = 0; i < fEventData.primaryParticleNames.size(); ++i) {
-        std::cout << "   - Source [" << i << "]: " << fEventData.primaryParticleNames[i] << std::endl;
+    for (std::size_t i = 0; i < GetNumberOfPrimaries(); ++i) {
+        std::cout << "   - Source [" << i << "]: " << GetPrimaryParticleName(i) << std::endl;
 
-        if (i < fEventData.primaryDirections.size()) {
-            std::cout << "     Direction: (" << fEventData.primaryDirections[i].X() << ", "
-                      << fEventData.primaryDirections[i].Y() << ", " << fEventData.primaryDirections[i].Z()
-                      << ")" << std::endl;
+        if (i < fEventData.primaryDirectionX.size()) {
+            const auto direction = GetPrimaryDirection(i);
+            std::cout << "     Direction: (" << direction.X() << ", " << direction.Y() << ", "
+                      << direction.Z() << ")" << std::endl;
         }
 
         if (i < fEventData.primaryEnergies.size()) {
@@ -529,9 +525,9 @@ const double kDefaultBinSize = 3;
 const double kMinMarkerSize = 0.4, kMaxMarkerSize = 3;
 }  // namespace
 
-TPad* TRestGeant4Event::DrawEvent(const TString& option) const {
+TPad* TRestGeant4Event::DrawEvent(const std::string& option) const {
     std::vector<std::string> options;
-    for (const auto& opt : TRestTools::Split(option.Data(), ':')) {
+    for (const auto& opt : TRestTools::Split(option, ':')) {
         if (opt == "print") {
             PrintEvent();
         } else if (!opt.empty()) {
@@ -625,8 +621,9 @@ void TRestGeant4Event::DrawGraphs(TVirtualPad* pad, const std::vector<std::strin
     std::vector<Color_t> colors;
     std::vector<std::pair<std::string, Color_t>> particles;
     for (size_t t = 0; t < GetNumberOfTracks(); t++) {
-        colors.push_back(GetTrack(t).GetParticleColor());
-        const auto& particle = data.trackParticleNames[t];
+        const auto track = GetTrack(t);
+        colors.push_back(track.GetParticleColor());
+        const auto particle = track.GetParticleName();
         const auto isParticle = [&particle](const auto& p) { return p.first == particle; };
         if (std::none_of(particles.begin(), particles.end(), isParticle)) {
             particles.emplace_back(particle, colors.back());

@@ -18,7 +18,7 @@ namespace {
 using NodeVisitor = function<bool(TGeoNode*, const string&, const TGeoHMatrix&)>;
 
 /// Visits all the physical nodes, the top one first. TGeoManager::GetListOfNodes is only the current
-/// navigation branch and FindNode(const char*) is FindNode(Bool_t), so the tree is walked
+/// navigation branch and FindNode(const char*) is FindNode(bool), so the tree is walked
 void VisitPhysicalNodes(TGeoManager* geoManager, const string& separator, const NodeVisitor& visit) {
     TGeoNode* top = geoManager ? geoManager->GetTopNode() : nullptr;
     if (!top) return;

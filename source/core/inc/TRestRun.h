@@ -36,9 +36,9 @@ class TRestRun : public TRestRunInfo {
     /// TRestTrackEvent), preserved from the input file otherwise. Selected event (GetEvent) when the file
     /// is opened
     std::string fOutputEvent = "";
-    Long64_t fEntry = 0;
+    long long fEntry = 0;
 
-    Long64_t fInputEntries = 0;
+    long long fInputEntries = 0;
 
     YAML::Node fInputFileNode;
 
@@ -152,28 +152,28 @@ class TRestRun : public TRestRunInfo {
 
     /// \brief Returns number of entries in analysis tree.
     /// \return Entry count or `0` when analysis tree is missing.
-    Long64_t GetEntries() const {
+    long long GetEntries() const {
         if (fInputEntries > 0) return fInputEntries;
         if (!fAnalysisTree) return 0;
         return fAnalysisTree->GetEntries();
     }
 
-    Long64_t GetSavedEntries() const {
+    long long GetSavedEntries() const {
         if (!fOutputAnalysisTree) return 0;
         return fOutputAnalysisTree->GetEntries();
     }
 
-    Long64_t GetEntryWithID(int eventID, int subEventID = -1, const std::string& tag = "");
+    long long GetEntryWithID(int eventID, int subEventID = -1, const std::string& tag = "");
 
     void PrintObservables();
 
     /// \brief Loads one entry from input trees.
     /// \param entry Entry index.
     /// \return `true` if entry was loaded.
-    bool GetEntry(Long64_t entry);
+    bool GetEntry(long long entry);
     bool GetNextEntry();
 
-    Long64_t GetCurrentEntry() const { return fEntry; }
+    long long GetCurrentEntry() const { return fEntry; }
 
     /// \brief Checks whether an input event tree exists.
     /// \param treeName Event tree/class name.
@@ -214,6 +214,7 @@ class TRestRun : public TRestRunInfo {
         fOutputEvents[className] = &eventObject;
 
         eventObject.CreateBranches(fOutputEventTrees[className]);
+        eventObject.WriteFormatVersion(fOutputEventTrees[className]);
         // Larger baskets mean fewer, bigger writes, which helps a lot on network filesystems
         if (fOutputBasketSize > 0) fOutputEventTrees[className]->SetBasketSize("*", fOutputBasketSize);
 

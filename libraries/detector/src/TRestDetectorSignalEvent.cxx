@@ -132,7 +132,7 @@ void TRestDetectorSignal::SignalAddition(const TRestDetectorSignal* inSignal) {
     }
 }
 
-TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
+TPad* TRestDetectorSignalEvent::DrawEvent(const std::string& option) const {
     const int nSignals = static_cast<int>(fSignalData.signalIDs.size());
     if (nSignals == 0) {
         std::cout << "Empty event " << std::endl;
@@ -140,8 +140,8 @@ TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
     }
 
     if (fPad == nullptr) {
-        TString padName = Form("pad_detector_event_%d", this->GetID());
-        fPad = new TPad(padName, "REST Detector Signal Viewer", 0, 0, 1, 1);
+        const std::string padName = "pad_detector_event_" + std::to_string(GetID());
+        fPad = new TPad(padName.c_str(), "REST Detector Signal Viewer", 0, 0, 1, 1);
     }
 
     TVirtualPad* safePad = gPad;
@@ -150,8 +150,8 @@ TPad* TRestDetectorSignalEvent::DrawEvent(const TString& option) const {
     fPad->Clear();
 
     TMultiGraph* mg = new TMultiGraph();
-    TString title = Form("Event ID %d;Time;Amplitude / Charge", this->GetID());
-    mg->SetTitle(title.Data());
+    const std::string title = "Event ID " + std::to_string(GetID()) + ";Time;Amplitude / Charge";
+    mg->SetTitle(title.c_str());
 
     for (int n = 0; n < nSignals; ++n) {
         const auto& signal = GetSignal(n);

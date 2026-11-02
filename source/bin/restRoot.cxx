@@ -55,13 +55,13 @@ bool InitializeRestRuntimeFromRestPath() {
     }
 
     if (std::filesystem::exists(includeDir) && std::filesystem::is_directory(includeDir)) {
-        gSystem->AddIncludePath(TString::Format(" -I%s", includeDir.string().c_str()));
+        gSystem->AddIncludePath((" -I" + includeDir.string()).c_str());
     }
 
     const std::filesystem::path macrosDir = restPath / "macros";
     if (std::filesystem::exists(macrosDir) && std::filesystem::is_directory(macrosDir)) {
-        TString currentMacroPath = gROOT->GetMacroPath();
-        gROOT->SetMacroPath(currentMacroPath + TString::Format(":%s", macrosDir.string().c_str()));
+        const std::string macroPath = std::string(gROOT->GetMacroPath()) + ":" + macrosDir.string();
+        gROOT->SetMacroPath(macroPath.c_str());
 
         for (const auto& entry : std::filesystem::directory_iterator(macrosDir)) {
             if (!entry.is_regular_file()) continue;

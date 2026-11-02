@@ -140,10 +140,10 @@ void TRestMicromegasReadout::BuildGeometry() {
     double zGlobal = 0.0;
 
     // Pixels are grouped in one assembly per strip: a single volume holding all 2*N*N pixels overflows
-    // the Int_t buffer size computed in TGeoVoxelFinder::SortAll (heap corruption for N >~ 215)
+    // the int buffer size computed in TGeoVoxelFinder::SortAll (heap corruption for N >~ 215)
     std::map<int, TGeoVolumeAssembly*> stripAssemblies;
     std::map<int, int> stripPixelCounter;
-    const UInt_t kNoPhysicalID = static_cast<UInt_t>(-1);
+    const unsigned int kNoPhysicalID = static_cast<unsigned int>(-1);
 
     // Pixel centred at (x, y) in the module frame (before the offsets and positionRelative)
     auto addPixel = [&](double x, double y, TGeoRotation* localRot, int channelID, bool isChannelX) {

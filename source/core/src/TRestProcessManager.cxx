@@ -192,10 +192,10 @@ void TRestProcessManager::Run() {
         }
     }
 
-    Long64_t totalEntries = fRunInfo->GetEntries();
+    long long totalEntries = fRunInfo->GetEntries();
     if (totalEntries <= 0) {
         for (const auto& process : fProcessChain) {
-            const Long64_t processEntries = process->GetInputEventCount();
+            const long long processEntries = process->GetInputEventCount();
             if (processEntries >= 0) {
                 totalEntries = processEntries;
                 break;
@@ -203,8 +203,8 @@ void TRestProcessManager::Run() {
         }
     }
 
-    Long64_t loopStart = 0;
-    Long64_t loopEnd = totalEntries;
+    long long loopStart = 0;
+    long long loopEnd = totalEntries;
 
     if (fEntryStart != -1) loopStart = fEntryStart;
     if (fEntryEnd != -1) loopEnd = fEntryEnd;
@@ -223,12 +223,12 @@ void TRestProcessManager::Run() {
 
     if (showProgress) RESTProgress.Reset(loopEnd - loopStart);
 
-    Long64_t acceptedCount = 0;
-    Long64_t rejectedCount = 0;
+    long long acceptedCount = 0;
+    long long rejectedCount = 0;
 
     const bool hasInputTree = (totalEntries > 0);
 
-    for (Long64_t entry = loopStart; entry < loopEnd; ++entry) {
+    for (long long entry = loopStart; entry < loopEnd; ++entry) {
         if (TRestManager::StopRequested()) {
             RESTWarning << "TRestProcessManager: stop requested, breaking event loop at entry " << entry
                         << RESTendl;

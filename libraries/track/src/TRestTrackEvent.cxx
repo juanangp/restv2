@@ -30,23 +30,23 @@ int TRestTrackEvent::GetTrackStartIndex(int n) const {
     return start;
 }
 
-int TRestTrackEvent::FindTrackIndexById(Int_t id) const {
+int TRestTrackEvent::FindTrackIndexById(int id) const {
     for (size_t i = 0; i < fData.trackID.size(); i++)
         if (fData.trackID[i] == id) return (int)i;
     return -1;
 }
 
-Int_t TRestTrackEvent::AddTrack(Int_t trackID, Int_t parentID) {
+int TRestTrackEvent::AddTrack(int trackID, int parentID) {
     fData.trackID.push_back(trackID);
     fData.parentID.push_back(parentID);
     fData.trackNHits.push_back(0);
     RebuildTrackViews();
-    return (Int_t)fData.trackID.size() - 1;
+    return (int)fData.trackID.size() - 1;
 }
 
-Int_t TRestTrackEvent::AddTrack(Int_t trackID, Int_t parentID, const TRestHits& hits,
-                                const std::vector<XYZVector>& sigmas) {
-    Int_t index = AddTrack(trackID, parentID);
+int TRestTrackEvent::AddTrack(int trackID, int parentID, const TRestHits& hits,
+                              const std::vector<XYZVector>& sigmas) {
+    int index = AddTrack(trackID, parentID);
 
     const size_t n = hits.GetNumberOfHits();
     for (size_t i = 0; i < n; i++) {
@@ -57,8 +57,8 @@ Int_t TRestTrackEvent::AddTrack(Int_t trackID, Int_t parentID, const TRestHits& 
     return index;
 }
 
-void TRestTrackEvent::AddHitToTrack(const XYZVector& position, Double_t energy, Double_t time,
-                                    REST_HitType type, const XYZVector& sigma) {
+void TRestTrackEvent::AddHitToTrack(const XYZVector& position, double energy, double time, REST_HitType type,
+                                    const XYZVector& sigma) {
     fData.hits.x.push_back((float)position.X());
     fData.hits.y.push_back((float)position.Y());
     fData.hits.z.push_back((float)position.Z());
@@ -80,7 +80,7 @@ void TRestTrackEvent::AddHitToTrack(const XYZVector& position, Double_t energy, 
     }
 }
 
-void TRestTrackEvent::RemoveTrack(Int_t n) {
+void TRestTrackEvent::RemoveTrack(int n) {
     int start = GetTrackStartIndex(n);
     int count = fData.trackNHits[n];
 
@@ -101,11 +101,11 @@ void TRestTrackEvent::RemoveTrack(Int_t n) {
     RebuildTrackViews();
 }
 
-Int_t TRestTrackEvent::GetNumberOfTracks(const TString& option) const {
-    if (option == "") return (Int_t)fTrackHits.size();
+int TRestTrackEvent::GetNumberOfTracks(const std::string& option) const {
+    if (option == "") return (int)fTrackHits.size();
 
-    Int_t nT = 0;
-    for (int n = 0; n < (Int_t)fTrackHits.size(); n++) {
+    int nT = 0;
+    for (int n = 0; n < (int)fTrackHits.size(); n++) {
         if (option == "X" && isXZ(n))
             nT++;
         else if (option == "Y" && isYZ(n))
@@ -122,22 +122,22 @@ TRestTrack TRestTrackEvent::GetTrack(std::size_t n) const {
     return TRestTrack(const_cast<TRestTrackEvent*>(this), n);
 }
 
-TRestTrack TRestTrackEvent::GetTrackById(Int_t id) {
+TRestTrack TRestTrackEvent::GetTrackById(int id) {
     int idx = FindTrackIndexById(id);
     if (idx < 0) return TRestTrack();
     return TRestTrack(this, idx);
 }
 
-TRestTrack TRestTrackEvent::GetTrackById(Int_t id) const {
+TRestTrack TRestTrackEvent::GetTrackById(int id) const {
     int idx = FindTrackIndexById(id);
     if (idx < 0) return TRestTrack();
     return TRestTrack(const_cast<TRestTrackEvent*>(this), idx);
 }
 
 TRestTrack TRestTrackEvent::GetMaxEnergyTrackInX() {
-    Int_t track = -1;
-    Double_t maxEnergy = 0;
-    for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
+    int track = -1;
+    double maxEnergy = 0;
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
         if (!isXZ(tck)) continue;
         if (GetTrackEnergy(tck) > maxEnergy) {
             maxEnergy = GetTrackEnergy(tck);
@@ -148,9 +148,9 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrackInX() {
 }
 
 TRestTrack TRestTrackEvent::GetMaxEnergyTrackInY() {
-    Int_t track = -1;
-    Double_t maxEnergy = 0;
-    for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
+    int track = -1;
+    double maxEnergy = 0;
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
         if (!isYZ(tck)) continue;
         if (GetTrackEnergy(tck) > maxEnergy) {
             maxEnergy = GetTrackEnergy(tck);
@@ -160,13 +160,13 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrackInY() {
     return track == -1 ? TRestTrack() : TRestTrack(this, track);
 }
 
-TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const TString& option) {
+TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const std::string& option) {
     if (option == "X") return GetMaxEnergyTrackInX();
     if (option == "Y") return GetMaxEnergyTrackInY();
 
-    Int_t track = -1;
-    Double_t maxEnergy = 0;
-    for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
+    int track = -1;
+    double maxEnergy = 0;
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
         if (!isXYZ(tck)) continue;
         if (GetTrackEnergy(tck) > maxEnergy) {
             maxEnergy = GetTrackEnergy(tck);
@@ -176,19 +176,19 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const TString& option) {
     return track == -1 ? TRestTrack() : TRestTrack(this, track);
 }
 
-TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const TString& option) {
+TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const std::string& option) {
     TRestTrack first = GetMaxEnergyTrack(option);
     if (first.GetEvent() == nullptr) return TRestTrack();  // Reemplazo de !first
 
-    Int_t firstTck = (Int_t)first.GetIndex();
-    Int_t id = GetTrackID(firstTck);
+    int firstTck = (int)first.GetIndex();
+    int id = GetTrackID(firstTck);
 
-    Int_t track = -1;
-    Double_t maxEnergy = 0;
-    for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
+    int track = -1;
+    double maxEnergy = 0;
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
         if (GetTrackID(tck) == id) continue;
 
-        Double_t en = GetTrackEnergy(tck);
+        double en = GetTrackEnergy(tck);
         bool matches = false;
         if (option == "X" && (isXZ(tck) || isXYZ(tck)))
             matches = true;
@@ -205,19 +205,19 @@ TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const TString& option) {
     return track == -1 ? TRestTrack() : TRestTrack(this, track);
 }
 
-Double_t TRestTrackEvent::GetMaxEnergyTrackVolume(const TString& option) {
+double TRestTrackEvent::GetMaxEnergyTrackVolume(const std::string& option) {
     TRestTrack t = GetMaxEnergyTrack(option);
     return t.GetEvent() != nullptr ? t.GetVolume() : 0;
 }
 
-Double_t TRestTrackEvent::GetMaxEnergyTrackLength(const TString& option) {
+double TRestTrackEvent::GetMaxEnergyTrackLength(const std::string& option) {
     TRestTrack t = GetMaxEnergyTrack(option);
     return t.GetEvent() != nullptr ? t.GetLength() : 0;
 }
 
-Double_t TRestTrackEvent::GetEnergy(const TString& option) {
-    Double_t en = 0;
-    for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++) {
+double TRestTrackEvent::GetEnergy(const std::string& option) {
+    double en = 0;
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
         if (option == "")
             en += GetTrackEnergy(tck);
         else if (option == "X" && (isXZ(tck) || isXYZ(tck)))
@@ -230,20 +230,20 @@ Double_t TRestTrackEvent::GetEnergy(const TString& option) {
     return en;
 }
 
-Bool_t TRestTrackEvent::isXYZ() const {
-    for (int tck = 0; tck < (Int_t)fTrackHits.size(); tck++)
+bool TRestTrackEvent::isXYZ() const {
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++)
         if (!isXYZ(tck)) return false;
     return true;
 }
 
-Int_t TRestTrackEvent::GetTotalHits() const {
-    Int_t totHits = 0;
-    for (const auto& track : fTrackHits) totHits += (Int_t)track.GetNumberOfHits();
+int TRestTrackEvent::GetTotalHits() const {
+    int totHits = 0;
+    for (const auto& track : fTrackHits) totHits += (int)track.GetNumberOfHits();
     return totHits;
 }
 
 // .cxx
-void TRestTrackEvent::SwapTrackHits(Int_t n, int i, int j) {
+void TRestTrackEvent::SwapTrackHits(int n, int i, int j) {
     const int start = GetTrackStartIndex(n);
     const int gi = start + i, gj = start + j;
 
@@ -258,7 +258,7 @@ void TRestTrackEvent::SwapTrackHits(Int_t n, int i, int j) {
     std::swap(fData.sigmaZ[gi], fData.sigmaZ[gj]);
 }
 
-void TRestTrackEvent::SortTrackHits(Int_t n, std::function<bool(int, int)> compareCondition) {
+void TRestTrackEvent::SortTrackHits(int n, std::function<bool(int, int)> compareCondition) {
     const int start = GetTrackStartIndex(n);
     const int count = fData.trackNHits[n];
     if (count < 2) return;
@@ -272,7 +272,7 @@ void TRestTrackEvent::SortTrackHits(Int_t n, std::function<bool(int, int)> compa
                                      fData.sigmaZ);
 }
 
-void TRestTrackEvent::ShuffleTrackHits(Int_t n, int NLoop) {
+void TRestTrackEvent::ShuffleTrackHits(int n, int NLoop) {
     const int start = GetTrackStartIndex(n);
     const int count = fData.trackNHits[n];
     if (count < 2) return;
@@ -284,7 +284,7 @@ void TRestTrackEvent::ShuffleTrackHits(Int_t n, int NLoop) {
                                      fData.sigmaZ);
 }
 
-void TRestTrackEvent::RemoveTrackHit(Int_t n, int hitIdx) {
+void TRestTrackEvent::RemoveTrackHit(int n, int hitIdx) {
     const int idx = GetTrackStartIndex(n) + hitIdx;
 
     fData.hits.x.erase(fData.hits.x.begin() + idx);
@@ -301,7 +301,7 @@ void TRestTrackEvent::RemoveTrackHit(Int_t n, int hitIdx) {
     RebuildTrackViews();
 }
 
-void TRestTrackEvent::MergeTrackHits(Int_t n, int i, int j) {
+void TRestTrackEvent::MergeTrackHits(int n, int i, int j) {
     const int start = GetTrackStartIndex(n);
     const int gi = start + i, gj = start + j;
 
@@ -329,7 +329,7 @@ void TRestTrackEvent::MergeTrackHits(Int_t n, int i, int j) {
 /// \brief Retrieves the relative Z position of the most energetic track's
 /// half-energy integral, to crosscheck if the track is upwards or downwards.
 ///
-Double_t TRestTrackEvent::GetMaxTrackRelativeZ() {
+double TRestTrackEvent::GetMaxTrackRelativeZ() {
     TRestTrack tckX = GetMaxEnergyTrackInX();
     TRestTrack tckY = GetMaxEnergyTrackInY();
 
@@ -396,8 +396,8 @@ void TRestTrackEvent::GetMaxTrackBoundaries(XYZVector& orig, XYZVector& end) {
 /// \brief Reduces the hits of a track into `nodes` nodes (TRestHitsAnalysis::KMeansClustering), starting
 /// equally spaced along the hits order, and adds them to `output` as a track whose parent is this one.
 ///
-Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrackEvent& output, Int_t maxIt,
-                                        Bool_t fixBoundaries) const {
+int TRestTrackEvent::KMeansClustering(int trackIndex, int nodes, TRestTrackEvent& output, int maxIt,
+                                      bool fixBoundaries) const {
     const TRestHits& hits = fTrackHits[trackIndex];
     const auto points = hits.GetPoints();
     if (nodes < 2 || points.empty()) return -1;
@@ -409,7 +409,7 @@ Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrac
     if (result.empty()) return -1;
 
     const REST_HitType type = hits.GetType(0);
-    Int_t newTrackIndex = output.AddTrack(output.GetNumberOfTracks() + 1, GetTrackID(trackIndex));
+    int newTrackIndex = output.AddTrack(output.GetNumberOfTracks() + 1, GetTrackID(trackIndex));
     const double nan = std::numeric_limits<double>::quiet_NaN();
     for (const auto& node : result) {
         // Undefined coordinates back to NaN, as in the hits (GetPoints sets them to 0)
@@ -424,14 +424,14 @@ Int_t TRestTrackEvent::KMeansClustering(Int_t trackIndex, Int_t nodes, TRestTrac
 void TRestTrackEvent::PrintOnlyTracks() const {
     std::cout << "TrackEvent " << GetID() << std::endl;
     std::cout << "-----------------------" << std::endl;
-    for (int i = 0; i < (Int_t)fTrackHits.size(); i++) {
+    for (int i = 0; i < (int)fTrackHits.size(); i++) {
         std::cout << "Track " << i << " id : " << GetTrackID(i) << " parent : " << GetParentID(i)
                   << std::endl;
     }
     std::cout << "-----------------------" << std::endl;
 }
 
-void TRestTrackEvent::PrintTrackEvent(Bool_t fullInfo) const {
+void TRestTrackEvent::PrintTrackEvent(bool fullInfo) const {
     TRestEvent::PrintEvent();
 
     std::cout << "Number of tracks : "
@@ -439,10 +439,10 @@ void TRestTrackEvent::PrintTrackEvent(Bool_t fullInfo) const {
     std::cout << "Number of tracks XZ " << GetNumberOfTracks("X") << std::endl;
     std::cout << "Number of tracks YZ " << GetNumberOfTracks("Y") << std::endl;
     std::cout << "+++++++++++++++++++++++++++++++++++" << std::endl;
-    for (int i = 0; i < (Int_t)fTrackHits.size(); i++) PrintTrack(i, fullInfo);
+    for (int i = 0; i < (int)fTrackHits.size(); i++) PrintTrack(i, fullInfo);
 }
 
-void TRestTrackEvent::PrintTrack(Int_t n, Bool_t fullInfo) const {
+void TRestTrackEvent::PrintTrack(int n, bool fullInfo) const {
     XYZVector mean = fTrackHits[n].GetMeanPosition();
 
     std::cout << "Track ID : " << GetTrackID(n) << " Parent ID : " << GetParentID(n);
@@ -482,9 +482,9 @@ const size_t kMaxHitsForLines = 100;
 
 }  // namespace
 
-TPad* TRestTrackEvent::DrawEvent(const TString& option) const {
+TPad* TRestTrackEvent::DrawEvent(const std::string& option) const {
     std::vector<std::string> options;
-    for (const auto& opt : TRestTools::Split(option.Data(), ':')) {
+    for (const auto& opt : TRestTools::Split(option, ':')) {
         if (opt == "print") {
             PrintEvent();
         } else if (!opt.empty()) {

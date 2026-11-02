@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <stdexcept>
+#include <string_view>
 #include <thread>
 
 #include "TRestAnalysisPlot.h"
@@ -129,7 +130,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
         return;
     }
 
-    Long64_t totalEntries = fProcessManager->fEventsToProcess;
+    long long totalEntries = fProcessManager->fEventsToProcess;
 
     if (totalEntries <= 0) {
         totalEntries = fRunInfo->GetEntries();
@@ -156,8 +157,8 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     const std::string ext = outPath.extension().string();
     const std::string dir = outPath.parent_path().string();
 
-    const Long64_t chunk = totalEntries / nThreads;
-    std::vector<std::pair<Long64_t, Long64_t>> ranges(nThreads);
+    const long long chunk = totalEntries / nThreads;
+    std::vector<std::pair<long long, long long>> ranges(nThreads);
     for (unsigned int t = 0; t < nThreads; ++t) {
         ranges[t] = {t * chunk, (t == nThreads - 1) ? totalEntries : (t + 1) * chunk};
     }
@@ -206,7 +207,7 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     TFileMerger merger(kFALSE);
     merger.SetFastMethod(kFALSE);
 
-    merger.SetMergeOptions(TString("no-fast unbosom"));
+    merger.SetMergeOptions(std::string_view("no-fast unbosom"));
     merger.OutputFile(baseOutput.c_str(), "RECREATE");
     for (unsigned int t = 0; t < nThreads; ++t) merger.AddFile(threadOutputs[t].c_str());
     if (!merger.Merge()) {

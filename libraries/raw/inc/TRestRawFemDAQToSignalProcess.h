@@ -15,17 +15,17 @@ class TRestRawSignalEvent;
 ///
 class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
    private:
-    Long64_t fInputTreeEntry = 0;
+    long long fInputTreeEntry = 0;
 
     TFile* fInputFile = nullptr;
     TTree* fInputTree = nullptr;
 
-    Double_t fTimestamp = 0;
-    Int_t fEventID = 0;
+    double fTimestamp = 0;
+    int fEventID = 0;
     std::vector<int>* fSignalIds = nullptr;
     std::vector<short>* fSignalValues = nullptr;
-    Double_t fStartTimestamp = std::numeric_limits<double>::max();
-    Double_t fEndTimestamp = 0;
+    double fStartTimestamp = std::numeric_limits<double>::max();
+    double fEndTimestamp = 0;
 
    public:
     /// FEMDAQ file to read, the input file of the run if not given
@@ -46,7 +46,7 @@ class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
     /// \brief Closes input resources and updates run-level timestamps.
     void EndProcess() override;
     /// \brief Returns the number of available entries in the input tree.
-    Long64_t GetInputEventCount() const override { return fInputTree ? fInputTree->GetEntries() : -1; }
+    long long GetInputEventCount() const override { return fInputTree ? fInputTree->GetEntries() : -1; }
 
     std::string GetInputEvent() const override { return "None"; }
     std::string GetOutputEvent() const override { return "TRestRawSignalEvent"; }

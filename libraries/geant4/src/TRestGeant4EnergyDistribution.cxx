@@ -1,7 +1,5 @@
 #include "TRestGeant4EnergyDistribution.h"
 
-#include <TString.h>
-
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -189,8 +187,9 @@ void TRestGeant4EnergyDistributionTH1D::LoadDistribution() {
     if (!fHistogram) throw runtime_error(GetClassName() + ": '" + fNameInFile + "' is not a TH1D");
 
     // As legacy, the unit from the axis title
-    const TString title = fHistogram->GetXaxis()->GetTitle();
-    fUnit = title.Contains("GeV") ? 1e6 : title.Contains("MeV") ? 1e3 : 1;
+    const std::string title = fHistogram->GetXaxis()->GetTitle();
+    const auto contains = [&title](const char* unit) { return title.find(unit) != std::string::npos; };
+    fUnit = contains("GeV") ? 1e6 : contains("MeV") ? 1e3 : 1;
 
     for (int i = 1; i <= fHistogram->GetNbinsX(); i++) {
         const double energy = fHistogram->GetBinCenter(i) * fUnit;

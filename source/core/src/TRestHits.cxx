@@ -462,7 +462,7 @@ bool TRestHits::isSortedByEnergy() const {
     return true;
 }
 
-void TRestHits::PrintHits(Int_t nHits) const {
+void TRestHits::PrintHits(int nHits) const {
     int N = nHits;
 
     if (N == -1) N = GetNumberOfHits();

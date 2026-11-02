@@ -19,13 +19,13 @@ bool TRestGeant4Track::IsValid() const {
     const auto& data = fEvent->fEventData;
     const std::size_t n = data.trackIDs.size();
 
-    return fTrackIndex < n && data.parentIDs.size() == n && data.trackParticleNames.size() == n &&
-           data.trackCreatorProcesses.size() == n && data.trackDepositedEnergy.size() == n &&
+    return fTrackIndex < n && data.parentIDs.size() == n && data.trackParticleIDs.size() == n &&
+           data.trackCreatorProcessIDs.size() == n && data.trackDepositedEnergy.size() == n &&
            data.trackInitialEnergies.size() == n && data.trackStartIndices.size() == n &&
            data.trackNHits.size() == n && data.trackGlobalTimestamps.size() == n &&
            data.trackTimeOffsets.size() == n && data.trackTimeLengths.size() == n &&
            data.trackLengths.size() == n && data.trackWeights.size() == n &&
-           data.trackInitialPositions.size() == n && data.trackSecondariesIndices.size() == n &&
+           data.trackInitialPositionX.size() == n && data.trackSecondariesIndices.size() == n &&
            data.trackSecondariesOffsets.size() == n;
 }
 
@@ -47,47 +47,49 @@ TRestHits TRestGeant4Track::GetHits() const {
                      static_cast<int>(GetHitCount()));
 }
 
-Int_t TRestGeant4Track::GetTrackID() const { return fEvent->fEventData.trackIDs.at(fTrackIndex); }
+int TRestGeant4Track::GetTrackID() const { return fEvent->fEventData.trackIDs.at(fTrackIndex); }
 
-Int_t TRestGeant4Track::GetParentID() const { return fEvent->fEventData.parentIDs.at(fTrackIndex); }
+int TRestGeant4Track::GetParentID() const { return fEvent->fEventData.parentIDs.at(fTrackIndex); }
 
-const std::string& TRestGeant4Track::GetParticleName() const {
-    return fEvent->fEventData.trackParticleNames.at(fTrackIndex);
+int TRestGeant4Track::GetParticleID() const { return fEvent->fEventData.trackParticleIDs.at(fTrackIndex); }
+
+int TRestGeant4Track::GetCreatorProcessID() const {
+    return fEvent->fEventData.trackCreatorProcessIDs.at(fTrackIndex);
 }
 
-const std::string& TRestGeant4Track::GetCreatorProcess() const {
-    return fEvent->fEventData.trackCreatorProcesses.at(fTrackIndex);
+std::string TRestGeant4Track::GetParticleName() const { return fEvent->GetParticleName(GetParticleID()); }
+
+std::string TRestGeant4Track::GetCreatorProcess() const {
+    return fEvent->GetProcessName(GetCreatorProcessID());
 }
 
-Double_t TRestGeant4Track::GetGlobalTime() const {
+double TRestGeant4Track::GetGlobalTime() const {
     return fEvent->fEventData.trackGlobalTimestamps.at(fTrackIndex);
 }
 
-Double_t TRestGeant4Track::GetTimeOffset() const {
-    return fEvent->fEventData.trackTimeOffsets.at(fTrackIndex);
-}
+double TRestGeant4Track::GetTimeOffset() const { return fEvent->fEventData.trackTimeOffsets.at(fTrackIndex); }
 
-Double_t TRestGeant4Track::GetTimeLength() const {
-    return fEvent->fEventData.trackTimeLengths.at(fTrackIndex);
-}
+double TRestGeant4Track::GetTimeLength() const { return fEvent->fEventData.trackTimeLengths.at(fTrackIndex); }
 
-Double_t TRestGeant4Track::GetInitialKineticEnergy() const {
+double TRestGeant4Track::GetInitialKineticEnergy() const {
     return fEvent->fEventData.trackInitialEnergies.at(fTrackIndex);
 }
 
 ROOT::Math::XYZVector TRestGeant4Track::GetInitialPosition() const {
-    return fEvent->fEventData.trackInitialPositions.at(fTrackIndex);
+    const auto& data = fEvent->fEventData;
+    return {data.trackInitialPositionX.at(fTrackIndex), data.trackInitialPositionY.at(fTrackIndex),
+            data.trackInitialPositionZ.at(fTrackIndex)};
 }
 
-Double_t TRestGeant4Track::GetWeight() const { return fEvent->fEventData.trackWeights.at(fTrackIndex); }
+double TRestGeant4Track::GetWeight() const { return fEvent->fEventData.trackWeights.at(fTrackIndex); }
 
-Double_t TRestGeant4Track::GetTotalEnergy() const { return GetHits().GetTotalEnergy(); }
+double TRestGeant4Track::GetTotalEnergy() const { return GetHits().GetTotalEnergy(); }
 
-Double_t TRestGeant4Track::GetDepositedEnergy() const {
+double TRestGeant4Track::GetDepositedEnergy() const {
     return fEvent->fEventData.trackDepositedEnergy.at(fTrackIndex);
 }
 
-Double_t TRestGeant4Track::GetLength() const { return fEvent->fEventData.trackLengths.at(fTrackIndex); }
+double TRestGeant4Track::GetLength() const { return fEvent->fEventData.trackLengths.at(fTrackIndex); }
 
 const TRestGeant4Metadata* TRestGeant4Track::GetGeant4Metadata() const {
     if (fEvent == nullptr) return nullptr;
@@ -96,11 +98,11 @@ const TRestGeant4Metadata* TRestGeant4Track::GetGeant4Metadata() const {
 
 void TRestGeant4Track::SetEvent(TRestGeant4Event* event) { fEvent = event; }
 
-Int_t TRestGeant4Track::GetHitProcess(size_t hit) const {
+int TRestGeant4Track::GetHitProcess(size_t hit) const {
     return fEvent->fEventData.hitProcessID.at(GetHitStart() + hit);
 }
 
-Int_t TRestGeant4Track::GetHitVolumeID(size_t hit) const {
+int TRestGeant4Track::GetHitVolumeID(size_t hit) const {
     return fEvent->fEventData.hitVolumeID.at(GetHitStart() + hit);
 }
 
@@ -110,7 +112,7 @@ std::string TRestGeant4Track::GetHitVolumeName(size_t hit) const {
     return volumeName;
 }
 
-Double_t TRestGeant4Track::GetHitKineticEnergy(size_t hit) const {
+double TRestGeant4Track::GetHitKineticEnergy(size_t hit) const {
     return fEvent->fEventData.hitKineticEnergy.at(GetHitStart() + hit);
 }
 
@@ -129,19 +131,15 @@ ROOT::Math::XYZVector TRestGeant4Track::GetHitPosition(size_t hit) const {
     return ROOT::Math::XYZVector(x, y, z);
 }
 
-std::string TRestGeant4Track::GetHitHadronicTargetIsotopeName(size_t hit) const {
-    return fEvent->fEventData.hitHadronicTargetIsotopeName.at(GetHitStart() + hit);
-}
-
-Int_t TRestGeant4Track::GetHitHadronicTargetIsotopeA(size_t hit) const {
+int TRestGeant4Track::GetHitHadronicTargetIsotopeA(size_t hit) const {
     return fEvent->fEventData.hitHadronicTargetIsotopeA.at(GetHitStart() + hit);
 }
 
-Int_t TRestGeant4Track::GetHitHadronicTargetIsotopeZ(size_t hit) const {
+int TRestGeant4Track::GetHitHadronicTargetIsotopeZ(size_t hit) const {
     return fEvent->fEventData.hitHadronicTargetIsotopeZ.at(GetHitStart() + hit);
 }
 
-Int_t TRestGeant4Track::GetProcessID(const std::string& processName) const {
+int TRestGeant4Track::GetProcessID(const std::string& processName) const {
     const auto* metadata = GetGeant4Metadata();
     if (metadata != nullptr) {
         const auto processID = metadata->GetGeant4PhysicsInfo().GetProcessID(processName);
@@ -152,7 +150,7 @@ Int_t TRestGeant4Track::GetProcessID(const std::string& processName) const {
     return -1;
 }
 
-std::string TRestGeant4Track::GetProcessName(Int_t processID) const {
+std::string TRestGeant4Track::GetProcessName(int processID) const {
     const auto* metadata = GetGeant4Metadata();
     if (metadata != nullptr) {
         const auto& processName = metadata->GetGeant4PhysicsInfo().GetProcessName(processID);
@@ -166,15 +164,16 @@ std::string TRestGeant4Track::GetProcessName(Int_t processID) const {
 EColor TRestGeant4Track::GetParticleColor() const {
     EColor color = kGray;
 
-    if (GetParticleName() == "e-")
+    const std::string particle = GetParticleName();
+    if (particle == "e-")
         color = kRed;
-    else if (GetParticleName() == "e+")
+    else if (particle == "e+")
         color = kBlue;
-    else if (GetParticleName() == "alpha")
+    else if (particle == "alpha")
         color = kOrange;
-    else if (GetParticleName() == "mu-")
+    else if (particle == "mu-")
         color = kViolet;
-    else if (GetParticleName() == "gamma")
+    else if (particle == "gamma")
         color = kGreen;
     else
         cout << "TRestGeant4Track::GetParticleColor. Particle NOT found! Returning gray color." << endl;
@@ -182,7 +181,7 @@ EColor TRestGeant4Track::GetParticleColor() const {
     return color;
 }
 
-size_t TRestGeant4Track::GetNumberOfHits(Int_t volID) const {
+size_t TRestGeant4Track::GetNumberOfHits(int volID) const {
     if (!IsValid()) return 0;
     if (volID < 0) return GetHitCount();
 
@@ -193,7 +192,7 @@ size_t TRestGeant4Track::GetNumberOfHits(Int_t volID) const {
     return numberOfHits;
 }
 
-size_t TRestGeant4Track::GetNumberOfPhysicalHits(Int_t volID) const {
+size_t TRestGeant4Track::GetNumberOfPhysicalHits(int volID) const {
     if (!IsValid()) return 0;
 
     const auto hits = GetHits();
@@ -206,28 +205,28 @@ size_t TRestGeant4Track::GetNumberOfPhysicalHits(Int_t volID) const {
     return numberOfHits;
 }
 
-Double_t TRestGeant4Track::GetEnergyInVolume(Int_t volID) const {
+double TRestGeant4Track::GetEnergyInVolume(int volID) const {
     if (!IsValid()) return 0;
 
     const auto hits = GetHits();
-    Double_t energy = 0;
+    double energy = 0;
     for (size_t i = 0; i < GetHitCount(); ++i) {
         if (GetHitVolumeID(i) == volID) energy += hits.GetEnergy(static_cast<int>(i));
     }
     return energy;
 }
 
-ROOT::Math::XYZVector TRestGeant4Track::GetMeanPositionInVolume(Int_t volID) const {
+ROOT::Math::XYZVector TRestGeant4Track::GetMeanPositionInVolume(int volID) const {
     if (!IsValid()) return {};
 
     const auto hits = GetHits();
     ROOT::Math::XYZVector position;
-    Double_t totalEnergy = 0;
+    double totalEnergy = 0;
 
     for (size_t i = 0; i < GetHitCount(); ++i) {
         if (GetHitVolumeID(i) != volID) continue;
 
-        const Double_t energy = hits.GetEnergy(static_cast<int>(i));
+        const double energy = hits.GetEnergy(static_cast<int>(i));
         position +=
             energy * ROOT::Math::XYZVector(hits.GetX(static_cast<int>(i)), hits.GetY(static_cast<int>(i)),
                                            hits.GetZ(static_cast<int>(i)));
@@ -241,7 +240,7 @@ ROOT::Math::XYZVector TRestGeant4Track::GetMeanPositionInVolume(Int_t volID) con
     return position / totalEnergy;
 }
 
-ROOT::Math::XYZVector TRestGeant4Track::GetFirstPositionInVolume(Int_t volID) const {
+ROOT::Math::XYZVector TRestGeant4Track::GetFirstPositionInVolume(int volID) const {
     if (!IsValid()) return {};
 
     const auto hits = GetHits();
@@ -254,7 +253,7 @@ ROOT::Math::XYZVector TRestGeant4Track::GetFirstPositionInVolume(Int_t volID) co
     return {nan, nan, nan};
 }
 
-ROOT::Math::XYZVector TRestGeant4Track::GetLastPositionInVolume(Int_t volID) const {
+ROOT::Math::XYZVector TRestGeant4Track::GetLastPositionInVolume(int volID) const {
     if (!IsValid()) return {};
 
     const auto hits = GetHits();
@@ -268,12 +267,12 @@ ROOT::Math::XYZVector TRestGeant4Track::GetLastPositionInVolume(Int_t volID) con
     return {nan, nan, nan};
 }
 
-std::vector<Int_t> TRestGeant4Track::GetSecondaryTrackIDs() const {
+std::vector<int> TRestGeant4Track::GetSecondaryTrackIDs() const {
     const auto& data = fEvent->fEventData;
     const int start = data.trackSecondariesIndices.at(fTrackIndex);
     const int offset = data.trackSecondariesOffsets.at(fTrackIndex);
 
-    std::vector<Int_t> secondaries;
+    std::vector<int> secondaries;
     if (offset <= 0) return secondaries;
 
     secondaries.reserve(static_cast<std::size_t>(offset));
@@ -321,14 +320,14 @@ std::string TRestGeant4Track::GetFinalVolume() const {
     return metadata->GetGeant4GeometryInfo().GetVolumeFromID(GetHitVolumeID(GetHitCount() - 1));
 }
 
-Double_t TRestGeant4Track::GetEnergyInVolume(const std::string& volumeName, bool children) const {
+double TRestGeant4Track::GetEnergyInVolume(const std::string& volumeName, bool children) const {
     const auto* metadata = GetGeant4Metadata();
     if (metadata == nullptr) return 0;
 
     const auto volumeId = metadata->GetGeant4GeometryInfo().GetIDFromVolume(volumeName);
     if (!children) return GetEnergyInVolume(volumeId);
 
-    Double_t energy = 0;
+    double energy = 0;
     std::vector<TRestGeant4Track> tracks{*this};
 
     while (!tracks.empty()) {
@@ -346,7 +345,7 @@ std::string TRestGeant4Track::GetLastProcessName() const {
     return metadata->GetGeant4PhysicsInfo().GetProcessName(GetHitProcess(GetHitCount() - 1));
 }
 
-Bool_t TRestGeant4Track::ContainsProcessInVolume(Int_t processID, Int_t volumeID) const {
+bool TRestGeant4Track::ContainsProcessInVolume(int processID, int volumeID) const {
     for (size_t i = 0; i < GetHitCount(); ++i) {
         if (GetHitProcess(i) != processID) continue;
         if (volumeID < 0 || GetHitVolumeID(i) == volumeID) return true;
@@ -358,11 +357,9 @@ double TRestGeant4Track::GetHitEnergy(size_t hit) const {
     return fEvent->fEventData.hitsStorage.energy.at(GetHitStart() + hit);
 }
 
-Bool_t TRestGeant4Track::GetHadronicOk() const {
-    return !fEvent->fEventData.hitHadronicTargetIsotopeName.empty();
-}
+bool TRestGeant4Track::GetHadronicOk() const { return !fEvent->fEventData.hitHadronicTargetIsotopeA.empty(); }
 
-void TRestGeant4Track::SetHitEnergy(size_t hit, Double_t energy) {
+void TRestGeant4Track::SetHitEnergy(size_t hit, double energy) {
     if (!IsValid()) return;
 
     const auto absoluteHit = GetHitStart() + hit;
@@ -370,7 +367,7 @@ void TRestGeant4Track::SetHitEnergy(size_t hit, Double_t energy) {
     fEvent->fEventData.hitsStorage.energy.at(absoluteHit) = energy;
 }
 
-Bool_t TRestGeant4Track::ContainsProcessInVolume(const std::string& processName, Int_t volumeID) const {
+bool TRestGeant4Track::ContainsProcessInVolume(const std::string& processName, int volumeID) const {
     const auto* metadata = GetGeant4Metadata();
     if (metadata == nullptr) return false;
 

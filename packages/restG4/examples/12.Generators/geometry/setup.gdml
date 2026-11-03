@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<!-- ##VERSION REST Example 01.NLDBD Version 1.0## -->
+
+<!DOCTYPE gdml [
+        <!ENTITY geometry SYSTEM "geometry.gdml">
+        <!ENTITY materials SYSTEM "materials.xml">
+        ]>
+
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+
+    <!-- Just an example of main geometry file : myGeometryTemplate.gdml
+         This file just defines de parameters of the geometry.
+         The geometry it is defined in geometry/myGeometryDefinition.gdml
+         The materials are defined in geometry/materials.xml
+         Author :   J. Galan    Date : 09-Jul-2015
+    -->
+
+    <!-- All values should be in mm -->
+
+    <define>
+        <constant name="world_size" value="200"/>
+
+    </define>
+
+    &materials;
+
+    &geometry;
+
+
+    <setup name="Default" version="1.0">
+        <world ref="World"/>
+    </setup>
+
+</gdml>

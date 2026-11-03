@@ -1,0 +1,397 @@
+
+#include "SimulationManager.h"
+
+#include <TRestGeant4Event.h>
+#include <TRestGeant4Metadata.h>
+#include <TRestGeant4PhysicsLists.h>
+#include <TRestRun.h>
+
+#include <G4Event.hh>
+#include <G4EventManager.hh>
+#include <G4RunManager.hh>
+#include <G4Threading.hh>
+#include <csignal>
+
+using namespace std;
+
+thread_local OutputManager* SimulationManager::fOutputManager = nullptr;
+
+SimulationManager::SimulationManager() {
+    // Only master thread should create the SimulationManager
+    if (!G4Threading::IsMasterThread()) {
+        G4Exception("SimulationManager::SimulationManager", "REST_G4_MASTER_THREAD", FatalException,
+                    "Only master thread should create the SimulationManager!");
+    }
+}
+
+void SimulationManager::InitializeOutputManager() {
+    lock_guard<std::mutex> guard(fSimulationManagerMutex);
+    fOutputManager = new OutputManager(this);
+    fOutputManagerContainer.push_back(fOutputManager);
+}
+
+void PeriodicPrint(SimulationManager* simulationManager) {
+    const auto restG4Metadata = simulationManager->GetRestMetadata();
+
+    while (!simulationManager->GetPeriodicPrintThreadEndFlag()) {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        if (!restG4Metadata->PrintProgress() &&
+            restG4Metadata->GetVerboseLevel() < TRestLogManager::REST_Verbose_Level::REST_Silent) {
+            continue;
+        }
+
+        for (auto& outputManager : simulationManager->GetOutputManagerContainer()) {
+            simulationManager->SyncStatsFromChild(outputManager);
+        }
+
+        string outputPercentageType = "events";
+        double completionPercentage = double(simulationManager->GetNumberOfProcessedEvents()) /
+                                      double(restG4Metadata->GetNumberOfEvents()) * 100;
+        if (restG4Metadata->GetNumberOfRequestedEntries() > 0) {
+            auto completionPercentageEntries = double(simulationManager->GetNumberOfStoredEvents()) /
+                                               double(restG4Metadata->GetNumberOfRequestedEntries()) * 100;
+            if (completionPercentageEntries > completionPercentage) {
+                completionPercentage = completionPercentageEntries;
+                outputPercentageType = "entries";
+            }
+        }
+        if (restG4Metadata->GetSimulationMaxTimeSeconds() > 0) {
+            auto completionPercentageTime = double(simulationManager->GetElapsedTime()) /
+                                            double(restG4Metadata->GetSimulationMaxTimeSeconds()) * 100;
+            if (completionPercentageTime > completionPercentage) {
+                completionPercentage = completionPercentageTime;
+                outputPercentageType = "time";
+            }
+        }
+
+        string progress;
+        if (outputPercentageType == "events") {
+            progress = " | " + to_string(simulationManager->GetNumberOfProcessedEvents()) +
+                       " events processed / " + to_string(restG4Metadata->GetNumberOfEvents()) +
+                       " requested (" +
+                       TRestTools::Format("%.2e", simulationManager->GetNumberOfProcessedEvents() /
+                                                      simulationManager->GetElapsedTime()) +
+                       "/s)";
+        } else if (outputPercentageType == "entries") {
+            progress = " | " + to_string(simulationManager->GetNumberOfStoredEvents()) + " entries / " +
+                       to_string(restG4Metadata->GetNumberOfRequestedEntries()) + " requested";
+        } else if (outputPercentageType == "time") {
+            progress = " | " + TRestTools::ToTimeStringLong(simulationManager->GetElapsedTime()) +
+                       " elapsed / " +
+                       TRestTools::ToTimeStringLong(
+                           simulationManager->GetRestMetadata()->GetSimulationMaxTimeSeconds());
+        }
+
+        string timeInfo;
+        if (outputPercentageType != "time") {
+            timeInfo = " | " + TRestTools::ToTimeStringLong(simulationManager->GetElapsedTime()) + " elapsed";
+        }
+
+        G4cout << TRestTools::Format("%5.2f", completionPercentage) << "% | "
+               << simulationManager->GetNumberOfStoredEvents() << " events stored / "
+               << simulationManager->GetNumberOfProcessedEvents() << " processed ("
+               << TRestTools::Format("%.2e", simulationManager->GetNumberOfStoredEvents() /
+                                                 simulationManager->GetElapsedTime())
+               << "/s)" << progress << timeInfo << G4endl;
+    }
+}
+
+static SimulationManager* gCurrentSimulationManager = nullptr;
+
+void interruptSignalHandler(int sig) {
+    cout << "\nStopping Run! Program was manually stopped by user (CTRL+C)!" << endl;
+
+    if (gCurrentSimulationManager) {
+        gCurrentSimulationManager->StopSimulation();
+    }
+}
+
+void SimulationManager::BeginOfRunAction() {
+    if (G4Threading::IsMultithreadedApplication() && G4Threading::G4GetThreadId() != -1) {
+        return;
+    }
+
+    gCurrentSimulationManager = this;
+
+    std::signal(SIGINT, interruptSignalHandler);
+
+    fTimeStartUnix = chrono::steady_clock::now().time_since_epoch().count();
+#ifndef GEANT4_WITHOUT_G4RunManagerFactory
+    // gives segfault in old Geant4 versions such as 10.4.3, didn't look into it
+    if (GetRestMetadata()->PrintProgress() ||
+        GetRestMetadata()->GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Silent) {
+        fPeriodicPrintThread = make_unique<thread>(&PeriodicPrint, this);
+    }
+#endif
+}
+
+void SimulationManager::EndOfRunAction() {
+    if (G4Threading::IsMultithreadedApplication() && G4Threading::G4GetThreadId() != -1) {
+        return;  // Only call this once from the main thread
+    }
+
+    fPeriodicPrintThreadEndFlag = true;
+
+    WriteEvents();
+
+    if (fPeriodicPrintThread != nullptr) {
+        if (fPeriodicPrintThread->joinable()) {
+            fPeriodicPrintThread->join();  // need to join thread, it may block for up to 1 thread period
+        }
+    }
+
+    for (auto& outputManager : fOutputManagerContainer) {
+        fNumberOfProcessedEvents += outputManager->GetEventCounter();
+        delete outputManager;
+    }
+    GetRestMetadata()->SetNumberOfEvents(fNumberOfProcessedEvents);
+
+    // cry generator: the showers simulated and their exposure, to normalize to a rate
+    auto& generatorInfo = GetRestMetadata()->GetGeant4PrimaryGeneratorInfo();
+    if (generatorInfo.IsCRY()) {
+        generatorInfo.UpdateCRYExposure();
+        G4cout << "CRY showers simulated: " << generatorInfo.GetCRYShowersUsed() << ", exposure "
+               << generatorInfo.GetCRYExposureTime() / 1e6 << " s" << G4endl;
+    }
+
+    fOutputManagerContainer.clear();
+}
+
+SimulationManager::~SimulationManager() {
+    delete fRestRun;
+    delete fRestGeant4Metadata;
+    delete fRestGeant4PhysicsLists;
+
+    for (auto& outputManager : fOutputManagerContainer) {
+        delete outputManager;
+    }
+}
+
+void SimulationManager::InsertEvent(std::unique_ptr<TRestGeant4Event>& event) {
+    lock_guard<mutex> guard(fSimulationManagerMutex);
+    fEventContainer.push(std::move(event));
+}
+
+void SimulationManager::WriteEvents(bool blocking) {
+    unique_lock<mutex> writeLock(fWriteMutex, defer_lock);
+    if (blocking) {
+        writeLock.lock();
+    } else if (!writeLock.try_lock()) {
+        return;
+    }
+
+    bool wrote = false;
+    while (true) {
+        unique_ptr<TRestGeant4Event> event;
+        {
+            lock_guard<mutex> guard(fSimulationManagerMutex);
+            if (fEventContainer.empty()) {
+                break;
+            }
+            event = std::move(fEventContainer.front());
+            fEventContainer.pop();
+        }
+
+        fEvent.MoveFrom(std::move(*event));
+        event.reset();
+
+        if (!fRestGeant4Metadata->GetStoreTracks()) {
+            fEvent.ClearTracks();
+        }
+
+        fRestRun->Fill();
+        wrote = true;
+    }
+
+    if (!wrote) {
+        return;
+    }
+
+    fNumberOfStoredEvents = fRestRun->GetSavedEntries();
+
+    const auto nRequestedEntries = GetRestMetadata()->GetNumberOfRequestedEntries();
+    if (nRequestedEntries > 0 && !fAbortFlag && fNumberOfStoredEvents >= nRequestedEntries) {
+        G4cout << "Stopping Run! We have reached the number of requested entries (" << nRequestedEntries
+               << ")" << endl;
+        StopSimulation();
+    }
+}
+
+void SimulationManager::InitializeUserDistributions() {
+    if (fRestGeant4Metadata == nullptr || (fRestGeant4Metadata->GetNumberOfSources() == 0 &&
+                                           !fRestGeant4Metadata->GetGeant4PrimaryGeneratorInfo().IsCRY())) {
+        G4Exception("SimulationManager::InitializeUserDistributions", "REST_G4_NO_PARTICLE_SOURCE",
+                    FatalException, "No generator or particle sources defined");
+    }
+    // Formulas, histograms and Decay0 files, read once and copied by the generator of each thread, and the
+    // cry showers file, shared
+    try {
+        fRestGeant4Metadata->GetGeant4PrimaryGeneratorInfo().LoadDistributions();
+    } catch (const std::exception& error) {
+        G4Exception("SimulationManager::InitializeUserDistributions", "REST_G4_GENERATOR", FatalException,
+                    error.what());
+    }
+}
+
+void SimulationManager::StopSimulation() {
+    // Still needs to be propagated to other threads, this is done in the BeginOfEventAction
+    G4RunManager::GetRunManager()->AbortRun(true);
+    fAbortFlag = true;
+}
+
+void SimulationManager::SyncStatsFromChild(OutputManager* outputManager) {
+    if (outputManager == nullptr) {
+        return;
+    }
+    lock_guard<mutex> guard(fSimulationManagerMutex);
+    fNumberOfProcessedEvents += outputManager->GetEventCounter();
+    outputManager->ResetEventCounter();
+}
+
+// OutputManager
+OutputManager::OutputManager(const SimulationManager* simulationManager)
+    : fSimulationManager(const_cast<SimulationManager*>(simulationManager)) {
+    // this class should only exist on the threads performing the simulation
+    if (G4Threading::IsMasterThread() && G4Threading::IsMultithreadedApplication()) {
+        G4Exception("OutputManager::OutputManager", "REST_G4_MULTITHREADING", FatalException,
+                    "Error in 'OutputManager', this instance should never exist");
+    }
+}
+
+void OutputManager::UpdatePrimaryData(const G4Event* event) {
+    if (fEvent) fEvent->UpdatePrimaryData(event);
+}
+
+void OutputManager::BeginOfEventAction() {
+    // This should only be executed once at BeginOfEventAction
+    UpdateEvent();
+    fProcessedEventsCounter++;
+
+    if (fSimulationManager->GetAbortFlag()) {
+        G4RunManager::GetRunManager()->AbortRun(true);
+    }
+
+    if (fSimulationManager->GetRestMetadata()->GetSimulationMaxTimeSeconds() != 0 &&
+        !fSimulationManager->GetAbortFlag() &&
+        fSimulationManager->GetElapsedTime() >
+            fSimulationManager->GetRestMetadata()->GetSimulationMaxTimeSeconds()) {
+        G4cout << "Stopping Run! We have reached the time limit of "
+               << TRestTools::ToTimeStringLong(
+                      fSimulationManager->GetRestMetadata()->GetSimulationMaxTimeSeconds())
+               << endl;
+        fSimulationManager->StopSimulation();
+    }
+}
+
+void OutputManager::UpdateEvent() {
+    auto event = G4EventManager::GetEventManager()->GetConstCurrentEvent();
+
+    if (!fEvent) {
+        fEvent = make_unique<TRestGeant4Event>(event);
+    } else {
+        fEvent->ClearTracks();
+        fEvent->SetID(event->GetEventID());
+    }
+
+    if (fSimulationManager->GetRestMetadata() != nullptr) {
+        fEvent->SetGeant4Metadata(fSimulationManager->GetRestMetadata());
+    }
+
+    if (fSimulationManager->GetRestRun() != nullptr) {
+        fEvent->InitializeReferences(fSimulationManager->GetRestRun());
+    }
+
+    const auto metadata = fSimulationManager->GetRestMetadata();
+    if (metadata == nullptr) {
+        std::ostringstream errMsg;
+        errMsg << "\n---------------------------------------------------------\n"
+               << "TRestGeant4Event: Missing Geant4 metadata for event ID: " << fEvent->GetID();
+        G4Exception("OutputManager::UpdateEvent", "REST_G4_MISSING_METADATA", FatalException,
+                    errMsg.str().c_str());
+    }
+
+    const auto primaryVertex = event->GetPrimaryVertex();
+    const int primaryParticles = primaryVertex != nullptr ? primaryVertex->GetNumberOfParticle() : 0;
+    const int numberOfSources = metadata->GetNumberOfSources();
+
+    // A Decay0 source and the cry generator give the particles of their event
+    const auto& generatorInfo = metadata->GetGeant4PrimaryGeneratorInfo();
+    const bool variableParticles = generatorInfo.HasDecay0Sources() || generatorInfo.IsCRY();
+    if (!variableParticles && primaryParticles != numberOfSources &&
+        int(fEvent->GetNumberOfPrimaries()) != numberOfSources) {
+        std::ostringstream errMsg;
+        errMsg << "\n---------------------------------------------------------\n"
+               << "TRestGeant4Event: Number of particles on primary vertex does not match number of sources "
+                  "for event ID: "
+               << fEvent->GetID();
+        G4Exception("OutputManager::UpdateEvent", "REST_G4_SOURCE_MISTMATCH", FatalException,
+                    errMsg.str().c_str());
+    }
+}
+
+bool OutputManager::IsEmptyEvent() const { return !fEvent || fEvent->GetNumberOfTracks() == 0; }
+
+bool OutputManager::IsValidEvent() const {
+    if (IsEmptyEvent()) {
+        return false;
+    }
+    if (fSimulationManager->GetRestMetadata()->GetSaveAllEvents()) {
+        return true;
+    }
+    const auto energy = fEvent->GetSensitiveVolumeEnergy();
+    if (energy <= 0) {
+        return false;
+    }
+    if (energy < fSimulationManager->GetRestMetadata()->GetMinimumEnergyStored() ||
+        energy > fSimulationManager->GetRestMetadata()->GetMaximumEnergyStored()) {
+        return false;
+    }
+    return true;
+}
+
+void OutputManager::FinishAndSubmitEvent() {
+    if (IsValidEvent()) {
+        if (fSimulationManager->GetRestMetadata()->GetRemoveUnwantedTracks()) RemoveUnwantedTracks();
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - fEventTimeStart;
+
+        fEvent->fEventData.eventTimeWall = elapsed.count() / 1000.;  // seconds
+        fEvent->fEventData.eventTimeWallPrimaryGeneration = fEventTimeWallPrimaryGeneration;
+
+        fSimulationManager->InsertEvent(fEvent);
+        fSimulationManager->WriteEvents(false);
+    }
+    UpdateEvent();
+}
+
+void OutputManager::RecordTrack(const G4Track* track) {
+    if (!IsValidTrack(track)) {
+        return;
+    }
+    if (!fEvent->InsertTrack(track)) {
+        return;
+    }
+
+    if (fEvent->fInfo.subEventID > 0) {
+        const auto storedTrack = fEvent->GetTrack(fEvent->GetNumberOfTracks() - 1);
+        assert(storedTrack.GetTrackID() == track->GetTrackID());
+    }
+}
+
+void OutputManager::UpdateTrack(const G4Track* track) {
+    if (!IsValidTrack(track)) {
+        return;
+    }
+    fEvent->UpdateTrack(track);
+}
+
+void OutputManager::RecordStep(const G4Step* step) { fEvent->InsertStep(step); }
+
+void OutputManager::AddSensitiveEnergy(double energy) { fEvent->AddEnergyToSensitiveVolume(energy); }
+
+void OutputManager::AddEnergyToVolumeForParticleForProcess(double energy, int volumeID, int particleID,
+                                                           int processID) {
+    fEvent->AddEnergyInVolumeForParticleForProcess(energy, volumeID, particleID, processID);
+}

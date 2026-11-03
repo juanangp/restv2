@@ -1,0 +1,140 @@
+
+#ifndef REST_SIMULATIONMANAGER_H
+#define REST_SIMULATIONMANAGER_H
+
+#include <TH1D.h>
+#include <TRandom.h>
+#include <TRestGeant4Event.h>
+#include <TRestGeant4Track.h>
+
+#include <atomic>
+#include <mutex>
+#include <queue>
+#include <thread>
+
+class TRestGeant4Metadata;
+class TRestGeant4PhysicsLists;
+class TRestRun;
+class OutputManager;
+
+class SimulationManager {
+   public:
+    SimulationManager();
+    ~SimulationManager();
+
+    void InitializeOutputManager();
+    static OutputManager* GetOutputManager() { return fOutputManager; }
+
+    TRestGeant4Event fEvent;  // Branch on EventTree
+
+    void InsertEvent(std::unique_ptr<TRestGeant4Event>& event);
+
+    // blocking=false returns immediately if another thread is already writing (it drains the queue)
+    void WriteEvents(bool blocking = true);
+
+    std::unique_ptr<std::thread> fPeriodicPrintThread = nullptr;
+    bool fPeriodicPrintThreadEndFlag = false;
+
+   public:
+    inline TRestRun* GetRestRun() const { return fRestRun; }
+    inline TRestGeant4Metadata* GetRestMetadata() const { return fRestGeant4Metadata; }
+    inline TRestGeant4PhysicsLists* GetRestPhysicsLists() const { return fRestGeant4PhysicsLists; }
+
+    inline void SetRestRun(TRestRun* run) { fRestRun = run; }
+    inline void SetRestMetadata(TRestGeant4Metadata* metadata) { fRestGeant4Metadata = metadata; }
+    inline void SetRestPhysicsLists(TRestGeant4PhysicsLists* physicsLists) {
+        fRestGeant4PhysicsLists = physicsLists;
+    }
+
+    bool GetPeriodicPrintThreadEndFlag() const { return fPeriodicPrintThreadEndFlag; }
+
+    void BeginOfRunAction();
+    void EndOfRunAction();
+
+    inline bool GetAbortFlag() const { return fAbortFlag; }
+    void StopSimulation();
+
+    inline double GetElapsedTime() const {
+        return 1E-9 * (std::chrono::steady_clock::now().time_since_epoch().count() - fTimeStartUnix);
+    }
+
+    void SyncStatsFromChild(OutputManager* = fOutputManager);
+
+    int GetNumberOfProcessedEvents() const { return fNumberOfProcessedEvents; }
+    int GetNumberOfStoredEvents() const { return fNumberOfStoredEvents; }
+
+    std::vector<OutputManager*> GetOutputManagerContainer() const { return fOutputManagerContainer; }
+
+   private:
+    static thread_local OutputManager* fOutputManager;
+    std::mutex fSimulationManagerMutex;
+    std::mutex fWriteMutex;  // serializes fEvent and TTree::Fill, never held while pushing events
+    std::queue<std::unique_ptr<TRestGeant4Event> > fEventContainer;
+
+    TRestRun* fRestRun = nullptr;
+    TRestGeant4PhysicsLists* fRestGeant4PhysicsLists = nullptr;
+    TRestGeant4Metadata* fRestGeant4Metadata = nullptr;
+
+    int fNumberOfProcessedEvents = 0;
+    std::atomic<int> fNumberOfStoredEvents{0};
+
+    std::atomic<bool> fAbortFlag{false};
+
+    std::vector<OutputManager*> fOutputManagerContainer = {};
+    long fTimeStartUnix = 0;
+
+    /* Primary generation */
+   public:
+    void InitializeUserDistributions();
+};
+
+class OutputManager {
+   public:
+    OutputManager(const SimulationManager*);
+    void UpdateEvent();
+    void FinishAndSubmitEvent();
+
+    bool IsEmptyEvent() const;
+
+    bool IsValidEvent() const;
+    bool IsValidTrack(const G4Track*) const;  // TODO
+    bool IsValidStep(const G4Step*) const;    // TODO
+
+    void RecordTrack(const G4Track*);
+    void UpdateTrack(const G4Track*);
+
+    void RecordStep(const G4Step*);
+
+    void AddSensitiveEnergy(double energy);
+    void AddEnergyToVolumeForParticleForProcess(double energy, int volumeID, int particleID, int processID);
+
+    inline int GetEventCounter() const { return fProcessedEventsCounter; }
+    inline void ResetEventCounter() { fProcessedEventsCounter = 0; }
+
+    void BeginOfEventAction();
+    void UpdatePrimaryData(const G4Event* event);
+
+    int GetCurrentEventID() const { return fEvent->GetID(); }
+
+    void SetEventTimeWallPrimaryGeneration(double durationSeconds) {
+        fEventTimeWallPrimaryGeneration = durationSeconds;
+    }
+
+    void SetEventTimeStart(std::chrono::high_resolution_clock::time_point time) { fEventTimeStart = time; }
+
+   private:
+    std::unique_ptr<TRestGeant4Event> fEvent{};
+    SimulationManager* fSimulationManager = nullptr;
+
+    int fProcessedEventsCounter = 0;
+
+    // start time
+    double fEventTimeWallPrimaryGeneration = 0;
+    std::chrono::high_resolution_clock::time_point fEventTimeStart;
+
+    void RemoveUnwantedTracks();
+
+    friend class StackingAction;
+};
+
+#endif  // REST_SIMULATIONMANAGER_H

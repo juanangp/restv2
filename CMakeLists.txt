@@ -200,10 +200,7 @@ option(REST_G4
 if(REST_G4)
   find_package(Geant4 QUIET)
   if(NOT Geant4_FOUND)
-    message(
-      WARNING
-        "Geant4 not found, restG4 will not be built (set Geant4_DIR or -DREST_G4=OFF)"
-    )
+    message(STATUS "restG4: Geant4 not found, not built (set Geant4_DIR)")
     set(REST_G4 OFF)
   endif()
 endif()
@@ -219,9 +216,9 @@ if(REST_GARFIELD)
   find_package(Garfield QUIET HINTS $ENV{GARFIELD_INSTALL} $ENV{GARFIELD_HOME})
   if(NOT Garfield_FOUND OR NOT TARGET ${DETECTOR_LIB})
     message(
-      WARNING
-        "Garfield++ or ${DETECTOR_LIB} not found, restGarfield will not be built "
-        "(set GARFIELD_INSTALL or -DREST_GARFIELD=OFF)")
+      STATUS
+        "restGarfield: Garfield++ or ${DETECTOR_LIB} not found, not built (set GARFIELD_INSTALL)"
+    )
     set(REST_GARFIELD OFF)
   endif()
 endif()

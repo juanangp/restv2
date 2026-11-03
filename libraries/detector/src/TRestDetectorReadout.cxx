@@ -17,6 +17,7 @@
 #include "TList.h"
 #include "TObjString.h"
 #include "TRestConstants.h"
+#include "TRestTools.h"
 
 using namespace TRestConstants;
 
@@ -307,6 +308,51 @@ ROOT::Math::XYZVector TRestDetectorReadout::GetPositionFromChannel(int daqID) co
     return ROOT::Math::XYZVector(REST_nan, REST_nan, REST_nan);
 }
 
+std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> TRestDetectorReadout::GetChannelsBoundingBox() const {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    double minimum[3] = {inf, inf, inf}, maximum[3] = {-inf, -inf, -inf};
+    bool found = false;
+    if (fGeoManager) {
+        // The nodes of the channels: by path (fPathToPhysicalIDMap) or by unique ID, as
+        // GetPositionFromChannel
+        TGeoIterator it(fGeoManager->GetTopVolume());
+        TGeoNode* node = nullptr;
+        while ((node = it())) {
+            int physicalID = -1;
+            if (!fPathToPhysicalIDMap.empty()) {
+                TString path;  // TGeoIterator::GetPath needs a TString
+                it.GetPath(path);
+                const auto pathIt = fPathToPhysicalIDMap.find(path.Data());
+                if (pathIt != fPathToPhysicalIDMap.end()) physicalID = pathIt->second;
+            } else {
+                physicalID = static_cast<int>(node->GetUniqueID());
+            }
+            if (physicalID < 0 || fPhysicalToDAQMap.count(physicalID) == 0) continue;
+            const auto* box = dynamic_cast<const TGeoBBox*>(node->GetVolume()->GetShape());
+            const TGeoMatrix* matrix = it.GetCurrentMatrix();
+            if (!box || !matrix) continue;
+            // The corners of its box in the global frame
+            const double* origin = box->GetOrigin();
+            const double half[3] = {box->GetDX(), box->GetDY(), box->GetDZ()};
+            for (int corner = 0; corner < 8; corner++) {
+                double local[3], global[3];
+                for (int axis = 0; axis < 3; axis++)
+                    local[axis] = origin[axis] + ((corner >> axis) & 1 ? half[axis] : -half[axis]);
+                matrix->LocalToMaster(local, global);
+                for (int axis = 0; axis < 3; axis++) {
+                    minimum[axis] = std::min(minimum[axis], global[axis]);
+                    maximum[axis] = std::max(maximum[axis], global[axis]);
+                }
+            }
+            found = true;
+        }
+    }
+    if (!found) return {ROOT::Math::XYZVector(nan, nan, nan), ROOT::Math::XYZVector(nan, nan, nan)};
+    return {ROOT::Math::XYZVector(minimum[0], minimum[1], minimum[2]),
+            ROOT::Math::XYZVector(maximum[0], maximum[1], maximum[2])};
+}
+
 int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) const {
     if (!fGeoManager || fPhysicalToDAQMap.empty()) return -1;
 
@@ -448,9 +494,8 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
     if (!readoutDir) return false;
     readoutDir->cd();
 
-    if (GetGeoManager()) {
-        GetGeoManager()->Write(kGeometryKey, TObject::kOverwrite);
-    }
+    // With its hash: the datasets compare the readouts of their runs without reading the geometry
+    if (GetGeoManager()) TRestTools::WriteGeometry(readoutDir, GetGeoManager(), kGeometryKey);
 
     // Export the decoding payload (original logic preserved).
     TDirectory* geometryDecDir = GetOrMakeSubDirectory(readoutDir, kDecodingsDir);

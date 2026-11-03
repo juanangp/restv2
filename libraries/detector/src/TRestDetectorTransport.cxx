@@ -12,6 +12,7 @@
 #include "TGraph.h"
 #include "TObjString.h"
 #include "TRestDetectorMedium.h"
+#include "TRestYAMLUtils.h"
 
 static const bool TRestDetectorTransport_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -229,8 +230,8 @@ TRestDetectorTransport TRestDetectorTransport::Read(TFile* file, const std::stri
     table.fMedium = medium;
     table.fPressure = entry["pressure"].as<double>();
     table.fTemperature = entry["temperature"].as<double>();
-    table.fPressureScaling = TRestTools::GetYAMLParam<bool>(entry, "pressureScaling", true);
-    table.fPenning = TRestTools::GetYAMLParam<double>(entry, "penningRate", 0);
+    table.fPressureScaling = TRestYAMLUtils::GetParam<bool>(entry, "pressureScaling", true);
+    table.fPenning = TRestYAMLUtils::GetParam<double>(entry, "penningRate", 0);
 
     auto* directory = file->GetDirectory((kTablesDir + "/" + key).c_str());
     if (!directory) throw std::runtime_error(error + "no directory " + kTablesDir + "/" + key);

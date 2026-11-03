@@ -16,8 +16,9 @@
 /// (veto hits are split beforehand) and there is no microscopic Garfield drift: in a uniform field it uses
 /// the same transport table as the gaussian diffusion (microscopic simulations are done with restGarfield).
 ///
-/// Parameters: readout and driftMedium (names, optional if there is only one), fluctuations ("fano",
-/// "poisson" or "none"), maxHits (1000, 0: no limit), seed (0).
+/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), driftMedium (name,
+/// optional if there is only one), fluctuations ("fano", "poisson" or "none"), maxHits (1000, 0: no limit),
+/// seed (0).
 ///
 /// Example:
 ///
@@ -98,14 +99,7 @@ void TRestDetectorHitsDriftProcess::InitProcess() {
     if (!readouts) {
         throw std::runtime_error("TRestDetectorHitsDriftProcess: no TRestDetectorReadoutManager found");
     }
-    if (fReadoutName.empty() && readouts->fReadoutMap.size() == 1) {
-        fReadoutName = readouts->fReadoutMap.begin()->first;
-    }
-    fReadout = readouts->GetReadout(fReadoutName);
-    if (!fReadout) {
-        throw std::runtime_error("TRestDetectorHitsDriftProcess: readout '" + fReadoutName +
-                                 "' not found. Set the 'readout' parameter");
-    }
+    fReadout = readouts->SelectReadout(fReadoutName, "TRestDetectorHitsDriftProcess");
 
     const auto media = fManager->GetMetadataOfType<TRestDetectorDrift>();
     fMedium = nullptr;

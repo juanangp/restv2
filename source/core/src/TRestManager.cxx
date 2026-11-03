@@ -9,10 +9,14 @@
 #include <thread>
 
 #include "TRestAnalysisPlot.h"
+#include "TRestCut.h"
+#include "TRestDataSet.h"
+#include "TRestDataSetProcessManager.h"
+#include "TRestEventProcessManager.h"
 #include "TRestLogManager.h"
-#include "TRestProcessManager.h"
 #include "TRestRun.h"
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 using namespace TRestTools;
 
@@ -43,6 +47,8 @@ TRestManager::TRestManager(const std::string& fileName, const std::string& secti
 void TRestManager::LoadConfig() {
     fMetaObjects.clear();
     fProcessManager = nullptr;
+    fDataSetProcessManager = nullptr;
+    fDataSet = nullptr;
     fRunInfo = nullptr;
 
     for (const auto& element : fNode) {
@@ -54,8 +60,14 @@ void TRestManager::LoadConfig() {
         auto meta = CreateChildMetadata(key, value);
         if (!meta) continue;
 
-        if (auto* processManager = dynamic_cast<TRestProcessManager*>(meta.get())) {
+        if (auto* processManager = dynamic_cast<TRestEventProcessManager*>(meta.get())) {
             fProcessManager = processManager;
+        }
+        if (auto* dataSetProcessManager = dynamic_cast<TRestDataSetProcessManager*>(meta.get())) {
+            fDataSetProcessManager = dataSetProcessManager;
+        }
+        if (auto* dataSet = dynamic_cast<TRestDataSet*>(meta.get())) {
+            fDataSet = dataSet;
         }
         if (auto* run = dynamic_cast<TRestRun*>(meta.get())) {
             fRunInfo = run;
@@ -76,6 +88,39 @@ void TRestManager::LoadConfig() {
 void TRestManager::Run() {
     const auto plotList = GetMetadataOfType<TRestAnalysisPlot>();
     const bool plots = !plotList.empty();
+    // Datasets: generation (TRestDataSet) and/or pipeline (TRestDataSetProcessManager), no TRestRun nor
+    // event pipeline
+    if (fDataSet || fDataSetProcessManager) {
+        if (fProcessManager || fRunInfo) {
+            throw std::runtime_error(
+                "TRestManager::Run - a TRestDataSet or a TRestDataSetProcessManager works on datasets: the "
+                "manager cannot have a TRestRun nor a TRestEventProcessManager");
+        }
+        if (fDataSet) {
+            if (fDataSet->fFilePattern.empty()) {
+                throw std::runtime_error("TRestManager::Run - the TRestDataSet '" + fDataSet->GetName() +
+                                         "' has no filePattern (or --i)");
+            }
+            if (fDataSet->fOutputFileName.empty() && !fDataSetProcessManager) {
+                throw std::runtime_error("TRestManager::Run - the TRestDataSet '" + fDataSet->GetName() +
+                                         "' has no outputFileName (or --o)");
+            }
+            fDataSet->Generate(GetMetadataOfType<TRestCut>());
+            // Written with the name resolved ([runStart], [runTag|Mixed]...), kept in fOutputFileName; with a
+            // dataset pipeline only if it has an outputFileName (the dataset before the processes)
+            if (!fDataSet->fOutputFileName.empty()) fDataSet->Write(fDataSet->fOutputFileName);
+        }
+        if (fDataSetProcessManager) {
+            fDataSetProcessManager->SetManager(this);
+            // The dataset generated is processed in memory: only the processed one is written
+            if (fDataSet) {
+                fDataSetProcessManager->Run(*fDataSet);
+            } else {
+                fDataSetProcessManager->Run();
+            }
+        }
+        return;
+    }
     // Only plots (RunPlots): each one with its own input, no TRestRun
     if (fProcessManager == nullptr && fRunInfo == nullptr && plots) return;
     if (fProcessManager == nullptr && plots) {
@@ -87,7 +132,8 @@ void TRestManager::Run() {
     }
     if (fProcessManager == nullptr) {
         throw std::runtime_error(
-            "TRestManager::Run - no TRestProcessManager configured under manager section (a TRestRun is the "
+            "TRestManager::Run - no TRestEventProcessManager configured under manager section (a TRestRun is "
+            "the "
             "input of the pipeline; for only plots, the input is the inputFileName of each "
             "TRestAnalysisPlot, "
             "or --i)");
@@ -144,9 +190,9 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
         return;
     }
 
-    auto [runKeyOrig, runNodeOrig] = TRestTools::GetMetadataClass(fNode, "TRestRun");
+    auto [runKeyOrig, runNodeOrig] = TRestYAMLUtils::GetMetadataClass(fNode, "TRestRun");
     if (runNodeOrig && !runNodeOrig.IsNull()) {
-        TRestTools::OverrideYAMLParam(runNodeOrig, "runNumber", std::to_string(fRunInfo->GetRunNumber()));
+        TRestYAMLUtils::OverrideParam(runNodeOrig, "runNumber", std::to_string(fRunInfo->GetRunNumber()));
     }
 
     const std::string baseOutput = fRunInfo->GetOutputFileName();
@@ -173,23 +219,24 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
         workers.emplace_back([this, t, &ranges, &threadOutputs] {
             YAML::Node threadManagerNode = YAML::Clone(fNode);
 
-            auto [runKey, runNode] = TRestTools::GetMetadataClass(threadManagerNode, "TRestRun");
-            auto [pipeKey, pipeNode] = TRestTools::GetMetadataClass(threadManagerNode, "TRestProcessManager");
+            auto [runKey, runNode] = TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestRun");
+            auto [pipeKey, pipeNode] =
+                TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestEventProcessManager");
             if (!runNode || runNode.IsNull() || !pipeNode || pipeNode.IsNull()) {
                 throw std::runtime_error("TRestManager::RunMultithreaded - run/pipeline no encontrados");
             }
 
-            TRestTools::OverrideYAMLParam(runNode, "outputFileName", threadOutputs[t]);
-            TRestTools::OverrideYAMLParam(pipeNode, "nThreads", std::string("1"));
+            TRestYAMLUtils::OverrideParam(runNode, "outputFileName", threadOutputs[t]);
+            TRestYAMLUtils::OverrideParam(pipeNode, "nThreads", std::string("1"));
 
             TRestManager threadManager(GetName(), threadManagerNode);
 
             auto* threadRun = threadManager.GetRunInfo();
-            auto* threadPipeline =
-                dynamic_cast<TRestProcessManager*>(threadManager.GetMetadataClass("TRestProcessManager"));
+            auto* threadPipeline = dynamic_cast<TRestEventProcessManager*>(
+                threadManager.GetMetadataClass("TRestEventProcessManager"));
             if (!threadRun || !threadPipeline) {
                 throw std::runtime_error(
-                    "TRestManager::RunMultithreaded - cannot get retreive TRestProcessManager");
+                    "TRestManager::RunMultithreaded - cannot get retreive TRestEventProcessManager");
             }
 
             threadPipeline->SetEntryRange(ranges[t].first, ranges[t].second);
@@ -249,6 +296,8 @@ void TRestManager::RunPlots() {
         pipelineOutput = fRunInfo->GetOutputFileName();
         fRunInfo->CloseFiles();
     }
+    if (fDataSet) pipelineOutput = fDataSet->fOutputFileName;
+    if (fDataSetProcessManager) pipelineOutput = fDataSetProcessManager->fOutputFileName;
     for (auto* plot : plots) {
         const std::string fileName = plot->fInputFileName.empty() ? pipelineOutput : plot->fInputFileName;
         if (fileName.empty()) {

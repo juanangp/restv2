@@ -1,5 +1,6 @@
 readoutManager:
   class: "TRestDetectorReadoutManager"
+  readout: "IAXO_D1_Readout"  # readout of the data (processes without readout); both are loaded and viewed
   readouts:
     - inputFileName: "iaxo_readout_output.root"
       instanceName: "IAXO_D1_Readout"

@@ -65,7 +65,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 static const bool TRestGeant4CRYShowers_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -165,7 +165,7 @@ void TRestGeant4CRYShowers::SetResults(int64_t showers, double timeSimulated, co
 
 TRestGeant4CRYShowers TRestGeant4CRYShowers::ReadFromFile(TFile* file) {
     const auto section =
-        TRestTools::GetMetadataClass(TRestTools::ReadMetadataStore(file), "TRestGeant4CRYShowers");
+        TRestYAMLUtils::GetMetadataClass(TRestYAMLUtils::ReadMetadataStore(file), "TRestGeant4CRYShowers");
     if (!section.second) {
         throw std::runtime_error("TRestGeant4CRYShowers: no TRestGeant4CRYShowers in " +
                                  std::string(file ? file->GetName() : "(no file)") +

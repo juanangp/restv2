@@ -17,8 +17,8 @@
 /// for veto channels (they go in their own pipeline, with a readout without distance), no readout planes
 /// loop (the readout gives the distance) and the sampling is optional.
 ///
-/// Parameters: readout and driftMedium (names, optional if there is only one), driftVelocity (0: the one
-/// of the medium), sampling (0).
+/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), driftMedium (name,
+/// optional if there is only one), driftVelocity (0: the one of the medium), sampling (0).
 ///
 /// Example:
 ///
@@ -98,14 +98,7 @@ void TRestDetectorHitsToSignalProcess::InitProcess() {
     if (!readouts) {
         throw std::runtime_error("TRestDetectorHitsToSignalProcess: no TRestDetectorReadoutManager found");
     }
-    if (fReadoutName.empty() && readouts->fReadoutMap.size() == 1) {
-        fReadoutName = readouts->fReadoutMap.begin()->first;
-    }
-    fReadout = readouts->GetReadout(fReadoutName);
-    if (!fReadout) {
-        throw std::runtime_error("TRestDetectorHitsToSignalProcess: readout '" + fReadoutName +
-                                 "' not found. Set the 'readout' parameter");
-    }
+    fReadout = readouts->SelectReadout(fReadoutName, "TRestDetectorHitsToSignalProcess");
 
     // The drift velocity is only needed by readouts with a distance: checked with the first hit that drifts
     fVelocity = fDriftVelocity;

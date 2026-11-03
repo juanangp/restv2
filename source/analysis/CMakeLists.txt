@@ -1,5 +1,7 @@
 # ---------------------------------------------------------------------------
-# source/tools  -  RestAnalysis (shared library)
+# source/analysis  -  RestAnalysis (shared library): generic analysis algorithms
+# (peaks, pulses, hits) and the dataset processes (TRestDataSetProcess) using
+# them
 # ---------------------------------------------------------------------------
 
 file(GLOB_RECURSE ANALYSIS_SOURCES src/*.cxx)
@@ -11,11 +13,17 @@ target_include_directories(
   RestAnalysis PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
                       $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(RestAnalysis PUBLIC RestTools ${ROOT_TARGET_LIBRARIES})
+target_link_libraries(RestAnalysis PUBLIC RestCore RestTools
+                                          ${ROOT_TARGET_LIBRARIES})
 
 rest_attach_dictionary(
-  RestAnalysis HEADERS ${ANALYSIS_HEADERS} INCLUDE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}/inc ${CMAKE_SOURCE_DIR}/source/tools/inc)
+  RestAnalysis
+  HEADERS
+  ${ANALYSIS_HEADERS}
+  INCLUDE_DIRS
+  ${CMAKE_CURRENT_SOURCE_DIR}/inc
+  ${CMAKE_SOURCE_DIR}/source/core/inc
+  ${CMAKE_SOURCE_DIR}/source/tools/inc)
 
 install(
   TARGETS RestAnalysis

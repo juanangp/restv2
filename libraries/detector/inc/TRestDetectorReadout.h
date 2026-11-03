@@ -7,6 +7,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Math/Vector3D.h"
@@ -126,6 +127,11 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \param daqID DAQ channel identifier.
     /// \return Channel centroid in detector coordinates.
     virtual ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const;
+
+    /// \brief Bounding box of the channels (the volumes with a DAQ channel) in the global frame, e.g. the
+    /// extent of the readout for a gain map (TRestDataSetGainMap).
+    /// \return (minimum, maximum) corners; NaN if there are no channels.
+    std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> GetChannelsBoundingBox() const;
 
     /// \brief Returns the signed distance from a position to the readout of a DAQ channel, projected on the
     /// readout normal (as legacy TRestDetectorReadoutPlane::GetDistanceTo: (pos - plane) · normal).

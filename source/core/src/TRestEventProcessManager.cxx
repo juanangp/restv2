@@ -1,4 +1,4 @@
-#include "TRestProcessManager.h"
+#include "TRestEventProcessManager.h"
 
 #include <algorithm>
 #include <set>
@@ -10,16 +10,19 @@
 
 using namespace TRestTools;
 
-static const bool TRestProcessManager_FieldsRegistered = []() {
+static const bool TRestEventProcessManager_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestProcessManager>("inputAnalysisStorage",
-                                           &TRestProcessManager::fInputAnalysisStorage);
-    reg.RegisterField<TRestProcessManager>("inputEventStorage", &TRestProcessManager::fInputEventStorage);
-    reg.RegisterField<TRestProcessManager>("outputEventStorage", &TRestProcessManager::fOutputEventStorage);
-    reg.RegisterField<TRestProcessManager>("eventsToProcess", &TRestProcessManager::fEventsToProcess);
-    reg.RegisterField<TRestProcessManager>("nThreads", &TRestProcessManager::fNThreads);
+    reg.RegisterField<TRestEventProcessManager>("inputAnalysisStorage",
+                                                &TRestEventProcessManager::fInputAnalysisStorage);
+    reg.RegisterField<TRestEventProcessManager>("inputEventStorage",
+                                                &TRestEventProcessManager::fInputEventStorage);
+    reg.RegisterField<TRestEventProcessManager>("outputEventStorage",
+                                                &TRestEventProcessManager::fOutputEventStorage);
+    reg.RegisterField<TRestEventProcessManager>("eventsToProcess",
+                                                &TRestEventProcessManager::fEventsToProcess);
+    reg.RegisterField<TRestEventProcessManager>("nThreads", &TRestEventProcessManager::fNThreads);
     // The processes and the metadata of the pipeline
-    reg.RegisterChildMetadata<TRestProcessManager>();
+    reg.RegisterChildMetadata<TRestEventProcessManager>();
     return true;
 }();
 
@@ -29,39 +32,40 @@ static const bool TRestProcessManager_FieldsRegistered = []() {
 namespace {
 const bool kRegistered = []() {
     MetadataClassRegistry::Instance().Register(
-        "TRestProcessManager", [](const std::string& instanceName, const YAML::Node& params) {
-            return std::make_unique<TRestProcessManager>(instanceName, params);
+        "TRestEventProcessManager", [](const std::string& instanceName, const YAML::Node& params) {
+            return std::make_unique<TRestEventProcessManager>(instanceName, params);
         });
     return true;
 }();
 }  // namespace
 
-TRestProcessManager::TRestProcessManager() : TRestMetadata() { fName = "TRestProcessManager"; }
+TRestEventProcessManager::TRestEventProcessManager() : TRestMetadata() { fName = "TRestEventProcessManager"; }
 
-TRestProcessManager::TRestProcessManager(const std::string& instanceName, const YAML::Node& node)
+TRestEventProcessManager::TRestEventProcessManager(const std::string& instanceName, const YAML::Node& node)
     : TRestMetadata(instanceName, node) {
     LoadConfig();
 }
 
-TRestProcessManager::TRestProcessManager(const std::string& fileName, const std::string& sectionName)
+TRestEventProcessManager::TRestEventProcessManager(const std::string& fileName,
+                                                   const std::string& sectionName)
     : TRestMetadata(fileName, sectionName) {
     LoadConfig();
 }
 
-void TRestProcessManager::LoadConfig() {
+void TRestEventProcessManager::LoadConfig() {
     if (!fNode || fNode.IsNull()) {
-        RESTError << "TRestProcessManager::LoadConfig - YAML node is missing" << RESTendl;
+        RESTError << "TRestEventProcessManager::LoadConfig - YAML node is missing" << RESTendl;
         return;
     }
 
-    UpdateParamsFromYAML<TRestProcessManager>(fNode);
+    UpdateParamsFromYAML<TRestEventProcessManager>(fNode);
     // Sync resolved parameters to the node
-    UpdateYAMLFromParams<TRestProcessManager>(fNode);
+    UpdateYAMLFromParams<TRestEventProcessManager>(fNode);
 
     LoadProcesses();
 }
 
-void TRestProcessManager::LoadProcesses() {
+void TRestEventProcessManager::LoadProcesses() {
     fMetaObjects.clear();
     fProcessChain.clear();
     fStageOutputs.clear();
@@ -88,7 +92,7 @@ void TRestProcessManager::LoadProcesses() {
             // Processes for any event type (e.g. TRestSelectionProcess) take the event of the previous one
             if (inputEvent.empty()) {
                 if (fPipelineConnections.empty()) {
-                    throw std::runtime_error("TRestProcessManager: process '" + proc->GetName() +
+                    throw std::runtime_error("TRestEventProcessManager: process '" + proc->GetName() +
                                              "' has no input event and it is the first process");
                 }
                 inputEvent = outputEvent = fPipelineConnections.back().second;
@@ -107,9 +111,9 @@ void TRestProcessManager::LoadProcesses() {
     }
 }
 
-void TRestProcessManager::Run() {
+void TRestEventProcessManager::Run() {
     if (fRunInfo == nullptr) {
-        throw std::runtime_error("TRestProcessManager::Run - run context is null");
+        throw std::runtime_error("TRestEventProcessManager::Run - run context is null");
     }
 
     if (fProcessChain.empty()) {
@@ -149,7 +153,7 @@ void TRestProcessManager::Run() {
             } else if (fRunInfo->HasEvent(inputName)) {
                 fStageInputs[i] = fRunInfo->GetEvent(inputName);
             } else {
-                throw std::runtime_error("TRestProcessManager::Run - input event '" + inputName +
+                throw std::runtime_error("TRestEventProcessManager::Run - input event '" + inputName +
                                          "' of process '" + procClassName +
                                          "' is neither in the input file nor produced by a previous process");
             }
@@ -160,7 +164,7 @@ void TRestProcessManager::Run() {
         if (outputClassName.empty()) {
             if (!fStageInputs[i]) {
                 throw std::runtime_error(
-                    "TRestProcessManager::Run - outputClass must be specified for generator process '" +
+                    "TRestEventProcessManager::Run - outputClass must be specified for generator process '" +
                     procClassName + "'");
             }
             outputClassName = fStageInputs[i]->GetClassName();
@@ -218,8 +222,8 @@ void TRestProcessManager::Run() {
 
     const bool showProgress = (fEntryStart <= 0);
 
-    RESTInfo << "TRestProcessManager: Starting event loop. Entries [" << loopStart << ", " << loopEnd << ")"
-             << RESTendl;
+    RESTInfo << "TRestEventProcessManager: Starting event loop. Entries [" << loopStart << ", " << loopEnd
+             << ")" << RESTendl;
 
     if (showProgress) RESTProgress.Reset(loopEnd - loopStart);
 
@@ -230,7 +234,7 @@ void TRestProcessManager::Run() {
 
     for (long long entry = loopStart; entry < loopEnd; ++entry) {
         if (TRestManager::StopRequested()) {
-            RESTWarning << "TRestProcessManager: stop requested, breaking event loop at entry " << entry
+            RESTWarning << "TRestEventProcessManager: stop requested, breaking event loop at entry " << entry
                         << RESTendl;
             break;
         }
@@ -274,7 +278,7 @@ void TRestProcessManager::Run() {
         proc->EndProcess();
     }
 
-    RESTInfo << "TRestProcessManager: Pipeline finished. Accepted: " << acceptedCount
+    RESTInfo << "TRestEventProcessManager: Pipeline finished. Accepted: " << acceptedCount
              << " events, Rejected: " << rejectedCount << " events" << RESTendl;
     RESTInfo << "Output file name: " << fRunInfo->GetOutputFileName() << RESTendl;
 }

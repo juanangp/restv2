@@ -11,17 +11,11 @@ target_include_directories(
   RestCore PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
                   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(RestCore PUBLIC RestTools RestAnalysis
-                                      ${ROOT_TARGET_LIBRARIES})
+target_link_libraries(RestCore PUBLIC RestTools ${ROOT_TARGET_LIBRARIES})
 
 rest_attach_dictionary(
-  RestCore
-  HEADERS
-  ${CORE_HEADERS}
-  INCLUDE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}/inc
-  ${CMAKE_SOURCE_DIR}/source/tools/inc
-  ${CMAKE_SOURCE_DIR}/source/analysis/inc)
+  RestCore HEADERS ${CORE_HEADERS} INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/inc
+  ${CMAKE_SOURCE_DIR}/source/tools/inc)
 
 install(
   TARGETS RestCore

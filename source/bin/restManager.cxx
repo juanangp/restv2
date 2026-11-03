@@ -2,7 +2,10 @@
 ///
 /// Usage: restManager --c|--config <config.yaml> [--i|--input <input.root>]
 ///                     [--o|--output <output.root>] [--v|--verbose <level>]
-///                     [--e|--events <n>]
+///                     [--e|--events <n>] [--r|--reference <process>=<dataset>]
+///
+/// --r sets the referenceFileName of a process of the TRestDataSetProcessManager (repeatable), e.g.
+/// --r calib=D_00120_00122_Calibration.root
 
 #include <TROOT.h>
 
@@ -10,11 +13,13 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "TRestLogManager.h"
 #include "TRestManager.h"
 #include "TRestSystemOfUnits.h"
-#include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 void SignalWaiterThread(sigset_t waitSet) {
     int signum = 0;
@@ -44,6 +49,8 @@ int main(int argc, char** argv) {
     std::string verboseLevel;
     std::string eventsToProcess;
     std::string threadNumber;
+    // --r process=dataset: referenceFileName of a dataset process (repeatable)
+    std::vector<std::pair<std::string, std::string>> references;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -59,11 +66,20 @@ int main(int argc, char** argv) {
             eventsToProcess = argv[++i];
         } else if ((arg == "--j" || arg == "--threads") && i + 1 < argc) {
             threadNumber = argv[++i];
+        } else if ((arg == "--r" || arg == "--reference") && i + 1 < argc) {
+            const std::string reference = argv[++i];
+            const size_t equal = reference.find('=');
+            if (equal == std::string::npos || equal == 0 || equal + 1 == reference.size()) {
+                std::cerr
+                    << "[ERROR] --r needs <process>=<dataset>, e.g. --r calib=Dataset_Calibration.root\n";
+                return 1;
+            }
+            references.emplace_back(reference.substr(0, equal), reference.substr(equal + 1));
         } else {
             std::cerr << "Usage: " << argv[0]
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
-                         " [--e|--events <n>]\n";
+                         " [--e|--events <n>] [--r|--reference <process>=<dataset>]\n";
             return 1;
         }
     }
@@ -72,27 +88,52 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0]
                   << " --c|--config <config.yaml> [--i|--input <input.root>]"
                      " [--o|--output <output.root>] [--v|--verbose <level>]"
-                     " [--e|--events <n>]\n";
+                     " [--e|--events <n>] [--r|--reference <process>=<dataset>]\n";
         return 1;
     }
 
     try {
-        YAML::Node cfg = TRestTools::OpenConfigFile(configPath);
+        YAML::Node cfg = TRestYAMLUtils::OpenConfigFile(configPath);
 
-        auto [managerKey, managerNode] = TRestTools::GetMetadataClass(cfg, "TRestManager");
+        auto [managerKey, managerNode] = TRestYAMLUtils::GetMetadataClass(cfg, "TRestManager");
         if (!managerNode || managerNode.IsNull()) {
             std::cerr << "[ERROR] No 'TRestManager' section found in " << configPath << "\n";
             return 1;
         }
 
-        auto [runKey, runNode] = TRestTools::GetMetadataClass(managerNode, "TRestRun");
+        auto [runKey, runNode] = TRestYAMLUtils::GetMetadataClass(managerNode, "TRestRun");
         if (runNode && !runNode.IsNull()) {
             if (!inputPath.empty()) runNode["inputFileName"] = inputPath;
             if (!outputPath.empty()) runNode["outputFileName"] = outputPath;
         }
 
+        // Dataset generation (no run): --i its filePattern; --o its output unless there is a dataset pipeline
+        auto [generationKey, generationNode] = TRestYAMLUtils::GetMetadataClass(managerNode, "TRestDataSet");
+        const bool dataSetGeneration = generationNode && !generationNode.IsNull();
+        // Dataset pipeline (no run): its input (the generated dataset if there is a TRestDataSet) and output
+        auto [dataSetKey, dataSetNode] =
+            TRestYAMLUtils::GetMetadataClass(managerNode, "TRestDataSetProcessManager");
+        const bool dataSetPipeline = dataSetNode && !dataSetNode.IsNull();
+        if (dataSetGeneration) {
+            if (!inputPath.empty()) generationNode["filePattern"] = inputPath;
+            if (!outputPath.empty() && !dataSetPipeline) generationNode["outputFileName"] = outputPath;
+        }
+        if (dataSetPipeline) {
+            if (!inputPath.empty() && !dataSetGeneration) dataSetNode["inputFileName"] = inputPath;
+            if (!outputPath.empty()) dataSetNode["outputFileName"] = outputPath;
+        }
+        for (const auto& [process, dataSet] : references) {
+            YAML::Node processNode = dataSetPipeline ? dataSetNode[process] : YAML::Node();
+            if (!processNode || !processNode.IsMap() || !processNode["class"]) {
+                std::cerr << "[ERROR] --r " << process << "=" << dataSet << ": no dataset process '"
+                          << process << "' in the TRestDataSetProcessManager of " << configPath << "\n";
+                return 1;
+            }
+            processNode["referenceFileName"] = dataSet;
+        }
+
         // Only plots (no run): the input of every TRestAnalysisPlot (a run file, a dataset or a pattern)
-        if ((!runNode || runNode.IsNull()) && !inputPath.empty()) {
+        if ((!runNode || runNode.IsNull()) && !dataSetPipeline && !dataSetGeneration && !inputPath.empty()) {
             for (auto element : managerNode) {
                 YAML::Node node = element.second;
                 if (node.IsMap() && node["class"] && node["class"].as<std::string>() == "TRestAnalysisPlot")
@@ -100,7 +141,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        auto [pipelineKey, pipelineNode] = TRestTools::GetMetadataClass(managerNode, "TRestProcessManager");
+        auto [pipelineKey, pipelineNode] =
+            TRestYAMLUtils::GetMetadataClass(managerNode, "TRestEventProcessManager");
         if (pipelineNode && !pipelineNode.IsNull()) {
             if (!eventsToProcess.empty()) pipelineNode["eventsToProcess"] = eventsToProcess;
             if (!threadNumber.empty()) pipelineNode["nThreads"] = threadNumber;

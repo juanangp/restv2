@@ -191,6 +191,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// \brief Writes the YAML and, if loaded, the geometry as `Geometry` in the file, so every run made from
     /// a simulation one (e.g. an analysis) keeps it
     void WriteMetadata(TFile* file) override;
+    /// \brief Loads the geometry (Geometry) of the file it is read from (a run or a dataset file)
+    void LoadFromFile(TFile* file) override;
     /// \brief Resets all metadata containers and cached lookup structures.
     void Clear();
     void SyncActiveVolumesFromMetadata();

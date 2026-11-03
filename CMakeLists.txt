@@ -28,7 +28,9 @@ set(ROOT_REQUIRED_LIBRARIES
     Eve
     RGL
     TreePlayer
-    ROOTDataFrame)
+    ROOTDataFrame
+    RooFitCore
+    RooFit)
 
 find_package(ROOT 6.26 REQUIRED COMPONENTS ${ROOT_REQUIRED_LIBRARIES})
 include(${ROOT_USE_FILE})
@@ -153,8 +155,8 @@ endfunction()
 # Subdirectories activation via unifed flags
 # ---------------------------------------------------------------------------
 add_subdirectory(source/tools)
-add_subdirectory(source/analysis)
 add_subdirectory(source/core)
+add_subdirectory(source/analysis)
 
 option(${GEANT4_LIB} "Build the geant4 library" ON)
 if(${GEANT4_LIB})
@@ -185,8 +187,8 @@ endif()
 # Libraries with registered events/processes, linked by executables and macros
 set(REST_LIBRARIES
     RestTools
-    RestAnalysis
     RestCore
+    RestAnalysis
     ${RAW_LIB}
     ${DETECTOR_LIB}
     ${TRACK_LIB}

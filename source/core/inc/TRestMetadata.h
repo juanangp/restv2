@@ -59,8 +59,8 @@ class TRestMetadata {
     void ReadVerbose();
 
    protected:
-    /// \brief Creates a metadata of a section of a container (TRestManager, TRestProcessManager); without
-    /// its own `verbose` it takes the one of this instance
+    /// \brief Creates a metadata of a section of a container (TRestManager, TRestEventProcessManager);
+    /// without its own `verbose` it takes the one of this instance
     std::unique_ptr<TRestMetadata> CreateChildMetadata(const std::string& instanceName,
                                                        YAML::Node node) const;
 
@@ -124,6 +124,11 @@ class TRestMetadata {
     static void WriteMetadata(TFile* file, const std::string& instanceName, const YAML::Node& configNode);
     virtual void WriteMetadata(TFile* file);
     static YAML::Node ReadMetadata(TFile* file, const std::string& instanceName);
+
+    /// \brief Loads the objects of this metadata stored in the file it is read from (e.g. readouts,
+    /// geometries), after it is created from its stored configuration (TRestMetadataStore, by TRestRun and
+    /// TRestDataSet). Nothing by default.
+    virtual void LoadFromFile(TFile* file) { (void)file; }
 
     /// \brief Sets the run this metadata belongs to. Overridable to finish loading what depends on the
     /// run (e.g. readouts stored in the run input file, see TRestDetectorReadoutManager).
@@ -334,7 +339,7 @@ class TRestMetadataFieldRegistry {
     }
 
     /// \brief The configuration of Class may contain metadata (maps with `class`, e.g. the processes of a
-    /// TRestProcessManager), created by Class itself
+    /// TRestEventProcessManager), created by Class itself
     template <typename Class>
     void RegisterChildMetadata() {
         fChildContainers.push_back(

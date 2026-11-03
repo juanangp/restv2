@@ -245,6 +245,21 @@ class TRestHits {
     /// \brief Coordinate 0, 1, 2 (X, Y, Z) of every hit (same order as GetEnergies).
     std::vector<double> GetCoordinates(int axis) const;
 
+    /// Bins of a coordinate to draw it (GetBinning)
+    struct Binning {
+        double min = -1;
+        double max = 1;
+        int nBins = 1;
+    };
+    /// \brief Minimum distance between the different values of one coordinate (the readout pitch for strip
+    /// coordinates), as legacy. 0 if there are less than two different values.
+    static double GetMinimumDistance(std::vector<double> values);
+    /// \brief Bins of one coordinate to draw it with the given bin size; if it is <= 0, the minimum distance
+    /// between the values (GetMinimumDistance) or, if there is none, a tenth of their extent. The range
+    /// leaves a margin of 25% of the extent of the values, and at least 10 bins, on each side, with the
+    /// values at bin centres. No values give [-1, 1] with one bin.
+    static Binning GetBinning(const std::vector<double>& values, double binSize = 0);
+
     /// \brief Draws the hits as TGraph markers in the pad (divided in one row): one graph per projection
     /// (XZ, YZ, XY) with hits defining both coordinates or, if there are none (1D hits), the energy
     /// against each defined coordinate.

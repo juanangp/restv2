@@ -1,11 +1,18 @@
 #include "TRestTools.h"
 
+#include <TClass.h>
 #include <TFile.h>
+#include <TGeoManager.h>
+#include <TGeoMatrix.h>
+#include <TGeoNode.h>
+#include <TGeoVolume.h>
 #include <TKey.h>
+#include <TMD5.h>
 #include <TObjString.h>
 #include <TObject.h>
 #include <sys/file.h>
 #include <unistd.h>
+#include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <cctype>
@@ -203,35 +210,80 @@ bool TRestTools::isDataSet(const std::string& filename) {
     if (!TRestTools::isRootFile(filename)) return false;
     std::unique_ptr<TFile> file(TFile::Open(filename.c_str(), "READ"));
     if (!file || file->IsZombie()) return false;
-    TDirectory* directory = file->GetDirectory("RESTMetadataStore/RESTDataSetInfo");
-    return file->Get("AnalysisTree") && directory && directory->GetListOfKeys()->GetSize() > 0;
+    // The runs of the dataset (TRestDataSet), a TObjString
+    std::unique_ptr<TObjString> runs(file->Get<TObjString>("RESTDataSetInfo"));
+    return file->GetKey("AnalysisTree") && runs;
 }
 
-YAML::Node TRestTools::ReadMetadataStore(TFile* file) {
-    YAML::Node store(YAML::NodeType::Map);
-    if (!file || file->IsZombie()) return store;
-    TDirectory* directory = file->GetDirectory("RESTMetadataStore");
-    if (!directory) return store;
-    for (const auto* key : *directory->GetListOfKeys()) {
-        const std::string instance = key->GetName();
-        std::unique_ptr<TObjString> text(directory->Get<TObjString>(instance.c_str()));
-        if (!text) continue;
-        try {
-            store[instance] = YAML::Load(text->GetString().Data());
-        } catch (const std::exception& error) {
-            throw std::runtime_error("TRestTools::ReadMetadataStore: cannot read '" + instance + "' of " +
-                                     file->GetName() + ": " + error.what());
+void TRestTools::CopyDirectory(TDirectory* source, TDirectory* target) {
+    if (!source || !target) return;
+    for (auto* object : *source->GetListOfKeys()) {
+        auto* key = static_cast<TKey*>(object);
+        const TClass* type = TClass::GetClass(key->GetClassName());
+        if (!type) continue;
+        if (type->InheritsFrom(TDirectory::Class())) {
+            TDirectory* folder = target->GetDirectory(key->GetName());
+            if (!folder) folder = target->mkdir(key->GetName());
+            CopyDirectory(source->GetDirectory(key->GetName()), folder);
+            continue;
+        }
+        // Reading a geometry makes it the current one
+        TGeoManager* currentGeometry = gGeoManager;
+        std::unique_ptr<TObject> copy(key->ReadObj());
+        if (copy) {
+            target->cd();
+            copy->Write(key->GetName(), TObject::kOverwrite);
+        }
+        copy.reset();
+        gGeoManager = currentGeometry;
+    }
+}
+
+std::string TRestTools::DescribeGeometry(TGeoManager* geometry) {
+    std::string text;
+    if (!geometry) return text;
+    for (auto* object : *geometry->GetListOfVolumes()) {
+        const auto* volume = static_cast<TGeoVolume*>(object);
+        const TGeoShape* shape = volume->GetShape();
+        text += Format("%s %s %s %.9g\n", volume->GetName(), shape ? shape->ClassName() : "",
+                       volume->GetMaterial() ? volume->GetMaterial()->GetName() : "",
+                       shape ? shape->Capacity() : 0.);
+        for (int i = 0; i < volume->GetNdaughters(); i++) {
+            const TGeoNode* node = volume->GetNode(i);
+            const double* position = node->GetMatrix()->GetTranslation();
+            text += Format("  %s %.9g %.9g %.9g\n", node->GetName(), position[0], position[1], position[2]);
         }
     }
-    return store;
+    return text;
 }
 
-YAML::Node TRestTools::ReadMetadataStore(const std::string& fileName) {
-    std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
-    if (!file || file->IsZombie()) {
-        throw std::runtime_error("TRestTools::ReadMetadataStore: cannot open " + fileName);
-    }
-    return ReadMetadataStore(file.get());
+std::string TRestTools::GetGeometryHash(TGeoManager* geometry) {
+    const std::string description = DescribeGeometry(geometry);
+    TMD5 md5;
+    md5.Update(reinterpret_cast<const UChar_t*>(description.data()), description.size());
+    md5.Final();
+    return md5.AsString();
+}
+
+void TRestTools::WriteGeometry(TDirectory* folder, TGeoManager* geometry, const std::string& key) {
+    if (!folder || !geometry) return;
+    TDirectory::TContext context(folder);
+    geometry->Write(key.c_str(), TObject::kOverwrite);
+    TObjString hash(GetGeometryHash(geometry).c_str());
+    hash.Write((key + "MD5").c_str(), TObject::kOverwrite);
+}
+
+std::string TRestTools::ReadGeometryHash(TDirectory* folder, const std::string& key) {
+    if (!folder || !folder->GetKey(key.c_str())) return "";
+    std::unique_ptr<TObjString> stored(folder->Get<TObjString>((key + "MD5").c_str()));
+    if (stored) return stored->GetString().Data();
+    // Written before the hash: the geometry is read
+    TGeoManager* currentGeometry = gGeoManager;
+    std::unique_ptr<TGeoManager> geometry(folder->Get<TGeoManager>(key.c_str()));
+    const std::string hash = geometry ? GetGeometryHash(geometry.get()) : "";
+    geometry.reset();
+    gGeoManager = currentGeometry;
+    return hash;
 }
 
 int TRestTools::GetRunNumberAuto() {
@@ -316,37 +368,6 @@ std::string TRestTools::SearchFileInPath(const std::vector<std::string>& paths, 
     return "";
 }
 
-YAML::Node TRestTools::ResolveEnvVars(const YAML::Node& node) {
-    if (node.IsScalar()) {
-        std::string str = node.as<std::string>();
-        std::regex re(R"(\$\{ENV:([^}]+)\})");
-        std::smatch match;
-        std::string::const_iterator searchStart(str.cbegin());
-
-        while (std::regex_search(searchStart, str.cend(), match, re)) {
-            std::string varName = match[1].str();
-            const char* envValue = std::getenv(varName.c_str());
-            std::string replacement = envValue ? envValue : "";
-            str.replace(match.position(0), match.length(0), replacement);
-            searchStart = str.cbegin() + match.position(0) + replacement.size();
-        }
-        return YAML::Node(str);
-    } else if (node.IsSequence()) {
-        YAML::Node out(YAML::NodeType::Sequence);
-        for (auto n : node) {
-            out.push_back(ResolveEnvVars(n));
-        }
-        return out;
-    } else if (node.IsMap()) {
-        YAML::Node out(YAML::NodeType::Map);
-        for (auto it : node) {
-            out[it.first.Scalar()] = ResolveEnvVars(it.second);
-        }
-        return out;
-    }
-    return node;
-}
-
 std::vector<std::string> TRestTools::Split(const std::string& s, char delim) {
     std::vector<std::string> tokens;
     std::stringstream ss(s);
@@ -398,114 +419,12 @@ int TRestTools::StringToInteger(const std::string& in) {
     }
 }
 
-YAML::Node TRestTools::OpenConfigFile(const std::string& fileName) {
-    YAML::Node raw = YAML::LoadFile(fileName);
-    YAML::Node cfg = TRestTools::ResolveAllRefs(raw);
-    return cfg;
-}
-
 long TRestTools::GetRandomSeed() {
     thread_local std::random_device rd;
     thread_local std::mt19937_64 engine(rd());
     std::uniform_int_distribution<long> dist(1, std::numeric_limits<long>::max());
 
     return dist(engine);
-}
-
-std::pair<std::string, YAML::Node> TRestTools::GetMetadataClass(const YAML::Node& cfg,
-                                                                const std::string& className) {
-    for (const auto& element : cfg) {
-        const auto key = element.first.as<std::string>();
-        auto value = element.second;
-
-        if (!value || value.IsScalar() || !value.IsMap()) continue;
-
-        if (!value["class"]) continue;
-
-        std::string cName = value["class"].as<std::string>();
-        if (cName == className) return std::make_pair(key, value);
-    }
-
-    return {};
-}
-
-/// \brief Recursively resolves YAML placeholder references.
-YAML::Node TRestTools::ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node) {
-    if (node.IsScalar()) {
-        std::string str = node.as<std::string>();
-        std::regex re(R"(\$\{([^}]+)\})");
-        std::smatch match;
-        std::string::const_iterator searchStart(str.cbegin());
-
-        std::regex yamlRe(R"(\$\{([^}]+)\})");
-        while (std::regex_search(str, match, yamlRe)) {
-            std::string keyPath = match[1].str();
-
-            YAML::Node refNode = YAML::Clone(root);
-            for (auto key : Split(keyPath, '.')) {
-                if (!refNode[key]) throw std::runtime_error("key not found: " + keyPath);
-                refNode = refNode[key];
-            }
-
-            if (!refNode.IsScalar())
-                throw std::runtime_error("Cannot substitute non-scalar node: " + keyPath);
-
-            std::string replacement = refNode.as<std::string>();
-            str.replace(match.position(0), match.length(0), replacement);
-        }
-        // std::cout<<"Done "<<std::endl;
-        return YAML::Node(str);
-    } else if (node.IsSequence()) {
-        YAML::Node out(YAML::NodeType::Sequence);
-        for (auto n : node) out.push_back(ResolveYamlRefs(root, n));
-        return out;
-    } else if (node.IsMap()) {
-        YAML::Node out(YAML::NodeType::Map);
-        for (auto it : node) out[it.first.Scalar()] = ResolveYamlRefs(root, it.second);
-        return out;
-    }
-
-    return node;
-}
-
-YAML::Node TRestTools::ResolveAllRefs(const YAML::Node& root) {
-    auto cfg = ResolveEnvVars(root);
-    auto solved = ResolveYamlRefs(cfg, cfg);
-    return solved;
-}
-
-YAML::Node TRestTools::DetachYAMLNode(const YAML::Node& node) {
-    if (!node) return YAML::Node();
-    if (node.IsNull()) return YAML::Node(YAML::NodeType::Null);
-    if (node.IsScalar()) return YAML::Node(node.Scalar());
-
-    YAML::Node detached(node.Type());
-    if (node.IsSequence()) {
-        for (const auto& child : node) detached.push_back(DetachYAMLNode(child));
-    } else if (node.IsMap()) {
-        for (const auto& entry : node) {
-            detached[DetachYAMLNode(entry.first)] = DetachYAMLNode(entry.second);
-        }
-    }
-    return detached;
-}
-
-void TRestTools::OverrideYAMLParam(YAML::Node& node, const std::string& key, const std::string& val) {
-    if (node.IsMap()) {
-        for (auto it = node.begin(); it != node.end(); ++it) {
-            if (it->first.IsScalar() && it->first.as<std::string>() == key) {
-                node[it->first] = val;
-            }
-
-            YAML::Node child = it->second;
-            OverrideYAMLParam(child, key, val);
-        }
-    } else if (node.IsSequence()) {
-        for (size_t i = 0; i < node.size(); ++i) {
-            YAML::Node child = node[i];
-            OverrideYAMLParam(child, key, val);
-        }
-    }
 }
 
 std::string TRestTools::PatternToRegex(const std::string& pattern) {
@@ -521,18 +440,6 @@ std::string TRestTools::PatternToRegex(const std::string& pattern) {
         }
     }
     return regex_pattern;
-}
-
-std::vector<std::string> TRestTools::ReadYALMObservables(const YAML::Node& node) {
-    std::vector<std::string> observables;
-
-    if (node["observables"]) {
-        for (auto obs : node["observables"]) {
-            observables.push_back(obs.as<std::string>());
-        }
-    }
-
-    return observables;
 }
 
 // Helper function to remove spaces and special characters from a string
@@ -573,36 +480,10 @@ std::string TRestTools::ReplaceIdentifiers(const std::string& expression, const 
     return result + expression.substr(last);
 }
 
-void TRestTools::CheckYAMLKeys(const YAML::Node& node, const std::set<std::string>& allowed,
-                               const std::string& context) {
-    if (!node || !node.IsMap()) return;
-    std::string unknown;
-    for (const auto& element : node) {
-        const auto key = element.first.as<std::string>();
-        if (allowed.count(key) == 0) unknown += " '" + key + "'";
-    }
-    if (unknown.empty()) return;
-    std::string valid;
-    for (const auto& key : allowed) valid += " " + key;
-    throw std::runtime_error(context + ": unknown parameter(s)" + unknown + ". Valid parameters:" + valid);
-}
-
 std::string TRestTools::Trim(const std::string& str, const std::string& characters) {
     const size_t first = str.find_first_not_of(characters);
     if (first == std::string::npos) return "";
     return str.substr(first, str.find_last_not_of(characters) - first + 1);
-}
-
-YAML::Node TRestTools::GetNodeAtPath(const YAML::Node& node, const std::string& path) {
-    YAML::Node current;
-    current.reset(node);
-    for (const auto& key : Split(path, '.')) {
-        // Const access: a missing key is not added to the node
-        const YAML::Node parent = current;
-        if (!parent || !parent.IsMap() || !parent[key]) return YAML::Node(YAML::NodeType::Undefined);
-        current.reset(parent[key]);
-    }
-    return current;
 }
 
 std::string TRestTools::CleanString(const std::string& str) {

@@ -500,35 +500,6 @@ double TRestHitsAnalysis::GetLineResidual(const std::vector<XYZVector>& points,
     return std::sqrt(sum / totalEnergy);
 }
 
-double TRestHitsAnalysis::GetMinimumDistance(std::vector<double> values) {
-    std::sort(values.begin(), values.end());
-    double minDiff = 0;
-    for (size_t i = 1; i < values.size(); i++) {
-        const double diff = values[i] - values[i - 1];
-        if (diff > 0 && (minDiff == 0 || diff < minDiff)) minDiff = diff;
-    }
-    return minDiff;
-}
-
-void TRestHitsAnalysis::GetBoundaries(const std::vector<double>& values, double binSize, double& max,
-                                      double& min, int& nBins) {
-    if (values.empty()) {
-        min = -1;
-        max = 1;
-        nBins = 1;
-        return;
-    }
-    min = *std::min_element(values.begin(), values.end());
-    max = *std::max_element(values.begin(), values.end());
-    if (binSize <= 0) binSize = max > min ? (max - min) / 10. : 1;
-
-    // Margin in bins; the edges keep the values at bin centres (strips at multiples of the pitch)
-    const int marginBins = std::max(10, (int)std::ceil(0.25 * (max - min) / binSize));
-    nBins = (int)std::ceil((max - min) / binSize - 1e-6) + 1 + 2 * marginBins;
-    min -= (marginBins + 0.5) * binSize;
-    max = min + nBins * binSize;
-}
-
 double TRestHitsAnalysis::GetTrackEnds(const std::vector<XYZVector>& points,
                                        const std::vector<double>& energies, XYZVector& origin,
                                        XYZVector& end) {

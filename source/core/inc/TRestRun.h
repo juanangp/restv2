@@ -12,8 +12,9 @@
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
+#include "TRestMetadataStore.h"
 #include "TRestRunInfo.h"
-#include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 /// \class TRestRun
 /// \brief Run-level container for metadata and ROOT I/O orchestration.
@@ -23,7 +24,8 @@
 /// tags, runInfo, times) is its base TRestRunInfo.
 class TRestRun : public TRestRunInfo {
    private:
-    std::vector<TRestMetadata*> fMetadataStore;
+    /// The metadata of the input file (without its TRestRun), with their objects
+    TRestMetadataStore fMetadataStore;
 
    public:
     std::string fInputFileName = "Null";
@@ -122,18 +124,18 @@ class TRestRun : public TRestRunInfo {
     /// \param v Input file path.
     void SetInputFileName(const std::string& v) {
         fInputFileName = v;
-        if (fNode) TRestTools::SetNodeParameter(fNode, "inputFileName", fInputFileName);
+        if (fNode) TRestYAMLUtils::SetParam(fNode, "inputFileName", fInputFileName);
     }
 
     void SetOutputFileName(const std::string& v) {
         fOutputFileName = v;
-        if (fNode) TRestTools::SetNodeParameter(fNode, "outputFileName", fOutputFileName);
+        if (fNode) TRestYAMLUtils::SetParam(fNode, "outputFileName", fOutputFileName);
     }
 
     /// \brief Sets the last saved event type of the output file and mirrors it into the YAML node.
     void SetOutputEvent(const std::string& v) {
         fOutputEvent = v;
-        if (fNode) TRestTools::SetNodeParameter(fNode, "outputEvent", fOutputEvent);
+        if (fNode) TRestYAMLUtils::SetParam(fNode, "outputEvent", fOutputEvent);
     }
 
     /// \brief Opens input ROOT file and initializes input tree bindings.
@@ -281,6 +283,13 @@ class TRestRun : public TRestRunInfo {
     YAML::Node GetMetadata(const std::string& instanceName) const;
 
     TRestMetadata* GetMetadataClass(const std::string& className) const;
+    /// \brief The metadata of the input file of class T or derived from it
+    template <class T>
+    std::vector<T*> GetMetadataOfType() const {
+        return fMetadataStore.GetOfType<T>();
+    }
+    /// \brief The metadata of the input file (objects, with their objects loaded from it)
+    const TRestMetadataStore& GetMetadataStore() const { return fMetadataStore; }
 
     /// \brief Selects the event of a tree and returns it.
     /// \param treeName Event tree/class name.

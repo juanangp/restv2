@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "TRestMetadata.h"
+#include "TRestMetadataStore.h"
 #include "TRestRunInfo.h"
 
 class TFile;
@@ -50,8 +51,20 @@ class TRestDataSet : public TRestMetadata {
     /// Configuration of the dataset of the input file (opened), as TRestRun::fInputFileNode
     YAML::Node fInputFileNode;
     /// Metadata of the input file: instance -> configuration; the dataset and its TRestCut of a dataset file
-    /// opened, those of the first input file in Generate (e.g. the processing of a run file)
+    /// opened, those of the first input file with runs selected in Generate (e.g. the processing of a run
+    /// file), written with the dataset
     YAML::Node fInputMetadata;
+    /// File of fInputMetadata, its readouts (folder Readouts) and geometry (Geometry) are written with the
+    /// dataset
+    std::string fMetadataFile;
+    /// The metadata of fMetadataFile as objects, created the first time they are asked for
+    mutable TRestMetadataStore fMetadataStore;  //!
+    mutable bool fMetadataStoreLoaded = false;  //!
+    /// \brief Creates the metadata of fMetadataFile (but its TRestRun and TRestDataSet), with their objects
+    void LoadMetadataStore() const;
+    /// Whether the data frame is a dataset file opened (Open), not generated: Write keeps its configuration
+    /// and the metadata of the file
+    bool fOpened = false;
     std::unique_ptr<ROOT::RDataFrame> fFrame;           //!
     ROOT::RDF::RNode fDataFrame = ROOT::RDataFrame(0);  //!
 
@@ -113,6 +126,22 @@ class TRestDataSet : public TRestMetadata {
     /// \brief Metadata of the input file (see fInputMetadata): instance -> configuration
     YAML::Node GetInputMetadata() const { return fInputMetadata; }
 
+    /// \brief The metadata of the dataset (those of its first run, see fInputMetadata) as objects, with their
+    /// objects loaded from the file (TRestMetadata::LoadFromFile): e.g. the readouts of its
+    /// TRestDetectorReadoutManager or the geometry of its TRestGeant4Metadata. Their classes must be
+    /// registered (libraries loaded, as in restRoot and restManager).
+    const TRestMetadataStore& GetMetadataStore() const;
+    /// \brief The first metadata of a class, nullptr if none
+    TRestMetadata* GetMetadataClass(const std::string& className) const {
+        return GetMetadataStore().GetClass(className);
+    }
+    /// \brief The metadata of class T or derived from it, e.g.
+    /// dataSet.GetMetadataOfType<TRestDetectorReadoutManager>()
+    template <class T>
+    std::vector<T*> GetMetadataOfType() const {
+        return GetMetadataStore().GetOfType<T>();
+    }
+
     /// \brief Selects the runs of the files of filePattern and builds the data frame. The inputs are either
     /// run files (output of restManager, with AnalysisTree and TRestRun) or datasets (merged: their runs
     /// are joined); the metadata are read directly from the files, no TRestRun is opened. Throws if a run
@@ -124,10 +153,23 @@ class TRestDataSet : public TRestMetadata {
     /// parameters (see DefineRunParameters), e.g. "trackLineAnalysis_Energy / runInfo.gain"
     void Define(const std::string& name, const std::string& expression);
 
+    /// \brief Replaces the data frame by one derived from it with new columns, also written (e.g. columns
+    /// defined with C++ functions by a TRestDataSetProcess)
+    void SetDataFrame(ROOT::RDF::RNode frame, const std::vector<std::string>& newColumns);
+
     /// \brief Writes the dataset: AnalysisTree with the columns, the metadata (this dataset and its
-    /// TRestCut) in RESTMetadataStore and the runs in its folder RESTDataSetInfo. A single event loop, no
-    /// intermediate files.
+    /// TRestCut) in RESTMetadataStore and the runs in RESTDataSetInfo (a YAML list). A single event loop, no
+    /// intermediate files. A dataset file opened keeps its configuration (with this output) and the
+    /// metadata of the file (e.g. the dataset processes applied before).
+    /// \param fileName Output file, a pattern with [key] (ResolveFilePattern).
     void Write(const std::string& fileName);
+
+    /// \brief A file name pattern with [key] of the runs of the dataset: [runStart] and [runEnd], lowest and
+    /// highest runNumber (%05d), [runRange] (runStart_runEnd, or runStart with a single run number), and any
+    /// parameter of the runs ([runTag], [runType], [runInfo.key]...) if it is the same in all of them
+    /// (otherwise it throws); with a default, [runTag|Mixed], the default if they are not the same (or a run
+    /// does not have it). E.g. "D_[runStart]_[runEnd]_[runTag|Mixed].root" -> D_00010_00012_Calibration.root
+    std::string ResolveFilePattern(const std::string& pattern) const;
 
     /// \brief Whether there is a data frame (dataset generated or opened)
     bool HasDataFrame() const { return fFrame != nullptr; }
@@ -145,7 +187,7 @@ class TRestDataSet : public TRestMetadata {
     double GetStartTime() const;
     double GetEndTime() const;
 
-    /// \brief Runs of a dataset file (RESTMetadataStore/RESTDataSetInfo), nullopt if it is not a dataset
+    /// \brief Runs of a dataset file (RESTDataSetInfo), nullopt if it is not a dataset
     static std::optional<std::vector<Run>> ReadRuns(TFile* file);
 };
 

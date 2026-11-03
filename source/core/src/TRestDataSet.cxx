@@ -11,6 +11,13 @@
 ///    restRoot
 ///    REST_GenerateDataSet("dataset.yaml", "dataSet")
 ///
+/// or with restManager, as a section of the TRestManager with the TRestCut it uses (no TRestRun): --i is
+/// its filePattern and --o its outputFileName; with a TRestDataSetProcessManager in the same manager, the
+/// dataset generated is processed by it in memory (--o is then the output of the pipeline) and only the
+/// processed dataset is written, unless the TRestDataSet has an outputFileName:
+///
+///    restManager --c dataset.yaml --i "R*_ANA.root"
+///
 /// The inputs (filePattern) are either run files (output of restManager) or datasets: their runs are
 /// joined and runIndex renumbered, the result is a dataset like any other. A run cannot be twice (same
 /// runNumber and subRunNumber, also one of the mergedSubRuns of a run merged with REST_MergeRuns, or, for
@@ -22,7 +29,7 @@
 /// the TRestRun stored in its file (GetRuns()[i].run, no file opened); PrintDataSetInfo() prints a summary
 /// with a line per run, PrintAllMetadata() also the configurations and every run.
 ///
-/// The metadata of the files are read directly (TRestTools::ReadMetadataStore), no TRestRun is opened.
+/// The metadata of the files are read directly (TRestYAMLUtils::ReadMetadataStore), no TRestRun is opened.
 ///
 /// ### Parameters
 /// * filePattern: the files the dataset is generated from (TRestTools::GetFilesMatchingPattern, * and ?
@@ -43,14 +50,31 @@
 /// * columns: name: expression of new columns, in order (a column can use the previous ones), with
 ///   observables and run parameters (the value of the run of each entry), e.g.
 ///   `gainCorrected: "rawAnalysis_ThresholdIntegral / runInfo.gain"`.
-/// * outputFileName: the file written (Write; by the macro if it is not given to it).
+/// * outputFileName: the file written (Write; by the macro if it is not given to it), with [key] of its
+///   runs (ResolveFilePattern): [runStart], [runEnd], [runRange] (00010_00012, or 00010 with a single run)
+///   and the parameters of the runs that are the same in all of them; [runTag|Mixed] gives Mixed if they are
+///   not the same (without default it is an error). E.g. "D_[runStart]_[runEnd]_[runTag|Mixed].root".
 ///
 /// ### Dataset file
 /// * AnalysisTree: the columns, with runIndex;
+/// * RESTDataSetInfo: the runs, a TObjString with a YAML list, one element per run in the order of runIndex
+///   (its position), with `run` (its TRestRunInfo), `fileName` (run file), `entries` (of the run file) and
+///   `selectedEntries` (in the dataset);
 /// * RESTMetadataStore: this TRestDataSet (filePattern: what it was generated from, outputFileName: the
-///   file) and the TRestCut used, and in its folder RESTDataSetInfo a YAML
-///   TObjString per run (run_000000, run_000001...) with `runIndex`, `run` (its TRestRunInfo), `fileName`
-///   (run file), `entries` (of the run file) and `selectedEntries` (in the dataset).
+///   file) and the TRestCut used; also the metadata of the first input file with runs selected (processing,
+///   readouts, TRestGeant4Metadata...), but its TRestRun (each run is in RESTDataSetInfo) and the
+///   TRestDataSet it comes from (a dataset as input);
+/// * Readouts and Geometry: the readouts (TRestDetectorReadout::Export) and the geometry (restG4) of that
+///   file, e.g. a TRestDetectorReadoutManager with `readouts: [{instanceName: ..., decodingName: ...,
+///   inputFileName: "Dataset.root"}]` loads a readout of the dataset.
+///
+/// The runs of a dataset must have the same setup, otherwise Generate throws: the processing (each
+/// TRestEventProcessManager, without eventsToProcess, nThreads and verbose), the readouts (configuration,
+/// decodings and geometry) and the geometry. The geometries are compared by their hash (TRestTools::
+/// GetGeometryHash: volumes, with shape, material and capacity, and the name and position of their
+/// daughters), written with them (TRestTools::WriteGeometry, by restG4 and the readouts): they are not
+/// read, except in files written before the hash. The other metadata (e.g. the seed of a simulation) can be
+/// different; those of the first file are written.
 ///
 /// Example:
 ///
@@ -83,6 +107,7 @@
 
 #include <TDirectory.h>
 #include <TFile.h>
+#include <TGeoManager.h>
 #include <TH1D.h>
 #include <TObjString.h>
 #include <TTree.h>
@@ -90,6 +115,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <functional>
 #include <map>
 #include <regex>
 #include <set>
@@ -98,9 +124,10 @@
 #include "TRestCut.h"
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
-using TRestTools::GetNodeAtPath;
-using TRestTools::GetYAMLParam;
+using TRestYAMLUtils::GetNodeAtPath;
+using TRestYAMLUtils::GetParam;
 
 static const bool TRestDataSet_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -125,13 +152,68 @@ const bool kRegistered = []() {
 
 /// Columns of every analysis tree, always written
 const std::vector<std::string> kEventColumns = {"eventID", "subEventID", "timeSeconds"};
+/// Folders and objects of the input file written with the dataset: readouts (TRestDetectorReadout::Export)
+/// and geometry (restG4)
+const std::string kReadoutsDirectory = "Readouts";
+const std::string kGeometryKey = "Geometry";
 /// Index of the input file of each entry, internal
 const std::string kInputFileColumn = "dataSetInputFile_";
 /// Folder of RESTMetadataStore with the runs of a dataset
-const std::string kRunsDirectory = "RESTDataSetInfo";
+/// The runs of a dataset: a TObjString in the root of the file with a YAML sequence, one element per run
+const std::string kRunsKey = "RESTDataSetInfo";
 
 /// Identities of a run: runNumber and each of its subruns (subRunNumber, or the mergedSubRuns of a merged
 /// run file) or, without run number, its file
+/// The configuration without `verbose` (it does not change the processing)
+YAML::Node WithoutVerbose(const YAML::Node& node) {
+    YAML::Node copy = TRestYAMLUtils::Detach(node);
+    std::function<void(YAML::Node)> strip = [&strip](YAML::Node n) {
+        if (n.IsMap()) {
+            n.remove("verbose");
+            for (auto element : n) strip(element.second);
+        } else if (n.IsSequence()) {
+            for (auto element : n) strip(element);
+        }
+    };
+    strip(copy);
+    return copy;
+}
+
+/// What the runs of a dataset must share (name -> description): the processing (the TRestEventProcessManager,
+/// without eventsToProcess, nThreads nor verbose), the readouts (configuration, decodings and hash of the
+/// geometry) and the hash of the geometry (TRestTools::ReadGeometryHash, the geometry is not read)
+std::map<std::string, std::string> DescribeSetup(TFile* file, const YAML::Node& store) {
+    std::map<std::string, std::string> setup;
+    for (const auto& entry : store) {
+        const YAML::Node& config = entry.second;
+        const std::string className =
+            config.IsMap() && config["class"] ? config["class"].as<std::string>() : "";
+        if (className != "TRestEventProcessManager") continue;
+        YAML::Node processing = WithoutVerbose(config);
+        processing.remove("eventsToProcess");
+        processing.remove("nThreads");
+        setup["processing '" + entry.first.as<std::string>() + "'"] = YAML::Dump(processing);
+    }
+    if (TDirectory* readouts = file->GetDirectory(kReadoutsDirectory.c_str())) {
+        for (auto* object : *readouts->GetListOfKeys()) {
+            const std::string name = object->GetName();
+            TDirectory* folder = readouts->GetDirectory(name.c_str());
+            if (!folder) continue;
+            std::string text = store[name] ? YAML::Dump(WithoutVerbose(store[name])) : "";
+            if (TDirectory* decodings = folder->GetDirectory("Decodings")) {
+                for (auto* key : *decodings->GetListOfKeys()) {
+                    std::unique_ptr<TObjString> decoding(decodings->Get<TObjString>(key->GetName()));
+                    if (decoding) text += std::string(key->GetName()) + ": " + decoding->GetString().Data();
+                }
+            }
+            setup["readout '" + name + "'"] = text + TRestTools::ReadGeometryHash(folder, kGeometryKey);
+        }
+    }
+    const std::string geometry = TRestTools::ReadGeometryHash(file, kGeometryKey);
+    if (!geometry.empty()) setup["geometry"] = geometry;
+    return setup;
+}
+
 std::vector<std::string> RunKeys(const TRestDataSet::Run& run) {
     const int number = run.run->GetRunNumber();
     if (number < 0) return {"file " + run.fileName};
@@ -258,6 +340,7 @@ std::string TRestDataSet::DefineRunParameters(ROOT::RDF::RNode& frame, const std
 
 void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
     if (fFilePattern.empty()) throw std::runtime_error("TRestDataSet '" + fName + "': no filePattern");
+    fOpened = false;
     fInputFiles.clear();
     for (const auto& file : TRestTools::GetFilesMatchingPattern(fFilePattern)) {
         fInputFiles.push_back(TRestTools::GetFullPath(file));
@@ -274,10 +357,15 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
     TRestProgressBar progress;
     if (showProgress) progress.Reset(static_cast<int>(fInputFiles.size()), 30, "Files");
     std::vector<std::vector<Run>> inputRuns;
+    std::vector<YAML::Node> stores;
+    std::vector<std::map<std::string, std::string>> setups;
     std::optional<bool> dataSets;
     fInputEntries = 0;
     fInputFileNode.reset();
     fInputMetadata.reset();
+    fMetadataFile.clear();
+    fMetadataStore.Clear();
+    fMetadataStoreLoaded = false;
     for (const auto& fileName : fInputFiles) {
         std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
         if (!file || file->IsZombie()) {
@@ -287,13 +375,13 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
         if (tree) fInputEntries += tree->GetEntries();
         auto runs = ReadRuns(file.get());
         const bool isDataSet = runs.has_value();
-        // The metadata of the first input file are kept (PrintAllMetadata, {instance.key} of
-        // TRestAnalysisPlot)
-        YAML::Node store;
-        if (!isDataSet || inputRuns.empty()) store = TRestTools::ReadMetadataStore(file.get());
-        if (inputRuns.empty()) fInputMetadata = store;
+        // The metadata of the first input file with runs selected are kept and written, the runs must have
+        // the same setup (readouts, geometry and processing)
+        const YAML::Node store = TRestYAMLUtils::ReadMetadataStore(file.get());
+        stores.push_back(store);
+        setups.push_back(DescribeSetup(file.get(), store));
         if (!isDataSet) {
-            const auto [instance, runNode] = TRestTools::GetMetadataClass(store, "TRestRun");
+            const auto [instance, runNode] = TRestYAMLUtils::GetMetadataClass(store, "TRestRun");
             if (!runNode || !tree) {
                 throw std::runtime_error("TRestDataSet '" + fName + "': " + fileName +
                                          " is not a run file (AnalysisTree and TRestRun) nor a dataset");
@@ -351,6 +439,34 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
         }
     }
     if (fRuns.empty()) throw std::runtime_error("TRestDataSet '" + fName + "': no run selected");
+
+    // The setup of the files with runs selected, the same as the first one
+    std::optional<size_t> first;
+    for (size_t f = 0; f < inputRuns.size(); f++) {
+        if (std::all_of(newIndex[f].begin(), newIndex[f].end(), [](int index) { return index < 0; }))
+            continue;
+        if (!first) {
+            first = f;
+            continue;
+        }
+        const auto& reference = setups[*first];
+        const auto& current = setups[f];
+        for (const auto* names : {&reference, &current}) {
+            for (const auto& [name, description] : *names) {
+                const auto it = setups[f].find(name);
+                const auto referenceIt = reference.find(name);
+                if (it != setups[f].end() && referenceIt != reference.end() &&
+                    it->second == referenceIt->second)
+                    continue;
+                throw std::runtime_error("TRestDataSet '" + fName + "': the " + name + " of " +
+                                         fInputFiles[f] + " is not the same as in " + fInputFiles[*first] +
+                                         " (the runs of a dataset must have the same readouts, geometry and "
+                                         "processing)");
+            }
+        }
+    }
+    fInputMetadata = stores[*first];
+    fMetadataFile = fInputFiles[*first];
     RESTInfo << "TRestDataSet '" << fName << "': " << fRuns.size() << " runs selected of " << allRuns.size()
              << RESTendl;
 
@@ -418,12 +534,16 @@ void TRestDataSet::Open(const std::string& fileName) {
     }
 
     // Its configuration and the TRestCut it applied, kept apart as TRestRun::fInputFileNode
-    fInputMetadata = TRestTools::ReadMetadataStore(file.get());
-    const auto [instance, node] = TRestTools::GetMetadataClass(fInputMetadata, "TRestDataSet");
+    fInputMetadata = TRestYAMLUtils::ReadMetadataStore(file.get());
+    const auto [instance, node] = TRestYAMLUtils::GetMetadataClass(fInputMetadata, "TRestDataSet");
     fInputFileNode.reset(node);
     if ((!fNode || !fNode.IsMap()) && !instance.empty()) SetName(instance);
 
     fRuns = std::move(*runs);
+    fOpened = true;
+    fMetadataFile = path;
+    fMetadataStore.Clear();
+    fMetadataStoreLoaded = false;
     fInputFiles = {path};
     fInputEntries = file->Get<TTree>("AnalysisTree")->GetEntries();
     fFrame = std::make_unique<ROOT::RDataFrame>("AnalysisTree", path);
@@ -439,9 +559,64 @@ void TRestDataSet::Define(const std::string& name, const std::string& expression
     if (std::find(fColumns.begin(), fColumns.end(), name) == fColumns.end()) fColumns.push_back(name);
 }
 
-void TRestDataSet::Write(const std::string& fileName) {
+void TRestDataSet::SetDataFrame(ROOT::RDF::RNode frame, const std::vector<std::string>& newColumns) {
+    if (!fFrame) throw std::runtime_error("TRestDataSet '" + fName + "': Generate before SetDataFrame");
+    fDataFrame = frame;
+    for (const auto& name : newColumns) {
+        if (std::find(fColumns.begin(), fColumns.end(), name) == fColumns.end()) fColumns.push_back(name);
+    }
+}
+
+std::string TRestDataSet::ResolveFilePattern(const std::string& pattern) const {
+    return TRestTools::ReplaceDelimited(
+        pattern, '[', ']', [&](const std::string& content) -> std::optional<std::string> {
+            // [key] or [key|default]: the default when the runs do not share the value
+            const size_t bar = content.find('|');
+            const std::string key = content.substr(0, bar);
+            const std::optional<std::string> fallback =
+                bar == std::string::npos ? std::nullopt : std::optional<std::string>(content.substr(bar + 1));
+            if (fRuns.empty()) {
+                throw std::runtime_error("TRestDataSet '" + fName + "': [" + content + "] in \"" + pattern +
+                                         "\" but the dataset has no runs");
+            }
+            if (key == "runStart" || key == "runEnd" || key == "runRange") {
+                int start = fRuns.front().run->GetRunNumber(), end = start;
+                for (const auto& run : fRuns) {
+                    start = std::min(start, run.run->GetRunNumber());
+                    end = std::max(end, run.run->GetRunNumber());
+                }
+                const std::string first = TRestTools::Format("%05d", start);
+                const std::string last = TRestTools::Format("%05d", end);
+                if (key == "runStart") return first;
+                if (key == "runEnd") return last;
+                return start == end ? first : first + "_" + last;
+            }
+            // A parameter of the runs: the same in all of them, otherwise the default or an error
+            std::optional<std::string> value;
+            for (const auto& run : fRuns) {
+                std::string runValue;
+                try {
+                    runValue = run.run->ResolveFilePattern("[" + key + "]");
+                } catch (const std::exception&) {
+                    if (fallback) return fallback;
+                    throw;
+                }
+                if (!value) value = runValue;
+                if (runValue == *value) continue;
+                if (fallback) return fallback;
+                throw std::runtime_error("TRestDataSet '" + fName + "': [" + key + "] in \"" + pattern +
+                                         "\" is not the same in all the runs: give a default, [" + key +
+                                         "|Mixed], or e.g. [runRange] for the run numbers");
+            }
+            return value;
+        });
+}
+
+void TRestDataSet::Write(const std::string& fileNamePattern) {
     if (!fFrame) throw std::runtime_error("TRestDataSet '" + fName + "': Generate before Write");
-    if (fileName.empty()) throw std::runtime_error("TRestDataSet '" + fName + "': no output file name");
+    if (fileNamePattern.empty())
+        throw std::runtime_error("TRestDataSet '" + fName + "': no output file name");
+    const std::string fileName = ResolveFilePattern(fileNamePattern);
     const std::string path = TRestTools::GetFullPath(fileName);
     if (std::find(fInputFiles.begin(), fInputFiles.end(), path) != fInputFiles.end()) {
         throw std::runtime_error("TRestDataSet '" + fName + "': the output file " + fileName +
@@ -469,32 +644,69 @@ void TRestDataSet::Write(const std::string& fileName) {
     std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "UPDATE"));
     if (!file || file->IsZombie())
         throw std::runtime_error("TRestDataSet '" + fName + "': cannot open " + fileName);
-    // Its configuration, with its input (the files or dataset it comes from) and this output
-    if (!fNode || !fNode.IsMap()) {
-        fNode = YAML::Node(YAML::NodeType::Map);
-        fNode["class"] = GetClassName();
-    }
     fOutputFileName = path;
-    WriteMetadata(file.get());
-    for (const auto& [name, config] : fCutConfigs) TRestMetadata::WriteMetadata(file.get(), name, config);
-
-    // A TObjString per run in RESTMetadataStore/RESTDataSetInfo (the store is created by WriteMetadata)
-    TDirectory* store = file->GetDirectory("RESTMetadataStore");
-    TDirectory* directory = store ? store->mkdir(kRunsDirectory.c_str(), "", true) : nullptr;
-    if (!directory) throw std::runtime_error("TRestDataSet '" + fName + "': cannot create the runs folder");
-    for (size_t i = 0; i < fRuns.size(); i++) {
-        YAML::Node node;
-        node["runIndex"] = i;
-        node["fileName"] = fRuns[i].fileName;
-        node["entries"] = fRuns[i].entries;
-        node["selectedEntries"] = fRuns[i].selectedEntries;
-        node["run"] = TRestTools::DetachYAMLNode(fRuns[i].run->GetYAMLNode());
-        char key[32];
-        snprintf(key, sizeof(key), "run_%06zu", i);
-        directory->cd();
-        TObjString text(YAML::Dump(node).c_str());
-        text.Write(key, TObject::kOverwrite);
+    if (fOpened) {
+        // A dataset file opened: its metadata (its TRestCut, the dataset processes applied...) and its
+        // configuration, with this output
+        for (const auto& entry : fInputMetadata) {
+            const std::string instance = entry.first.as<std::string>();
+            YAML::Node config = TRestYAMLUtils::Detach(entry.second);
+            if (config.IsMap() && config["class"] && config["class"].as<std::string>() == GetClassName())
+                config["outputFileName"] = path;
+            TRestMetadata::WriteMetadata(file.get(), instance, config);
+        }
+    } else {
+        // The metadata of the input file (processing, readouts...) but its run (in RESTDataSetInfo) and the
+        // dataset it comes from (replaced by this one)
+        for (const auto& entry : fInputMetadata) {
+            const YAML::Node& config = entry.second;
+            const std::string className =
+                config.IsMap() && config["class"] ? config["class"].as<std::string>() : "";
+            if (className == "TRestRun" || className == GetClassName()) continue;
+            TRestMetadata::WriteMetadata(file.get(), entry.first.as<std::string>(), config);
+        }
+        // Its configuration, with its input (the files or dataset it comes from) and this output
+        if (!fNode || !fNode.IsMap()) {
+            fNode = YAML::Node(YAML::NodeType::Map);
+            fNode["class"] = GetClassName();
+        }
+        WriteMetadata(file.get());
+        for (const auto& [name, config] : fCutConfigs) TRestMetadata::WriteMetadata(file.get(), name, config);
     }
+
+    // The readouts and the geometry of the input file
+    if (!fMetadataFile.empty()) {
+        std::unique_ptr<TFile> input(TFile::Open(fMetadataFile.c_str(), "READ"));
+        if (input && !input->IsZombie()) {
+            if (TDirectory* readouts = input->GetDirectory(kReadoutsDirectory.c_str())) {
+                TDirectory* target = file->mkdir(kReadoutsDirectory.c_str(), "", true);
+                TRestTools::CopyDirectory(readouts, target);
+            }
+            if (input->GetKey(kGeometryKey.c_str())) {
+                // Read once to copy it, written with its hash (also for files without it)
+                TGeoManager* currentGeometry = gGeoManager;
+                std::unique_ptr<TGeoManager> geometry(input->Get<TGeoManager>(kGeometryKey.c_str()));
+                TRestTools::WriteGeometry(file.get(), geometry.get(), kGeometryKey);
+                geometry.reset();
+                gGeoManager = currentGeometry;
+            }
+        }
+        file->cd();
+    }
+
+    // The runs, in the order of runIndex: a YAML sequence in a TObjString (RESTDataSetInfo)
+    YAML::Node runs(YAML::NodeType::Sequence);
+    for (const auto& run : fRuns) {
+        YAML::Node node;
+        node["fileName"] = run.fileName;
+        node["entries"] = run.entries;
+        node["selectedEntries"] = run.selectedEntries;
+        node["run"] = TRestYAMLUtils::Detach(run.run->GetYAMLNode());
+        runs.push_back(node);
+    }
+    file->cd();
+    TObjString text(YAML::Dump(runs).c_str());
+    text.Write(kRunsKey.c_str(), TObject::kOverwrite);
     file->Close();
 
     RESTInfo << "TRestDataSet '" << fName << "': " << fRuns.size() << " runs written in " << fileName
@@ -503,30 +715,24 @@ void TRestDataSet::Write(const std::string& fileName) {
 
 std::optional<std::vector<TRestDataSet::Run>> TRestDataSet::ReadRuns(TFile* file) {
     if (!file) return std::nullopt;
-    TDirectory* directory = file->GetDirectory(("RESTMetadataStore/" + kRunsDirectory).c_str());
-    if (!directory) return std::nullopt;
+    std::unique_ptr<TObjString> text(file->Get<TObjString>(kRunsKey.c_str()));
+    if (!text) return std::nullopt;
+    const YAML::Node sequence = YAML::Load(text->GetString().Data());
+    if (!sequence.IsSequence()) {
+        throw std::runtime_error("TRestDataSet: " + kRunsKey + " of " + file->GetName() +
+                                 " is not a list of runs");
+    }
 
-    // In the order of runIndex
-    std::map<int, Run> byIndex;
-    for (const auto* key : *directory->GetListOfKeys()) {
-        std::unique_ptr<TObjString> text(directory->Get<TObjString>(key->GetName()));
-        if (!text) continue;
-        const YAML::Node node = YAML::Load(text->GetString().Data());
+    // The runIndex of a run is its position
+    std::vector<Run> runs;
+    for (const auto& node : sequence) {
         Run run;
         const YAML::Node runNode = node["run"];
-        run.run =
-            TRestRunInfo::FromConfig(GetYAMLParam<std::string>(runNode, "name", key->GetName()), runNode);
-        run.fileName = GetYAMLParam<std::string>(node, "fileName");
-        run.entries = GetYAMLParam<long long>(node, "entries", 0);
-        run.selectedEntries = GetYAMLParam<long long>(node, "selectedEntries", 0);
-        byIndex[GetYAMLParam<int>(node, "runIndex", byIndex.size())] = run;
-    }
-    std::vector<Run> runs;
-    for (auto& [index, run] : byIndex) {
-        if (index != static_cast<int>(runs.size())) {
-            throw std::runtime_error(std::string("TRestDataSet: runs of ") + file->GetName() +
-                                     " not consecutive");
-        }
+        const std::string name = TRestTools::Format("run_%06zu", runs.size());
+        run.run = TRestRunInfo::FromConfig(GetParam<std::string>(runNode, "name", name), runNode);
+        run.fileName = GetParam<std::string>(node, "fileName");
+        run.entries = GetParam<long long>(node, "entries", 0);
+        run.selectedEntries = GetParam<long long>(node, "selectedEntries", 0);
         runs.push_back(std::move(run));
     }
     return runs;
@@ -570,6 +776,23 @@ double TRestDataSet::GetEndTime() const {
     return end;
 }
 
+void TRestDataSet::LoadMetadataStore() const {
+    fMetadataStoreLoaded = true;
+    fMetadataStore.Clear();
+    if (fMetadataFile.empty()) return;
+    std::unique_ptr<TFile> file(TFile::Open(fMetadataFile.c_str(), "READ"));
+    if (!file || file->IsZombie()) {
+        RESTError << "TRestDataSet '" << fName << "': cannot open " << fMetadataFile << RESTendl;
+        return;
+    }
+    fMetadataStore.Load(file.get(), nullptr, {"TRestRun", GetClassName()});
+}
+
+const TRestMetadataStore& TRestDataSet::GetMetadataStore() const {
+    if (!fMetadataStoreLoaded) LoadMetadataStore();
+    return fMetadataStore;
+}
+
 YAML::Node TRestDataSet::GetConfig() const {
     if (fNode && fNode.IsMap()) return fNode;
     return fInputFileNode;
@@ -586,11 +809,11 @@ void TRestDataSet::PrintDataSetInfo() const {
     const YAML::Node config = GetConfig();
     RESTMetadata << "=== TRestDataSet " << fName << " ===" << RESTendl;
     // Generated from filePattern (or from the dataset inputFileName, opened and written again), its file
-    const std::string pattern = GetYAMLParam<std::string>(config, "filePattern", "");
-    const std::string input = GetYAMLParam<std::string>(config, "inputFileName", "");
+    const std::string pattern = GetParam<std::string>(config, "filePattern", "");
+    const std::string input = GetParam<std::string>(config, "inputFileName", "");
     if (!pattern.empty()) RESTMetadata << " - Generated from: " << pattern << RESTendl;
     if (!input.empty()) RESTMetadata << " - Input dataset: " << input << RESTendl;
-    RESTMetadata << " - File: " << GetYAMLParam<std::string>(config, "outputFileName", "") << RESTendl;
+    RESTMetadata << " - File: " << GetParam<std::string>(config, "outputFileName", "") << RESTendl;
     long long entries = 0, selectedEntries = 0;
     for (const auto& run : fRuns) {
         entries += run.entries;

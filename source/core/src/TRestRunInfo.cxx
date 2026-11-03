@@ -5,6 +5,7 @@
 
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 using namespace TRestTools;
 
@@ -52,13 +53,13 @@ YAML::Node TRestRunInfo::GetParameters() const {
 }
 
 std::optional<std::string> TRestRunInfo::GetParameter(const std::string& name) const {
-    const YAML::Node node = GetNodeAtPath(GetParameters(), name);
+    const YAML::Node node = TRestYAMLUtils::GetNodeAtPath(GetParameters(), name);
     if (!node || !node.IsScalar()) return std::nullopt;
     return node.Scalar();
 }
 
 std::optional<double> TRestRunInfo::GetParameterValue(const std::string& name) const {
-    const YAML::Node node = GetNodeAtPath(GetParameters(), name);
+    const YAML::Node node = TRestYAMLUtils::GetNodeAtPath(GetParameters(), name);
     if (!node || !node.IsScalar()) return std::nullopt;
     return REST_Units::ParseValueWithUnits(node.Scalar());
 }
@@ -76,7 +77,7 @@ std::string TRestRunInfo::ResolveFilePattern(const std::string& pattern) const {
             return number;
         }
         if (name == "version") return "2.0.0";
-        const YAML::Node node = GetNodeAtPath(parameters, name);
+        const YAML::Node node = TRestYAMLUtils::GetNodeAtPath(parameters, name);
         if (!node || !node.IsScalar()) {
             throw std::runtime_error("TRestRunInfo: [" + name + "] in \"" + pattern +
                                      "\" is not a parameter of the run (its keys, e.g. [runNumber] or "

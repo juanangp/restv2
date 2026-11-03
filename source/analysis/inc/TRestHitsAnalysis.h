@@ -89,15 +89,6 @@ std::vector<XYZVector> GetLineNodes(const std::vector<XYZVector>& points, const 
 /// \return -1 if there are no points or no energy.
 double GetLineResidual(const std::vector<XYZVector>& points, const std::vector<double>& energies);
 
-/// \brief Minimum distance between the different values of one coordinate (the readout pitch for strip
-/// coordinates), as legacy TRestHits::GetBoundaries. 0 if there are less than two different values.
-double GetMinimumDistance(std::vector<double> values);
-
-/// \brief Boundaries and bins of one coordinate with the given bin size (if <= 0, a tenth of the extent).
-/// The range leaves a margin of 25% of the extent of the values, and at least 10 bins, on each side,
-/// with the values at bin centres. No values give [-1, 1] with one bin.
-void GetBoundaries(const std::vector<double>& values, double binSize, double& max, double& min, int& nBins);
-
 /// \brief Origin and end of a track given by its points in order: the end is the extreme (first or last
 /// point) on the half of the track with more energy (the Bragg peak), the origin the other one. The halves
 /// split the projections of the points on the segment from the first to the last point (the point order

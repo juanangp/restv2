@@ -3,13 +3,14 @@
 #include <TObjString.h>
 
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 using namespace TRestTools;
 
 TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& node)
     : fName(instanceName), fNode(node) {
     if (fNode) {
-        fName = ReadYAMLParamOrDefault<std::string>(fNode, "name", fName);
+        fName = TRestYAMLUtils::ReadParamOrDefault<std::string>(fNode, "name", fName);
     }
     ReadVerbose();
 }
@@ -17,10 +18,10 @@ TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& 
 TRestMetadata::TRestMetadata(const std::string& fileName, const std::string& sectionName)
     : fConfigFileName(fileName), fSectionName(sectionName) {
     YAML::Node raw = YAML::LoadFile(fileName);
-    YAML::Node cfg = ResolveAllRefs(raw);
+    YAML::Node cfg = TRestYAMLUtils::ResolveRefs(raw);
     fNode = cfg[sectionName];
     if (fNode) {
-        fName = ReadYAMLParamOrDefault<std::string>(fNode, "name", sectionName);
+        fName = TRestYAMLUtils::ReadParamOrDefault<std::string>(fNode, "name", sectionName);
     }
     ReadVerbose();
 }
@@ -42,7 +43,7 @@ void TRestMetadata::ReadVerbose() {
             throw std::runtime_error(GetClassName() + " '" + fName + "': " + error.what());
         }
     }
-    TRestTools::SetNodeParameter(fNode, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
+    TRestYAMLUtils::SetParam(fNode, "verbose", TRestLogManager::GetStringFromVerbose(fVerboseLevel));
 }
 
 void TRestMetadata::WriteMetadata(TFile* file) {
@@ -73,7 +74,7 @@ void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
 
     metadataDir->cd();
 
-    std::string yamlDump = YAML::Dump(DetachYAMLNode(configNode));
+    std::string yamlDump = YAML::Dump(TRestYAMLUtils::Detach(configNode));
 
     auto* rootYamlString = new TObjString(yamlDump.c_str());
 

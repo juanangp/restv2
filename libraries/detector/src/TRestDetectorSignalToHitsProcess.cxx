@@ -22,7 +22,7 @@
 /// - all: one hit per signal point.
 /// - intWindow: one hit per integration window of intWindow, if the mean charge is over threshold.
 ///
-/// Parameters: readout (name in TRestDetectorReadoutManager, optional if only one), driftVelocity (0:
+/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), driftVelocity (0:
 /// from the TRestDetectorDrift driftMedium, optional if only one, or no drift if there is none),
 /// driftMedium (""), driftAxis ("Z"), method ("tripleMaxAverage"), smoothingPoints (5), intWindow (5),
 /// threshold (100), integralRange ([0, 0]).
@@ -160,14 +160,7 @@ void TRestDetectorSignalToHitsProcess::InitProcess() {
     if (!readouts) {
         throw std::runtime_error("TRestDetectorSignalToHitsProcess: no TRestDetectorReadoutManager found");
     }
-    if (fReadoutName.empty() && readouts->fReadoutMap.size() == 1) {
-        fReadoutName = readouts->fReadoutMap.begin()->first;
-    }
-    fReadout = readouts->GetReadout(fReadoutName);
-    if (!fReadout) {
-        throw std::runtime_error("TRestDetectorSignalToHitsProcess: readout '" + fReadoutName +
-                                 "' not found. Set the 'readout' parameter");
-    }
+    fReadout = readouts->SelectReadout(fReadoutName, "TRestDetectorSignalToHitsProcess");
 
     if (fDriftVelocity <= 0) {
         const auto media = fManager->GetMetadataOfType<TRestDetectorDrift>();

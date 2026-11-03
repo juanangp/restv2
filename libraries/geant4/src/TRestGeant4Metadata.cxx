@@ -358,10 +358,15 @@ double TRestGeant4Metadata::GetMaxStepSize(const std::string& volume) const {
 void TRestGeant4Metadata::WriteMetadata(TFile* file) {
     TRestMetadata::WriteMetadata(file);
     // The same key restG4 writes and LoadGeometryFromActiveFile reads
-    if (auto* geometry = fGeant4GeometryInfo.GetGeometry()) {
-        file->cd();
-        geometry->Write("Geometry", TObject::kOverwrite);
-    }
+    if (auto* geometry = fGeant4GeometryInfo.GetGeometry()) TRestTools::WriteGeometry(file, geometry);
+}
+
+void TRestGeant4Metadata::LoadFromFile(TFile* file) {
+    // Already loaded from it by LoadConfig (the active file when the metadata is created)
+    if (!file || (fGeant4GeometryInfo.GetGeometry() && gFile == file)) return;
+    TGeoManager* geometry = nullptr;
+    file->GetObject("Geometry", geometry);
+    if (geometry) fGeant4GeometryInfo.LoadGeometry(geometry);
 }
 
 // Automatic load of Geometry info in case a root file is opened

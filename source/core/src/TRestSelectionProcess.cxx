@@ -15,7 +15,7 @@
 ///      conditions:
 ///        originX: "trackLineAnalysis_OriginX > 20 && trackLineAnalysis_OriginX < 225"
 ///    pipeline:
-///      class: "TRestProcessManager"
+///      class: "TRestEventProcessManager"
 ///      select:
 ///        class: "TRestSelectionProcess"
 ///        event: "TRestTrackEvent"

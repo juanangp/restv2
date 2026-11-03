@@ -14,6 +14,7 @@
 
 #include "TRestMetadata.h"
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 namespace REST_MergeRuns_Detail {
 
@@ -33,7 +34,7 @@ RunFile ReadRunFile(const std::string& fileName) {
 
     RunFile runFile;
     runFile.fileName = fileName;
-    for (const auto& entry : TRestTools::ReadMetadataStore(file.get())) {
+    for (const auto& entry : TRestYAMLUtils::ReadMetadataStore(file.get())) {
         const std::string instance = entry.first.as<std::string>();
         const YAML::Node node = entry.second;
         if (!node.IsMap() || !node["class"]) continue;
@@ -45,9 +46,9 @@ RunFile ReadRunFile(const std::string& fileName) {
         }
     }
     if (!runFile.run) throw std::runtime_error(fileName + " has no TRestRun");
-    runFile.subRuns = TRestTools::GetYAMLParam<std::vector<int>>(runFile.run, "mergedSubRuns");
+    runFile.subRuns = TRestYAMLUtils::GetParam<std::vector<int>>(runFile.run, "mergedSubRuns");
     if (runFile.subRuns.empty())
-        runFile.subRuns.push_back(TRestTools::GetYAMLParam<int>(runFile.run, "subRunNumber", 0));
+        runFile.subRuns.push_back(TRestYAMLUtils::GetParam<int>(runFile.run, "subRunNumber", 0));
 
     // Event trees and analysis tree: name and type of each leaf
     for (const auto* object : *file->GetListOfKeys()) {
@@ -115,14 +116,14 @@ int REST_MergeRuns(const std::string& filePattern, const std::string& outputFile
                   [](const RunFile& a, const RunFile& b) { return a.subRuns.front() < b.subRuns.front(); });
 
         const RunFile& first = runFiles.front();
-        const int runNumber = TRestTools::GetYAMLParam<int>(first.run, "runNumber", -1);
+        const int runNumber = TRestYAMLUtils::GetParam<int>(first.run, "runNumber", -1);
         if (runNumber < 0) throw std::runtime_error(first.fileName + " has no run number");
         std::vector<int> subRuns;
         double startTime = 0, endTime = 0;
         long long entries = 0;
         for (size_t i = 0; i < runFiles.size(); i++) {
             const RunFile& runFile = runFiles[i];
-            if (TRestTools::GetYAMLParam<int>(runFile.run, "runNumber", -1) != runNumber) {
+            if (TRestYAMLUtils::GetParam<int>(runFile.run, "runNumber", -1) != runNumber) {
                 throw std::runtime_error(runFile.fileName + " is not of the run " +
                                          std::to_string(runNumber));
             }
@@ -148,11 +149,11 @@ int REST_MergeRuns(const std::string& filePattern, const std::string& outputFile
                 }
             }
             subRuns.insert(subRuns.end(), runFile.subRuns.begin(), runFile.subRuns.end());
-            const double start = TRestTools::GetYAMLParam<double>(runFile.run, "startTime", 0);
-            const double end = TRestTools::GetYAMLParam<double>(runFile.run, "endTime", 0);
+            const double start = TRestYAMLUtils::GetParam<double>(runFile.run, "startTime", 0);
+            const double end = TRestYAMLUtils::GetParam<double>(runFile.run, "endTime", 0);
             if (i == 0 || start < startTime) startTime = start;
             if (i == 0 || end > endTime) endTime = end;
-            entries += TRestTools::GetYAMLParam<long long>(runFile.run, "entriesSaved", 0);
+            entries += TRestYAMLUtils::GetParam<long long>(runFile.run, "entriesSaved", 0);
         }
 
         // Only the trees, as the threads of TRestManager::RunMultithreaded

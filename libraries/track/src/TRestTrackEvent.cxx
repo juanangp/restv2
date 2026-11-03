@@ -547,10 +547,10 @@ void TRestTrackEvent::DrawTracks(TVirtualPad* pad) const {
 
     // Ranges as TRestDetectorHitsEvent (margin around the hits)
     double min[3], max[3];
-    int nBins[3];
     for (int a = 0; a < 3; a++) {
-        TRestHitsAnalysis::GetBoundaries(values[a], TRestHitsAnalysis::GetMinimumDistance(values[a]), max[a],
-                                         min[a], nBins[a]);
+        const TRestHits::Binning binning = TRestHits::GetBinning(values[a]);
+        min[a] = binning.min;
+        max[a] = binning.max;
     }
 
     // {u, v} coordinates of each view: the projections with hits defining both or, if there are none

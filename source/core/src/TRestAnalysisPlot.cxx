@@ -7,7 +7,8 @@
 /// the same reading of the runs, a run twice or a run file without TRestRun is an error), so the run times
 /// and run.key are those of its runs; a manager with only plots has no TRestRun nor
 /// TRestDataSet section (`restManager --c plots.yaml --i "R*_ANA.root"`: --i is the inputFileName of every
-/// plot). Without inputFileName, TRestManager runs it after the pipeline, on its output file. From
+/// plot). Without inputFileName, TRestManager runs it after the pipeline, on its output file (also the
+/// dataset generated or processed by the manager). From
 /// restRoot, PlotCombinedCanvas(fileName, manager), or PlotCombinedCanvas(dataSet, manager) with the data
 /// frame of a TRestDataSet (e.g. with columns added with Define).
 ///
@@ -139,11 +140,12 @@
 #include "TRestRun.h"
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
-using TRestTools::CheckYAMLKeys;
-using TRestTools::GetYAMLList;
-using TRestTools::GetYAMLParam;
 using TRestTools::Trim;
+using TRestYAMLUtils::CheckKeys;
+using TRestYAMLUtils::GetList;
+using TRestYAMLUtils::GetParam;
 
 namespace {
 const bool kFieldsRegistered = []() {
@@ -310,7 +312,7 @@ class Evaluator {
             node.reset(metadata->at(instance));
         }
         if (!node) return std::nullopt;
-        node.reset(TRestTools::GetNodeAtPath(node, reference.substr(dot + 1)));
+        node.reset(TRestYAMLUtils::GetNodeAtPath(node, reference.substr(dot + 1)));
         if (!node || !node.IsScalar()) return std::nullopt;
         return node.as<std::string>();
     }
@@ -445,17 +447,17 @@ void TRestAnalysisPlot::ReadPanels() {
     if (!fPanelsConfig || fPanelsConfig.IsNull()) return;
     const std::string context = "TRestAnalysisPlot '" + fName + "', panel";
     for (const auto& node : fPanelsConfig) {
-        CheckYAMLKeys(node, {"enabled", "textSize", "precision", "cuts", "labels"}, context);
-        if (!GetYAMLParam<bool>(node, "enabled", true)) continue;
+        CheckKeys(node, {"enabled", "textSize", "precision", "cuts", "labels"}, context);
+        if (!GetParam<bool>(node, "enabled", true)) continue;
         Panel panel;
-        panel.textSize = GetYAMLParam<TRestWithUnits>(node, "textSize", panel.textSize);
-        panel.precision = GetYAMLParam<int>(node, "precision", panel.precision);
-        panel.cuts = GetYAMLList(node, "cuts");
+        panel.textSize = GetParam<TRestWithUnits>(node, "textSize", panel.textSize);
+        panel.precision = GetParam<int>(node, "precision", panel.precision);
+        panel.cuts = GetList(node, "cuts");
         if (node["labels"]) {
             for (const auto& labelNode : node["labels"]) {
-                CheckYAMLKeys(labelNode, {"text", "position"}, context + " label");
+                CheckKeys(labelNode, {"text", "position"}, context + " label");
                 Label label;
-                label.text = GetYAMLParam<std::string>(labelNode, "text");
+                label.text = GetParam<std::string>(labelNode, "text");
                 if (labelNode["position"]) {
                     const auto position = labelNode["position"].as<std::vector<double>>();
                     if (position.size() != 2) {
@@ -485,44 +487,44 @@ void TRestAnalysisPlot::ReadPlots() {
         // Without histos the plot is also its single histogram
         std::set<std::string> keys = plotKeys;
         if (!node["histos"]) keys.insert(histoKeys.begin(), histoKeys.end());
-        CheckYAMLKeys(node, keys, "TRestAnalysisPlot '" + fName + "', plot");
-        if (!GetYAMLParam<bool>(node, "enabled", true)) continue;
+        CheckKeys(node, keys, "TRestAnalysisPlot '" + fName + "', plot");
+        if (!GetParam<bool>(node, "enabled", true)) continue;
         Plot plot;
-        plot.name = GetYAMLParam<std::string>(node, "name", "plot_" + std::to_string(fPlots.size()));
-        plot.title = GetYAMLParam<std::string>(node, "title", plot.name);
-        plot.xLabel = GetYAMLParam<std::string>(node, "xLabel");
-        plot.yLabel = GetYAMLParam<std::string>(node, "yLabel");
-        plot.logX = GetYAMLParam<bool>(node, "logX", plot.logX);
-        plot.logY = GetYAMLParam<bool>(node, "logY", plot.logY);
-        plot.logZ = GetYAMLParam<bool>(node, "logZ", plot.logZ);
-        plot.gridX = GetYAMLParam<bool>(node, "gridX", plot.gridX);
-        plot.gridY = GetYAMLParam<bool>(node, "gridY", plot.gridY);
-        plot.legend = GetYAMLParam<bool>(node, "legend", plot.legend);
-        plot.timeDisplay = GetYAMLParam<bool>(node, "timeDisplay", plot.timeDisplay);
-        plot.normalize = GetYAMLParam<TRestWithUnits>(node, "normalize", plot.normalize);
-        plot.scale = GetYAMLParam<std::string>(node, "scale");
-        plot.stackOption = GetYAMLParam<std::string>(node, "stackOption", plot.stackOption);
-        plot.marginLeft = GetYAMLParam<TRestWithUnits>(node, "marginLeft", plot.marginLeft);
-        plot.marginRight = GetYAMLParam<TRestWithUnits>(node, "marginRight", plot.marginRight);
-        plot.marginTop = GetYAMLParam<TRestWithUnits>(node, "marginTop", plot.marginTop);
-        plot.marginBottom = GetYAMLParam<TRestWithUnits>(node, "marginBottom", plot.marginBottom);
-        plot.save = GetYAMLParam<std::string>(node, "save");
+        plot.name = GetParam<std::string>(node, "name", "plot_" + std::to_string(fPlots.size()));
+        plot.title = GetParam<std::string>(node, "title", plot.name);
+        plot.xLabel = GetParam<std::string>(node, "xLabel");
+        plot.yLabel = GetParam<std::string>(node, "yLabel");
+        plot.logX = GetParam<bool>(node, "logX", plot.logX);
+        plot.logY = GetParam<bool>(node, "logY", plot.logY);
+        plot.logZ = GetParam<bool>(node, "logZ", plot.logZ);
+        plot.gridX = GetParam<bool>(node, "gridX", plot.gridX);
+        plot.gridY = GetParam<bool>(node, "gridY", plot.gridY);
+        plot.legend = GetParam<bool>(node, "legend", plot.legend);
+        plot.timeDisplay = GetParam<bool>(node, "timeDisplay", plot.timeDisplay);
+        plot.normalize = GetParam<TRestWithUnits>(node, "normalize", plot.normalize);
+        plot.scale = GetParam<std::string>(node, "scale");
+        plot.stackOption = GetParam<std::string>(node, "stackOption", plot.stackOption);
+        plot.marginLeft = GetParam<TRestWithUnits>(node, "marginLeft", plot.marginLeft);
+        plot.marginRight = GetParam<TRestWithUnits>(node, "marginRight", plot.marginRight);
+        plot.marginTop = GetParam<TRestWithUnits>(node, "marginTop", plot.marginTop);
+        plot.marginBottom = GetParam<TRestWithUnits>(node, "marginBottom", plot.marginBottom);
+        plot.save = GetParam<std::string>(node, "save");
 
         auto readHisto = [&](const YAML::Node& histoNode) {
             if (node["histos"]) {
-                CheckYAMLKeys(histoNode, histoKeys, "TRestAnalysisPlot '" + fName + "', plot " + plot.name);
+                CheckKeys(histoNode, histoKeys, "TRestAnalysisPlot '" + fName + "', plot " + plot.name);
             }
             Histo histo;
-            histo.name = GetYAMLParam<std::string>(histoNode, "name", plot.name);
-            histo.drawOption = GetYAMLParam<std::string>(histoNode, "option");
-            histo.cuts = GetYAMLList(histoNode, "cuts");
+            histo.name = GetParam<std::string>(histoNode, "name", plot.name);
+            histo.drawOption = GetParam<std::string>(histoNode, "option");
+            histo.cuts = GetList(histoNode, "cuts");
             if (histoNode["variables"]) {
                 for (const auto& variableNode : histoNode["variables"]) {
-                    CheckYAMLKeys(variableNode, {"name", "nBins", "range"},
-                                  "TRestAnalysisPlot '" + fName + "', plot " + plot.name + " variable");
+                    CheckKeys(variableNode, {"name", "nBins", "range"},
+                              "TRestAnalysisPlot '" + fName + "', plot " + plot.name + " variable");
                     Variable variable;
-                    variable.name = GetYAMLParam<std::string>(variableNode, "name");
-                    variable.nBins = GetYAMLParam<int>(variableNode, "nBins", variable.nBins);
+                    variable.name = GetParam<std::string>(variableNode, "name");
+                    variable.nBins = GetParam<int>(variableNode, "nBins", variable.nBins);
                     if (variableNode["range"]) {
                         const auto range = variableNode["range"];
                         if (!range.IsSequence() || range.size() != 2) {
@@ -545,14 +547,14 @@ void TRestAnalysisPlot::ReadPlots() {
                                              " has a variable without name or bins");
                 }
             }
-            histo.lineColor = ParseColor(GetYAMLParam<std::string>(histoNode, "lineColor"), histo.lineColor);
-            histo.lineWidth = GetYAMLParam<int>(histoNode, "lineWidth", histo.lineWidth);
+            histo.lineColor = ParseColor(GetParam<std::string>(histoNode, "lineColor"), histo.lineColor);
+            histo.lineWidth = GetParam<int>(histoNode, "lineWidth", histo.lineWidth);
             histo.lineStyle =
-                ParseStyle(GetYAMLParam<std::string>(histoNode, "lineStyle"), kLineStyles, histo.lineStyle);
-            histo.fillColor = ParseColor(GetYAMLParam<std::string>(histoNode, "fillColor"), histo.fillColor);
+                ParseStyle(GetParam<std::string>(histoNode, "lineStyle"), kLineStyles, histo.lineStyle);
+            histo.fillColor = ParseColor(GetParam<std::string>(histoNode, "fillColor"), histo.fillColor);
             histo.fillStyle =
-                ParseStyle(GetYAMLParam<std::string>(histoNode, "fillStyle"), kFillStyles, histo.fillStyle);
-            histo.stats = GetYAMLParam<bool>(histoNode, "stats", histo.stats);
+                ParseStyle(GetParam<std::string>(histoNode, "fillStyle"), kFillStyles, histo.fillStyle);
+            histo.stats = GetParam<bool>(histoNode, "stats", histo.stats);
             plot.histos.push_back(std::move(histo));
         };
         if (node["histos"]) {

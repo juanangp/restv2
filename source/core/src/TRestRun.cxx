@@ -12,6 +12,7 @@
 
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
+#include "TRestYAMLUtils.h"
 
 using namespace TRestTools;
 
@@ -68,13 +69,6 @@ TRestRun::~TRestRun() {
         delete pair.second;
     }
     // Output event objects are owned by TRestManager (or the caller), not TRestRun.
-
-    for (auto* metadata : fMetadataStore) {
-        if (metadata) {
-            delete metadata;
-        }
-    }
-    fMetadataStore.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -193,52 +187,20 @@ void TRestRun::OpenInputFile(const std::string& filename) {
 
     YAML::Node selfConfig;
 
-    TDirectory* metadataDir = fInputFile->GetDirectory("RESTMetadataStore");
-    if (metadataDir) {
-        TList* keysInDir = metadataDir->GetListOfKeys();
-        if (keysInDir) {
-            for (auto* meta : fMetadataStore) {
-                if (meta) delete meta;
-            }
-            fMetadataStore.clear();
-
-            for (int i = 0; i < keysInDir->GetEntries(); ++i) {
-                TKey* key = dynamic_cast<TKey*>(keysInDir->At(i));
-                if (!key) continue;
-
-                std::string keyName = key->GetName();
-                YAML::Node testConfig = GetMetadata(keyName);
-
-                if (testConfig && !testConfig.IsNull() && testConfig["class"]) {
-                    std::string className = testConfig["class"].as<std::string>();
-
-                    if (className == "TRestRun") {
-                        SetName(keyName);
-                        selfConfig = testConfig;
-                        continue;
-                    }
-
-                    try {
-                        std::unique_ptr<TRestMetadata> metadata =
-                            MetadataClassRegistry::Instance().Create(className, keyName, testConfig, false);
-
-                        if (metadata) {
-                            metadata->SetRunInfo(this);
-                            fMetadataStore.push_back(metadata.release());
-                        }
-                    } catch (const std::exception& e) {
-                        std::cerr << "[-] Error loading metadata '" << keyName << "' from: " << e.what()
-                                  << std::endl;
-                    }
-                }
-            }
-        }
+    // Its TRestRun is this run; the other metadata are created, with the objects stored in the file
+    const auto [runInstance, runConfig] =
+        TRestYAMLUtils::GetMetadataClass(TRestYAMLUtils::ReadMetadataStore(fInputFile.get()), "TRestRun");
+    if (!runInstance.empty()) {
+        SetName(runInstance);
+        selfConfig = runConfig;
     }
+    fMetadataStore.Load(fInputFile.get(), this, {"TRestRun"});
 
     if (selfConfig && !selfConfig.IsNull()) {
         fInputFileNode = selfConfig;
         // Preserved unless the processes of this run produce another (TRestManager::SaveMetadata)
-        fOutputEvent = ReadYAMLParamOrDefault<std::string>(fInputFileNode, "outputEvent", fOutputEvent);
+        fOutputEvent =
+            TRestYAMLUtils::ReadParamOrDefault<std::string>(fInputFileNode, "outputEvent", fOutputEvent);
     } else {
         RESTWarning << "Not valid TRestRun Metadata in " << filename << RESTendl;
     }
@@ -298,11 +260,7 @@ void TRestRun::AddMetadata(TRestMetadata* metadata) {
 }
 
 void TRestRun::AddHistoricMetadata() {
-    for (auto* metadata : fMetadataStore) {
-        if (metadata && metadata->GetClassName() != "TRestRun") {
-            metadata->WriteMetadata(fOutputFile.get());
-        }
-    }
+    for (const auto& metadata : fMetadataStore.GetAll()) metadata->WriteMetadata(fOutputFile.get());
 }
 
 YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
@@ -312,13 +270,7 @@ YAML::Node TRestRun::GetMetadata(const std::string& instanceName) const {
 }
 
 TRestMetadata* TRestRun::GetMetadataClass(const std::string& className) const {
-    for (auto* metadata : fMetadataStore) {
-        if (metadata && metadata->GetClassName() == className) {
-            return metadata;
-        }
-    }
-
-    return nullptr;
+    return fMetadataStore.GetClass(className);
 }
 
 TRestEvent* TRestRun::GetEvent(const std::string& treeName) {
@@ -541,7 +493,7 @@ void TRestRun::PrintMetadata() const {
 }
 
 void TRestRun::PrintAllMetadata() const {
-    for (auto* metadata : fMetadataStore) metadata->PrintMetadata();
+    for (const auto& metadata : fMetadataStore.GetAll()) metadata->PrintMetadata();
 }
 
 std::string TRestRun::PrefixMainDataPath(const std::string& fileName) const {

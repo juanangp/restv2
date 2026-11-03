@@ -1,5 +1,5 @@
-#ifndef TRESTPROCESSMANAGER_H
-#define TRESTPROCESSMANAGER_H
+#ifndef TRESTEVENTPROCESSMANAGER_H
+#define TRESTEVENTPROCESSMANAGER_H
 
 #include <map>
 #include <memory>
@@ -12,11 +12,11 @@
 
 class TRestRun;
 
-/// \class TRestProcessManager
+/// \class TRestEventProcessManager
 /// \brief Handles event-process pipeline loading and execution.
 class TRestManager;
 
-class TRestProcessManager : public TRestMetadata {
+class TRestEventProcessManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
     std::vector<std::unique_ptr<TRestEventProcess>> fProcessChain;
@@ -43,12 +43,12 @@ class TRestProcessManager : public TRestMetadata {
     bool fInputEventStorage = false;
     bool fOutputEventStorage = true;
 
-    TRestProcessManager();
-    TRestProcessManager(const std::string& instanceName, const YAML::Node& node);
-    TRestProcessManager(const std::string& fileName, const std::string& sectionName);
-    ~TRestProcessManager() override = default;
+    TRestEventProcessManager();
+    TRestEventProcessManager(const std::string& instanceName, const YAML::Node& node);
+    TRestEventProcessManager(const std::string& fileName, const std::string& sectionName);
+    ~TRestEventProcessManager() override = default;
 
-    std::string GetClassName() const override { return "TRestProcessManager"; }
+    std::string GetClassName() const override { return "TRestEventProcessManager"; }
 
     void LoadConfig() override;
     void LoadProcesses();

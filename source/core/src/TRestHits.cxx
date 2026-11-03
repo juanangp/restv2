@@ -17,7 +17,6 @@
 #include <tuple>
 
 #include "TRestEvent.h"
-#include "TRestHitsAnalysis.h"
 
 using REST_HitType = TRestHitsData::REST_HitType;
 
@@ -794,6 +793,33 @@ void TRestHits::DrawGraphs(TVirtualPad* pad, const std::string& title) const {
     }
 }
 
+double TRestHits::GetMinimumDistance(std::vector<double> values) {
+    std::sort(values.begin(), values.end());
+    double minDiff = 0;
+    for (size_t i = 1; i < values.size(); i++) {
+        const double diff = values[i] - values[i - 1];
+        if (diff > 0 && (minDiff == 0 || diff < minDiff)) minDiff = diff;
+    }
+    return minDiff;
+}
+
+TRestHits::Binning TRestHits::GetBinning(const std::vector<double>& values, double binSize) {
+    Binning binning;
+    if (values.empty()) return binning;
+    double min = *std::min_element(values.begin(), values.end());
+    const double max = *std::max_element(values.begin(), values.end());
+    if (binSize <= 0) binSize = GetMinimumDistance(values);
+    if (binSize <= 0) binSize = max > min ? (max - min) / 10. : 1;
+
+    // Margin in bins; the edges keep the values at bin centres (strips at multiples of the pitch)
+    const int marginBins = std::max(10, static_cast<int>(std::ceil(0.25 * (max - min) / binSize)));
+    binning.nBins = static_cast<int>(std::ceil((max - min) / binSize - 1e-6)) + 1 + 2 * marginBins;
+    min -= (marginBins + 0.5) * binSize;
+    binning.min = min;
+    binning.max = min + binning.nBins * binSize;
+    return binning;
+}
+
 void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, double pitch,
                                bool markers3D) const {
     std::vector<double> values[3];
@@ -806,12 +832,12 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     // Without a pitch, X and Y use the minimum distance between their hits (the readout pitch). Z has no
     // natural pitch (the drift gives almost continuous values), so it uses the X/Y bin size
     double binSize[3];
-    binSize[0] = pitch > 0 ? pitch : TRestHitsAnalysis::GetMinimumDistance(values[0]);
-    binSize[1] = pitch > 0 ? pitch : TRestHitsAnalysis::GetMinimumDistance(values[1]);
+    binSize[0] = pitch > 0 ? pitch : GetMinimumDistance(values[0]);
+    binSize[1] = pitch > 0 ? pitch : GetMinimumDistance(values[1]);
     if (binSize[0] <= 0) binSize[0] = binSize[1];
     if (binSize[1] <= 0) binSize[1] = binSize[0];
     binSize[2] = pitch > 0 ? pitch : std::min(binSize[0], binSize[1]);
-    if (binSize[2] <= 0) binSize[2] = TRestHitsAnalysis::GetMinimumDistance(values[2]);
+    if (binSize[2] <= 0) binSize[2] = GetMinimumDistance(values[2]);
     // Track view: Z uses the spacing of the samples of the pulses, so there are no empty bins inside a
     // pulse (pulses drawn cut) and the strips are paired sample by sample
     if (markers3D) {
@@ -832,7 +858,10 @@ void TRestHits::DrawHistograms(TVirtualPad* pad, const std::string& histOption, 
     double min[3], max[3];
     int nBins[3];
     for (int a = 0; a < 3; a++) {
-        TRestHitsAnalysis::GetBoundaries(values[a], binSize[a], max[a], min[a], nBins[a]);
+        const Binning binning = GetBinning(values[a], binSize[a]);
+        min[a] = binning.min;
+        max[a] = binning.max;
+        nBins[a] = binning.nBins;
     }
 
     struct Item {

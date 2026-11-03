@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 #include "TFile.h"
 #include "TRestDetectorReadout.h"
@@ -22,6 +23,7 @@ const bool kRegistered = []() {
 
 static const bool TRestDetectorReadoutManager_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
+    reg.RegisterField<TRestDetectorReadoutManager>("readout", &TRestDetectorReadoutManager::fDataReadoutName);
     reg.RegisterField<TRestDetectorReadoutManager>("readouts", &TRestDetectorReadoutManager::fReadoutInfo);
     return true;
 }();
@@ -89,14 +91,15 @@ void TRestDetectorReadoutManager::LoadReadout() {
     fReadoutMap.clear();
 
     for (const auto& readoutInfo : fReadoutInfo) {
-        // kSelfFile: the readout is stored in the input file of the run
+        // kSelfFile: the readout is stored in the file the manager is read from, or the input file of the run
         std::unique_ptr<TFile> ownedFile;
         TFile* fIn = nullptr;
         if (readoutInfo.fInputFileName == kSelfFile) {
-            fIn = fRunInfo ? fRunInfo->GetInputFile() : nullptr;
+            fIn = fSelfFile ? fSelfFile : fRunInfo ? fRunInfo->GetInputFile() : nullptr;
             if (!fIn) {
                 RESTError << "Readout '" << readoutInfo.fInstanceName << "' has inputFileName '" << kSelfFile
-                          << "' but the manager has no run with an input file" << RESTendl;
+                          << "' but the manager is not read from a file nor has a run with an input file"
+                          << RESTendl;
                 continue;
             }
         } else {
@@ -166,6 +169,13 @@ void TRestDetectorReadoutManager::SetRunInfo(TRestRun* run) {
     LoadReadout();
 }
 
+void TRestDetectorReadoutManager::LoadFromFile(TFile* file) {
+    if (!fReadoutMap.empty()) return;
+    fSelfFile = file;
+    LoadReadout();
+    fSelfFile = nullptr;
+}
+
 void TRestDetectorReadoutManager::WriteMetadata(TFile* file) {
     UpdateYAMLFromParams<TRestDetectorReadoutManager>(fNode);
     YAML::Node node = YAML::Clone(fNode);
@@ -197,6 +207,35 @@ void TRestDetectorReadoutManager::ListReadouts() {
 TRestDetectorReadout* TRestDetectorReadoutManager::GetReadout(const std::string& name) const {
     auto it = fReadoutMap.find(name);
     return (it != fReadoutMap.end()) ? it->second : nullptr;
+}
+
+std::string TRestDetectorReadoutManager::GetDataReadoutName() const {
+    if (!fDataReadoutName.empty()) return fDataReadoutName;
+    return fReadoutMap.size() == 1 ? fReadoutMap.begin()->first : "";
+}
+
+TRestDetectorReadout* TRestDetectorReadoutManager::SelectReadout(std::string& name,
+                                                                 const std::string& user) const {
+    const std::string data = GetDataReadoutName();
+    std::string available;
+    for (const auto& [readoutName, readout] : fReadoutMap) available += " '" + readoutName + "'";
+    if (available.empty()) available = " none";
+    if (name.empty()) {
+        if (data.empty()) {
+            throw std::runtime_error(
+                user + ": several readouts loaded (" + available.substr(1) +
+                ") and no data readout: set 'readout' of the TRestDetectorReadoutManager");
+        }
+        name = data;
+    } else if (!data.empty() && name != data) {
+        RESTWarning << user << ": readout '" << name << "' instead of the data readout '" << data
+                    << "' of the TRestDetectorReadoutManager" << RESTendl;
+    }
+    TRestDetectorReadout* readout = GetReadout(name);
+    if (!readout) {
+        throw std::runtime_error(user + ": readout '" + name + "' not loaded (readouts:" + available + ")");
+    }
+    return readout;
 }
 
 void TRestDetectorReadoutManager::ViewReadoutGeometry(const std::vector<std::string>& names,

@@ -14,14 +14,6 @@
     <define>
         <constant name="world_size" value="20000"/>
 
-        <!-- We must define these variables that are hardcoded in materials.xml -->
-        <!-- They have no use in this example since we do not use a gas mixture in our simulation -->
-        <!-- This makes non sense, and it could be solved if we would have a dedicated materials file for gas mixtures -->
-        <variable name="targetGasDensity" value="0.254"/>
-        <variable name="quencherDensity" value="0.254"/>
-        <variable name="quencherFraction" value="0.01"/>
-        <variable name="gasTemperature" value="300"/>
-        <variable name="gasPressure" value="10"/>
     </define>
 
     &materials;

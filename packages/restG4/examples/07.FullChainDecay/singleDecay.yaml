@@ -1,0 +1,75 @@
+# Single decay of an isotope (U238 by default) from the center of a lead box:
+#   restG4 singleDecay.yaml [--set isotope=Pb210]
+
+parameters:
+  isotope: "U238"
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "SingleChainDecay"
+    runType: "simulation"
+    runNumber: 2
+    runTag: "${PARAM:isotope}"
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    seed: 17021981
+    nEvents: 10000
+    fullChain: false
+    registerEmptyTracks: false
+    saveAllEvents: false
+
+    energyRangeStored: [0, 1 GeV]
+    activeVolumes:
+      - name: "detector"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "point"
+      position: [0, 0, 0]
+      source:
+        particle: "${PARAM:isotope}"
+        angular:
+          type: "isotropic"
+        energy:
+          type: "mono"
+          energy: 0 keV
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 2 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+    ionLimitStepList: ["F20", "Ne20"]
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"
+        option:
+          - name: "pixe"
+            value: "true"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

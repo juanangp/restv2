@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
-			<!-- ##VERSION REST Example 08.Alphas Foil thickness : ${REST_FOIL} um Version 1.0## -->
+			<!-- ##VERSION REST Example 08.Alphas Version 1.1## -->
 
 <!DOCTYPE gdml [
         <!ENTITY geometry SYSTEM "geometry.gdml">
-        <!ENTITY materials SYSTEM "https://rest-for-physics.github.io/materials/rest.xml">
+        <!ENTITY materials SYSTEM "materials.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -13,14 +13,10 @@
 
     <define>
         <constant name="world_size" value="20000"/>
-		<constant name="foilThickness" value="0.001*${REST_FOIL}"/>
+		<!-- Foil thickness in um: parameter foil of alphas.yaml (restG4 --set foil=1) -->
+		<constant name="foil" value="5"/>
+		<constant name="foilThickness" value="0.001*foil"/>
 
-		<!-- Aproximate density values for 1-atm -->
-		<variable name="targetGasDensity" value="1.664"/> <!-- g/cm3 -->
-        <variable name="quencherDensity" value="2.51"/>
-        <variable name="quencherFraction" value="0.01"/>
-        <variable name="gasTemperature" value="300"/>
-        <variable name="gasPressure" value="1"/>
     </define>
 
     &materials;

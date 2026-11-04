@@ -163,6 +163,21 @@ void TRestRun::LoadConfig() {
     UpdateYAMLFromParams<TRestRun>(fNode);
 }
 
+void TRestRun::SetInputFileName(const std::string& v) {
+    fInputFileName = v;
+    if (fNode) TRestYAMLUtils::SetParam(fNode, "inputFileName", fInputFileName);
+}
+
+void TRestRun::SetOutputFileName(const std::string& v) {
+    fOutputFileName = v;
+    if (fNode) TRestYAMLUtils::SetParam(fNode, "outputFileName", fOutputFileName);
+}
+
+void TRestRun::SetOutputEvent(const std::string& v) {
+    fOutputEvent = v;
+    if (fNode) TRestYAMLUtils::SetParam(fNode, "outputEvent", fOutputEvent);
+}
+
 void TRestRun::OpenInputFile(const std::string& filename) {
     if (fInputFile) return;
 

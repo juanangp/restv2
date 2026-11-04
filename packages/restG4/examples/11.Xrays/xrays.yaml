@@ -1,0 +1,67 @@
+# Gammas, flat in (0, 15) keV, towards the argon detector, for its quantum efficiency:
+#   restG4 xrays.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "ArgonISO"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "xrays"
+    outputFileName: "RestG4_[runTag]_[runNumber]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    seed: 17021981
+    nEvents: 1000
+    registerEmptyTracks: false
+    saveAllEvents: true
+
+    energyRangeStored: [0, 30 keV]
+    activeVolumes:
+      - name: "gas"
+        maxStep: 0.005 mm
+        sensitive: true
+
+    generator:
+      type: "point"
+      position: [0, 0, -100 mm]
+      source:
+        particle: "gamma"
+        angular:
+          type: "flux"
+          direction: [0, 0, 1]
+        energy:
+          type: "flat"
+          range: [0, 15 keV]
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 2 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

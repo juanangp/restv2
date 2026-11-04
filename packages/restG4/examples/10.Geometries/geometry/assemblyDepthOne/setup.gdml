@@ -3,7 +3,6 @@
 
 <!DOCTYPE gdml [
         <!ENTITY geometry SYSTEM "geometry.gdml">
-        <!ENTITY materials SYSTEM "https://rest-for-physics.github.io/materials/rest.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -14,14 +13,6 @@
     <define>
         <constant name="world_size" value="20000"/>
 
-        <!-- We must define these variables that are hardcoded in materials.xml -->
-        <!-- They have no use in this example since we do not use a gas mixture in our simulation -->
-        <!-- This makes non sense, and it could be solved if we would have a dedicated materials file for gas mixtures -->
-        <variable name="targetGasDensity" value="5.7"/>
-        <variable name="quencherDensity" value="0.254"/>
-        <variable name="quencherFraction" value="0.01"/>
-        <variable name="gasTemperature" value="300"/>
-        <variable name="gasPressure" value="10"/>
 
         <constant name="detectorSizeDiameter" value="100"/>
         <constant name="detectorSizeZ" value="50"/>
@@ -33,7 +24,6 @@
         <constant name="2PI" value="6.283185307179586"/>
     </define>
 
-    &materials;
 
     &geometry;
 

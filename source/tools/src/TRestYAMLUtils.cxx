@@ -5,6 +5,7 @@
 #include <TObjString.h>
 
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <regex>
 #include <stdexcept>
@@ -40,6 +41,41 @@ YAML::Node ResolveEnvVars(const YAML::Node& node) {
         for (auto it : node) {
             out[it.first.Scalar()] = ResolveEnvVars(it.second);
         }
+        return out;
+    }
+    return node;
+}
+
+/// The parameters of the last configuration resolved and those used
+std::map<std::string, std::string> gParameters;
+std::set<std::string> gUsedParameters;
+
+/// \brief Node with `${PARAM:name}` replaced by the parameter `name`; throws if it is not defined
+YAML::Node ResolveParameters(const YAML::Node& node) {
+    if (node.IsScalar()) {
+        std::string str = node.as<std::string>();
+        const std::regex re(R"(\$\{PARAM:([^}]+)\})");
+        std::smatch match;
+        bool replaced = false;
+        while (std::regex_search(str, match, re)) {
+            const std::string name = match[1].str();
+            const auto parameter = gParameters.find(name);
+            if (parameter == gParameters.end()) {
+                throw std::runtime_error("${PARAM:" + name + "}: parameter '" + name +
+                                         "' not defined in the section `parameters`");
+            }
+            gUsedParameters.insert(name);
+            str.replace(match.position(0), match.length(0), parameter->second);
+            replaced = true;
+        }
+        return replaced ? YAML::Node(str) : node;
+    } else if (node.IsSequence()) {
+        YAML::Node out(YAML::NodeType::Sequence);
+        for (auto n : node) out.push_back(ResolveParameters(n));
+        return out;
+    } else if (node.IsMap()) {
+        YAML::Node out(YAML::NodeType::Map);
+        for (auto it : node) out[it.first.Scalar()] = ResolveParameters(it.second);
         return out;
     }
     return node;
@@ -83,13 +119,69 @@ YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node) {
 
 }  // namespace
 
-YAML::Node TRestYAMLUtils::OpenConfigFile(const std::string& fileName) {
-    return ResolveRefs(YAML::LoadFile(fileName));
+YAML::Node TRestYAMLUtils::OpenConfigFile(const std::string& fileName,
+                                          const std::map<std::string, std::string>& overrides) {
+    return ResolveRefs(YAML::LoadFile(fileName), overrides);
 }
 
-YAML::Node TRestYAMLUtils::ResolveRefs(const YAML::Node& root) {
-    auto cfg = ResolveEnvVars(root);
+YAML::Node TRestYAMLUtils::ResolveRefs(const YAML::Node& root,
+                                       const std::map<std::string, std::string>& overrides) {
+    YAML::Node cfg = YAML::Clone(root);
+    gParameters.clear();
+    gUsedParameters.clear();
+    YAML::Node parameters;
+    if (cfg.IsMap() && cfg["parameters"]) {
+        parameters = cfg["parameters"];
+        cfg.remove("parameters");
+    }
+    if (parameters && !parameters.IsNull() && !parameters.IsMap()) {
+        throw std::runtime_error("`parameters` must be a map name: value");
+    }
+    for (const auto& [name, value] : overrides) {
+        if (!parameters || !parameters.IsMap() || !parameters[name]) {
+            throw std::runtime_error("--set " + name + ": no parameter '" + name +
+                                     "' in the section `parameters` of the configuration");
+        }
+        parameters[name] = value;
+    }
+    if (parameters && parameters.IsMap()) {
+        for (const auto& parameter : ResolveEnvVars(parameters)) {
+            const std::string name = parameter.first.as<std::string>();
+            if (!parameter.second.IsScalar()) {
+                throw std::runtime_error("parameter '" + name + "': the value must be a number or a text");
+            }
+            gParameters[name] = parameter.second.Scalar();
+        }
+    }
+    cfg = ResolveParameters(ResolveEnvVars(cfg));
     return ResolveYamlRefs(cfg, cfg);
+}
+
+const std::map<std::string, std::string>& TRestYAMLUtils::GetParameters() { return gParameters; }
+
+void TRestYAMLUtils::MarkParameterUsed(const std::string& name) { gUsedParameters.insert(name); }
+
+void TRestYAMLUtils::CheckParametersUsed() {
+    std::string unused;
+    for (const auto& [name, value] : gParameters) {
+        if (!gUsedParameters.count(name)) unused += (unused.empty() ? "" : ", ") + name;
+    }
+    if (!unused.empty()) {
+        throw std::runtime_error(
+            "parameters not used in the configuration (${PARAM:name}) nor in the GDML "
+            "(constant or entity with that name): " +
+            unused);
+    }
+}
+
+void TRestYAMLUtils::AddParameterOverride(std::map<std::string, std::string>& overrides,
+                                          const std::string& assignment) {
+    const size_t equal = assignment.find('=');
+    if (equal == std::string::npos || equal == 0) {
+        throw std::runtime_error("--set needs name=value, e.g. --set isotope=Pb210 (given: '" + assignment +
+                                 "')");
+    }
+    overrides[assignment.substr(0, equal)] = assignment.substr(equal + 1);
 }
 
 std::pair<std::string, YAML::Node> TRestYAMLUtils::GetMetadataClass(const YAML::Node& cfg,

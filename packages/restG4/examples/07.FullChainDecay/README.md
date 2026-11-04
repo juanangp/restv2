@@ -9,19 +9,19 @@ This example tests a radiative chain of a full decay chain of U238. Its daughter
 This example implements a simple geometry based on a box made of lead.
 
 #### Event generator
-The event generator will produce isotope decays from the center of the box. The parent isotope may be changed through the REST_ISOTOPE variable that takes U238 by default.
+The event generator will produce isotope decays from the center of the box. The parent isotope is the parameter `isotope` of the YAML files, U238 by default (`--set isotope=Pb210`).
 
 #### Testing the example
 Execute the following to launch a full chain decay till the chain reaches the stable element.
 
 ```
-restG4 fullChain.rml
+restG4 fullChain.yaml
 ```
 
-Execute the following to launch a single decay of the isotope defined by REST_ISOTOPE
+Execute the following to launch a single decay of the isotope (parameter `isotope`)
 
 ```
-restG4 singleDecay.rml
+restG4 singleDecay.yaml
 ```
 
-See also `Validation.C` for validation routines executed in the pipeline.
+See also the test of this example in `packages/restG4/test/src/examples.cxx` (ctest, BUILD_TESTING).

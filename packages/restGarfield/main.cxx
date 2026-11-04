@@ -19,7 +19,9 @@
 
 #include <exception>
 #include <iostream>
+#include <map>
 #include <stdexcept>
+#include <string>
 
 #include "TRestDetectorTransport.h"
 #include "TRestDetectorTransportManager.h"
@@ -27,13 +29,22 @@
 #include "TransportSimulation.h"
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: restGarfield <config.yaml>" << std::endl;
+    if (argc < 2 || std::string(argv[1]).rfind("--", 0) == 0) {
+        std::cerr << "Usage: restGarfield <config.yaml> [--set name=value ...]" << std::endl;
         return 1;
     }
 
     try {
-        const YAML::Node config = TRestYAMLUtils::ResolveRefs(YAML::LoadFile(argv[1]));
+        // --set: the parameters of the configuration for this execution (the file is not changed)
+        std::map<std::string, std::string> parameters;
+        for (int i = 2; i < argc; i++) {
+            if (std::string(argv[i]) != "--set" || i + 1 >= argc) {
+                throw std::runtime_error("unknown argument '" + std::string(argv[i]) +
+                                         "', usage: restGarfield <config.yaml> [--set name=value ...]");
+            }
+            TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
+        }
+        const YAML::Node config = TRestYAMLUtils::OpenConfigFile(argv[1], parameters);
         const auto section = TRestYAMLUtils::GetMetadataClass(config, "TRestDetectorTransportManager");
         if (!section.second) {
             throw std::runtime_error("no section of class TRestDetectorTransportManager in " +
@@ -42,6 +53,7 @@ int main(int argc, char* argv[]) {
 
         TRestDetectorTransportManager manager(section.first, section.second);
         manager.CheckConfig();
+        TRestYAMLUtils::CheckParametersUsed();
         manager.PrintMetadata();
         const bool verbose = manager.GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Info;
         for (const auto& metadata : manager.fSimulations) {

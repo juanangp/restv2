@@ -1,0 +1,74 @@
+# Full chain decays of an isotope from a thin wall 1 um above the Micromegas readout of the TREX-DM geometry:
+#   restG4 FullChainFromReadout.yaml [--set isotope=Pb210 --set gas=Argon1%Isobutane1bar]
+# gas, a material of materials.xml, is an entity of geometry/setup.gdml with the same default value there
+# (restG4 --update-gdml writes it in the GDML).
+
+parameters:
+  isotope: "Rn222"
+  gas: "Neon1%Isobutane10bar"
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    mainDataPath: "."
+    experimentName: "TREXDM"
+    runType: "simulation"
+    runNumber: 100
+    runTag: "${PARAM:isotope}_readout_surface_1um"
+    outputFileName: "Run[runNumber]_[runType]_[runTag]_[runUser].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    nEvents: 100
+    fullChain: true
+
+    energyRangeStored: [0, 1 GeV]
+    activeVolumes:
+      - name: "gas"
+        maxStep: 500 um
+        sensitive: true
+
+    generator:
+      type: "surface"
+      shape: "wall"
+      size: [20 cm, 20 cm, 0]
+      position: [0, 0, 156.751 mm]
+      source:
+        particle: "${PARAM:isotope}"
+        angular:
+          type: "isotropic"
+        energy:
+          type: "mono"
+          energy: 0 keV
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 1 um
+    cutForElectron: 1 um
+    cutForPositron: 1 um
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmLivermorePhysics"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

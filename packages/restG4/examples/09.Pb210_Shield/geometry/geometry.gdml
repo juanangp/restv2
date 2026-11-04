@@ -20,7 +20,7 @@
 
 
 <volume name="detectorVolume">
-    <materialref ref="PureXenon"/>
+    <materialref ref="XenonGas"/>
     <solidref ref="detectorSolid"/>
 </volume>
 

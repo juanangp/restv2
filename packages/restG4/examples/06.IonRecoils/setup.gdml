@@ -21,11 +21,6 @@
     <define>
         <constant name="world_size" value="20000"/>
 
-        <variable name="targetGasDensity" value="0.254"/>
-        <variable name="quencherDensity" value="0.254"/>
-        <variable name="quencherFraction" value="0.01"/>
-        <variable name="gasTemperature" value="300"/>
-        <variable name="gasPressure" value="10"/>
     </define>
 
     &materials;

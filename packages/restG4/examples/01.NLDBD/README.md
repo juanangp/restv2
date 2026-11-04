@@ -4,4 +4,4 @@ Date : 19/July/2019
 
 **Event generator** : The event generator will launch neutrinoless double beta decays from the gas volume.
 
-**Command** : restG4 NLDBD.rml
+**Command** : restG4 NLDBD.yaml

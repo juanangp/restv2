@@ -1,0 +1,67 @@
+# Geantinos from the center of the IAXO geometry (assemblies), all the events stored:
+#   restG4 Assembly.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "Assembly"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "Assembly"
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "../13.IAXO/geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    seed: 17021981
+    nEvents: 1000
+    registerEmptyTracks: false
+    saveAllEvents: true
+
+    energyRangeStored: [0, 10 GeV]
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "point"
+      position: [0, 0, 0]
+      source:
+        particle: "geantino"
+        angular:
+          type: "isotropic"
+        energy:
+          type: "mono"
+          energy: 1 keV
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 2 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

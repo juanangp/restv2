@@ -1,0 +1,78 @@
+# Response (quantum efficiency) of a gas detector: gammas flat in (0, 15) keV along +Z towards the center of
+# the detector. The parameters are the entity gas (a material of materials.xml: mixture and pressure) and the
+# constants of geometry.gdml, with the same defaults there (restG4 --update-gdml writes them in the GDML):
+#   restG4 DetectorResponse.yaml [--set gas=XenonNeon2.3%Isobutane1.5bar --set drift=50]
+# or bash launchResponse.sh
+
+parameters:
+  gas: "Xenon30%Neon1.5bar"
+  drift: 30  # mm
+  detectorSize: 60  # mm
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    mainDataPath: "."
+    experimentName: "GasDetector"
+    runType: "DetectorResponse"
+    runNumber: "auto"
+    runTag: "${PARAM:gas}_Drift${PARAM:drift}mm_Size${PARAM:detectorSize}mm"
+    outputFileName: "RestG4_[runTag].root"
+    runDescription: "We launch photons 0 to 15 keV."
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry.gdml"
+    subEventTimeDelay: 100 us
+    nEvents: 150000
+    seed: 137
+    saveAllEvents: false
+    printProgress: true
+
+    energyRangeStored: [0, 15 keV]
+    activeVolumes:
+      - name: "target"
+        chance: 1
+        maxStep: 0.2 mm
+        sensitive: true
+
+    generator:
+      type: "point"
+      position: [0, 0, -100 mm]
+      source:
+        particle: "gamma"
+        angular:
+          type: "flux"
+          direction: [0, 0, 1]
+        energy:
+          type: "flat"
+          range: [0, 15 keV]
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 1 um
+    cutForElectron: 1 um
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmLivermorePhysics"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

@@ -45,7 +45,7 @@
 
 <!-- {{{ Volumes definition (material and solid assignment) -->
 <volume name="gasVolume">
-    <materialref ref="${GDML_GAS}"/>
+    <materialref ref="&gas;"/>
     <solidref ref="gasSolid"/>
 </volume>
 

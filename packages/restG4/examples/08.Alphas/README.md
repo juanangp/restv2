@@ -6,10 +6,10 @@ This example tests the generation of alphas with a well defined energy from a th
 
 #### Detector geometry
 
-The geometry consists of a 10x10x10cm3 box made of Argon gas. In the middle of the box a small copper plate is placed. The thickness of the plate in um can be controlled with an enviromental system variable, REST_FOIL.
+The geometry consists of a 10x10x10cm3 box made of Argon gas. In the middle of the box a small copper plate is placed. The thickness of the plate in um is the parameter `foil` of alphas.yaml (the constant `foil` of geometry/setup.gdml).
 
 #### Event generator
-The event generator will produce mono-energetic alphas produced in the copper sample volume (physical volume named source). The energy of the alphas can be controled using the REST_ENERGY system environment variable expressed in MeV.
+The event generator will produce mono-energetic alphas produced in the copper sample volume (physical volume named source). The energy of the alphas in MeV is the parameter `energy` of alphas.yaml.
 
 #### Testing the example
 
@@ -22,16 +22,16 @@ mkdir data
 Execute the following to launch the generation of 10,000 alphas.
 
 ```
-restG4 alphas.rml
+restG4 alphas.yaml
 ```
 
 Execute the following to launch the processing of the generated events and produce few observables inside the analysis tree.
 
 ```
-restManager --c analysis.rml --f data/FileGenerated.root
+restManager --c analysis.yaml --i data/FileGenerated.root
 ```
 
-See also `../../.gitlab-ci.yml` and `Validation.C` for validation routines executed in the pipeline. The following plot showing the energy spectrum is generated using the pipeline.
+See also the test of this example in `packages/restG4/test/src/examples.cxx` (ctest, BUILD_TESTING). The following plot showing the energy spectrum is generated with `plots.yaml`.
 
 
 ![plot](plots.png)
@@ -40,32 +40,26 @@ Commands to reproduce the figure shown follow:
 
 ```
 mkdir data
-export REST_ENERGY=5
-export REST_FOIL=1
-restG4 alphas.rml
+restG4 alphas.yaml --set energy=5 --set foil=1
+restG4 alphas.yaml --set energy=5 --set foil=5
+restG4 alphas.yaml --set energy=1 --set foil=5
 
-export REST_FOIL=5
-restG4 alphas.rml
-
-export REST_ENERGY=1
-restG4 alphas.rml
-
-restManager --c analysis.rml --f Run_1MeV_5um.root
-restManager --c analysis.rml --f Run_5MeV_1um.root
-restManager --c analysis.rml --f Run_5MeV_5um.root
-restManager --c plots.rml --f "data/*g4Ana*root"
+restManager --c analysis.yaml --i data/Run_1MeV_5um.root
+restManager --c analysis.yaml --i data/Run_5MeV_1um.root
+restManager --c analysis.yaml --i data/Run_5MeV_5um.root
+restManager --c plots.yaml --i "data/Run_g4Analysis_*.root"
 ```
 
 
 A minimal ROOT shell commands to visualize the detector geometry is:
 
 ```
-export REST_FOIL=5
 restRoot
-root [0] TRestGDMLParser *g = new TRestGDMLParser()
-root [1] TGeoManager *geo = g->GetGeoManager("geometry/setup.gdml")
-root [2] geo->GetTopVolume()->Draw("ogl")
+root [0] REST_Geant4_ViewGeometry("geometry/setup.gdml")
 ```
+
+with the default values of the GDML; `restG4 alphas.yaml --set foil=1 --update-gdml` writes another value in
+the GDML.
 
 ![geometry](geometry.png)
 

@@ -1,3 +1,7 @@
+Run each example from its directory (e.g. `cd 04.MuonScan; restG4 CosmicMuonsFromWall.yaml`): restG4 finds the
+GDML relative to the YAML, but the files of the generator (`filename`, `use`) relative to the current
+directory. Data files shared by several examples are symbolic links (05.PandaXIII/Xe136bb0n.dat).
+
 
 List of examples found on this directory:
 

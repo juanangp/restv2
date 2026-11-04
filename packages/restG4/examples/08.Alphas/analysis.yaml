@@ -1,0 +1,28 @@
+# Geant4 analysis of an alphas.yaml simulation: primary direction and origin and total energy, used by
+# plots.yaml.
+#   restManager --c analysis.yaml --i <restG4 output file>
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    mainDataPath: "."
+    inheritInputRun: true
+    runType: "g4Analysis"
+    runUser: "${ENV:USER}"
+    inputFileName: ""
+    outputFileName: "data/Run_[runType]_[runTag].root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    nThreads: 2
+    outputEventStorage: false
+
+    g4Ana:
+      class: "TRestGeant4AnalysisProcess"
+      observables: ["thetaPrimary", "phiPrimary", "xOriginPrimary", "yOriginPrimary", "zOriginPrimary",
+                    "totalEdep"]

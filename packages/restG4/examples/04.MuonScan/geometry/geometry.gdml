@@ -6,12 +6,12 @@
 
 <structure>
 <volume name="topLayerVolume">
-    <materialref ref="Ar_ISO"/>
+    <materialref ref="Argon1%Isobutane1bar"/>
     <solidref ref="layer"/>
 </volume>
 
 <volume name="bottomLayerVolume">
-    <materialref ref="Ar_ISO"/>
+    <materialref ref="Argon1%Isobutane1bar"/>
     <solidref ref="layer"/>
 </volume>
 

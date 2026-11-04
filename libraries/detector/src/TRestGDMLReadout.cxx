@@ -5,6 +5,8 @@
 #include "TGeoManager.h"
 #include "TGeoNode.h"
 #include "TGeoVolume.h"
+#include "TRestGDMLParser.h"
+#include "TRestTools.h"
 
 static const bool TRestGDMLReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -99,7 +101,8 @@ void TRestGDMLReadout::BuildGeometry() {
     RESTInfo << "Importing external GDML layout file: " << fReadoutParams.fGDMLFileName << RESTendl;
 
     gGeoManager = nullptr;
-    fGeoManager = TGeoManager::Import(fReadoutParams.fGDMLFileName.c_str());
+    // Entities and parameters of the configuration resolved, as restG4 reads it
+    fGeoManager = TRestGDMLParser::Import(fReadoutParams.fGDMLFileName);
 
     if (!fGeoManager) {
         throw std::runtime_error("TRestGDMLReadout::BuildGeometry - ROOT failed to parse GDML input: " +

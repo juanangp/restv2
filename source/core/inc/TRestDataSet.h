@@ -34,10 +34,16 @@ class TRestDataSet : public TRestMetadata {
         long long entries = 0;
         /// Entries in the dataset (after the cuts), set by Write
         long long selectedEntries = 0;
+        /// Index of its processing in GetProcessings()
+        int processing = 0;
     };
 
    private:
     std::vector<Run> fRuns;
+    /// The different processings of the runs (Run::processing): each one the configuration of the
+    /// TRestEventProcessManager of the run files, instance -> configuration (without eventsToProcess,
+    /// nThreads and verbose)
+    std::vector<YAML::Node> fProcessings;
     /// Input files of the last Generate
     std::vector<std::string> fInputFiles;
     /// Entries of the analysis trees of the input files (progress of Write)
@@ -74,6 +80,10 @@ class TRestDataSet : public TRestMetadata {
     /// date("2022/04/28 00:00") by their Unix time. Identifiers that are columns of the frame are kept.
     /// Throws if a parameter is not in all the runs.
     std::string DefineRunParameters(ROOT::RDF::RNode& frame, const std::string& expression) const;
+
+    /// \brief Warning with the parameters that differ between the processings of the runs (fProcessings),
+    /// their values and runs
+    void WarnProcessingDifferences() const;
 
     /// \brief Reads the registered fields of fNode (and the columns)
     void ReadConfig();
@@ -176,6 +186,12 @@ class TRestDataSet : public TRestMetadata {
     /// \brief Data frame of the dataset (generated or opened), with the column runIndex
     ROOT::RDF::RNode GetDataFrame() const { return fDataFrame; }
     const std::vector<Run>& GetRuns() const { return fRuns; }
+    /// \brief The different processings of the runs (the same processes, the parameters can differ): the
+    /// TRestEventProcessManager of the run files, instance -> configuration
+    const std::vector<YAML::Node>& GetProcessings() const { return fProcessings; }
+    /// \brief The processing of a run (its runIndex), instance -> configuration of its
+    /// TRestEventProcessManager
+    YAML::Node GetProcessing(size_t runIndex) const;
     const std::vector<std::string>& GetColumns() const { return fColumns; }
 
     /// \brief Parameter of the TRestRunInfo of each run as written (e.g. "runTag", "runInfo.meshVoltage"),
@@ -189,6 +205,9 @@ class TRestDataSet : public TRestMetadata {
 
     /// \brief Runs of a dataset file (RESTDataSetInfo), nullopt if it is not a dataset
     static std::optional<std::vector<Run>> ReadRuns(TFile* file);
+    /// \brief The processings of a dataset file (RESTDataSetProcessing), empty if it has none (datasets
+    /// written before; then all the runs have the processing of RESTMetadataStore)
+    static std::vector<YAML::Node> ReadProcessings(TFile* file);
 };
 
 #endif

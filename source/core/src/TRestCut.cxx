@@ -8,6 +8,8 @@
 #include <regex>
 #include <stdexcept>
 
+#include "TRestTools.h"
+
 static const bool TRestCut_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestCut>("conditions", &TRestCut::fConditions);

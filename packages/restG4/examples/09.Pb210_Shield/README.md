@@ -14,7 +14,7 @@ The event generator will produce Pb210 isotope decays from the lead volume.
 This example will generate the full Pb210 chain and it will register only the events that produce events in the (0,10)keV range inside the Xenon detection volume.
 
 ```
-restG4 Pb210.rml
+restG4 Pb210.yaml
 ```
 
-See also `Validation.C` for validation routines executed in the pipeline.
+See also the test of this example in `packages/restG4/test/src/examples.cxx` (ctest, BUILD_TESTING).

@@ -238,6 +238,8 @@ class TRestGeant4Event : public TRestEvent {
         return {fEventData.primaryDirectionX.at(n), fEventData.primaryDirectionY.at(n),
                 fEventData.primaryDirectionZ.at(n)};
     }
+    /// \brief Kinetic energy (keV) of the primary n
+    double GetPrimaryEnergy(size_t n) const { return fEventData.primaryEnergies.at(n); }
     std::string GetPrimaryParticleName(size_t n) const {
         return GetParticleName(fEventData.primaryParticleIDs.at(n));
     }

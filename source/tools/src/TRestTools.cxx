@@ -25,7 +25,9 @@
 #include <filesystem>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <regex>
 #include <stdexcept>
@@ -273,17 +275,49 @@ void TRestTools::WriteGeometry(TDirectory* folder, TGeoManager* geometry, const 
     hash.Write((key + "MD5").c_str(), TObject::kOverwrite);
 }
 
+namespace {
+/// Reading a TGeoManager deletes gGeoManager (TGeoManager::Init) and makes it the current one: the readings
+/// are serialized and gGeoManager is kept
+std::mutex gGeometryMutex;
+
+/// Reads the geometry with gGeoManager kept (it becomes the geometry read only if there was none); the
+/// caller holds gGeometryMutex
+TGeoManager* ReadGeometryLocked(TDirectory* folder, const std::string& key) {
+    TGeoManager* currentGeometry = gGeoManager;
+    gGeoManager = nullptr;
+    TGeoManager* geometry = nullptr;
+    folder->GetObject(key.c_str(), geometry);
+    gGeoManager = currentGeometry ? currentGeometry : geometry;
+    return geometry;
+}
+}  // namespace
+
+TGeoManager* TRestTools::ReadGeometry(TDirectory* folder, const std::string& key) {
+    if (!folder || !folder->GetKey(key.c_str())) return nullptr;
+    static std::map<std::string, TGeoManager*> geometries;
+    // The path includes the file name (file.root:/folder)
+    const std::string id = std::string(folder->GetPath()) + "/" + key;
+    std::lock_guard<std::mutex> lock(gGeometryMutex);
+    const auto it = geometries.find(id);
+    if (it != geometries.end()) return it->second;
+    TGeoManager* geometry = ReadGeometryLocked(folder, key);
+    if (geometry) geometries[id] = geometry;
+    return geometry;
+}
+
+TGeoManager* TRestTools::ReadGeometryCopy(TDirectory* folder, const std::string& key) {
+    if (!folder || !folder->GetKey(key.c_str())) return nullptr;
+    std::lock_guard<std::mutex> lock(gGeometryMutex);
+    return ReadGeometryLocked(folder, key);
+}
+
 std::string TRestTools::ReadGeometryHash(TDirectory* folder, const std::string& key) {
     if (!folder || !folder->GetKey(key.c_str())) return "";
     std::unique_ptr<TObjString> stored(folder->Get<TObjString>((key + "MD5").c_str()));
     if (stored) return stored->GetString().Data();
-    // Written before the hash: the geometry is read
-    TGeoManager* currentGeometry = gGeoManager;
-    std::unique_ptr<TGeoManager> geometry(folder->Get<TGeoManager>(key.c_str()));
-    const std::string hash = geometry ? GetGeometryHash(geometry.get()) : "";
-    geometry.reset();
-    gGeoManager = currentGeometry;
-    return hash;
+    // Written before the hash: a copy of the geometry is read (gGeoManager kept)
+    std::unique_ptr<TGeoManager> geometry(ReadGeometryCopy(folder, key));
+    return geometry ? GetGeometryHash(geometry.get()) : "";
 }
 
 int TRestTools::GetRunNumberAuto() {
@@ -564,4 +598,28 @@ std::string TRestTools::CleanExpression(const std::string& expr) {
                 clean.end());
 
     return clean;
+}
+
+std::string TRestTools::DownloadFile(const std::string& url) {
+    const char* home = std::getenv("REST_HOME");
+    if (!home) home = std::getenv("HOME");
+    if (!home) throw std::runtime_error("DownloadFile: neither REST_HOME nor HOME are defined");
+    const std::filesystem::path directory = std::filesystem::path(home) / ".rest" / "download";
+    std::string name = url.substr(url.find("://") + 3);
+    for (char& character : name) {
+        if (character == '/' || character == ':' || character == '?' || character == '&') character = '_';
+    }
+    const std::filesystem::path fileName = directory / name;
+    if (std::filesystem::exists(fileName)) return fileName.string();
+
+    std::filesystem::create_directories(directory);
+    const std::filesystem::path partial = fileName.string() + ".part" + std::to_string(getpid());
+    const std::string command = "curl -sSfL -o '" + partial.string() + "' '" + url + "'";
+    std::cout << "Downloading " << url << " to " << fileName.string() << std::endl;
+    if (std::system(command.c_str()) != 0 || !std::filesystem::exists(partial)) {
+        std::filesystem::remove(partial);
+        throw std::runtime_error("DownloadFile: cannot download " + url + " (curl)");
+    }
+    std::filesystem::rename(partial, fileName);
+    return fileName.string();
 }

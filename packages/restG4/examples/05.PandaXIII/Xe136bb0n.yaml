@@ -1,0 +1,65 @@
+# Neutrinoless double beta decays (Decay0 events of Xe136bb0n.dat) from the gas of the PandaX-III geometry,
+# extracted from the pipeline validation of the framework:
+#   restG4 Xe136bb0n.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "PANDAXIII"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "Xe136bb0n"
+    outputFileName: "Xe136bb0n_n2E06.root"
+    runDescription: "We launch Xe136bb0n decays from the gas volume."
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/main.gdml"
+    subEventTimeDelay: 100 us
+    seed: 1
+    nEvents: 500
+
+    energyRangeStored: [0, 10 MeV]
+    activateAllVolumes: false
+    activeVolumes:
+      - name: "Gas"
+        maxStep: 200 um
+        sensitive: true
+
+    generator:
+      type: "volume"
+      from: "Gas"
+      source:
+        use: "Xe136bb0n.dat"  # symlink to ../01.NLDBD/Xe136bb0n.dat
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 10 um
+    cutForElectron: 1 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmLivermorePhysics"
+        option:
+          - name: "pixe"
+            value: "true"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

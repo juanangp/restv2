@@ -1,0 +1,75 @@
+# Cosmic muons (correlated energy and zenith angle, formula CosmicMuons) on the IAXO-D1 geometry, until one
+# event is stored:
+#   restG4 Muons.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "IAXO"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "CosmicMuons"
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 17022
+    nRequestedEntries: 1
+    removeUnwantedTracks: true
+    removeUnwantedTracksKeepZeroEnergyTracks: true
+
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 0.05 mm
+        sensitive: true
+      - name: "^scintillatorVolume"
+        maxStep: 0.5 mm
+      - name: "^captureLayerVolume"
+        maxStep: 0.05 mm
+      - name: "ShieldingVolume"
+        maxStep: 5 mm
+
+    generator:
+      type: "cosmic"
+      source:
+        particle: "mu-"
+        energy:
+          type: "formula2"
+          formula: "CosmicMuons"
+          formulaNPoints: 10000
+        angular:
+          type: "formula2"
+          direction: [0, -1, 0]
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 1 mm
+    cutForElectron: 1 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmLivermorePhysics"
+        option:
+          - name: "pixe"
+            value: "false"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4EmExtraPhysics"

@@ -14,7 +14,6 @@
 #include "TRestMetadata.h"
 #include "TRestMetadataStore.h"
 #include "TRestRunInfo.h"
-#include "TRestYAMLUtils.h"
 
 /// \class TRestRun
 /// \brief Run-level container for metadata and ROOT I/O orchestration.
@@ -122,21 +121,12 @@ class TRestRun : public TRestRunInfo {
 
     /// \brief Sets input file name and mirrors value into YAML node when available.
     /// \param v Input file path.
-    void SetInputFileName(const std::string& v) {
-        fInputFileName = v;
-        if (fNode) TRestYAMLUtils::SetParam(fNode, "inputFileName", fInputFileName);
-    }
+    void SetInputFileName(const std::string& v);
 
-    void SetOutputFileName(const std::string& v) {
-        fOutputFileName = v;
-        if (fNode) TRestYAMLUtils::SetParam(fNode, "outputFileName", fOutputFileName);
-    }
+    void SetOutputFileName(const std::string& v);
 
     /// \brief Sets the last saved event type of the output file and mirrors it into the YAML node.
-    void SetOutputEvent(const std::string& v) {
-        fOutputEvent = v;
-        if (fNode) TRestYAMLUtils::SetParam(fNode, "outputEvent", fOutputEvent);
-    }
+    void SetOutputEvent(const std::string& v);
 
     /// \brief Opens input ROOT file and initializes input tree bindings.
     /// \param filename Input file path.

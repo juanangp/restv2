@@ -1,0 +1,60 @@
+# Energy spectra of the alphas.yaml simulations analysed with analysis.yaml (plots.png), one histogram per
+# run tag (alpha energy and foil thickness). The runs are joined in a dataset with the run tag as a column,
+# so the cuts can select them; the plot (without inputFileName) is made with that dataset:
+#   restManager --c plots.yaml --i "data/Run_g4Analysis_*.root"
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  dataSet:
+    class: "TRestDataSet"
+    filePattern: "data/Run_g4Analysis_*.root"  # --i
+    outputFileName: "data/Alphas_DataSet.root"  # the input of the plot
+    columns:
+      tag: "runTag"
+
+  oneMeV_5um:
+    class: "TRestCut"
+    conditions:
+      tag: "tag == \"1MeV_5um\""
+
+  fiveMeV_5um:
+    class: "TRestCut"
+    conditions:
+      tag: "tag == \"5MeV_5um\""
+
+  fiveMeV_1um:
+    class: "TRestCut"
+    conditions:
+      tag: "tag == \"5MeV_1um\""
+
+  restplot:
+    class: "TRestAnalysisPlot"
+    previewPlot: false
+    canvasSize: [1000, 800]
+    canvasDivisions: [1, 1]
+    outputFileName: "plots.root"
+    save: "plots.png"
+    plots:
+      - name: "Energy"
+        title: "Energy spectrum"
+        xLabel: "Energy [keV]"
+        yLabel: "Counts"
+        legend: true
+        histos:
+          - name: "1MeV_5um"
+            variables: [{name: "g4Ana_totalEdep", range: [0, 6000], nBins: 100}]
+            cuts: ["oneMeV_5um"]
+            fillColor: 46
+            lineColor: "red"
+          - name: "5MeV_5um"
+            variables: [{name: "g4Ana_totalEdep", range: [0, 6000], nBins: 100}]
+            cuts: ["fiveMeV_5um"]
+            fillColor: 38
+            lineColor: "blue"
+          - name: "5MeV_1um"
+            variables: [{name: "g4Ana_totalEdep", range: [0, 6000], nBins: 100}]
+            cuts: ["fiveMeV_1um"]
+            fillColor: "gray"
+            lineColor: "black"

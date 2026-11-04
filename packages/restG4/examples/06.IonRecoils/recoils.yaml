@@ -1,3 +1,9 @@
+# Ion recoils (F20 by default) from the center of a gas box, isotropic and flat in (0.1, 10) keV:
+#   restG4 recoils.yaml [--set isotope=Ne20]
+
+parameters:
+  isotope: "F20"
+
 g4Manager:
   class: "TRestGeant4Manager"
 
@@ -8,7 +14,7 @@ g4Manager:
     experimentName: "Recoils"
     runType: "simulation"
     runNumber: "10"
-    runTag: "${ENV:REST_ISOTOPE}"
+    runTag: "${PARAM:isotope}"
     outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
     runDescription: ""
     runUser: "${ENV:USER}"
@@ -34,7 +40,7 @@ g4Manager:
       type: "point"
       position: [0.0, 0.0, 0.0]
       source:
-        particle: "${ENV:REST_ISOTOPE}"
+        particle: "${PARAM:isotope}"
         angular:
           type: "isotropic"
         energy:

@@ -12,6 +12,8 @@
 #include <G4Threading.hh>
 #include <csignal>
 
+#include "TRestTools.h"
+
 using namespace std;
 
 thread_local OutputManager* SimulationManager::fOutputManager = nullptr;

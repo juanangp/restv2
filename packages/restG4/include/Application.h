@@ -2,6 +2,9 @@
 #ifndef REST_APPLICATION_H
 #define REST_APPLICATION_H
 
+#include <map>
+#include <string>
+
 #include "SimulationManager.h"
 
 class G4VisManager;
@@ -27,6 +30,11 @@ struct Options {
     int timeLimitSeconds = 0;
 
     int runNumber = -1;
+
+    /// --set name=value: the parameters of the configuration for this execution
+    std::map<std::string, std::string> parameters;
+    /// --update-gdml: the parameters written in the GDML files, without simulating
+    bool updateGdml = false;
 
     // reference to original argc and argv necessary to pass to G4UIExecutive
     int argc;

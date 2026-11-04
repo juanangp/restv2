@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -68,18 +69,28 @@ std::string ParticleName(CRYParticle& particle) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: restCRY <config.yaml>" << std::endl;
+    if (argc < 2 || std::string(argv[1]).rfind("--", 0) == 0) {
+        std::cerr << "Usage: restCRY <config.yaml> [--set name=value ...]" << std::endl;
         return 1;
     }
 
     try {
-        const YAML::Node config = TRestYAMLUtils::ResolveRefs(YAML::LoadFile(argv[1]));
+        // --set: the parameters of the configuration for this execution (the file is not changed)
+        std::map<std::string, std::string> parameters;
+        for (int i = 2; i < argc; i++) {
+            if (std::string(argv[i]) != "--set" || i + 1 >= argc) {
+                throw std::runtime_error("unknown argument '" + std::string(argv[i]) +
+                                         "', usage: restCRY <config.yaml> [--set name=value ...]");
+            }
+            TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
+        }
+        const YAML::Node config = TRestYAMLUtils::OpenConfigFile(argv[1], parameters);
         const auto section = TRestYAMLUtils::GetMetadataClass(config, "TRestGeant4CRYShowers");
         if (!section.second) {
             throw std::runtime_error("no section of class TRestGeant4CRYShowers in " + std::string(argv[1]));
         }
         TRestGeant4CRYShowers showers(section.first, section.second);
+        TRestYAMLUtils::CheckParametersUsed();
 
         // A random seed is written back, so the showers can be generated again
         if (showers.fSeed == 0) showers.SetSeed(std::max(1u, std::random_device()() & 0x7fffffffu));

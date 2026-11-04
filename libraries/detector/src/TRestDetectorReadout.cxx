@@ -427,16 +427,10 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
         GetSubDirectory(GetSubDirectory(fIn, kReadoutsDir), resolvedGeometryName.c_str());
     if (!readoutDir) return false;
 
-    TGeoManager* prevGeo = gGeoManager;
-    gGeoManager = nullptr;
-
-    TGeoManager* geo = nullptr;
-    readoutDir->GetObject(kGeometryKey, geo);
-
-    if (!geo) {
-        gGeoManager = prevGeo;
-        return false;
-    }
+    // Its own copy (navigated by this readout; with several threads each one has its readouts), read
+    // without deleting another geometry nor another thread reading at the same time
+    TGeoManager* geo = TRestTools::ReadGeometryCopy(readoutDir, kGeometryKey);
+    if (!geo) return false;
 
     SetGeoManager(geo);
 

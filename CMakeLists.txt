@@ -195,6 +195,14 @@ set(REST_LIBRARIES
     ${GEANT4_LIB}
     ${CONNECTORS_LIB})
 
+# Tests (GoogleTest, ctest): OFF by default; the restG4 examples are tests only
+# with REST_G4
+option(BUILD_TESTING "Build the tests (requires GoogleTest)" OFF)
+if(BUILD_TESTING)
+  find_package(GTest REQUIRED)
+  enable_testing()
+endif()
+
 option(REST_G4
        "Build the optional restG4 package application (requires Geant4)" ON)
 if(REST_G4)

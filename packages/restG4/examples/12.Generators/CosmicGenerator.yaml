@@ -1,0 +1,45 @@
+# Geantinos from the cosmic generator with correlated energy and zenith angle (formula CosmicMuons)
+# around a direction that is not an axis:
+#   restG4 CosmicGenerator.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "CosmicGenerator"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "CosmicGenerator"
+    outputFileName: "CosmicGenerator.root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 137
+    nRequestedEntries: 1000000
+    saveAllEvents: true
+
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "cosmic"
+      source:
+        particle: "geantino"
+        energy:
+          type: "formula2"
+          formula: "CosmicMuons"
+          formulaNPoints: 2000
+        angular:
+          type: "formula2"
+          direction: [0.1, -0.5, 1.25]
+          formulaNPoints: 500
+
+  # Geantinos: no physics list needed
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"

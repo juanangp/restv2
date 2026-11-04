@@ -3,6 +3,7 @@
 #include <TGeoManager.h>
 
 #include "TRestConstants.h"
+#include "TRestTools.h"
 
 using namespace TRestConstants;
 
@@ -364,17 +365,16 @@ void TRestGeant4Metadata::WriteMetadata(TFile* file) {
 void TRestGeant4Metadata::LoadFromFile(TFile* file) {
     // Already loaded from it by LoadConfig (the active file when the metadata is created)
     if (!file || (fGeant4GeometryInfo.GetGeometry() && gFile == file)) return;
-    TGeoManager* geometry = nullptr;
-    file->GetObject("Geometry", geometry);
-    if (geometry) fGeant4GeometryInfo.LoadGeometry(geometry);
+    // Read once per file and shared (TRestTools::ReadGeometry): several TRestRun of the same file (the
+    // threads of restManager) must not delete the geometry of each other
+    if (auto* geometry = TRestTools::ReadGeometry(file)) fGeant4GeometryInfo.LoadGeometry(geometry);
 }
 
 // Automatic load of Geometry info in case a root file is opened
 void TRestGeant4Metadata::LoadGeometryFromActiveFile() {
     if (gFile && !gFile->IsZombie()) {
-        TGeoManager* geo = nullptr;
-
-        gFile->GetObject("Geometry", geo);
+        // Read once per file and shared (TRestTools::ReadGeometry)
+        TGeoManager* geo = TRestTools::ReadGeometry(gFile);
 
         if (geo) {
             fGeant4GeometryInfo.LoadGeometry(geo);

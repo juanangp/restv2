@@ -15,7 +15,7 @@
 <structure>
 
 <volume name="gasVolume">
-    <materialref ref="Ar_ISO"/>
+    <materialref ref="Argon1%Isobutane1bar"/>
     <solidref ref="gasFinalSolid"/>
 </volume>
 

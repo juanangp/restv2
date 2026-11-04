@@ -9,6 +9,9 @@
 #include <filesystem>
 #include <functional>
 
+#include "TRestGDMLParser.h"
+#include "TRestTools.h"
+
 using namespace std;
 
 namespace {
@@ -57,15 +60,8 @@ void TRestGeant4GeometryInfo::LoadGeometryFromGdml(const std::string& gdmlFilena
     cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - Importing via TGeoManager: " << gdmlFilename
          << endl;
 
-    // Import the GDML file directly into ROOT's geometry core engine
-    // This replaces the old legacy TXMLEngine manual parsing completely
-    // ROOT resolves GDML external entities relative to the working directory, so import from the GDML
-    // directory
-    const auto currentDirectory = filesystem::current_path();
-    const auto gdmlDirectory = filesystem::path(gdmlFilename).parent_path();
-    if (!gdmlDirectory.empty()) filesystem::current_path(gdmlDirectory);
-    fGeoManager = TGeoManager::Import(filesystem::path(gdmlFilename).filename().c_str());
-    filesystem::current_path(currentDirectory);
+    // The GDML with its entities and the parameters of the configuration resolved, as restG4 reads it
+    fGeoManager = TRestGDMLParser::Import(gdmlFilename);
     if (!fGeoManager) {
         cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - ERROR: Failed to load GDML: " << gdmlFilename
              << endl;

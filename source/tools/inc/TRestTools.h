@@ -35,10 +35,24 @@ std::string GetGeometryHash(TGeoManager* geometry);
 /// \brief Writes a geometry in a folder as `key`, with its hash (GetGeometryHash) as the TObjString
 /// `<key>MD5`, so it is compared without reading it (ReadGeometryHash)
 void WriteGeometry(TDirectory* folder, TGeoManager* geometry, const std::string& key = "Geometry");
+/// \brief Geometry `key` of a folder, read once per process: the same file and key give the same TGeoManager
+/// (cached, never deleted), so the metadata of several TRestRun of the same file (e.g. one per thread of
+/// restManager) share it, and reading it does not delete another geometry (TGeoManager::Init deletes
+/// gGeoManager). Thread safe. gGeoManager becomes this geometry only if there was none. nullptr if the folder
+/// has no geometry.
+TGeoManager* ReadGeometry(TDirectory* folder, const std::string& key = "Geometry");
+/// \brief A new copy of the geometry `key` of a folder, owned by the caller, for a geometry navigated
+/// (FindNode, cd) by each thread, e.g. the readouts (one per thread of restManager): a TGeoManager cannot
+/// be navigated by several threads. Read with the same lock as ReadGeometry, without deleting gGeoManager;
+/// gGeoManager becomes this geometry only if there was none. nullptr if the folder has no geometry.
+TGeoManager* ReadGeometryCopy(TDirectory* folder, const std::string& key = "Geometry");
 /// \brief Hash of the geometry `key` of a folder: the one written with it or, if there is none (files
 /// written before), computed reading the geometry (slow; the current gGeoManager is kept). Empty if the
 /// folder has no geometry.
 std::string ReadGeometryHash(TDirectory* folder, const std::string& key = "Geometry");
+/// \brief Local copy of a URL (curl), cached in $REST_HOME/.rest/download (or $HOME) and reused if it is
+/// already there; throws if it cannot be downloaded
+std::string DownloadFile(const std::string& url);
 std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
 std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);
 bool StringToBool(std::string booleanString);

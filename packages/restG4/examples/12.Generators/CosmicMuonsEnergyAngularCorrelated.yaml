@@ -1,0 +1,53 @@
+# Geantinos from a horizontal circle with correlated energy and zenith angle (formula CosmicMuons) in
+# energy (100, 850) MeV and zenith (20, 50) deg:
+#   restG4 CosmicMuonsEnergyAngularCorrelated.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "CosmicMuonsEnergyAngularCorrelated"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "CosmicMuonsEnergyAngularCorrelated"
+    outputFileName: "CosmicMuonsEnergyAngularCorrelated.root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 171981
+    nEvents: 200000
+    saveAllEvents: true
+
+    energyRangeStored: [0, 10 GeV]
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "surface"
+      shape: "circle"
+      position: [0, 100 mm, 0]
+      size: [400 mm, 0, 0]
+      rotationAxis: [1, 0, 0]
+      rotationValue: 90 deg
+      source:
+        particle: "geantino"
+        energy:
+          type: "formula2"
+          formula: "CosmicMuons"
+          range: [100 MeV, 850 MeV]
+          formulaNPoints: 1200
+        angular:
+          type: "formula2"
+          direction: [0, -1, 0]
+          range: [20 deg, 50 deg]
+          formulaNPoints: 300
+
+  # Geantinos: no physics list needed
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"

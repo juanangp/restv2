@@ -182,11 +182,6 @@
 </define>
 
 <define>
-    <variable name="targetGasDensity" value="0.0565884"/> <!-- g/cm3 -->
-    <variable name="quencherDensity" value="0.000254"/> <!-- 1%TMA -->
-    <variable name="quencherFraction" value="0.01"/>
-    <variable name="gasTemperature" value="300"/> <!-- K -->
-    <variable name="gasPressure" value="10"/> <!-- bar -->
 </define>
 
 &materials;
@@ -234,12 +229,12 @@
     </volume>
 
     <volume name="VesselWallVolume">
-        <materialref ref="Stainlesssteel"/>
+        <materialref ref="StainlessSteel"/>
         <solidref ref="VesselWallSolid"/>
     </volume>
 
     <volume name="VesselWallBoltsVolume">
-        <materialref ref="Stainlesssteel"/>
+        <materialref ref="StainlessSteel"/>
         <solidref ref="VesselWallBoltsSolid"/>
     </volume>
 
@@ -269,22 +264,22 @@
     </volume>
 
     <volume name="gasVolume">
-        <materialref ref="Xenon_TMA"/>
+        <materialref ref="Xenon1%TMA10bar"/>
         <solidref ref="XeTMAGasSolid"/>
     </volume>
 
     <volume name="OtherXeTMAGasVolume">
-        <materialref ref="Xenon_TMA"/>
+        <materialref ref="Xenon1%TMA10bar"/>
         <solidref ref="OtherXeTMAGasSolid"/>
     </volume>
 
     <volume name="GasInbetweenVolume">
-        <materialref ref="PureNitrogen"/> <!-- Haven't determined yet -->
+        <materialref ref="NitrogenGas"/> <!-- Haven't determined yet -->
         <solidref ref="GasInBetweenSolid"/>
     </volume>
 
     <!--<volume name="BoxVolume">
-        <materialref ref="Stainlesssteel"/>
+        <materialref ref="StainlessSteel"/>
         <solidref ref="TestBoxSolid"/>
     </volume>-->
 

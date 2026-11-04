@@ -15,13 +15,13 @@ The parameter defining the isotopes affected by the `maxStepSize` is included at
 This example implements a simple geometry based on a box full of a Neon gas mixture.
 
 #### Event generator
-The event generator will launch isotope recoils from the center of the box in isotropic directions. The ion may be changed through the REST_ISOTOPE variable that takes F20 by default.
+The event generator will launch isotope recoils from the center of the box in isotropic directions. The ion is the parameter `isotope` of recoils.yaml, F20 by default (`restG4 recoils.yaml --set isotope=Ne20`).
 
 #### Testing the example
 Execute the following to launch the recoils
 
 ```
-restG4 recoils.rml
+restG4 recoils.yaml
 ```
 
-See also `Validation.C` for validation routines executed in the pipeline.
+See also the test of this example in `packages/restG4/test/src/examples.cxx` (ctest, BUILD_TESTING).

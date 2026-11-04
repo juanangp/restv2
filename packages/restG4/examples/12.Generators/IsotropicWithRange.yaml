@@ -1,0 +1,49 @@
+# 10 MeV geantinos from a horizontal circle, isotropic inside a cone of 15 deg around -Y:
+#   restG4 IsotropicWithRange.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "IsotropicWithRange"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "IsotropicWithRange"
+    outputFileName: "IsotropicWithRange.root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 171981
+    nEvents: 1000000
+    saveAllEvents: true
+
+    energyRangeStored: [0, 10 GeV]
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "surface"
+      shape: "circle"
+      position: [0, 100 mm, 0]
+      size: [400 mm, 0, 0]
+      rotationAxis: [1, 0, 0]
+      rotationValue: 90 deg
+      source:
+        particle: "geantino"
+        angular:
+          type: "isotropic"
+          direction: [0, -1, 0]
+          isotropicConeHalfAngle: 15 deg
+        energy:
+          type: "mono"
+          energy: 10 MeV
+
+  # Geantinos: no physics list needed
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"

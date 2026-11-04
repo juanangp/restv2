@@ -1,0 +1,74 @@
+# Mono-energetic alphas (parameter energy, MeV) from a thin copper foil (parameter foil, um: the constant foil
+# of geometry/setup.gdml, with the same default there) in the middle of a 10 x 10 x 10 cm3 argon box:
+#   mkdir data
+#   restG4 alphas.yaml [--set energy=1 --set foil=1]
+
+parameters:
+  energy: 5
+  foil: 5
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "Alphas"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "${PARAM:energy}MeV_${PARAM:foil}um"
+    outputFileName: "data/Run_[runTag].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    seed: 17021981
+    nEvents: 10000
+    registerEmptyTracks: false
+    saveAllEvents: false
+
+    # Legacy: up to 2 * energy
+    energyRangeStored: [0, 20 MeV]
+    activeVolumes:
+      - name: "gas"
+        maxStep: 0.5 mm
+        sensitive: true
+
+    generator:
+      type: "volume"
+      from: "source"
+      source:
+        particle: "alpha"
+        angular:
+          type: "isotropic"
+        energy:
+          type: "mono"
+          energy: ${PARAM:energy} MeV
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 2 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

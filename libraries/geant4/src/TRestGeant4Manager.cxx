@@ -4,6 +4,7 @@
 #include "TRestGeant4PhysicsLists.h"
 #include "TRestLogManager.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 
 using namespace TRestTools;
 

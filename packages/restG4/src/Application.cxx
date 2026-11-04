@@ -4,14 +4,17 @@
 #include <TGeoManager.h>
 #include <TROOT.h>
 #include <TRandom.h>
+#include <TRestGDMLParser.h>
 #include <TRestGeant4Event.h>
 #include <TRestGeant4Manager.h>
 #include <TRestGeant4Metadata.h>
 #include <TRestGeant4PhysicsLists.h>
 #include <TRestRun.h>
+#include <TRestTools.h>
 #include <TRestYAMLUtils.h>
 
 #include <regex>
+#include <set>
 #ifndef GEANT4_WITHOUT_G4RunManagerFactory
 #include <G4RunManagerFactory.hh>
 #endif
@@ -59,6 +62,12 @@ void ShowUsage() {
          << "\t--seed (-s) seed | specify random seed (positive integer)" << endl
          << "\t--interactive (-i) | set interactive mode (disabled by default)" << endl
          << "\t--runNumber | explicitly set runNumber" << endl
+         << "\t--set name=value | sets a parameter of the section `parameters` of the configuration for this "
+            "execution (the file is not changed), repeatable"
+         << endl
+         << "\t--update-gdml | writes the parameters (with --set) in the constants and entities of the GDML "
+            "files and exits without simulating"
+         << endl
          << "\t--threads (-t, -j) | set the number of threads, also enables multithreading which is disabled "
             "by default"
          << endl;
@@ -239,6 +248,20 @@ Options ProcessCommandLineOptions(int argc, char* const argv[]) {
                 cerr << "--time option requires one argument." << endl;
                 exit(1);
             }
+        } else if (arg == "--set") {
+            if (i + 1 < argc) {
+                try {
+                    TRestYAMLUtils::AddParameterOverride(options.parameters, argv[++i]);
+                } catch (const std::exception& error) {
+                    cerr << error.what() << endl;
+                    exit(1);
+                }
+            } else {
+                cerr << "--set option requires one argument (name=value)." << endl;
+                exit(1);
+            }
+        } else if (arg == "--update-gdml") {
+            options.updateGdml = true;
         } else if (arg == "--runNumber") {
             if (i + 1 < argc) {  // Make sure we aren't at the end of argv!
                 options.runNumber =
@@ -303,7 +326,7 @@ void Application::Run(const CommandLineOptions::Options& options) {
         filesystem::current_path(inputRmlPath);
     }
 
-    auto fConfig = TRestYAMLUtils::OpenConfigFile(inputRmlClean);
+    auto fConfig = TRestYAMLUtils::OpenConfigFile(inputRmlClean, options.parameters);
     auto findNode = TRestYAMLUtils::GetMetadataClass(fConfig, "TRestGeant4Manager");
     if (!findNode.second.IsDefined()) {
         std::cout << "Error: TRestGeant4Manager not found in input file " << inputRmlClean << std::endl;
@@ -364,6 +387,16 @@ void Application::Run(const CommandLineOptions::Options& options) {
 
     // Update metadata members with the definitive resolved paths for proper logging and storage
     metadata->SetGdmlFilename(gdmlPath);
+
+    // --update-gdml: the parameters in the GDML files, so any viewer shows the geometry simulated
+    if (options.updateGdml) {
+        std::set<std::string> applied;
+        TRestGDMLParser::UpdateParameters(gdmlPath, TRestYAMLUtils::GetParameters(), &applied);
+        for (const auto& name : applied) TRestYAMLUtils::MarkParameterUsed(name);
+        TRestYAMLUtils::CheckParametersUsed();
+        cout << "Parameters written in " << gdmlPath << " and its local files, no simulation" << endl;
+        exit(0);
+    }
 
     fSimulationManager.SetRestPhysicsLists(g4Manager->fG4PhysicsLists);
 
@@ -441,18 +474,11 @@ void Application::Run(const CommandLineOptions::Options& options) {
 
     runManager->Initialize();
 
-    // Import the pre-validated path. This automatically initializes ROOT's native 'gGeoManager' global
-    // pointer. ROOT resolves GDML external entities (e.g. materials.xml) relative to the working directory,
-    // so we move to the GDML directory while importing, as DetectorConstruction does for Geant4.
-    // DetectorConstruction already imports it (TRestGeant4GeometryInfo): a second import would delete that
-    // TGeoManager ("Deleting previous geometry") and leave the metadata with a dangling pointer
-    if (!gGeoManager) {
-        const auto currentDirectory = filesystem::current_path();
-        const auto gdmlDirectory = filesystem::path(gdmlPath).parent_path();
-        if (!gdmlDirectory.empty()) filesystem::current_path(gdmlDirectory);
-        TGeoManager::Import(filesystem::path(gdmlPath).filename().c_str());
-        filesystem::current_path(currentDirectory);
-    }
+    // Import the pre-validated path (entities and parameters resolved, TRestGDMLParser::Import). This
+    // automatically initializes ROOT's native 'gGeoManager' global pointer. DetectorConstruction already
+    // imports it (TRestGeant4GeometryInfo): a second import would delete that TGeoManager ("Deleting
+    // previous geometry") and leave the metadata with a dangling pointer
+    if (!gGeoManager) TRestGDMLParser::Import(gdmlPath);
 
     if (gGeoManager == nullptr) {
         std::cerr << "ERROR: ROOT engine failed to initialize gGeoManager from valid path: " << gdmlPath
@@ -460,6 +486,9 @@ void Application::Run(const CommandLineOptions::Options& options) {
         exit(1);
     }
     metadata->fGeant4GeometryInfo.LoadGeometry(gGeoManager);
+
+    // The configuration and the geometry read: a parameter used by none of them is an error (a typo)
+    TRestYAMLUtils::CheckParametersUsed();
 
     G4UImanager* UI = G4UImanager::GetUIpointer();
 

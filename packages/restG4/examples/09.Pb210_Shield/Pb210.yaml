@@ -1,0 +1,69 @@
+# Full chain of Pb210 decays from a small lead box (10 x 10 x 10 cm3, 2 mm thick) covering a 6 x 6 x 3 cm3
+# xenon detector at 1 bar; only the events with energy in (0, 10) keV in the xenon are stored:
+#   restG4 Pb210.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "Shielding"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "Pb210"
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    seed: 17021981
+    nEvents: 100000
+    fullChain: true
+    registerEmptyTracks: false
+    saveAllEvents: false
+
+    energyRangeStored: [0, 10 keV]
+    activeVolumes:
+      - name: "detector"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "volume"
+      from: "lead"
+      source:
+        particle: "Pb210"
+        angular:
+          type: "isotropic"
+        energy:
+          type: "mono"
+          energy: 0 keV
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 2 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

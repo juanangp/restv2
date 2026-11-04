@@ -23,7 +23,7 @@
 
 <!-- {{{ Volumes definition (material and solid assignment) -->
 <volume name="gasVolume">
-    <materialref ref="Xenon_TMA"/>
+    <materialref ref="Xenon1%TMA10bar"/>
     <solidref ref="gasSolid"/>
 </volume>
 

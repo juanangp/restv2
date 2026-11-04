@@ -1,0 +1,26 @@
+# Geant4 analysis (all the observables) of a DetectorResponse.yaml simulation.
+#   restManager --c analysis.yaml --i <restG4 output file>
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    mainDataPath: "."
+    inheritInputRun: true
+    runType: "G4Analysis"
+    runUser: "${ENV:USER}"
+    inputFileName: ""
+    outputFileName: "[runType]_[runTag].root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    nThreads: 1
+    outputEventStorage: false
+
+    g4Ana:
+      class: "TRestGeant4AnalysisProcess"
+      observables: ["all"]

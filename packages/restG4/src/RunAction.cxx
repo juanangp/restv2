@@ -8,6 +8,7 @@
 
 #include "SimulationManager.h"
 #include "SteppingVerbose.h"
+#include "TRestTools.h"
 
 using namespace std;
 

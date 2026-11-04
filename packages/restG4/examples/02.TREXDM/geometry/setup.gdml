@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
-<!-- ##VERSION TREX-DM Basic geometry Version 1.1 (${GDML_GAS} - ${GDML_PRESSURE}bar - Quencher: ${GDML_QUENCHER})## -->
+<!-- ##VERSION TREX-DM Basic geometry Version 1.2## -->
 
 <!DOCTYPE gdml [
+        <!-- Parameter of FullChainFromReadout.yaml: the gas, a material of materials.xml
+             (% written &#37; in an entity; restG4 --set gas=Argon1%Isobutane1bar) -->
+        <!ENTITY gas "Neon1&#37;Isobutane10bar">
         <!ENTITY geometry SYSTEM "geometry.gdml">
-        <!ENTITY materials SYSTEM "http://sultan.unizar.es/materials/materials.xml">
+        <!ENTITY materials SYSTEM "materials.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -14,12 +17,6 @@
     <define>
         <constant name="world_size" value="20000"/>
 
-        <!-- Very approximative values. May need revision. 0.9 is for Neon. -->
-        <variable name="targetGasDensity" value="${GDML_PRESSURE}*0.9"/>  <!-- mg/cm3 -->
-        <variable name="quencherDensity" value="${GDML_PRESSURE}*0.05"/> <!-- mg/cm3 -->
-        <variable name="quencherFraction" value="${GDML_QUENCHER}"/>
-        <variable name="gasTemperature" value="300"/> <!-- K -->
-        <variable name="gasPressure" value="${GDML_PRESSURE}"/> <!-- bar -->
 
         <!-- The TPC gas target -->
         <constant name="gasRadius" value="192.5"/>

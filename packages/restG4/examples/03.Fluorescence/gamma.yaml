@@ -1,0 +1,68 @@
+# Copper fluorescences: 30 keV gammas from a point towards the detector:
+#   restG4 gamma.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "Fluorescence"
+    runType: "simulation"
+    runNumber: "auto"
+    runTag: "Gamma"
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "./setup.gdml"
+    subEventTimeDelay: 100 us
+    seed: 17022000
+    nEvents: 30000
+    registerEmptyTracks: false
+    saveAllEvents: false
+
+    energyRangeStored: [0, 30 keV]
+    activateAllVolumes: false
+    activeVolumes:
+      - name: "detector"
+        sensitive: true
+
+    generator:
+      type: "point"
+      position: [0, 0, -200 mm]
+      source:
+        particle: "gamma"
+        angular:
+          type: "flux"
+          direction: [0, 0, 1]
+        energy:
+          type: "mono"
+          energy: 30 keV
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 2 mm
+    cutForPositron: 1 mm
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4NeutronTrackingCut"
+      - name: "G4EmExtraPhysics"

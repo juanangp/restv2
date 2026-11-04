@@ -58,8 +58,10 @@
 /// ### Dataset file
 /// * AnalysisTree: the columns, with runIndex;
 /// * RESTDataSetInfo: the runs, a TObjString with a YAML list, one element per run in the order of runIndex
-///   (its position), with `run` (its TRestRunInfo), `fileName` (run file), `entries` (of the run file) and
-///   `selectedEntries` (in the dataset);
+///   (its position), with `run` (its TRestRunInfo), `fileName` (run file), `entries` (of the run file),
+///   `selectedEntries` (in the dataset) and `processing` (index in RESTDataSetProcessing);
+/// * RESTDataSetProcessing: the different processings of the runs, a TObjString with a YAML list (each one
+///   instance -> configuration of the TRestEventProcessManager); datasets merged join their lists;
 /// * RESTMetadataStore: this TRestDataSet (filePattern: what it was generated from, outputFileName: the
 ///   file) and the TRestCut used; also the metadata of the first input file with runs selected (processing,
 ///   readouts, TRestGeant4Metadata...), but its TRestRun (each run is in RESTDataSetInfo) and the
@@ -68,13 +70,16 @@
 ///   file, e.g. a TRestDetectorReadoutManager with `readouts: [{instanceName: ..., decodingName: ...,
 ///   inputFileName: "Dataset.root"}]` loads a readout of the dataset.
 ///
-/// The runs of a dataset must have the same setup, otherwise Generate throws: the processing (each
-/// TRestEventProcessManager, without eventsToProcess, nThreads and verbose), the readouts (configuration,
-/// decodings and geometry) and the geometry. The geometries are compared by their hash (TRestTools::
-/// GetGeometryHash: volumes, with shape, material and capacity, and the name and position of their
-/// daughters), written with them (TRestTools::WriteGeometry, by restG4 and the readouts): they are not
-/// read, except in files written before the hash. The other metadata (e.g. the seed of a simulation) can be
-/// different; those of the first file are written.
+/// The runs of a dataset must have the same setup, otherwise Generate throws: the processes (each
+/// TRestEventProcessManager with the same processes, name and class, in the same order), the branches of
+/// the analysis tree (name and type), the readouts (configuration, decodings and geometry) and the
+/// geometry. The parameters of the processes can differ: each different processing (the configurations of
+/// the TRestEventProcessManager, without eventsToProcess, nThreads and verbose) is kept (GetProcessings,
+/// GetProcessing(runIndex)) and a warning lists the parameters that differ, with their values and runs. The
+/// geometries are compared by their hash (TRestTools:: GetGeometryHash: volumes, with shape, material and
+/// capacity, and the name and position of their daughters), written with them (TRestTools::WriteGeometry, by
+/// restG4 and the readouts): they are not read, except in files written before the hash. The other metadata
+/// (e.g. the seed of a simulation) can be different; those of the first file are written.
 ///
 /// Example:
 ///
@@ -109,6 +114,7 @@
 #include <TFile.h>
 #include <TGeoManager.h>
 #include <TH1D.h>
+#include <TLeaf.h>
 #include <TObjString.h>
 #include <TTree.h>
 
@@ -161,6 +167,8 @@ const std::string kInputFileColumn = "dataSetInputFile_";
 /// Folder of RESTMetadataStore with the runs of a dataset
 /// The runs of a dataset: a TObjString in the root of the file with a YAML sequence, one element per run
 const std::string kRunsKey = "RESTDataSetInfo";
+/// The different processings of the runs: a TObjString in the root of the file with a YAML sequence
+const std::string kProcessingsKey = "RESTDataSetProcessing";
 
 /// Identities of a run: runNumber and each of its subruns (subRunNumber, or the mergedSubRuns of a merged
 /// run file) or, without run number, its file
@@ -179,20 +187,46 @@ YAML::Node WithoutVerbose(const YAML::Node& node) {
     return copy;
 }
 
-/// What the runs of a dataset must share (name -> description): the processing (the TRestEventProcessManager,
-/// without eventsToProcess, nThreads nor verbose), the readouts (configuration, decodings and hash of the
+/// The processing of a file: each TRestEventProcessManager, instance -> configuration, without
+/// eventsToProcess, nThreads nor verbose (they do not change the processing)
+YAML::Node Processing(const YAML::Node& store) {
+    YAML::Node processing(YAML::NodeType::Map);
+    for (const auto& entry : store) {
+        const YAML::Node& config = entry.second;
+        if (!config.IsMap() || !config["class"] ||
+            config["class"].as<std::string>() != "TRestEventProcessManager")
+            continue;
+        YAML::Node manager = WithoutVerbose(config);
+        manager.remove("eventsToProcess");
+        manager.remove("nThreads");
+        processing[entry.first.as<std::string>()] = manager;
+    }
+    return processing;
+}
+
+/// What the runs of a dataset must share (name -> description): the processes of each
+/// TRestEventProcessManager (name and class, in order; their parameters can differ, see Processing), the
+/// branches of the analysis tree (name and type), the readouts (configuration, decodings and hash of the
 /// geometry) and the hash of the geometry (TRestTools::ReadGeometryHash, the geometry is not read)
 std::map<std::string, std::string> DescribeSetup(TFile* file, const YAML::Node& store) {
     std::map<std::string, std::string> setup;
-    for (const auto& entry : store) {
-        const YAML::Node& config = entry.second;
-        const std::string className =
-            config.IsMap() && config["class"] ? config["class"].as<std::string>() : "";
-        if (className != "TRestEventProcessManager") continue;
-        YAML::Node processing = WithoutVerbose(config);
-        processing.remove("eventsToProcess");
-        processing.remove("nThreads");
-        setup["processing '" + entry.first.as<std::string>() + "'"] = YAML::Dump(processing);
+    for (const auto& manager : Processing(store)) {
+        std::string processes;
+        for (const auto& element : manager.second) {
+            if (element.second.IsMap() && element.second["class"]) {
+                processes +=
+                    element.first.as<std::string>() + ": " + element.second["class"].as<std::string>() + "\n";
+            }
+        }
+        setup["processes of '" + manager.first.as<std::string>() + "'"] = processes;
+    }
+    if (auto* tree = file->Get<TTree>("AnalysisTree")) {
+        std::string branches;
+        for (const auto* object : *tree->GetListOfLeaves()) {
+            const auto* leaf = static_cast<const TLeaf*>(object);
+            branches += std::string(leaf->GetName()) + "/" + leaf->GetTypeName() + "\n";
+        }
+        setup["branches of the analysis tree"] = branches;
     }
     if (TDirectory* readouts = file->GetDirectory(kReadoutsDirectory.c_str())) {
         for (auto* object : *readouts->GetListOfKeys()) {
@@ -359,6 +393,8 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
     std::vector<std::vector<Run>> inputRuns;
     std::vector<YAML::Node> stores;
     std::vector<std::map<std::string, std::string>> setups;
+    // The processings of each input file: its own, or those of a dataset (Run::processing)
+    std::vector<std::vector<YAML::Node>> inputProcessings;
     std::optional<bool> dataSets;
     fInputEntries = 0;
     fInputFileNode.reset();
@@ -376,10 +412,13 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
         auto runs = ReadRuns(file.get());
         const bool isDataSet = runs.has_value();
         // The metadata of the first input file with runs selected are kept and written, the runs must have
-        // the same setup (readouts, geometry and processing)
+        // the same setup (readouts, geometry, processes and observables; the parameters can differ)
         const YAML::Node store = TRestYAMLUtils::ReadMetadataStore(file.get());
         stores.push_back(store);
         setups.push_back(DescribeSetup(file.get(), store));
+        auto processings = isDataSet ? ReadProcessings(file.get()) : std::vector<YAML::Node>{};
+        if (processings.empty()) processings.push_back(Processing(store));
+        inputProcessings.push_back(std::move(processings));
         if (!isDataSet) {
             const auto [instance, runNode] = TRestYAMLUtils::GetMetadataClass(store, "TRestRun");
             if (!runNode || !tree) {
@@ -421,6 +460,8 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
     fRuns.clear();
     std::vector<std::vector<int>> newIndex;
     std::map<std::string, std::string> keys;
+    fProcessings.clear();
+    std::map<std::string, int> processingIndex;
     size_t position = 0;
     for (size_t f = 0; f < inputRuns.size(); f++) {
         newIndex.emplace_back(inputRuns[f].size(), -1);
@@ -436,6 +477,22 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
             }
             newIndex[f][r] = fRuns.size();
             fRuns.push_back(run);
+            // Its processing, once in fProcessings
+            const auto& processings = inputProcessings[f];
+            if (run.processing < 0 || run.processing >= static_cast<int>(processings.size())) {
+                throw std::runtime_error("TRestDataSet '" + fName + "': processing " +
+                                         std::to_string(run.processing) + " of a run of " + fInputFiles[f] +
+                                         " not found");
+            }
+            const std::string text = YAML::Dump(processings[run.processing]);
+            const auto it = processingIndex.find(text);
+            if (it != processingIndex.end()) {
+                fRuns.back().processing = it->second;
+            } else {
+                fRuns.back().processing = fProcessings.size();
+                processingIndex[text] = fProcessings.size();
+                fProcessings.push_back(processings[run.processing]);
+            }
         }
     }
     if (fRuns.empty()) throw std::runtime_error("TRestDataSet '" + fName + "': no run selected");
@@ -460,11 +517,12 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
                     continue;
                 throw std::runtime_error("TRestDataSet '" + fName + "': the " + name + " of " +
                                          fInputFiles[f] + " is not the same as in " + fInputFiles[*first] +
-                                         " (the runs of a dataset must have the same readouts, geometry and "
-                                         "processing)");
+                                         " (the runs of a dataset must have the same readouts, geometry, "
+                                         "processes and observables)");
             }
         }
     }
+    WarnProcessingDifferences();
     fInputMetadata = stores[*first];
     fMetadataFile = fInputFiles[*first];
     RESTInfo << "TRestDataSet '" << fName << "': " << fRuns.size() << " runs selected of " << allRuns.size()
@@ -540,6 +598,8 @@ void TRestDataSet::Open(const std::string& fileName) {
     if ((!fNode || !fNode.IsMap()) && !instance.empty()) SetName(instance);
 
     fRuns = std::move(*runs);
+    fProcessings = ReadProcessings(file.get());
+    if (fProcessings.empty()) fProcessings.push_back(Processing(fInputMetadata));
     fOpened = true;
     fMetadataFile = path;
     fMetadataStore.Clear();
@@ -683,12 +743,10 @@ void TRestDataSet::Write(const std::string& fileNamePattern) {
                 TRestTools::CopyDirectory(readouts, target);
             }
             if (input->GetKey(kGeometryKey.c_str())) {
-                // Read once to copy it, written with its hash (also for files without it)
-                TGeoManager* currentGeometry = gGeoManager;
-                std::unique_ptr<TGeoManager> geometry(input->Get<TGeoManager>(kGeometryKey.c_str()));
+                // A copy read to write it, with its hash (also for files without it); gGeoManager kept
+                std::unique_ptr<TGeoManager> geometry(
+                    TRestTools::ReadGeometryCopy(input.get(), kGeometryKey));
                 TRestTools::WriteGeometry(file.get(), geometry.get(), kGeometryKey);
-                geometry.reset();
-                gGeoManager = currentGeometry;
             }
         }
         file->cd();
@@ -701,12 +759,18 @@ void TRestDataSet::Write(const std::string& fileNamePattern) {
         node["fileName"] = run.fileName;
         node["entries"] = run.entries;
         node["selectedEntries"] = run.selectedEntries;
+        node["processing"] = run.processing;
         node["run"] = TRestYAMLUtils::Detach(run.run->GetYAMLNode());
         runs.push_back(node);
     }
     file->cd();
     TObjString text(YAML::Dump(runs).c_str());
     text.Write(kRunsKey.c_str(), TObject::kOverwrite);
+    // The different processings, in the order of Run::processing (RESTDataSetProcessing)
+    YAML::Node processings(YAML::NodeType::Sequence);
+    for (const auto& processing : fProcessings) processings.push_back(TRestYAMLUtils::Detach(processing));
+    TObjString processingsText(YAML::Dump(processings).c_str());
+    processingsText.Write(kProcessingsKey.c_str(), TObject::kOverwrite);
     file->Close();
 
     RESTInfo << "TRestDataSet '" << fName << "': " << fRuns.size() << " runs written in " << fileName
@@ -733,9 +797,85 @@ std::optional<std::vector<TRestDataSet::Run>> TRestDataSet::ReadRuns(TFile* file
         run.fileName = GetParam<std::string>(node, "fileName");
         run.entries = GetParam<long long>(node, "entries", 0);
         run.selectedEntries = GetParam<long long>(node, "selectedEntries", 0);
+        run.processing = GetParam<int>(node, "processing", 0);
         runs.push_back(std::move(run));
     }
     return runs;
+}
+
+std::vector<YAML::Node> TRestDataSet::ReadProcessings(TFile* file) {
+    std::vector<YAML::Node> processings;
+    if (!file) return processings;
+    std::unique_ptr<TObjString> text(file->Get<TObjString>(kProcessingsKey.c_str()));
+    if (!text) return processings;
+    const YAML::Node sequence = YAML::Load(text->GetString().Data());
+    if (!sequence.IsSequence()) {
+        throw std::runtime_error("TRestDataSet: " + kProcessingsKey + " of " + file->GetName() +
+                                 " is not a list of processings");
+    }
+    for (const auto& processing : sequence) processings.push_back(processing);
+    return processings;
+}
+
+YAML::Node TRestDataSet::GetProcessing(size_t runIndex) const {
+    if (runIndex >= fRuns.size()) {
+        throw std::runtime_error("TRestDataSet '" + fName + "': no run " + std::to_string(runIndex));
+    }
+    const int processing = fRuns[runIndex].processing;
+    if (processing < 0 || processing >= static_cast<int>(fProcessings.size())) return YAML::Node();
+    return fProcessings[processing];
+}
+
+void TRestDataSet::WarnProcessingDifferences() const {
+    if (fProcessings.size() < 2) return;
+    // Each parameter (path of keys) of each processing, the sequences in a line
+    std::function<void(const YAML::Node&, const std::string&, std::map<std::string, std::string>&)> flatten =
+        [&flatten](const YAML::Node& node, const std::string& path, std::map<std::string, std::string>& out) {
+            if (node.IsMap()) {
+                for (const auto& element : node) {
+                    const std::string key = element.first.as<std::string>();
+                    flatten(element.second, path.empty() ? key : path + "." + key, out);
+                }
+            } else if (node.IsScalar()) {
+                out[path] = node.Scalar();
+            } else {
+                YAML::Emitter emitter;
+                emitter << YAML::Flow << node;
+                out[path] = emitter.c_str();
+            }
+        };
+    std::vector<std::map<std::string, std::string>> parameters(fProcessings.size());
+    std::set<std::string> paths;
+    for (size_t i = 0; i < fProcessings.size(); i++) {
+        flatten(fProcessings[i], "", parameters[i]);
+        for (const auto& [path, value] : parameters[i]) paths.insert(path);
+    }
+    // The runs of each processing
+    std::vector<std::vector<std::string>> runs(fProcessings.size());
+    for (const auto& run : fRuns) runs[run.processing].push_back(RunKeys(run).front());
+
+    RESTWarning
+        << "TRestDataSet '" << fName << "': the runs have " << fProcessings.size()
+        << " different processings (the same processes, different parameters); all of them are written "
+           "(GetProcessings, RESTDataSetProcessing). Parameters that differ:"
+        << RESTendl;
+    for (const auto& path : paths) {
+        // Value -> runs with it
+        std::map<std::string, std::vector<std::string>> values;
+        for (size_t i = 0; i < fProcessings.size(); i++) {
+            const auto it = parameters[i].find(path);
+            auto& list = values[it == parameters[i].end() ? "(not given)" : it->second];
+            list.insert(list.end(), runs[i].begin(), runs[i].end());
+        }
+        if (values.size() < 2) continue;
+        std::string text = " - " + path + ":";
+        for (const auto& [value, runList] : values) {
+            text += " " + value + " (" + std::to_string(runList.size()) + " runs: ";
+            for (size_t r = 0; r < runList.size() && r < 3; r++) text += (r ? ", " : "") + runList[r];
+            text += runList.size() > 3 ? ", ...)" : ")";
+        }
+        RESTWarning << text << RESTendl;
+    }
 }
 
 std::vector<std::optional<std::string>> TRestDataSet::GetRunParameter(const std::string& name) const {

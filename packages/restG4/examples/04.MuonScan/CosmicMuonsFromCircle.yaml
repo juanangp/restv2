@@ -1,0 +1,76 @@
+# Cosmic muons (energy from the histogram cosmicmuon of Muons.root, cos2 zenith angle) from a horizontal
+# circle of 40 cm radius 10 cm above the detectors:
+#   restG4 CosmicMuonsFromCircle.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "CosmicMuonScan"
+    runType: "simulation"
+    runNumber: 111
+    runTag: "MuonsFromCircle"
+    outputFileName: "Run[runNumber]_[runType]_[runTag]_[runUser].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    nEvents: 10000
+    seed: 1702198
+    saveAllEvents: false
+    printProgress: true
+
+    activateAllVolumes: false
+    activeVolumes:
+      - name: "det_dw_01"
+        maxStep: 1 mm
+        sensitive: true
+      - name: "det_up_01"
+        maxStep: 1 mm
+
+    generator:
+      type: "surface"
+      shape: "circle"
+      position: [0, 100 mm, 0]
+      size: [400 mm, 0, 0]
+      rotationAxis: [1, 0, 0]
+      rotationValue: 90 deg
+      source:
+        particle: "mu-"
+        energy:
+          type: "TH1D"
+          filename: "Muons.root"
+          nameInFile: "cosmicmuon"
+        angular:
+          type: "formula"
+          formula: "Cos2"
+          direction: [0, -1, 0]
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 1 um
+    cutForElectron: 1 um
+    cutForPositron: 1 um
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmLivermorePhysics"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4EmExtraPhysics"

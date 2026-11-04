@@ -1,0 +1,27 @@
+# Geant4 analysis (all the observables of TRestGeant4AnalysisProcess) of a FullChainFromReadout.yaml
+# simulation:
+#   restManager --c g4Analysis.yaml --i <restG4 output file>
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    mainDataPath: "."
+    inheritInputRun: true
+    runType: "g4Analysis"
+    runUser: "${ENV:USER}"
+    inputFileName: ""
+    outputFileName: "Run[runNumber]_[runType]_[runTag]_[runUser].root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 100
+    nThreads: 2
+    outputEventStorage: true
+
+    g4Ana:
+      class: "TRestGeant4AnalysisProcess"
+      observables: ["all"]

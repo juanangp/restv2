@@ -1,0 +1,53 @@
+# Geantinos from a horizontal circle, cos2 zenith angle in (0, 55) deg and cosmic neutron energy in
+# (0, 15) MeV (legacy tested ranges partly outside the formula: (-5, 55) deg and (-10, 15) MeV; restv2
+# rejects an angle range outside [0, 180 deg]):
+#   restG4 EnergyAndAngularRange.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "EnergyAndAngularRange"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "EnergyAndAngularRange"
+    outputFileName: "EnergyAndAngularRange.root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 171981
+    nEvents: 100000
+    saveAllEvents: true
+
+    energyRangeStored: [0, 10 GeV]
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "surface"
+      shape: "circle"
+      position: [0, 100 mm, 0]
+      size: [400 mm, 0, 0]
+      rotationAxis: [1, 0, 0]
+      rotationValue: 90 deg
+      source:
+        particle: "geantino"
+        angular:
+          type: "formula"
+          formula: "Cos2"
+          direction: [0, -1, 0]
+          range: [0, 55 deg]
+        energy:
+          type: "formula"
+          formula: "CosmicNeutrons"
+          range: [0, 15 MeV]
+
+  # Geantinos: no physics list needed
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"

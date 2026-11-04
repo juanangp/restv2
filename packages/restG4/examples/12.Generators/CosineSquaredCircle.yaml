@@ -1,0 +1,51 @@
+# Geantinos from a horizontal circle (radius 40 cm, 10 cm above), cos2 zenith angle and cosmic neutron
+# energy in (5, 150) MeV (range optional: by default the one of the formula, it cannot be outside it):
+#   restG4 CosineSquaredCircle.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "CosineSquaredCircle"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "CosineSquaredCircle"
+    outputFileName: "CosineSquaredCircle.root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 171981
+    nEvents: 100000
+    saveAllEvents: true
+
+    energyRangeStored: [0, 10 GeV]
+    activeVolumes:
+      - name: "gasVolume"
+        maxStep: 1 mm
+        sensitive: true
+
+    generator:
+      type: "surface"
+      shape: "circle"
+      position: [0, 100 mm, 0]
+      size: [400 mm, 0, 0]
+      rotationAxis: [1, 0, 0]
+      rotationValue: 90 deg
+      source:
+        particle: "geantino"
+        angular:
+          type: "formula"
+          formula: "Cos2"
+          direction: [0, -1, 0]
+        energy:
+          type: "formula"
+          formula: "CosmicNeutrons"
+          range: [5 MeV, 150 MeV]
+
+  # Geantinos: no physics list needed
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"

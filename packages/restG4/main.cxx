@@ -28,5 +28,10 @@ int main(int argc, char* argv[]) {
 
     CommandLineOptions::Options options = CommandLineOptions::ProcessCommandLineOptions(argc, argv);
 
-    app.Run(options);
+    try {
+        app.Run(options);
+    } catch (const std::exception& error) {
+        cerr << "restG4: " << error.what() << endl;
+        return 1;
+    }
 }

@@ -29,6 +29,7 @@
 #include <cstdlib>
 
 #include "SimulationManager.h"
+#include "TRestTools.h"
 
 using namespace std;
 

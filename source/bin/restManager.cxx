@@ -3,7 +3,10 @@
 /// Usage: restManager --c|--config <config.yaml> [--i|--input <input.root>]
 ///                     [--o|--output <output.root>] [--v|--verbose <level>]
 ///                     [--e|--events <n>] [--r|--reference <process>=<dataset>]
+///                     [--set <name>=<value>]
 ///
+/// --set sets a parameter of the section `parameters` of the configuration for this execution (repeatable;
+/// the file is not changed), e.g. --set meshVoltage=300V
 /// --r sets the referenceFileName of a process of the TRestDataSetProcessManager (repeatable), e.g.
 /// --r calib=D_00120_00122_Calibration.root
 
@@ -11,6 +14,7 @@
 
 #include <csignal>
 #include <iostream>
+#include <map>
 #include <string>
 #include <thread>
 #include <utility>
@@ -51,6 +55,8 @@ int main(int argc, char** argv) {
     std::string threadNumber;
     // --r process=dataset: referenceFileName of a dataset process (repeatable)
     std::vector<std::pair<std::string, std::string>> references;
+    // --set name=value: parameters of the configuration (repeatable)
+    std::map<std::string, std::string> parameters;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -75,11 +81,19 @@ int main(int argc, char** argv) {
                 return 1;
             }
             references.emplace_back(reference.substr(0, equal), reference.substr(equal + 1));
+        } else if (arg == "--set" && i + 1 < argc) {
+            try {
+                TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
+            } catch (const std::exception& error) {
+                std::cerr << "[ERROR] " << error.what() << "\n";
+                return 1;
+            }
         } else {
             std::cerr << "Usage: " << argv[0]
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
-                         " [--e|--events <n>] [--r|--reference <process>=<dataset>]\n";
+                         " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
+                         " [--set <name>=<value>]\n";
             return 1;
         }
     }
@@ -88,12 +102,13 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0]
                   << " --c|--config <config.yaml> [--i|--input <input.root>]"
                      " [--o|--output <output.root>] [--v|--verbose <level>]"
-                     " [--e|--events <n>] [--r|--reference <process>=<dataset>]\n";
+                     " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
+                     " [--set <name>=<value>]\n";
         return 1;
     }
 
     try {
-        YAML::Node cfg = TRestYAMLUtils::OpenConfigFile(configPath);
+        YAML::Node cfg = TRestYAMLUtils::OpenConfigFile(configPath, parameters);
 
         auto [managerKey, managerNode] = TRestYAMLUtils::GetMetadataClass(cfg, "TRestManager");
         if (!managerNode || managerNode.IsNull()) {
@@ -172,6 +187,8 @@ int main(int argc, char** argv) {
         RESTLog << "\n--- TRestManager ---" << RESTendl;
         TRestManager mgr(managerKey, managerNode);
         mgr.CheckConfig();
+        // The configuration and the geometries (e.g. GDML readouts) read: a parameter not used is an error
+        TRestYAMLUtils::CheckParametersUsed();
         mgr.PrintMetadata();
         mgr.Run();
         mgr.SaveMetadata();

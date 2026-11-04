@@ -3,6 +3,7 @@
 
 #include <SensitiveDetector.h>
 #include <TGeoManager.h>
+#include <TRestGDMLParser.h>
 #include <TRestGeant4GeometryInfo.h>
 #include <TRestGeant4Metadata.h>
 
@@ -70,24 +71,17 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
 
     G4cout << "Producing geometry" << G4endl;
 
-    // Reading the geometry
-    const auto startingPath = filesystem::current_path();
-
-    std::string fullGdmlFilename = std::string(restG4Metadata->GetGdmlFilename());
-    auto pathPair = TRestTools::SeparatePathAndName(fullGdmlFilename);
-    std::string gdmlPath = pathPair.first;
-    std::string gdmlToRead = pathPair.second;
-
-    filesystem::current_path(gdmlPath);
-
-    G4cout << "gdmlToRead: " << gdmlToRead << G4endl;
-
-    fGdmlParser->Read(gdmlToRead, false);
+    // Reading the geometry: the GDML with its entities and the parameters of the configuration resolved
+    // (TRestGDMLParser::Resolve), in a temporary file
+    const std::string gdmlFile = restG4Metadata->GetGdmlFilename();
+    G4cout << "gdmlToRead: " << gdmlFile << G4endl;
+    const std::string resolvedGdml = TRestGDMLParser::WriteResolved(gdmlFile);
+    fGdmlParser->Read(resolvedGdml, false);
+    filesystem::remove(resolvedGdml);
     G4VPhysicalVolume* worldVolume = fGdmlParser->GetWorldVolume();
 
     if (worldVolume == nullptr) {
-        cerr << "ERROR: Geant4 could not read the world volume from: " << gdmlToRead << endl;
-        filesystem::current_path(startingPath);
+        cerr << "ERROR: Geant4 could not read the world volume from: " << gdmlFile << endl;
         exit(1);
     }
 
@@ -107,13 +101,12 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
                     << corner.X() << ", " << corner.Y() << ", " << corner.Z() << ") mm, world half size ("
                     << worldHalfSize.x() << ", " << worldHalfSize.y() << ", " << worldHalfSize.z()
                     << ") mm. Make subBoxLength smaller, move the position or enlarge the world";
-            filesystem::current_path(startingPath);
             G4Exception("DetectorConstruction::Construct", "REST_G4_CRY_OUTSIDE_WORLD", FatalException,
                         message.str().c_str());
         }
     }
 
-    restG4Metadata->fGeant4GeometryInfo.InitializeOnDetectorConstruction(gdmlToRead, worldVolume);
+    restG4Metadata->fGeant4GeometryInfo.InitializeOnDetectorConstruction(gdmlFile, worldVolume);
     restG4Metadata->SyncActiveVolumesFromMetadata();
     restG4Metadata->PrintMetadata();  // now we have detector info
 
@@ -156,7 +149,6 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
             logicalVolumeNames.insert(name);
         }
     }
-    filesystem::current_path(startingPath);
 
     auto sensitiveVolumes = restG4Metadata->GetSensitiveVolumes();
     for (const auto& sensitiveVolume : sensitiveVolumes) {

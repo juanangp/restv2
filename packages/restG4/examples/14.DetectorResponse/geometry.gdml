@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
-<!-- ##VERSION REST ${GDML_GAS} (${GDML_QUENCHER_PCT}Pct) - ${GDML_PRESSURE}bar - Drift:${GDML_DRIFT}cm - Detector size:${GDML_DETECTOR_SIZE}cm ## -->
+<!-- ##VERSION REST Example 14.DetectorResponse Version 1.1## -->
 
 <!DOCTYPE gdml [
+        <!-- Parameter of DetectorResponse.yaml: the gas, a material of materials.xml
+             (% written &#37; in an entity; restG4 --set gas=XenonNeon2.3%Isobutane1.5bar) -->
+        <!ENTITY gas "Xenon30&#37;Neon1.5bar">
         <!ENTITY geometry SYSTEM "geometry.gdml">
-		<!ENTITY materials SYSTEM "https://rest-for-physics.github.io/materials/rest.xml">
+		<!ENTITY materials SYSTEM "materials.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -13,27 +16,22 @@
 		<!-- All lenghts should be in mm -->
         <constant name="world_size" value="20000"/>
 
-		<variable name="targetGasDensity" value="(100-${GDML_QUENCHER_PCT})/100. * ${GDML_PRESSURE} * ${GDML_TARGET_DENSITY} * (273.15+15) / 273.15 / 1.01325"/>
-
-		<variable name="quencherDensity" value="${GDML_QUENCHER_PCT} / 100. * ${GDML_PRESSURE} * ${GDML_QUENCHER_DENSITY}  * (273.15+15) / 273.15 / 1.01325"/>
-		<variable name="quencherFraction" value="${GDML_QUENCHER_PCT} / 100."/>
-
-		<!-- What matters is just the density (this is just additional info) -->
-        <variable name="gasTemperature" value="273.15+15"/>
-		<variable name="gasPressure" value="${GDML_PRESSURE}"/>
+		<!-- Parameters of DetectorResponse.yaml: drift length and detector size (mm) -->
+		<constant name="drift" value="30"/>
+		<constant name="detectorSize" value="60"/>
     </define>
 
     &materials;
 
 	<solids>
 		<box name="WorldSolid" x="world_size" y="world_size" z="world_size" lunit="mm"/>
-		<box name="targetSolid" startphi="0" deltaphi="360" x="${GDML_DETECTOR_SIZE}" y="${GDML_DETECTOR_SIZE}" z="${GDML_DRIFT}" lunit="cm"/>
+		<box name="targetSolid" startphi="0" deltaphi="360" x="detectorSize" y="detectorSize" z="drift" lunit="mm"/>
 	</solids>
 
 	<structure>
 
 	<volume name="targetVolume">
-		<materialref ref="${GDML_GAS}"/>
+		<materialref ref="&gas;"/>
 		<solidref ref="targetSolid"/>
 	</volume>
 

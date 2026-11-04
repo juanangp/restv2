@@ -1,0 +1,71 @@
+# Cosmic muons with correlated energy and zenith angle (formula CosmicMuons) from the cosmic generator,
+# until 10000 events are stored:
+#   restG4 CosmicMuons.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "CosmicMuonScan"
+    runType: "simulation"
+    runNumber: 111
+    runTag: "CosmicMuons"
+    outputFileName: "Run[runNumber]_[runType]_[runTag]_[runUser].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    subEventTimeDelay: 100 us
+    nRequestedEntries: 10000
+    seed: 137
+    saveAllEvents: false
+    printProgress: true
+
+    activateAllVolumes: false
+    activeVolumes:
+      - name: "det_dw_01"
+        maxStep: 1 mm
+        sensitive: true
+      - name: "det_up_01"
+        maxStep: 1 mm
+
+    generator:
+      type: "cosmic"
+      source:
+        particle: "mu-"
+        energy:
+          type: "formula2"
+          formula: "CosmicMuons"
+          formulaNPoints: 5000
+        angular:
+          type: "formula2"
+          direction: [0, -1, 0]
+          formulaNPoints: 500
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 1 um
+    cutForElectron: 1 um
+    cutForPositron: 1 um
+    cutForMuon: 1 mm
+    cutForNeutron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmLivermorePhysics"
+      - name: "G4DecayPhysics"
+      - name: "G4RadioactiveDecayPhysics"
+      - name: "G4RadioactiveDecay"
+        option:
+          - name: "ICM"
+            value: "true"
+          - name: "ARM"
+            value: "true"
+      - name: "G4HadronElasticPhysicsHP"
+      - name: "G4IonBinaryCascadePhysics"
+      - name: "G4HadronPhysicsQGSP_BIC_HP"
+      - name: "G4EmExtraPhysics"

@@ -47,6 +47,8 @@ class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
     void EndProcess() override;
     /// \brief Returns the number of available entries in the input tree.
     long long GetInputEventCount() const override { return fInputTree ? fInputTree->GetEntries() : -1; }
+    /// \brief True once all the entries of the input tree have been read.
+    bool InputFinished() const override { return fInputTree && fInputTreeEntry >= fInputTree->GetEntries(); }
 
     std::string GetInputEvent() const override { return "None"; }
     std::string GetOutputEvent() const override { return "TRestRawSignalEvent"; }

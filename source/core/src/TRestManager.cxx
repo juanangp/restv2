@@ -176,6 +176,15 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
         return;
     }
 
+    // A process creating the events (e.g. from a DAQ file) reads them sequentially from the start
+    if (fProcessManager->HasGenerator()) {
+        RESTWarning << "TRestManager::RunMultithreaded: a process creates the events from its input, running "
+                       "single-thread."
+                    << RESTendl;
+        fProcessManager->Run();
+        return;
+    }
+
     long long totalEntries = fProcessManager->fEventsToProcess;
 
     if (totalEntries <= 0) {

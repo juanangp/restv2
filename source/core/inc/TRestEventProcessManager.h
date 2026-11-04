@@ -59,6 +59,14 @@ class TRestEventProcessManager : public TRestMetadata {
         fEntryEnd = end;
     }
 
+    /// \brief True if a process creates the events without input event (e.g. from a DAQ file): it reads
+    /// them sequentially from the start, so the entries cannot be split among threads.
+    bool HasGenerator() const {
+        for (const auto& [input, output] : fPipelineConnections)
+            if (input == "None") return true;
+        return false;
+    }
+
     /// \brief Output event of the last process of the chain (always stored), empty without processes.
     std::string GetOutputEvent() const {
         if (fPipelineConnections.empty()) return "";

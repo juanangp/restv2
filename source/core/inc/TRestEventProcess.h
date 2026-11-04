@@ -53,6 +53,15 @@ class TRestEventProcess : public TRestMetadata {
     /// \return Number of input events or `-1` if unknown.
     virtual long long GetInputEventCount() const;
 
+    /// \brief For a process that reads its events from an external file (e.g. a DAQ binary file) whose
+    /// number of events is unknown (GetInputEventCount -1): true once ProcessEvent returned false because
+    /// the file has no more events. The manager then ends the event loop (it is not a rejected event).
+    virtual bool InputFinished() const { return false; }
+
+    /// \brief Fraction (0-1) of the external input file already read, for the progress when the number
+    /// of events is unknown; -1 if the process does not read an external file.
+    virtual double GetInputFraction() const { return -1; }
+
     /// \brief No-op configuration loader for process instances.
     virtual void LoadConfig() override;
 

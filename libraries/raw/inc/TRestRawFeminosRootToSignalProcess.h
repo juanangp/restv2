@@ -1,0 +1,65 @@
+#ifndef TRESTRAWFEMINOSROOTTOSIGNALPROCESS_H
+#define TRESTRAWFEMINOSROOTTOSIGNALPROCESS_H
+
+class TFile;
+class TTree;
+
+#include <limits>
+#include <vector>
+
+#include "TRestEventProcess.h"
+
+/// \class TRestRawFeminosRootToSignalProcess
+/// \brief Converts the ROOT files of feminos-daq (https://github.com/rest-for-physics/feminos-daq) into
+/// TRestRawSignalEvent.
+///
+/// The input file is the `inputFileName` of the TRestRun, with the trees `events` (timestamp in ms,
+/// signal_ids, signal_values: the samples of all the signals one after the other) and `run`. The event ID
+/// is the entry of the `events` tree.
+///
+/// With `useFeminosDaqRunInfo` (true) the run takes from the `run` tree its number, tag, description
+/// (comments) and start time (the ones not empty, they replace the configuration and the input file
+/// name), and adds to `runInfo` the detector, driftField (V/cm/bar), meshVoltage (V) and pressure (bar),
+/// unless the configuration already gives them. Otherwise the start time is the one of the first event.
+/// The end time is always the one of the last event.
+class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
+   private:
+    long long fInputTreeEntry = 0;
+
+    TFile* fInputFile = nullptr;
+    TTree* fInputTree = nullptr;
+
+    unsigned long long fTimestamp = 0;
+    std::vector<unsigned short>* fSignalIds = nullptr;
+    std::vector<unsigned short>* fSignalValues = nullptr;
+    unsigned long long fStartTimestamp = std::numeric_limits<unsigned long long>::max();
+    unsigned long long fEndTimestamp = 0;
+
+    /// \brief Copies the run information of the `run` tree to the TRestRun.
+    void ReadRunInfo(TTree* runTree);
+
+   public:
+    bool fUseFeminosDaqRunInfo = true;
+
+    TRestRawFeminosRootToSignalProcess();
+    TRestRawFeminosRootToSignalProcess(const std::string& instanceName, const YAML::Node& node);
+    TRestRawFeminosRootToSignalProcess(const std::string& fileName, const std::string& sectionName);
+
+    void LoadConfig() override;
+    /// \brief Opens the input file, reads the run information and connects the event branches.
+    void InitProcess() override;
+    /// \brief Converts one entry of the `events` tree into a TRestRawSignalEvent.
+    bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Sets the run times and closes the input file.
+    void EndProcess() override;
+
+    long long GetInputEventCount() const override { return fInputTree ? fInputTree->GetEntries() : -1; }
+    bool InputFinished() const override { return fInputTree && fInputTreeEntry >= fInputTree->GetEntries(); }
+
+    std::string GetInputEvent() const override { return "None"; }
+    std::string GetOutputEvent() const override { return "TRestRawSignalEvent"; }
+
+    std::string GetClassName() const override { return "TRestRawFeminosRootToSignalProcess"; }
+};
+
+#endif

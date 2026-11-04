@@ -1,6 +1,7 @@
 #include "TRestEventProcessManager.h"
 
 #include <algorithm>
+#include <limits>
 #include <set>
 #include <stdexcept>
 
@@ -207,8 +208,21 @@ void TRestEventProcessManager::Run() {
         }
     }
 
+    // A process reading an external file whose number of events is unknown (e.g. a DAQ binary file): the
+    // loop goes on until it has no more events (InputFinished), the progress is the fraction of file read
+    TRestEventProcess* fileSource = nullptr;
+    if (totalEntries <= 0) {
+        for (const auto& process : fProcessChain) {
+            if (process->GetInputFraction() >= 0) {
+                fileSource = process.get();
+                break;
+            }
+        }
+    }
+    const bool readUntilEnd = fileSource != nullptr;
+
     long long loopStart = 0;
-    long long loopEnd = totalEntries;
+    long long loopEnd = readUntilEnd ? std::numeric_limits<long long>::max() : totalEntries;
 
     if (fEntryStart != -1) loopStart = fEntryStart;
     if (fEntryEnd != -1) loopEnd = fEntryEnd;
@@ -220,12 +234,30 @@ void TRestEventProcessManager::Run() {
         }
     }
 
+    if (readUntilEnd && loopStart > 0) {
+        throw std::runtime_error("TRestEventProcessManager::Run - process '" + fileSource->GetName() +
+                                 "' reads its file sequentially, it cannot start at entry " +
+                                 std::to_string(loopStart));
+    }
+
     const bool showProgress = (fEntryStart <= 0);
+    // Progress by the fraction of file read if the number of events is not known
+    const bool progressByFile = readUntilEnd && loopEnd == std::numeric_limits<long long>::max();
 
-    RESTInfo << "TRestEventProcessManager: Starting event loop. Entries [" << loopStart << ", " << loopEnd
-             << ")" << RESTendl;
+    if (progressByFile) {
+        RESTInfo << "TRestEventProcessManager: Starting event loop until the end of the input of '"
+                 << fileSource->GetName() << "'" << RESTendl;
+    } else {
+        RESTInfo << "TRestEventProcessManager: Starting event loop. Entries [" << loopStart << ", " << loopEnd
+                 << ")" << RESTendl;
+    }
 
-    if (showProgress) RESTProgress.Reset(loopEnd - loopStart);
+    if (showProgress) {
+        if (progressByFile)
+            RESTProgress.Reset(100, 30, "% of the file");
+        else
+            RESTProgress.Reset(loopEnd - loopStart);
+    }
 
     long long acceptedCount = 0;
     long long rejectedCount = 0;
@@ -244,19 +276,31 @@ void TRestEventProcessManager::Run() {
         }
 
         bool eventAccepted = true;
+        bool inputFinished = false;
         for (size_t i = 0; i < fProcessChain.size(); ++i) {
             TRestEvent& outputEvent = *fStageOutputs[i];
             const TRestEvent& inputEvent = fStageInputs[i] ? *fStageInputs[i] : outputEvent;
 
             // The messages of the events and tools used by the process take its verbose
             TRestLogScope logScope(fProcessChain[i]->GetLogContext());
-            if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent) || !fProcessChain[i]->PassCuts()) {
+            if (!fProcessChain[i]->ProcessEvent(inputEvent, outputEvent)) {
+                // End of the external file of the process: not a rejected event
+                inputFinished = fProcessChain[i]->InputFinished();
+                eventAccepted = false;
+                break;
+            }
+            if (!fProcessChain[i]->PassCuts()) {
                 eventAccepted = false;
                 break;
             }
             // Events created by a generator (e.g. from DAQ files) take the run and subrun of this run,
             // the others keep the ones of their input
             if (!fStageInputs[i]) outputEvent.InitializeReferences(fRunInfo);
+        }
+
+        if (inputFinished) {
+            if (showProgress && progressByFile) RESTProgress.Update(100);
+            break;
         }
 
         if (eventAccepted) {
@@ -267,7 +311,10 @@ void TRestEventProcessManager::Run() {
         }
 
         if (showProgress && ((entry - loopStart) % 10 == 0 || entry == loopEnd - 1)) {
-            RESTProgress.Update(entry - loopStart + 1);
+            if (progressByFile)
+                RESTProgress.Update(static_cast<int>(100 * fileSource->GetInputFraction()));
+            else
+                RESTProgress.Update(entry - loopStart + 1);
         }
     }
 

@@ -17,21 +17,30 @@ if [[ -f "@thisROOT@" ]]; then
     source "@thisROOT@"
 fi
 
-# Strip any previous REST entries from PATH / LD_LIBRARY_PATH
+# Strip the entries of any previous REST (e.g. a legacy installation) from the paths, so that its
+# headers and libraries are never picked instead of (or in addition to) the ones of this REST
+_rest_strip() { echo ":$1:" | sed -e "s#:$2:#:#g" -e 's#^:##' -e 's#:$##'; }
+_PATH="$PATH"
+_LD="$LD_LIBRARY_PATH"
+_DYLD="$DYLD_LIBRARY_PATH"
+_LIB="$LIBRARY_PATH"
+_INC="$ROOT_INCLUDE_PATH"
 if [[ -n "${REST_PATH}" ]]; then
-    _PATH=$(echo "$PATH"           | sed -e "s#${REST_PATH}/bin:##g")
-    _LD=$(echo  "$LD_LIBRARY_PATH" | sed -e "s#${REST_PATH}/lib:##g")
-else
-    _PATH="$PATH"
-    _LD="$LD_LIBRARY_PATH"
+    _PATH=$(_rest_strip "$_PATH" "${REST_PATH}/bin")
+    _LD=$(_rest_strip "$_LD" "${REST_PATH}/lib")
+    _DYLD=$(_rest_strip "$_DYLD" "${REST_PATH}/lib")
+    _LIB=$(_rest_strip "$_LIB" "${REST_PATH}/lib")
+    _INC=$(_rest_strip "$_INC" "${REST_PATH}/include")
 fi
+unset -f _rest_strip
 
 export REST_SOURCE="@CMAKE_SOURCE_DIR@"
 export REST_PATH="${thisdir}"
-export ROOT_INCLUDE_PATH="$REST_PATH/include:$ROOT_INCLUDE_PATH"
-export PATH="$REST_PATH/bin:$_PATH"
-export LD_LIBRARY_PATH="$REST_PATH/lib:$_LD"
-export DYLD_LIBRARY_PATH="$REST_PATH/lib:$_LD"
-export LIBRARY_PATH="$REST_PATH/lib:$LIBRARY_PATH"
+export ROOT_INCLUDE_PATH="$REST_PATH/include${_INC:+:$_INC}"
+export PATH="$REST_PATH/bin${_PATH:+:$_PATH}"
+export LD_LIBRARY_PATH="$REST_PATH/lib${_LD:+:$_LD}"
+export DYLD_LIBRARY_PATH="$REST_PATH/lib${_DYLD:+:$_DYLD}"
+export LIBRARY_PATH="$REST_PATH/lib${_LIB:+:$_LIB}"
+unset _PATH _LD _DYLD _LIB _INC
 
 echo "REST @PROJECT_VERSION@ loaded from ${thisdir}"

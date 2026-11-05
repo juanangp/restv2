@@ -282,17 +282,34 @@ if(ALL_REPOSITORY_MACROS)
     LIST_DIRECTORIES true
     "${CMAKE_SOURCE_DIR}/**/inc")
 
+  # Each macro is compiled in a library (lib<macro>_C.so) with a dictionary of
+  # what it defines, as ACLiC does: restRoot loads the libraries, and the
+  # interpreter only parses a macro (and the headers it includes) when one of
+  # its functions is first used, instead of interpreting all of them at startup
+  set(MACROS_BUILD_DIR "${CMAKE_BINARY_DIR}/macros_build")
   foreach(MACRO_PATH IN LISTS ALL_REPOSITORY_MACROS)
     get_filename_component(MACRO_WE ${MACRO_PATH} NAME_WE)
     set(MACRO_LIB_NAME "${MACRO_WE}_C")
 
-    add_library(${MACRO_LIB_NAME} SHARED ${MACRO_PATH})
+    set(MACRO_LINKDEF "${MACROS_BUILD_DIR}/${MACRO_WE}_LinkDef.h")
+    file(
+      CONFIGURE
+      OUTPUT
+      ${MACRO_LINKDEF}
+      CONTENT
+      "#ifdef __CLING__\n#pragma link off all globals;\n#pragma link off all classes;\n#pragma link off all functions;\n#pragma link C++ defined_in \"${MACRO_PATH}\";\n#endif\n"
+    )
+
+    # The sources are the dictionary, which includes the macro
+    add_library(${MACRO_LIB_NAME} SHARED)
 
     target_include_directories(${MACRO_LIB_NAME} PRIVATE ${ALL_INC_DIRS})
 
-    set_target_properties(
-      ${MACRO_LIB_NAME} PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY
-                                             "${CMAKE_BINARY_DIR}/macros_build")
+    set_target_properties(${MACRO_LIB_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+                                                       ${MACROS_BUILD_DIR})
+
+    root_generate_dictionary(G__${MACRO_LIB_NAME} ${MACRO_PATH} MODULE
+                             ${MACRO_LIB_NAME} LINKDEF ${MACRO_LINKDEF})
 
     target_link_libraries(${MACRO_LIB_NAME} PUBLIC ${ROOT_TARGET_LIBRARIES}
                                                    yaml-cpp::yaml-cpp)
@@ -300,5 +317,11 @@ if(ALL_REPOSITORY_MACROS)
 
     install(TARGETS ${MACRO_LIB_NAME} LIBRARY DESTINATION macros
                                               COMPONENT install)
+    install(
+      FILES ${CMAKE_CURRENT_BINARY_DIR}/lib${MACRO_LIB_NAME}_rdict.pcm
+            ${CMAKE_CURRENT_BINARY_DIR}/lib${MACRO_LIB_NAME}.rootmap
+      DESTINATION macros
+      COMPONENT install
+      OPTIONAL)
   endforeach()
 endif()

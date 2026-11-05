@@ -1,3 +1,4 @@
+#include <TInterpreter.h>
 #include <TROOT.h>
 #include <TRestLogManager.h>
 #include <TRestSystemOfUnits.h>
@@ -55,19 +56,33 @@ bool InitializeRestRuntimeFromRestPath() {
     }
 
     if (std::filesystem::exists(includeDir) && std::filesystem::is_directory(includeDir)) {
+        // ACLiC and the interpreter
         gSystem->AddIncludePath((" -I" + includeDir.string()).c_str());
+        gInterpreter->AddIncludePath(includeDir.string().c_str());
     }
 
+    // The macros are compiled in libraries (lib<macro>_C.so) with a dictionary: loading them is
+    // immediate, and the interpreter only parses a macro when one of its functions is first used
+    // (interpreting all the .C at startup took several seconds). The .C stay in the macro path for .x/.L
     const std::filesystem::path macrosDir = restPath / "macros";
     if (std::filesystem::exists(macrosDir) && std::filesystem::is_directory(macrosDir)) {
         const std::string macroPath = std::string(gROOT->GetMacroPath()) + ":" + macrosDir.string();
         gROOT->SetMacroPath(macroPath.c_str());
 
+        std::vector<std::filesystem::path> macroLibraries;
         for (const auto& entry : std::filesystem::directory_iterator(macrosDir)) {
             if (!entry.is_regular_file()) continue;
-
-            if (entry.path().extension() == ".C") {
-                gROOT->LoadMacro(entry.path().string().c_str());
+            const auto fileName = entry.path().filename().string();
+            const std::string suffix = "_C.so";
+            if (fileName.rfind("lib", 0) == 0 && fileName.size() > suffix.size() &&
+                fileName.compare(fileName.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                macroLibraries.push_back(entry.path());
+            }
+        }
+        std::sort(macroLibraries.begin(), macroLibraries.end());
+        for (const auto& lib : macroLibraries) {
+            if (gSystem->Load(lib.string().c_str()) < 0) {
+                RESTError << "restRoot: the macro library " << lib << " could not be loaded" << RESTendl;
             }
         }
     }

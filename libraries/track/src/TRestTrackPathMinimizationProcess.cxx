@@ -13,6 +13,11 @@
 /// The distances use the coordinates the track defines. The direction of the path is arbitrary (see
 /// TRestTrackLineAnalysisProcess for the origin and end of a track).
 ///
+/// Observable Branches: the largest number of jumps of a track of the event, a jump being a step between
+/// consecutive hits of the ordered track longer than branchFactor times the median step of the track
+/// (0 for tracks with less than 2 steps or not ordered). 0 for a continuous track; more than 0 for gaps or
+/// branches, e.g. two particles or a fluorescence photon joined to the track.
+///
 /// The output event holds one track per input track (parent ID = ID of the input track) with the same
 /// hits (position, energy, time, type and sigma) in the new order, or as they are if the track has hits of
 /// different types (the undefined coordinates would mix with the defined ones). The number of tracks not
@@ -21,6 +26,7 @@
 /// ### Parameters
 /// * cyclic: closed path (default false).
 /// * maxExactNodes: maximum number of hits for the exact shortest path (default 12, at most 16).
+/// * branchFactor: a step longer than branchFactor times the median step is a jump (default 3).
 ///
 /// Example:
 ///
@@ -28,19 +34,29 @@
 ///      class: "TRestTrackPathMinimizationProcess"
 ///      cyclic: false
 ///      maxExactNodes: 12
+///      branchFactor: 3
+///      observables:
+///        - "Branches"
 ///
 /// Migrated from the legacy track library (Javier Galan, JuanAn Garcia). Differences: the legacy methods
 /// (`minMethod`: default, bruteforce, closestN) are replaced by maxExactNodes; the default method used the
 /// Held-Karp solver of Concorde (academic licence, not included), which solves a closed path and then
 /// rotated it, now the exact path is open unless cyclic; nearest neighbour is improved with 2-opt;
-/// `weightHits` (unused) removed; the output event holds only the tracks of this stage (no levels).
+/// `weightHits` (unused) removed; the output event holds only the tracks of this stage (no levels). The
+/// Branches observable comes from the legacy TRestTrackReconnectionProcess (`branches`, not migrated: the
+/// path is already the shortest one), which counted the steps longer than mean + nSigmas * sqrt(mean)
+/// after breaking and reconnecting the track; the median keeps the jumps themselves from raising the
+/// threshold.
 
 #include "TRestTrackPathMinimizationProcess.h"
 
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <vector>
 
 #include "TRestHitsAnalysis.h"
+#include "TRestRun.h"
 #include "TRestTrack.h"
 #include "TRestTrackEvent.h"
 
@@ -49,6 +65,7 @@ static const bool TRestTrackPathMinimizationProcess_FieldsRegistered = []() {
     using P = TRestTrackPathMinimizationProcess;
     reg.RegisterField<P>("cyclic", &P::fCyclic);
     reg.RegisterField<P>("maxExactNodes", &P::fMaxExactNodes);
+    reg.RegisterField<P>("branchFactor", &P::fBranchFactor);
     return true;
 }();
 
@@ -60,6 +77,20 @@ const bool kRegistered = []() {
         });
     return true;
 }();
+
+// Number of steps between consecutive points longer than factor times the median step
+int CountJumps(const std::vector<ROOT::Math::XYZVector>& points, double factor) {
+    if (points.size() < 3) return 0;
+    std::vector<double> steps;
+    for (size_t n = 1; n < points.size(); n++) steps.push_back(std::sqrt((points[n] - points[n - 1]).Mag2()));
+    std::vector<double> sorted = steps;
+    const size_t half = sorted.size() / 2;
+    std::nth_element(sorted.begin(), sorted.begin() + half, sorted.end());
+    double median = sorted[half];
+    if (sorted.size() % 2 == 0)
+        median = (median + *std::max_element(sorted.begin(), sorted.begin() + half)) / 2;
+    return (int)std::count_if(steps.begin(), steps.end(), [&](double s) { return s > factor * median; });
+}
 }  // namespace
 
 TRestTrackPathMinimizationProcess::TRestTrackPathMinimizationProcess() : TRestEventProcess() {
@@ -98,6 +129,9 @@ void TRestTrackPathMinimizationProcess::InitProcess() {
         fMaxExactNodes = 16;
     }
     if (fMaxExactNodes < 0) fMaxExactNodes = 0;
+    if (fBranchFactor <= 1)
+        throw std::runtime_error("TRestTrackPathMinimizationProcess: branchFactor must be > 1");
+    RegisterObservable("Branches", fBranches);
 }
 
 void TRestTrackPathMinimizationProcess::EndProcess() {
@@ -117,6 +151,7 @@ bool TRestTrackPathMinimizationProcess::ProcessEvent(const TRestEvent& input, TR
 
     outputEvent->Initialize();
     outputEvent->SetEventInfo(inputEvent);
+    fBranches = 0;
 
     for (int t = 0; t < inputEvent->GetNumberOfTracks(); t++) {
         const TRestHits hits = inputEvent->GetTrack(t).GetHits();
@@ -141,6 +176,13 @@ bool TRestTrackPathMinimizationProcess::ProcessEvent(const TRestEvent& input, TR
         for (size_t h : path) {
             outputEvent->AddHitToTrack(hits.GetPosition(h), hits.GetEnergy(h), hits.GetTime(h),
                                        hits.GetType(h), inputEvent->GetSigma(t, (int)h));
+        }
+
+        if (sameType) {
+            const auto points = hits.GetPoints();
+            std::vector<ROOT::Math::XYZVector> ordered;
+            for (size_t h : path) ordered.push_back(points[h]);
+            fBranches = std::max(fBranches, CountJumps(ordered, fBranchFactor));
         }
     }
 

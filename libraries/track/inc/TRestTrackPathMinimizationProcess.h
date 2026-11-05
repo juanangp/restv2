@@ -14,6 +14,10 @@ class TRestTrackPathMinimizationProcess : public TRestEventProcess {
     long fNotOrdered = 0;
     long fNTracks = 0;
 
+    /// Observable: largest number of jumps (steps longer than branchFactor times the median step) of a
+    /// track of the event
+    int fBranches = 0;
+
    public:
     /// If true, the path comes back to its first hit (closed); otherwise it goes from any hit to any other
     bool fCyclic = false;
@@ -21,6 +25,10 @@ class TRestTrackPathMinimizationProcess : public TRestEventProcess {
     /// Tracks with up to this number of hits (at most 16) get the shortest path (exact); longer tracks a
     /// heuristic one (nearest neighbour + 2-opt)
     int fMaxExactNodes = 12;
+
+    /// A step between consecutive hits of the ordered track is a jump (Branches observable) if it is
+    /// longer than branchFactor times the median step of the track
+    double fBranchFactor = 3;
 
     TRestTrackPathMinimizationProcess();
     TRestTrackPathMinimizationProcess(const std::string& instanceName, const YAML::Node& node);

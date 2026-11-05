@@ -3,6 +3,8 @@
 
 #include <atomic>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "TRestMetadata.h"
@@ -67,6 +69,25 @@ class TRestManager : public TRestMetadata {
             if (auto* object = dynamic_cast<T*>(meta.get())) result.push_back(object);
         }
         return result;
+    }
+
+    /// \brief Metadata of class T with that name, or the only one if name is empty. nullptr if name is empty
+    /// and there is none; throws if name is empty and there are several, or if name is not found. user
+    /// (e.g. the process) and field (its field with the name) are for the messages.
+    template <class T>
+    T* FindMetadata(const std::string& name, const std::string& user, const std::string& field) const {
+        const auto objects = GetMetadataOfType<T>();
+        if (name.empty()) {
+            if (objects.size() > 1) {
+                throw std::runtime_error(user + ": several " + objects.front()->GetClassName() + ", set '" +
+                                         field + "'");
+            }
+            return objects.empty() ? nullptr : objects.front();
+        }
+        for (auto* object : objects) {
+            if (object->GetName() == name) return object;
+        }
+        throw std::runtime_error(user + ": " + field + " '" + name + "' not found");
     }
 
     static void RequestStop() { fStopRequested.store(true, std::memory_order_relaxed); }

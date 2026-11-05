@@ -377,6 +377,16 @@ int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) c
 /// \brief Loads decoding from a text file.
 /// \param decFilename Decoding file path.
 /// \return `true` on successful decoding load.
+std::pair<int, int> TRestDetectorReadout::GetAdjacentChannels(int daqID) const {
+    const int physicalID = GetPhysicalID(daqID);
+    if (physicalID < 0) return {-1, -1};
+    auto daqOf = [this](int id) {
+        const auto it = fPhysicalToDAQMap.find(id);
+        return it == fPhysicalToDAQMap.end() ? -1 : it->second;
+    };
+    return {daqOf(physicalID - 1), daqOf(physicalID + 1)};
+}
+
 bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
     if (decFilename.empty()) {
         Error("TRestDetectorReadout::LoadDecoding", "Cannot open mapping file: %s", decFilename.c_str());

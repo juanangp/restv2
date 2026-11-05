@@ -23,9 +23,9 @@
 /// - intWindow: one hit per integration window of intWindow, if the mean charge is over threshold.
 ///
 /// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), driftVelocity (0:
-/// from the TRestDetectorDrift driftMedium, optional if only one, or no drift if there is none),
-/// driftMedium (""), driftAxis ("Z"), method ("tripleMaxAverage"), smoothingPoints (5), intWindow (5),
-/// threshold (100), integralRange ([0, 0]).
+/// from the TRestDetectorMedium at its drift field, or no drift if there is no medium), medium (name,
+/// optional if only one), driftAxis ("Z"), method ("tripleMaxAverage"),
+/// smoothingPoints (5), intWindow (5), threshold (100), integralRange ([0, 0]).
 ///
 /// Example:
 ///
@@ -40,8 +40,8 @@
 #include <stdexcept>
 
 #include "TRestConstants.h"
-#include "TRestDetectorDrift.h"
 #include "TRestDetectorHitsEvent.h"
+#include "TRestDetectorMedium.h"
 #include "TRestDetectorReadout.h"
 #include "TRestDetectorReadoutManager.h"
 #include "TRestDetectorSignalEvent.h"
@@ -55,7 +55,7 @@ static const bool TRestDetectorSignalToHitsProcess_FieldsRegistered = []() {
     using P = TRestDetectorSignalToHitsProcess;
     reg.RegisterField<P>("readout", &P::fReadoutName);
     reg.RegisterField<P>("driftVelocity", &P::fDriftVelocity);
-    reg.RegisterField<P>("driftMedium", &P::fDriftMediumName);
+    reg.RegisterField<P>("medium", &P::fMediumName);
     reg.RegisterField<P>("driftAxis", &P::fDriftAxis);
     reg.RegisterField<P>("method", &P::fMethod);
     reg.RegisterField<P>("smoothingPoints", &P::fSmoothingPoints);
@@ -163,21 +163,15 @@ void TRestDetectorSignalToHitsProcess::InitProcess() {
     fReadout = readouts->SelectReadout(fReadoutName, "TRestDetectorSignalToHitsProcess");
 
     if (fDriftVelocity <= 0) {
-        const auto media = fManager->GetMetadataOfType<TRestDetectorDrift>();
-        const TRestDetectorDrift* medium = nullptr;
-        if (fDriftMediumName.empty() && media.size() == 1) medium = media.front();
-        for (const auto* m : media) {
-            if (m->GetName() == fDriftMediumName) medium = m;
+        const std::string user = "TRestDetectorSignalToHitsProcess";
+        const auto* medium = fManager->FindMetadata<TRestDetectorMedium>(fMediumName, user, "medium");
+        if (medium) {
+            fDriftVelocity = medium->GetChargeResponse(user).GetDriftVelocity();
+            if (fDriftVelocity <= 0 && !fMediumName.empty()) {
+                throw std::runtime_error(user + ": the medium '" + fMediumName + "' gives no drift velocity");
+            }
+            fMediumName = medium->GetName();
         }
-        if (!medium && !fDriftMediumName.empty()) {
-            throw std::runtime_error("TRestDetectorSignalToHitsProcess: drift medium '" + fDriftMediumName +
-                                     "' not found");
-        }
-        if (medium && medium->GetDriftVelocity() <= 0 && !fDriftMediumName.empty()) {
-            throw std::runtime_error("TRestDetectorSignalToHitsProcess: drift medium '" + fDriftMediumName +
-                                     "' has no driftVelocity");
-        }
-        if (medium) fDriftVelocity = medium->GetDriftVelocity();
     }
     // The stored metadata keeps the readout and drift velocity used, not the defaults of the YAML
     UpdateYAMLFromParams<TRestDetectorSignalToHitsProcess>(fNode);

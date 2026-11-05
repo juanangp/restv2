@@ -188,6 +188,19 @@ class TRestDetectorReadout : public TRestMetadata {
         return false;
     }
 
+    /// \brief Returns the physical ID of a DAQ channel, or -1 if it is not in the decoding table.
+    int GetPhysicalID(int daqID) const {
+        for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {
+            if (channelID == daqID) return physicalID;
+        }
+        return -1;
+    }
+
+    /// \brief Returns the DAQ channels adjacent to a DAQ channel, {previous, next}: those of the physical
+    /// IDs - 1 and + 1, -1 if not connected (or the channel is not in the decoding table). Readouts whose
+    /// consecutive physical IDs are not always neighbours override it.
+    virtual std::pair<int, int> GetAdjacentChannels(int daqID) const;
+
     void GetViewItems(std::vector<ViewItem>& items, const std::vector<int>& activeChannels = {}) const;
 
     static void DrawViewItems(std::vector<ViewItem>& items, TGeoManager*& viewGeo,

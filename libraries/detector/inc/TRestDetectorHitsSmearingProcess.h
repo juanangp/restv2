@@ -6,14 +6,14 @@
 #include "TRandom3.h"
 #include "TRestEventProcess.h"
 
-class TRestDetectorDrift;
+class TRestDetectorChargeResponse;
 
 /// \class TRestDetectorHitsSmearingProcess
 /// \brief Applies the energy resolution of the detector to a TRestDetectorHitsEvent: the energy of all
 /// the hits is multiplied by one gaussian gain per event.
 class TRestDetectorHitsSmearingProcess : public TRestEventProcess {
    private:
-    const TRestDetectorDrift* fMedium = nullptr;
+    const TRestDetectorChargeResponse* fCharge = nullptr;
     TRandom3 fRandom;  //!
     /// Events whose resolution is below the Fano contribution (not smeared)
     long fNBelowFano = 0;  //!
@@ -26,9 +26,9 @@ class TRestDetectorHitsSmearingProcess : public TRestEventProcess {
     /// Only smear with the resolution not explained by the Fano factor of the medium (already applied by
     /// TRestDetectorHitsDriftProcess)
     bool fSubtractFano = false;
-    /// Name of the TRestDetectorDrift (only with subtractFano). It can be omitted if the manager contains a
+    /// Name of the TRestDetectorMedium (only with subtractFano). It can be omitted if the manager contains a
     /// single medium.
-    std::string fDriftMediumName = "";
+    std::string fMediumName = "";
     /// Seed of the random generator (0: random seed)
     unsigned long fSeed = 0;
 

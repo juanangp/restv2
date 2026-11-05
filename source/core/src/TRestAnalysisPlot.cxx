@@ -38,7 +38,7 @@
 ///   without them, from the first and last timeSeconds), meanRate (Hz),
 ///   startTime and endTime (dates), cuts (expression of the cuts of the panel);
 /// * run.key (TRestRunInfo of the first run, e.g. run.runTag, and its runInfo, e.g. run.runInfo.meshVoltage)
-///   and instance.key... (any metadata of the first file, e.g. driftMedium.electricField);
+///   and instance.key... (any metadata of the first file, e.g. medium.charge.driftField);
 /// * mean(obs), sigma(obs), min(obs), max(obs): of an observable with the cuts of the panel (only its
 ///   finite values: NaN, e.g. a line observable not defined, are ignored);
 /// * any arithmetic of them (TFormula), e.g. {entries/runLength|%.1f}.

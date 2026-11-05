@@ -246,6 +246,15 @@ void TRestMicromegasReadout::BuildGeometry() {
     }
 }
 
+std::pair<int, int> TRestMicromegasReadout::GetAdjacentChannels(int daqID) const {
+    auto adjacent = TRestDetectorReadout::GetAdjacentChannels(daqID);
+    const int nChannels = fReadoutParams.fNChannels;
+    const int physicalID = GetPhysicalID(daqID);
+    if (physicalID == nChannels) adjacent.first = -1;       // first X strip
+    if (physicalID == nChannels - 1) adjacent.second = -1;  // last Y strip
+    return adjacent;
+}
+
 ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) const {
     if (!fGeoManager) {
         RESTError << "Geometry not initialized in TRestMicromegasReadout" << RESTendl;

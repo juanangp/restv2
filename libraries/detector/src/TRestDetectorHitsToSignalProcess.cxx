@@ -5,19 +5,19 @@
 /// The drift is given by the readout (TRestDetectorReadout::GetDistanceToReadout, e.g. the Micromegas plane
 /// and its normal): the hit is collected at its projection on the readout (ProjectToReadout), which gives
 /// the channel (GetChannelFromPosition), and arrives at time + distance / driftVelocity. The drift velocity
-/// is the one of the TRestDetectorDrift, unless driftVelocity is given. Hits outside the drift volume
-/// (distance < 0 or beyond the cathode, GetMaxDistanceToReadout) or without channel are rejected
-/// (fiducialization), and counted in the observable NHitsRejected. For readouts without a distance (e.g. a
-/// PMT) the channel is the one at the hit position and the time is the hit time.
+/// is the one of the TRestDetectorMedium at its drift field, unless driftVelocity is given.
+/// Hits outside the drift volume (distance < 0 or beyond the cathode, GetMaxDistanceToReadout) or without
+/// channel are rejected (fiducialization), and counted in the observable NHitsRejected. For readouts without
+/// a distance (e.g. a PMT) the channel is the one at the hit position and the time is the hit time.
 ///
 /// With sampling > 0 the arrival times are rounded down to multiples of it (fewer points per signal);
 /// otherwise the times are exact. Events without signals are rejected.
 ///
-/// Differences with legacy: the drift velocity comes from the drift medium, there is no light-speed time
+/// Differences with legacy: the drift velocity comes from the medium, there is no light-speed time
 /// for veto channels (they go in their own pipeline, with a readout without distance), no readout planes
 /// loop (the readout gives the distance) and the sampling is optional.
 ///
-/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), driftMedium (name,
+/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), medium (name,
 /// optional if there is only one), driftVelocity (0: the one of the medium), sampling (0).
 ///
 /// Example:
@@ -33,8 +33,8 @@
 #include <map>
 #include <stdexcept>
 
-#include "TRestDetectorDrift.h"
 #include "TRestDetectorHitsEvent.h"
+#include "TRestDetectorMedium.h"
 #include "TRestDetectorReadout.h"
 #include "TRestDetectorReadoutManager.h"
 #include "TRestDetectorSignalEvent.h"
@@ -47,7 +47,7 @@ static const bool TRestDetectorHitsToSignalProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     using P = TRestDetectorHitsToSignalProcess;
     reg.RegisterField<P>("readout", &P::fReadoutName);
-    reg.RegisterField<P>("driftMedium", &P::fDriftMediumName);
+    reg.RegisterField<P>("medium", &P::fMediumName);
     reg.RegisterField<P>("driftVelocity", &P::fDriftVelocity);
     reg.RegisterField<P>("sampling", &P::fSampling);
     return true;
@@ -103,13 +103,12 @@ void TRestDetectorHitsToSignalProcess::InitProcess() {
     // The drift velocity is only needed by readouts with a distance: checked with the first hit that drifts
     fVelocity = fDriftVelocity;
     if (fVelocity <= 0) {
-        const auto media = fManager->GetMetadataOfType<TRestDetectorDrift>();
-        const TRestDetectorDrift* medium = nullptr;
-        if (fDriftMediumName.empty() && media.size() == 1) medium = media.front();
-        for (const auto* m : media) {
-            if (m->GetName() == fDriftMediumName) medium = m;
+        const std::string user = "TRestDetectorHitsToSignalProcess";
+        const auto* medium = fManager->FindMetadata<TRestDetectorMedium>(fMediumName, user, "medium");
+        if (medium) {
+            fVelocity = medium->GetChargeResponse(user).GetDriftVelocity();
+            fMediumName = medium->GetName();
         }
-        if (medium) fVelocity = medium->GetDriftVelocity();
     }
     // The stored metadata keeps the readout and drift velocity used, not the defaults of the YAML
     fDriftVelocity = fVelocity;
@@ -146,8 +145,8 @@ bool TRestDetectorHitsToSignalProcess::ProcessEvent(const TRestEvent& input, TRe
             }
             if (fVelocity <= 0) {
                 throw std::runtime_error(
-                    "TRestDetectorHitsToSignalProcess: no drift velocity. Define a TRestDetectorDrift (set "
-                    "'driftMedium' if there is more than one) or set 'driftVelocity'");
+                    "TRestDetectorHitsToSignalProcess: no drift velocity. Define a TRestDetectorMedium (with "
+                    "the driftField of its charge) or set 'driftVelocity'");
             }
             collected = fReadout->ProjectToReadout(position);
             time += distance / fVelocity;

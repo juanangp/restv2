@@ -1,10 +1,11 @@
 /// \class TRestDetectorHitsDriftProcess
 /// Converts the energy of each hit into ionization electrons (energy / wValue of the medium, with the
-/// chosen fluctuations) and diffuses each electron with the TRestDetectorDrift (gaussian diffusion
-/// and attachment, from the YAML or a Magboltz transport table). Each surviving electron becomes a hit
-/// with the energy of the original hit divided by its number of electrons, the diffused position and the
-/// time of the original hit: only the position changes, the drift time is added when converting to
-/// signals.
+/// chosen fluctuations) and diffuses each electron with the TRestDetectorMedium at its drift field
+/// (driftField of its charge; gaussian diffusion and attachment, from a transport table of the medium or its
+/// fixed parameters; the values used are written to the metadata of the process). Each surviving electron
+/// becomes a hit with the energy of the original hit divided by its number of electrons, the diffused
+/// position and the time of the original hit: only the position changes, the drift time is added when
+/// converting to signals.
 ///
 /// The drift distance and its direction are given by TRestDetectorReadout::GetDistanceToReadout (e.g. the
 /// Micromegas plane and its normal). Hits without a distance or outside the drift volume (distance < 0 or
@@ -16,9 +17,9 @@
 /// (veto hits are split beforehand) and there is no microscopic Garfield drift: in a uniform field it uses
 /// the same transport table as the gaussian diffusion (microscopic simulations are done with restGarfield).
 ///
-/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), driftMedium (name,
-/// optional if there is only one), fluctuations ("fano", "poisson" or "none"), maxHits (1000, 0: no limit),
-/// seed (0).
+/// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), medium (name,
+/// optional if there is only one), fluctuations ("fano", "poisson" or "none"), maxHits (1000, 0: no
+/// limit), seed (0).
 ///
 /// Example:
 ///
@@ -32,8 +33,8 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "TRestDetectorDrift.h"
 #include "TRestDetectorHitsEvent.h"
+#include "TRestDetectorMedium.h"
 #include "TRestDetectorReadout.h"
 #include "TRestDetectorReadoutManager.h"
 #include "TRestManager.h"
@@ -44,10 +45,13 @@ static const bool TRestDetectorHitsDriftProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     using P = TRestDetectorHitsDriftProcess;
     reg.RegisterField<P>("readout", &P::fReadoutName);
-    reg.RegisterField<P>("driftMedium", &P::fDriftMediumName);
+    reg.RegisterField<P>("medium", &P::fMediumName);
     reg.RegisterField<P>("fluctuations", &P::fFluctuations);
     reg.RegisterField<P>("maxHits", &P::fMaxHits);
     reg.RegisterField<P>("seed", &P::fSeed);
+    reg.RegisterField<P>("longDiff", &P::fLongitudinalDiffusion);
+    reg.RegisterField<P>("transDiff", &P::fTransversalDiffusion);
+    reg.RegisterField<P>("attachment", &P::fAttachment);
     return true;
 }();
 
@@ -101,22 +105,24 @@ void TRestDetectorHitsDriftProcess::InitProcess() {
     }
     fReadout = readouts->SelectReadout(fReadoutName, "TRestDetectorHitsDriftProcess");
 
-    const auto media = fManager->GetMetadataOfType<TRestDetectorDrift>();
-    fMedium = nullptr;
-    if (fDriftMediumName.empty() && media.size() == 1) fMedium = media.front();
-    for (const auto* medium : media) {
-        if (medium->GetName() == fDriftMediumName) fMedium = medium;
+    const std::string user = "TRestDetectorHitsDriftProcess";
+    const auto* medium = fManager->FindMetadata<TRestDetectorMedium>(fMediumName, user, "medium");
+    if (!medium) throw std::runtime_error(user + ": needs a TRestDetectorMedium");
+    fCharge = &medium->GetChargeResponse(user);
+    if (fCharge->GetWValue() <= 0) {
+        throw std::runtime_error(user + ": the charge of the medium '" + medium->GetName() +
+                                 "' needs wValue > 0");
     }
-    if (!fMedium) {
-        throw std::runtime_error("TRestDetectorHitsDriftProcess: drift medium '" + fDriftMediumName +
-                                 "' not found. Define a TRestDetectorDrift and set 'driftMedium' if "
-                                 "there is more than one");
+    if (fFluctuations == "fano" && fCharge->GetFanoFactor() <= 0) {
+        throw std::runtime_error(user + ": fluctuations 'fano' need fanoFactor > 0 in the charge of '" +
+                                 medium->GetName() + "'");
     }
-    if (fFluctuations == "fano" && fMedium->GetFanoFactor() <= 0) {
-        throw std::runtime_error(
-            "TRestDetectorHitsDriftProcess: fluctuations 'fano' need fanoFactor > 0 in '" +
-            fMedium->GetName() + "'");
-    }
+    fMediumName = medium->GetName();
+    fLongitudinalDiffusion = fCharge->GetLongitudinalDiffusion();
+    fTransversalDiffusion = fCharge->GetTransversalDiffusion();
+    fAttachment = fCharge->GetAttachment();
+    // The stored metadata keeps the medium and the transport used
+    UpdateYAMLFromParams<TRestDetectorHitsDriftProcess>(fNode);
 
     fRandom.SetSeed(fSeed);
 }
@@ -136,7 +142,7 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
     for (size_t n = 0; n < inputEvent->GetNumberOfHits(); n++) {
         if (inputEvent->GetEnergy(n) > 0) totalEnergy += inputEvent->GetEnergy(n);
     }
-    const double wValue = fMedium->GetWValue();
+    const double wValue = fCharge->GetWValue();
     // Effective W-value: each electron carries the energy of several if there are more than fMaxHits
     const double effectiveW =
         fMaxHits > 0 && totalEnergy / wValue > fMaxHits ? totalEnergy / fMaxHits : wValue;
@@ -153,7 +159,7 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
 
         double electrons = energy / wValue;
         if (fFluctuations == "fano") {
-            electrons = fRandom.Gaus(electrons, std::sqrt(fMedium->GetFanoFactor() * electrons));
+            electrons = fRandom.Gaus(electrons, std::sqrt(fCharge->GetFanoFactor() * electrons));
         } else if (fFluctuations == "poisson") {
             electrons = fRandom.Poisson(electrons);
         }
@@ -162,7 +168,11 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
 
         for (long e = 0; e < nElectrons; e++) {
             XYZVector electron = position;
-            if (!fMedium->DiffuseElectron(electron, normal, distance, fRandom)) continue;
+            if (!TRestDetectorChargeResponse::DiffuseElectron(electron, normal, distance,
+                                                              fLongitudinalDiffusion, fTransversalDiffusion,
+                                                              fAttachment, fRandom)) {
+                continue;
+            }
             // Kept between the readout plane and the cathode
             const double diffusedDistance = fReadout->GetDistanceToReadout(electron);
             if (diffusedDistance < 0) electron -= diffusedDistance * normal;

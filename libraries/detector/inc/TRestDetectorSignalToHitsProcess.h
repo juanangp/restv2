@@ -32,13 +32,13 @@ class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
     /// Drift velocity in position units per signal time unit: coordinate along fDriftAxis where
     /// TRestDetectorReadout::GetDistanceToReadout = driftVelocity * time (readout plane and sense from
     /// the readout), or direction * driftVelocity * time if the readout defines no distance.
-    /// Values <= 0 take it from the TRestDetectorDrift (fDriftMediumName) if there is one with a
-    /// drift velocity, otherwise they disable the drift: the hits are placed on the channel position.
+    /// Values <= 0 take it from the TRestDetectorMedium at its drift field if there is a medium, otherwise
+    /// they disable the drift: the hits are placed on the channel position.
     TRestWithUnits fDriftVelocity = 0;
 
-    /// Name of the TRestDetectorDrift giving the drift velocity when driftVelocity <= 0. It can be
-    /// omitted if the manager contains a single medium.
-    std::string fDriftMediumName = "";
+    /// Name of the TRestDetectorMedium giving the drift velocity when driftVelocity <= 0. It can be omitted
+    /// if the manager contains a single one.
+    std::string fMediumName = "";
 
     /// Axis and sense of the drift from the readout into the drift volume (Z, -Z, X, ...; as the legacy
     /// plane normal). The sense is only used if the readout defines no distance (otherwise it comes from

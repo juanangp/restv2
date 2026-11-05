@@ -7,17 +7,17 @@
 #include "TRandom3.h"
 #include "TRestEventProcess.h"
 
-class TRestDetectorDrift;
+class TRestDetectorChargeResponse;
 class TRestDetectorReadout;
 
 /// \class TRestDetectorHitsDriftProcess
 /// \brief Converts the energy deposits of a TRestDetectorHitsEvent into ionization electrons and drifts
-/// them to the readout through a TRestDetectorDrift (replaces the legacy
+/// them to the readout through a TRestDetectorMedium at its drift field (replaces the legacy
 /// TRestDetectorElectronDiffusionProcess and TRestDetectorGarfieldDriftProcess).
 class TRestDetectorHitsDriftProcess : public TRestEventProcess {
    private:
     const TRestDetectorReadout* fReadout = nullptr;
-    const TRestDetectorDrift* fMedium = nullptr;
+    const TRestDetectorChargeResponse* fCharge = nullptr;
     TRandom3 fRandom;  //!
 
    public:
@@ -28,8 +28,8 @@ class TRestDetectorHitsDriftProcess : public TRestEventProcess {
     /// omitted if the manager contains a single readout.
     std::string fReadoutName = "";
 
-    /// Name of the TRestDetectorDrift. It can be omitted if the manager contains a single medium.
-    std::string fDriftMediumName = "";
+    /// Name of the TRestDetectorMedium. It can be omitted if the manager contains a single medium.
+    std::string fMediumName = "";
 
     /// Fluctuation of the number of electrons: fano (gaussian with the medium Fano factor), poisson or none.
     std::string fFluctuations = "fano";
@@ -40,6 +40,12 @@ class TRestDetectorHitsDriftProcess : public TRestEventProcess {
 
     /// Seed of the random generator (0: random seed)
     unsigned long fSeed = 0;
+
+    /// Written with the transport used, from the medium at its drift field (not inputs): longitudinal and
+    /// transversal diffusion (sqrt(cm)) and attachment (1/cm)
+    double fLongitudinalDiffusion = 0;
+    double fTransversalDiffusion = 0;
+    double fAttachment = 0;
 
     TRestDetectorHitsDriftProcess();
     TRestDetectorHitsDriftProcess(const std::string& instanceName, const YAML::Node& node);

@@ -8,14 +8,14 @@
 /// With subtractFano, the Fano fluctuation of the number of electrons, already applied by
 /// TRestDetectorHitsDriftProcess, is removed from the resolution: only the extra variance
 /// sigma^2 - F * W / E (relative) is applied, with the Fano factor F and the W-value of the
-/// TRestDetectorDrift. Events whose resolution is below the Fano contribution are not smeared (a warning
-/// gives their number at the end).
+/// charge response of the TRestDetectorMedium. Events whose resolution is below the Fano contribution are not
+/// smeared (a warning gives their number at the end).
 ///
 /// Differences with legacy: there is no channelType (veto hits are split beforehand, each detector goes in
 /// its own pipeline) and the optional Fano subtraction.
 ///
 /// Parameters: energyReference (5.9 keV), resolutionReference (FWHM in %, 15), subtractFano (false),
-/// driftMedium (name, optional if there is only one, only with subtractFano), seed (0).
+/// medium (name, optional if there is only one, only with subtractFano), seed (0).
 ///
 /// Example:
 ///
@@ -30,8 +30,8 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "TRestDetectorDrift.h"
 #include "TRestDetectorHitsEvent.h"
+#include "TRestDetectorMedium.h"
 #include "TRestManager.h"
 
 static const bool TRestDetectorHitsSmearingProcess_FieldsRegistered = []() {
@@ -40,7 +40,7 @@ static const bool TRestDetectorHitsSmearingProcess_FieldsRegistered = []() {
     reg.RegisterField<P>("energyReference", &P::fEnergyReference);
     reg.RegisterField<P>("resolutionReference", &P::fResolutionReference);
     reg.RegisterField<P>("subtractFano", &P::fSubtractFano);
-    reg.RegisterField<P>("driftMedium", &P::fDriftMediumName);
+    reg.RegisterField<P>("medium", &P::fMediumName);
     reg.RegisterField<P>("seed", &P::fSeed);
     return true;
 }();
@@ -90,19 +90,19 @@ void TRestDetectorHitsSmearingProcess::InitProcess() {
             "TRestDetectorHitsSmearingProcess: energyReference must be > 0 and resolutionReference >= 0");
     }
 
-    fMedium = nullptr;
+    fCharge = nullptr;
     if (fSubtractFano) {
         if (!fManager) throw std::runtime_error("TRestDetectorHitsSmearingProcess: no TRestManager");
-        const auto media = fManager->GetMetadataOfType<TRestDetectorDrift>();
-        if (fDriftMediumName.empty() && media.size() == 1) fMedium = media.front();
-        for (const auto* medium : media) {
-            if (medium->GetName() == fDriftMediumName) fMedium = medium;
+        const std::string user = "TRestDetectorHitsSmearingProcess";
+        const auto* medium = fManager->FindMetadata<TRestDetectorMedium>(fMediumName, user, "medium");
+        if (!medium) throw std::runtime_error(user + ": subtractFano needs a TRestDetectorMedium");
+        fCharge = &medium->GetChargeResponse(user);
+        if (fCharge->GetWValue() <= 0) {
+            throw std::runtime_error(user + ": subtractFano needs the wValue of the charge of '" +
+                                     medium->GetName() + "'");
         }
-        if (!fMedium) {
-            throw std::runtime_error(
-                "TRestDetectorHitsSmearingProcess: subtractFano needs the drift medium '" + fDriftMediumName +
-                "'. Define a TRestDetectorDrift and set 'driftMedium' if there is more than one");
-        }
+        fMediumName = medium->GetName();
+        UpdateYAMLFromParams<TRestDetectorHitsSmearingProcess>(fNode);
     }
 
     fNBelowFano = 0;
@@ -129,10 +129,10 @@ bool TRestDetectorHitsSmearingProcess::ProcessEvent(const TRestEvent& input, TRe
     if (energy > 0) {
         const double sigma = fResolutionReference / 100. / kFWHM * std::sqrt(fEnergyReference / energy);
         double variance = sigma * sigma;
-        if (fMedium) variance -= fMedium->GetFanoFactor() * fMedium->GetWValue() / energy;
+        if (fCharge) variance -= fCharge->GetFanoFactor() * fCharge->GetWValue() / energy;
         if (variance > 0) {
             gain = fRandom.Gaus(1, std::sqrt(variance));
-        } else if (fMedium) {
+        } else if (fCharge) {
             fNBelowFano++;
         }
     }

@@ -1,10 +1,11 @@
-# Transport tables of Ar + 1% iC4H10 (AlphaCAMM gas):
+# Transport and amplification tables of Ar + 1% iC4H10 (AlphaCAMM gas):
 #   restGarfield packages/restGarfield/examples/ArIso.yaml
-# adds a table per pressure and temperature to ArIso.root in the current directory (tables that already
-# exist are skipped; set outputPath for another directory), used by TRestDetectorDrift with
+# adds the tables to the mediumFile of the medium (ArIso.root in the current directory by default; tables
+# that already exist are skipped), used by the TRestDetectorMedium of the analysis with
 # `mediumFile: "ArIso.root"` and drawn with
-#   restRoot -> REST_Garfield_DrawTransport("ArIso.root")
-# Magboltz is slow: about some minutes per field node.
+#   restRoot -> REST_Garfield_DrawMedium("ArIso.root")
+# Magboltz is slow: about some minutes per field node of the transport table, and the microscopic avalanches
+# of the gain table take seconds each at gains of ~1e4.
 
 transportManager:
   class: "TRestDetectorTransportManager"
@@ -15,12 +16,23 @@ transportManager:
     state: "gas"
     components: {Ar: 99, iC4H10: 1}
 
-  gasTable:
-    class: "TRestDetectorTransport"
-    pressures: [1 bar]
+  # One table per temperature at one pressure: the medium scales it with E/p to the pressure of the run
+  # (REST_Garfield_DrawMedium("ArIso.root", "", 2) compares it with tables at other pressures)
+  transport:
     temperatures: [293.15]
-    fieldRange: [10 V/cm, 1000 V/cm]
-    fieldNodes: 20
+    fieldRange: [30 V/cm, 500 V/cm]
+    fieldNodes: 30
     logField: true
-    nCollisions: 10
+    nCollisions: 20
     maxElectronEnergy: 400 eV
+
+
+#  gain:
+#    pressures: [1 bar, 1.4 bar, 2 bar]
+#    temperatures: [293.15]
+#    gap: 50 um
+#    reducedFieldRange: [50 kV/cm/bar, 70 kV/cm/bar]   # E/p: fields E = (E/p) * p at each pressure
+#    fieldNodes: 5
+#    avalanches: 500
+#    usePenning: true
+#    penningRate: 0.3

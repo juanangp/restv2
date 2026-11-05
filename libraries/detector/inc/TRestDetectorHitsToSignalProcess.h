@@ -22,9 +22,9 @@ class TRestDetectorHitsToSignalProcess : public TRestEventProcess {
     /// Name of the readout (in TRestDetectorReadoutManager). It can be omitted if the manager contains a
     /// single readout.
     std::string fReadoutName = "";
-    /// Name of the TRestDetectorDrift that gives the drift velocity. It can be omitted if the manager
-    /// contains a single medium.
-    std::string fDriftMediumName = "";
+    /// Name of the TRestDetectorMedium that gives the drift velocity (at its drift field). It can be omitted
+    /// if the manager contains a single one.
+    std::string fMediumName = "";
     /// Drift velocity. If > 0 it overrides the one of the drift medium
     TRestWithUnits fDriftVelocity = 0;  // mm/us
     /// Time bin of the signals: the arrival times are rounded down to multiples of it (0: exact times)

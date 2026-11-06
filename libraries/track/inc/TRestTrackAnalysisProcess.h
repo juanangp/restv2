@@ -26,6 +26,9 @@ class TRestTrackAnalysisProcess : public TRestEventProcess {
         double sigmaX = 0, sigmaY = 0, sigmaZ = 0;
         double gaussSigmaX = 0, gaussSigmaY = 0, gaussSigmaZ = 0;
         double twist = 0, twistWeighted = 0, twistLow = 0, twistHigh = 0;
+        /// Sum and maximum of the node sizes, sqrt(sigmaX² + sigmaY² + sigmaZ²) of the coordinates
+        /// defined (0 for tracks not reduced)
+        double size = 0, maxNodeSize = 0;
     };
 
     /// The same observables for the other tracks, one entry per track
@@ -38,6 +41,7 @@ class TRestTrackAnalysisProcess : public TRestEventProcess {
         std::vector<double> sigmaX, sigmaY, sigmaZ;
         std::vector<double> gaussSigmaX, gaussSigmaY, gaussSigmaZ;
         std::vector<double> twist, twistWeighted, twistLow, twistHigh;
+        std::vector<double> size, maxNodeSize;
 
         void clear();
         void push_back(const TrackObservables& track);

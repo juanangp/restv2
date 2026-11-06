@@ -19,6 +19,13 @@ class TRestEventProcess : public TRestMetadata {
     /// The TRestCut of fCutNames, resolved in InitCuts
     std::vector<TRestCut*> fCuts;  //!
 
+    /// Names of all the observables the process offered in InitProcess (registered or not)
+    mutable std::vector<std::string> fOfferedObservables;  //!
+
+    /// \brief Throws if a name of `observables` (other than "all" and "none") was not offered by the
+    /// process in InitProcess: a misspelled name, or one whose parameters are not enabled
+    void CheckObservables() const;
+
    public:
     std::vector<std::string> fObservables = {"none"};
     /// Names of the TRestCut (in the manager) applied to the event after the process
@@ -65,8 +72,13 @@ class TRestEventProcess : public TRestMetadata {
     /// \brief No-op configuration loader for process instances.
     virtual void LoadConfig() override;
 
-    /// \brief Initializes this process by delegating to `InitProcess`.
-    void Initialize() override { InitProcess(); }
+    /// \brief Initializes this process by delegating to `InitProcess`, then checks the names of
+    /// `observables` against the ones it offered.
+    void Initialize() override {
+        fOfferedObservables.clear();
+        InitProcess();
+        CheckObservables();
+    }
 
     /// \brief Resolves the TRestCut of `cuts` in the manager and compiles them on the output analysis
     /// tree. Called after the initialization of all the processes (all the observables registered).

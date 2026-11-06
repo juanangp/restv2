@@ -1,5 +1,6 @@
 #include "TRestEventProcess.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 #include "TRestCut.h"
@@ -36,12 +37,32 @@ void TRestEventProcess::LoadConfig() {
 long long TRestEventProcess::GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
 
 bool TRestEventProcess::ShouldRegisterObservable(const std::string& name) const {
+    fOfferedObservables.push_back(name);
     if (!fRunInfo) return false;
     for (const auto& obs : fObservables) {
         if (obs == "none") return false;
         if (obs == "all" || obs == name) return true;
     }
     return false;
+}
+
+void TRestEventProcess::CheckObservables() const {
+    std::string unknown;
+    for (const auto& obs : fObservables) {
+        if (obs == "all" || obs == "none") continue;
+        if (std::find(fOfferedObservables.begin(), fOfferedObservables.end(), obs) !=
+            fOfferedObservables.end()) {
+            continue;
+        }
+        unknown += (unknown.empty() ? "" : ", ") + obs;
+    }
+    if (unknown.empty()) return;
+
+    std::string offered;
+    for (const auto& obs : fOfferedObservables) offered += (offered.empty() ? "" : ", ") + obs;
+    throw std::runtime_error(GetName() + ": unknown observables " + unknown +
+                             " (not given by the process with this configuration; available: " +
+                             (offered.empty() ? "none" : offered) + ")");
 }
 
 void TRestEventProcess::InitCuts() {

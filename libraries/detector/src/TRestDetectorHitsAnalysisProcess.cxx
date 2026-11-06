@@ -10,6 +10,13 @@
 /// * NHits, Energy; MaxHitEnergy, MinHitEnergy, MeanHitEnergy.
 /// * MeanX/Y/Z: energy weighted mean position; SigmaX/Y/Z: energy weighted size (TRestHits::GetSigmaX,
 ///   ...); SkewXY, SkewZ: skewness (TRestHits::GetSkewXY, GetSkewZ).
+/// * GaussSigmaX/Y/Z: size from a gaussian fit of the energy against the coordinate, with the hits that
+///   define it (TRestHitsAnalysis::GetGaussSigma); only with gaussFit: true (slow, not registered otherwise);
+///   -1 if the fit fails, NaN if no hit defines the coordinate.
+/// * FiducialEnergy: energy of the hits inside the fiducial cylinder (fiducialCenter, fiducialAxis,
+///   fiducialRadius, fiducialLength); only with fiducialRadius (not registered otherwise). The coordinates a
+///   hit does not define take the value of the center: with the axis along X, Y or Z, a hit (e.g. XZ) is
+///   inside if some value of them is (XZ with axis Z: |X - centerX| <= radius).
 ///
 /// For each projection P in `projections` (hit types, e.g. [XZ, YZ] for strip readouts):
 /// * NHits_P, Energy_P: number of hits and energy of type P.
@@ -25,6 +32,14 @@
 /// SigmaX² + SigmaY², z2Sigma → SigmaZ², xySigmaBalance → SigmaBalance_XZ_YZ, xySkew → SkewXY, zSkew →
 /// SkewZ. Removed: nHitsSizeXY (sqrt(NHits_XZ² + NHits_YZ²)), meanHitEnergyBalance (1 / NHits) and the
 /// fiducial cylinder and prism observables (see below).
+///
+/// Parameters:
+/// * projections: see above (default none).
+/// * gaussFit: compute GaussSigmaX/Y/Z (default false).
+/// * fiducialCenter: center of the fiducial cylinder (default [0, 0, 0] mm).
+/// * fiducialAxis: direction of its axis, any length (default [0, 0, 1]).
+/// * fiducialRadius: its radius, 0 for none (default 0 mm).
+/// * fiducialLength: its length along the axis, centered on the center, 0 for infinite (default 0 mm).
 ///
 /// Example (strip readout):
 ///
@@ -45,6 +60,18 @@
 /// TRestDetectorHitsToSignalProcess already rejects the hits out of the drift volume or the readout), and
 /// the selection of events by position is a TRestCut on MeanX/Y/Z, e.g.
 /// `MeanX * MeanX + MeanY * MeanY < 2500`.
+///
+/// Also replaces legacy TRestDetectorHitsGaussAnalysisProcess (gaussFit: true): xSigmaGaus → GaussSigmaX
+/// (legacy: all the hits, here those defining X), xy2SigmaGaus → GaussSigmaX² + GaussSigmaY²,
+/// xySigmaBalanceGaus → (GaussSigmaX - GaussSigmaY) / (GaussSigmaX + GaussSigmaY) (legacy: -1 if a fit
+/// failed). And legacy TRestDetectorHitsReadoutAnalysisProcess, which took the hits of one channel type of
+/// the readout (veto hits go in their own pipeline here): readoutEnergy → Energy, readoutNumberOfHits →
+/// NHits, readoutAveragePositionX → MeanX, readoutSigmaPositionX → SigmaX, readoutSigmaPositionXY →
+/// sqrt(SigmaX² + SigmaY²), readoutSigmaPositionXYBalance → (SigmaX - SigmaY) / (SigmaX + SigmaY),
+/// readoutSkewnessPositionXY → SkewXY, readoutEnergyInFiducial → FiducialEnergy (fiducialPosition →
+/// fiducialCenter, fiducialDiameter → 2 fiducialRadius, legacy: a circle in XY, fiducialAxis [0, 0, 1]),
+/// removeZeroEnergyEvents → TRestCut on Energy > 0. Not migrated: readoutSkewnessPositionX/Y/Z and ignoreZ
+/// (only for the readout channel lookup).
 
 #include "TRestDetectorHitsAnalysisProcess.h"
 
@@ -55,6 +82,7 @@
 #include <stdexcept>
 
 #include "TRestDetectorHitsEvent.h"
+#include "TRestHitsAnalysis.h"
 #include "TRestRun.h"
 #include "TRestTools.h"
 
@@ -62,6 +90,11 @@ static const bool TRestDetectorHitsAnalysisProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     using P = TRestDetectorHitsAnalysisProcess;
     reg.RegisterField<P>("projections", &P::fProjections);
+    reg.RegisterField<P>("gaussFit", &P::fGaussFit);
+    reg.RegisterField<P>("fiducialCenter", &P::fFiducialCenter);
+    reg.RegisterField<P>("fiducialAxis", &P::fFiducialAxis);
+    reg.RegisterField<P>("fiducialRadius", &P::fFiducialRadius);
+    reg.RegisterField<P>("fiducialLength", &P::fFiducialLength);
     return true;
 }();
 
@@ -122,6 +155,14 @@ void TRestDetectorHitsAnalysisProcess::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorHitsAnalysisProcess>(fNode);
     for (auto& projection : fProjections) {
         projection = TRestTools::NormalizeOption("projections", projection, TRestHitsData::kTypeNames);
+    }
+    if (fFiducialRadius < 0 || fFiducialLength < 0) {
+        throw std::runtime_error(
+            "TRestDetectorHitsAnalysisProcess: fiducialRadius and fiducialLength must not be negative");
+    }
+    const auto& axis = fFiducialAxis;
+    if (fFiducialRadius > 0 && axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2] == 0) {
+        throw std::runtime_error("TRestDetectorHitsAnalysisProcess: fiducialAxis must not be null");
     }
     UpdateYAMLFromParams<TRestDetectorHitsAnalysisProcess>(fNode);
 }
@@ -184,6 +225,13 @@ void TRestDetectorHitsAnalysisProcess::InitProcess() {
     RegisterObservable("SigmaZ", fSigmaZ);
     RegisterObservable("SkewXY", fSkewXY);
     RegisterObservable("SkewZ", fSkewZ);
+    // Only when computed, so that they are not in the tree without their parameters
+    if (fGaussFit) {
+        RegisterObservable("GaussSigmaX", fGaussSigmaX);
+        RegisterObservable("GaussSigmaY", fGaussSigmaY);
+        RegisterObservable("GaussSigmaZ", fGaussSigmaZ);
+    }
+    if (fFiducialRadius > 0) RegisterObservable("FiducialEnergy", fFiducialEnergy);
 
     for (auto& projection : fProjectionObs) {
         RegisterObservable("NHits_" + projection.name, projection.nHits);
@@ -228,6 +276,41 @@ bool TRestDetectorHitsAnalysisProcess::ProcessEvent(const TRestEvent& input, TRe
     fSigmaZ = defined[2] ? hits.GetSigmaZ() : kNaN;
     fSkewXY = defined[0] || defined[1] ? hits.GetSkewXY() : kNaN;
     fSkewZ = defined[2] ? hits.GetSkewZ() : kNaN;
+
+    double* gaussSigmas[3] = {&fGaussSigmaX, &fGaussSigmaY, &fGaussSigmaZ};
+    for (int a = 0; a < 3; a++) {
+        if (!defined[a]) {
+            *gaussSigmas[a] = kNaN;
+        } else if (fGaussFit) {
+            std::vector<double> values, energies;
+            for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+                if (!TRestHitsData::IsDefined(hits.GetType(n), a)) continue;
+                values.push_back(hits.GetCoordinate(n, a));
+                energies.push_back(hits.GetEnergy(n));
+            }
+            *gaussSigmas[a] = TRestHitsAnalysis::GetGaussSigma(values, energies);
+        }
+    }
+
+    fFiducialEnergy = 0;
+    if (fFiducialRadius > 0) {
+        const auto& axis = fFiducialAxis;
+        const double norm = std::sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+        for (size_t n = 0; n < hits.GetNumberOfHits(); n++) {
+            // Position relative to the center, 0 along the coordinates the hit does not define
+            double d[3];
+            for (int a = 0; a < 3; a++) {
+                d[a] = TRestHitsData::IsDefined(hits.GetType(n), a)
+                           ? hits.GetCoordinate(n, a) - fFiducialCenter[a]
+                           : 0;
+            }
+            const double along = (d[0] * axis[0] + d[1] * axis[1] + d[2] * axis[2]) / norm;
+            const double radial2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] - along * along;
+            if (radial2 > fFiducialRadius * fFiducialRadius) continue;
+            if (fFiducialLength > 0 && std::abs(along) > fFiducialLength / 2) continue;
+            fFiducialEnergy += hits.GetEnergy(n);
+        }
+    }
 
     for (auto& projection : fProjectionObs) {
         projection.nHits = 0;

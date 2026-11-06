@@ -39,6 +39,8 @@ class TRestDetectorHitsAnalysisProcess : public TRestEventProcess {
     double fMeanX = 0, fMeanY = 0, fMeanZ = 0;
     double fSigmaX = 0, fSigmaY = 0, fSigmaZ = 0;
     double fSkewXY = 0, fSkewZ = 0;
+    double fGaussSigmaX = 0, fGaussSigmaY = 0, fGaussSigmaZ = 0;
+    double fFiducialEnergy = 0;
 
     std::vector<ProjectionObservables> fProjectionObs;
     std::vector<BalanceObservables> fBalances;
@@ -47,6 +49,16 @@ class TRestDetectorHitsAnalysisProcess : public TRestEventProcess {
     /// Projections (hit types: X, Y, Z, XY, XZ, YZ, XYZ) with their number of hits and energy, e.g. [XZ, YZ]
     /// for strip readouts
     std::vector<std::string> fProjections = {};
+
+    /// GaussSigmaX/Y/Z from gaussian fits (slow), otherwise 0
+    bool fGaussFit = false;
+
+    /// Fiducial cylinder for FiducialEnergy: center, axis direction, radius (0: none) and length along the
+    /// axis, centered on the center (0: infinite)
+    std::array<TRestWithUnits, 3> fFiducialCenter = {0.0, 0.0, 0.0};
+    std::array<double, 3> fFiducialAxis = {0, 0, 1};
+    TRestWithUnits fFiducialRadius = 0;
+    TRestWithUnits fFiducialLength = 0;
 
     TRestDetectorHitsAnalysisProcess();
     TRestDetectorHitsAnalysisProcess(const std::string& instanceName, const YAML::Node& node);

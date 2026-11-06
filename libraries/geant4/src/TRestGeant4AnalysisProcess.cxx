@@ -14,7 +14,8 @@
 /// Without `selections`, there is one for each sensitive entry of `activeVolumes` in the simulation, of
 /// its volumes, named as its `name` (characters not allowed as `_`, without the leading and trailing
 /// ones) and with `entering: true`, e.g. gas_Energy, gas_EntryX... for `name: "gas"`, and veto_* for a
-/// second one `name: "veto"`. All the observables are one value per event; each selection gives:
+/// second one `name: "veto"`. All the observables are one value per event, but the interaction vectors; each
+/// selection gives:
 ///
 /// * <name>_Energy, <name>_MeanPosX/Y/Z (energy weighted), <name>_FirstHitTime and <name>_NTracks
 /// (tracks with energy in the selection). Without energy, MeanPos and FirstHitTime are NaN.
@@ -37,6 +38,27 @@
 ///   <name>_NEntering is 0, the strings are empty and the numbers NaN. Its cost is a walk over the
 ///   ancestors of the tracks with energy in the selection.
 ///
+/// * With `perVolume: true`: <name>_<volume>_Energy, the energy of each volume of the selection (the
+///   geometry name with the characters not allowed as `_`; an error if two volumes give the same one),
+///   and <name>_MaxVolumeEnergy, the largest of them (e.g. the most energetic panel of a veto, to apply
+///   a threshold per panel). Groups and layers are selections with their own expressions.
+/// * With `interactions: true`: the selected hits with or without energy, i.e. the interaction points of
+///   the selected particles and processes (meant for discrete processes, e.g. `particles: ["neutron"]`,
+///   `processes: ["nCapture"]` for the neutron captures; without processes every step counts).
+///   <name>_NInteractions and, one entry per interaction, the vectors <name>_InteractionX/Y/Z,
+///   _InteractionTime, _InteractionKineticEnergy (of the particle at the hit) and
+///   _InteractionSecondariesEnergy (initial kinetic energy of the secondaries its track created by that
+///   process, e.g. the capture gammas and the recoiling nucleus; if the track has several interactions
+///   with that process, each secondary goes to the closest one); _InteractionTrackEdep and
+///   _InteractionTrackMaxVolumeEdep: energy deposited by the track of the interaction and all its
+///   descendants in `trackEdepVolumes` (regular expressions, all the volumes if not given), in total and
+///   in the volume with the most (e.g. for a captured neutron with the veto volumes: the energy in the
+///   vetoes of the neutron, its recoils before the capture and the capture products, to tag it; the same
+///   for all the interactions of a track). Only the hits stored by restG4: the
+///   volumes must be active volumes, and with removeUnwantedTracks a track without energy in the keep
+///   volumes is kept only as an ancestor of a kept track (e.g. the neutron of the capture gammas) or
+///   with removeUnwantedTracksKeepZeroEnergyTracks.
+///
 /// At initialization an error is thrown for a volume list without any volume in the geometry, for a
 /// particle or process not in the physics information of the simulation metadata, for a splitByParticle
 /// particle excluded by `particles` and for a selection without `volumes` when there is no sensitive
@@ -54,6 +76,27 @@
 /// and are not distinguished. zenithYDegrees and zenithSourceDegrees are removed (they follow from the
 /// primary direction).
 ///
+/// Also replaces legacy TRestGeant4VetoAnalysisProcess and TRestGeant4NeutronTaggingProcess:
+/// * Veto energies (EnergyVeto_<alias>, EnergyTotal, EnergyMax; NeutronTagging <volume>VolumeEDep,
+///   vetoAllEVetoMax): a selection of the veto volumes with perVolume (<name>_<volume>_Energy,
+///   <name>_Energy, <name>_MaxVolumeEnergy). Groups and layers (EnergyGroup_<g>, EnergyGroupLayer_*,
+///   EnergyGroupMax_<g>, EnergyLayerMax_*, vetoGroup<G>EVetoMax), parsed by legacy from the volume names:
+///   one selection with perVolume per group or layer, with its own volume expression.
+/// * Quenched veto energies (NeutronTagging quenchingFactors, one factor for all the particles but e±
+///   and gammas): TRestGeant4QuenchingProcess (Birks per volume) before the analysis.
+/// * Neutron captures (nCaptures..., neutronsCaptured...): a selection with `particles: ["neutron"]`,
+///   `processes: ["nCapture"]` and interactions (positions, times, energy of the capture products), one
+///   per volume set (e.g. capture layers and scintillators, legacy captureLayerVolume and
+///   scintillatorVolume): NCaptures = <name>_NInteractions; neutronsCapturedEDepByNeutronAndChildren →
+///   <name>_InteractionTrackEdep without trackEdepVolumes, ...AndChildrenInVeto and ...InVetoMax →
+///   <name>_InteractionTrackEdep and _InteractionTrackMaxVolumeEdep with `trackEdepVolumes` the veto
+///   volumes (another selection for each set of volumes). The secondary neutrons leaving the shielding
+///   (secondaryNeutronsShielding...) are a selection with `particles: ["neutron"]`, `processes:
+///   ["Transportation"]`, the shielding volumes and interactions (position and kinetic energy; legacy
+///   excluded the primaries and counted each track once). Not migrated: the initial energy of the
+///   neutron track, the neutron alone (EDepByNeutron, ...InVeto), the minimum per veto and the list of
+///   capture gammas (their total energy is _InteractionSecondariesEnergy).
+///
 /// Example:
 ///
 ///    g4Ana:
@@ -69,6 +112,13 @@
 ///          processes: ["compt"]
 ///        - name: "scint"
 ///          volumes: ["^scintillatorVolume"]
+///          perVolume: true
+///        - name: "captures"
+///          particles: ["neutron"]
+///          processes: ["nCapture"]
+///          volumes: [".*"]
+///          interactions: true
+///          trackEdepVolumes: ["^scintillatorVolume"]
 
 #include "TRestGeant4AnalysisProcess.h"
 
@@ -92,6 +142,9 @@ static const bool TRestGeant4SelectionInfo_FieldsRegistered = []() {
     reg.RegisterField<S>("processes", &S::fProcesses);
     reg.RegisterField<S>("splitByParticle", &S::fSplitByParticle);
     reg.RegisterField<S>("entering", &S::fEntering);
+    reg.RegisterField<S>("perVolume", &S::fPerVolume);
+    reg.RegisterField<S>("interactions", &S::fInteractions);
+    reg.RegisterField<S>("trackEdepVolumes", &S::fTrackEdepVolumes);
     return true;
 }();
 
@@ -280,6 +333,16 @@ void TRestGeant4AnalysisProcess::InitProcess() {
         }
         selection.splitEnergy.assign(selection.splitParticles.size(), 0);
         selection.entering = info.fEntering;
+        if (info.fPerVolume) {
+            selection.perVolumeIDs.assign(selection.volumeIDs.begin(), selection.volumeIDs.end());
+            selection.volumeEnergy.assign(selection.perVolumeIDs.size(), 0);
+        }
+        selection.interactions = info.fInteractions;
+        if (!info.fTrackEdepVolumes.empty() && !info.fInteractions) {
+            throw std::runtime_error("TRestGeant4AnalysisProcess: " + what +
+                                     ", trackEdepVolumes without interactions");
+        }
+        selection.trackEdepVolumeIDs = resolveVolumes(info.fTrackEdepVolumes, what + ", trackEdepVolumes");
         fSelectionObs.push_back(selection);
     }
 
@@ -310,6 +373,33 @@ void TRestGeant4AnalysisProcess::InitProcess() {
         for (size_t p = 0; p < selection.splitParticles.size(); p++) {
             RegisterObservable(prefix + ParticleObservableName(selection.splitParticles[p]) + "_Energy",
                                selection.splitEnergy[p]);
+        }
+        if (!selection.perVolumeIDs.empty()) {
+            // Volume names as observable names, an error if two give the same one
+            std::set<std::string> volumeNames;
+            for (size_t v = 0; v < selection.perVolumeIDs.size(); v++) {
+                const auto volume =
+                    VolumeObservableName(fGeometryInfo->GetVolumeFromID(selection.perVolumeIDs[v]));
+                if (!volumeNames.insert(volume).second) {
+                    throw std::runtime_error("TRestGeant4AnalysisProcess: selection '" + selection.name +
+                                             "', two volumes give the observable name '" + volume + "'");
+                }
+                RegisterObservable(prefix + volume + "_Energy", selection.volumeEnergy[v]);
+            }
+            RegisterObservable(prefix + "MaxVolumeEnergy", selection.maxVolumeEnergy);
+        }
+        if (selection.interactions) {
+            RegisterObservable(prefix + "NInteractions", selection.nInteractions);
+            RegisterObservable(prefix + "InteractionX", selection.interactionX);
+            RegisterObservable(prefix + "InteractionY", selection.interactionY);
+            RegisterObservable(prefix + "InteractionZ", selection.interactionZ);
+            RegisterObservable(prefix + "InteractionTime", selection.interactionTime);
+            RegisterObservable(prefix + "InteractionKineticEnergy", selection.interactionKineticEnergy);
+            RegisterObservable(prefix + "InteractionSecondariesEnergy",
+                               selection.interactionSecondariesEnergy);
+            RegisterObservable(prefix + "InteractionTrackEdep", selection.interactionTrackEdep);
+            RegisterObservable(prefix + "InteractionTrackMaxVolumeEdep",
+                               selection.interactionTrackMaxVolumeEdep);
         }
         if (!selection.entering) continue;
         auto& entering = selection.enteringObs;
@@ -366,6 +456,7 @@ bool TRestGeant4AnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEven
     for (auto& selection : fSelectionObs) {
         if (selection.entering) ProcessEntering(*event, selection);
     }
+    ProcessInteractions(*event);
 
     return true;
 }
@@ -382,6 +473,8 @@ void TRestGeant4AnalysisProcess::ProcessSelections(const TRestGeant4Event& event
         selection.firstHitTime = std::numeric_limits<double>::infinity();
         selection.nTracks = 0;
         std::fill(selection.splitEnergy.begin(), selection.splitEnergy.end(), 0);
+        std::fill(selection.volumeEnergy.begin(), selection.volumeEnergy.end(), 0);
+        selection.maxVolumeEnergy = 0;
         selection.trackIndices.clear();
     }
 
@@ -417,6 +510,12 @@ void TRestGeant4AnalysisProcess::ProcessSelections(const TRestGeant4Event& event
                 if (!selection.processIDs.empty() && !selection.processIDs.count(data.hitProcessID[h]))
                     continue;
                 trackEnergy += energy;
+                if (!selection.perVolumeIDs.empty()) {
+                    const auto& ids = selection.perVolumeIDs;
+                    const auto v =
+                        std::lower_bound(ids.begin(), ids.end(), data.hitVolumeID[h]) - ids.begin();
+                    selection.volumeEnergy[v] += energy;
+                }
                 selection.meanPosX += energy * hits.x[h];
                 selection.meanPosY += energy * hits.y[h];
                 selection.meanPosZ += energy * hits.z[h];
@@ -440,6 +539,9 @@ void TRestGeant4AnalysisProcess::ProcessSelections(const TRestGeant4Event& event
                : 0;
 
     for (auto& selection : fSelectionObs) {
+        for (const double energy : selection.volumeEnergy) {
+            selection.maxVolumeEnergy = std::max(selection.maxVolumeEnergy, energy);
+        }
         if (selection.energy > 0) {
             selection.meanPosX /= selection.energy;
             selection.meanPosY /= selection.energy;
@@ -517,4 +619,118 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
 
     RESTDebug << "TRestGeant4AnalysisProcess: " << selection.name << ", " << entering.nEntering
               << " entering tracks, first " << entering.particle << RESTendl;
+}
+
+/// \brief Interaction observables: the selected hits with or without energy and, for each one, the initial
+/// kinetic energy of the secondaries its track created by the process of the hit (assigned to the closest
+/// interaction of the track with that process, as a track may have several).
+void TRestGeant4AnalysisProcess::ProcessInteractions(const TRestGeant4Event& event) {
+    bool any = false;
+    for (auto& selection : fSelectionObs) {
+        if (!selection.interactions) continue;
+        any = true;
+        selection.nInteractions = 0;
+        selection.interactionX.clear();
+        selection.interactionY.clear();
+        selection.interactionZ.clear();
+        selection.interactionTime.clear();
+        selection.interactionKineticEnergy.clear();
+        selection.interactionSecondariesEnergy.clear();
+        selection.interactionTrackEdep.clear();
+        selection.interactionTrackMaxVolumeEdep.clear();
+    }
+    if (!any) return;
+
+    const auto& data = event.fEventData;
+    const auto& hits = data.hitsStorage;
+
+    // Track indices of the secondaries of each track ID
+    std::map<int, std::vector<size_t>> secondaries;
+    for (size_t t = 0; t < data.trackIDs.size(); t++) secondaries[data.parentIDs[t]].push_back(t);
+
+    // Energy deposited in the volumes (all if empty) by a track and all its descendants, in total and in
+    // the volume with the most
+    auto descendantsEdep = [&](size_t track, const std::set<int>& volumeIDs, double& maxVolumeEnergy) {
+        double energy = 0;
+        std::map<int, double> volumeEnergy;
+        std::vector<size_t> pending = {track};
+        while (!pending.empty()) {
+            const size_t t = pending.back();
+            pending.pop_back();
+            const size_t start = data.trackStartIndices[t];
+            for (size_t h = start; h < start + data.trackNHits[t]; h++) {
+                if (hits.energy[h] <= 0) continue;
+                if (!volumeIDs.empty() && !volumeIDs.count(data.hitVolumeID[h])) continue;
+                energy += hits.energy[h];
+                volumeEnergy[data.hitVolumeID[h]] += hits.energy[h];
+            }
+            const auto children = secondaries.find(data.trackIDs[t]);
+            if (children != secondaries.end()) {
+                pending.insert(pending.end(), children->second.begin(), children->second.end());
+            }
+        }
+        maxVolumeEnergy = 0;
+        for (const auto& [volume, e] : volumeEnergy) maxVolumeEnergy = std::max(maxVolumeEnergy, e);
+        return energy;
+    };
+
+    for (size_t t = 0; t < data.trackIDs.size(); t++) {
+        const auto particle = event.GetParticleName(data.trackParticleIDs[t]);
+        const size_t start = data.trackStartIndices[t];
+        const size_t end = start + data.trackNHits[t];
+
+        for (auto& selection : fSelectionObs) {
+            if (!selection.interactions) continue;
+            if (!selection.particles.empty() && !selection.particles.count(particle)) continue;
+
+            // Selected hits of this track: their index in the vectors and their hit index
+            std::vector<std::pair<size_t, size_t>> selected;
+            for (size_t h = start; h < end; h++) {
+                if (!selection.volumeIDs.count(data.hitVolumeID[h])) continue;
+                if (!selection.processIDs.empty() && !selection.processIDs.count(data.hitProcessID[h]))
+                    continue;
+                selected.emplace_back(selection.interactionX.size(), h);
+                selection.interactionX.push_back(hits.x[h]);
+                selection.interactionY.push_back(hits.y[h]);
+                selection.interactionZ.push_back(hits.z[h]);
+                selection.interactionTime.push_back(hits.time[h]);
+                selection.interactionKineticEnergy.push_back(data.hitKineticEnergy[h]);
+                selection.interactionSecondariesEnergy.push_back(0);
+            }
+            selection.nInteractions += static_cast<int>(selected.size());
+            if (selected.empty()) continue;
+
+            // The same for all the interactions of the track
+            double maxVolumeEdep = 0;
+            const double trackEdep = descendantsEdep(t, selection.trackEdepVolumeIDs, maxVolumeEdep);
+            selection.interactionTrackEdep.insert(selection.interactionTrackEdep.end(), selected.size(),
+                                                  trackEdep);
+            selection.interactionTrackMaxVolumeEdep.insert(selection.interactionTrackMaxVolumeEdep.end(),
+                                                           selected.size(), maxVolumeEdep);
+
+            const auto children = secondaries.find(data.trackIDs[t]);
+            if (children == secondaries.end()) continue;
+            for (const size_t c : children->second) {
+                // The closest selected hit with the creator process of the secondary
+                double minDistance2 = std::numeric_limits<double>::max();
+                size_t closest = selected.size();
+                for (size_t i = 0; i < selected.size(); i++) {
+                    const size_t h = selected[i].second;
+                    if (data.hitProcessID[h] != data.trackCreatorProcessIDs[c]) continue;
+                    const double dx = hits.x[h] - data.trackInitialPositionX[c];
+                    const double dy = hits.y[h] - data.trackInitialPositionY[c];
+                    const double dz = hits.z[h] - data.trackInitialPositionZ[c];
+                    const double distance2 = dx * dx + dy * dy + dz * dz;
+                    if (distance2 < minDistance2) {
+                        minDistance2 = distance2;
+                        closest = i;
+                    }
+                }
+                if (closest < selected.size()) {
+                    selection.interactionSecondariesEnergy[selected[closest].first] +=
+                        data.trackInitialEnergies[c];
+                }
+            }
+        }
+    }
 }

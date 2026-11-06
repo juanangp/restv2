@@ -9,7 +9,9 @@
 /// size, TRestHits::GetSigmaX, ...); GaussSigmaX/Y/Z (gaussian fit, TRestHitsAnalysis::GetGaussSigma,
 /// only with gaussFit: true, otherwise 0; -1 if the fit fails); Twist, TwistWeighted
 /// (TRestHitsAnalysis::GetTwist, GetTwistWeighted) and TwistLow, TwistHigh (lowest and highest twist of the
-/// first and last twistTailPercentage% of the hits).
+/// first and last twistTailPercentage% of the hits); Size and MaxNodeSize: sum and maximum of the node sizes,
+/// sqrt(sigmaX² + sigmaY² + sigmaZ²) of the coordinates the node defines (the sigmas given by
+/// TRestTrackReductionProcess; 0 for tracks not reduced).
 ///
 /// Observables:
 /// * NTracks, TotalEnergy.
@@ -18,7 +20,7 @@
 ///   together, as legacy for the most energetic X and Y tracks (MaxTrackEnergy, MaxTrack_XYZ_...):
 ///   MaxTrackEnergy, MaxTrackNHits and MaxTrackMean, MaxTrackSigma, MaxTrackGaussSigma of the
 ///   coordinates any projection defines (X, Y and Z for XZ and YZ), each one from the hits that define
-///   it; length and twists are those of MaxTrack_P_<name>.
+///   it; length, twists and sizes are those of MaxTrack_P_<name>.
 /// * MaxTrackEnergyRatio: (TotalEnergy - MaxTrackEnergy) / TotalEnergy; MaxTrackSkewXY, MaxTrackSkewZ
 ///   (TRestHits::GetSkewXY, GetSkewZ).
 /// * Tracks<name>: vectors with the tracks out of the main track (with projections, those that are not
@@ -67,6 +69,13 @@
 /// Migrated from the legacy track library (Javier Galan), redesigned to be readout independent: the
 /// legacy observables of the most energetic X, Y and XYZ tracks are given by the projections. The time
 /// observables (EventTimeDelay, MeanRate_InHz) are not track observables and are not included.
+///
+/// Also replaces legacy TRestTrackPointLikeAnalysisProcess (after TRestTrackReductionProcess, without
+/// projections): nTracks → NTracks, totalEnergy → TotalEnergy, nTotalHits → MaxTrackNHits +
+/// Sum(TracksNHits), clusterEnergyBalance → 1 - MaxTrackEnergyRatio, size → MaxTrackSize, sizeBalance →
+/// MaxTrackMaxNodeSize / MaxTrackSize; clusterLengthBalance and hitsBalance (of the longest track and the
+/// track with most hits, not the main one) → Max(MaxTrackLength, Max(TracksLength)) / (MaxTrackLength +
+/// Sum(TracksLength)), and the same with NHits (legacy hitsBalance was an integer division).
 
 #include "TRestTrackAnalysisProcess.h"
 
@@ -105,6 +114,23 @@ const bool kRegistered = []() {
 
 double Balance(double a, double b) { return a + b != 0 ? (a - b) / (a + b) : 0; }
 
+// Sum and maximum of the node sizes of track t, with the sigmas of the coordinates each node defines
+void GetNodeSizes(const TRestTrackEvent& event, int t, double& size, double& maxNodeSize) {
+    size = maxNodeSize = 0;
+    const TRestHits& hits = event.GetTrack(t).GetHits();
+    for (size_t h = 0; h < hits.GetNumberOfHits(); h++) {
+        const auto sigma = event.GetSigma(t, (int)h);
+        const double sigmas[3] = {sigma.X(), sigma.Y(), sigma.Z()};
+        double size2 = 0;
+        for (int a = 0; a < 3; a++) {
+            if (TRestHitsData::IsDefined(hits.GetType(h), a)) size2 += sigmas[a] * sigmas[a];
+        }
+        const double nodeSize = std::sqrt(size2);
+        size += nodeSize;
+        maxNodeSize = std::max(maxNodeSize, nodeSize);
+    }
+}
+
 // Type of a set of hits: product of the coordinates any hit defines (the hit type for a track)
 int GetHitsType(const TRestHits& hits) {
     bool defined[3] = {false, false, false};
@@ -122,7 +148,7 @@ int GetHitsType(const TRestHits& hits) {
 void TRestTrackAnalysisProcess::TracksObservables::clear() {
     auto clearAll = [](auto&... vectors) { (vectors.clear(), ...); };
     clearAll(energy, type, nHits, length, volume, meanX, meanY, meanZ, sigmaX, sigmaY, sigmaZ, gaussSigmaX,
-             gaussSigmaY, gaussSigmaZ, twist, twistWeighted, twistLow, twistHigh);
+             gaussSigmaY, gaussSigmaZ, twist, twistWeighted, twistLow, twistHigh, size, maxNodeSize);
 }
 
 void TRestTrackAnalysisProcess::TracksObservables::push_back(const TrackObservables& t) {
@@ -144,6 +170,8 @@ void TRestTrackAnalysisProcess::TracksObservables::push_back(const TrackObservab
     twistWeighted.push_back(t.twistWeighted);
     twistLow.push_back(t.twistLow);
     twistHigh.push_back(t.twistHigh);
+    size.push_back(t.size);
+    maxNodeSize.push_back(t.maxNodeSize);
 }
 
 TRestTrackAnalysisProcess::TRestTrackAnalysisProcess() : TRestEventProcess() {
@@ -187,6 +215,8 @@ void TRestTrackAnalysisProcess::RegisterTrackObservables(const std::string& pref
     RegisterObservable(prefix + "TwistWeighted", obs.twistWeighted);
     RegisterObservable(prefix + "TwistLow", obs.twistLow);
     RegisterObservable(prefix + "TwistHigh", obs.twistHigh);
+    RegisterObservable(prefix + "Size", obs.size);
+    RegisterObservable(prefix + "MaxNodeSize", obs.maxNodeSize);
 }
 
 void TRestTrackAnalysisProcess::RegisterCoordinateObservables(const std::string& prefix,
@@ -256,7 +286,8 @@ void TRestTrackAnalysisProcess::InitProcess() {
         // Any type: all the coordinates (NaN for those the track does not define)
         RegisterTrackObservables("MaxTrack", fMaxTrack, TRestHitsData::XYZ);
     } else {
-        // Hits of different projections together: no length or twist, they are those of MaxTrack_P_<name>.
+        // Hits of different projections together: no length, twist or size, they are those of
+        // MaxTrack_P_<name>.
         // The coordinates any projection defines
         int type = 1;
         for (int a = 0; a < 3; a++) {
@@ -291,6 +322,8 @@ void TRestTrackAnalysisProcess::InitProcess() {
     RegisterObservable("TracksTwistWeighted", fTracks.twistWeighted);
     RegisterObservable("TracksTwistLow", fTracks.twistLow);
     RegisterObservable("TracksTwistHigh", fTracks.twistHigh);
+    RegisterObservable("TracksSize", fTracks.size);
+    RegisterObservable("TracksMaxNodeSize", fTracks.maxNodeSize);
 
     for (auto& projection : fProjectionObs) {
         RegisterObservable("NTracks_" + projection.name, projection.nTracks);
@@ -399,6 +432,7 @@ bool TRestTrackAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent
     if (fProjectionObs.empty() && !order.empty()) isMain[0] = true;
     for (size_t i = 0; i < order.size(); i++) {
         trackObs[i] = GetHitsObservables(event->GetTrack(order[i]).GetHits());
+        GetNodeSizes(*event, order[i], trackObs[i].size, trackObs[i].maxNodeSize);
 
         // In decreasing energy: the first track of each projection is its main track
         for (auto& projection : fProjectionObs) {
@@ -421,6 +455,11 @@ bool TRestTrackAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent
         if (isMain[i]) mainHits.AddHits(event->GetTrack(order[i]).GetHits());
     }
     fMaxTrack = GetHitsObservables(mainHits);
+    // Without projections the main track is a single track: its node sizes
+    if (fProjectionObs.empty() && !order.empty()) {
+        fMaxTrack.size = trackObs[0].size;
+        fMaxTrack.maxNodeSize = trackObs[0].maxNodeSize;
+    }
     const bool hasHits = mainHits.GetNumberOfHits() > 0;
     fMaxTrackSkewXY = hasHits ? mainHits.GetSkewXY() : 0;
     fMaxTrackSkewZ = hasHits ? mainHits.GetSkewZ() : 0;

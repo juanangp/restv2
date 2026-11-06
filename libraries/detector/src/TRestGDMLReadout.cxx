@@ -1,5 +1,7 @@
 #include "TRestGDMLReadout.h"
 
+#include <cmath>
+#include <limits>
 #include <regex>
 
 #include "TGeoManager.h"
@@ -11,12 +13,15 @@
 static const bool TRestGDMLReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterNestedField<TRestGDMLReadout>("readoutParameters", &TRestGDMLReadout::fReadoutParams);
+    reg.RegisterField<TRestGDMLReadout>("physicalIDToReadoutPath",
+                                        &TRestGDMLReadout::fPhysicalIDToReadoutPath);
     return true;
 }();
 
 static const bool TRestGDMLReadoutInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
-    reg.RegisterField<TRestGDMLReadoutInfo>("channelPrefix", &TRestGDMLReadoutInfo::fChannelPrefix);
+    reg.RegisterField<TRestGDMLReadoutInfo>("volume", &TRestGDMLReadoutInfo::fVolume);
+    reg.RegisterField<TRestGDMLReadoutInfo>("readoutVolume", &TRestGDMLReadoutInfo::fReadoutVolume);
     reg.RegisterField<TRestGDMLReadoutInfo>("offset", &TRestGDMLReadoutInfo::fOffset);
     reg.RegisterField<TRestGDMLReadoutInfo>("multiplier", &TRestGDMLReadoutInfo::fMultiplier);
     return true;
@@ -96,6 +101,7 @@ void TRestGDMLReadout::BuildGeometry() {
     }
 
     fPathToPhysicalIDMap.clear();
+    fPhysicalIDToReadoutPath.clear();
     if (!LoadDecoding(fDecodingFile)) RESTError << "Decoding file not found " << RESTendl;
 
     RESTInfo << "Importing external GDML layout file: " << fReadoutParams.fGDMLFileName << RESTendl;
@@ -112,6 +118,8 @@ void TRestGDMLReadout::BuildGeometry() {
 
     int parsedChannelsCount = 0;
     std::smatch match;
+    // Channels of each readoutInfo entry (path, physical ID), to find their readout volumes
+    std::vector<std::vector<std::pair<std::string, int>>> channelsOfInfo(fReadoutParams.fReadoutInfo.size());
 
     std::vector<int> currentOffsets;
     for (const auto& info : fReadoutParams.fReadoutInfo) {
@@ -131,7 +139,7 @@ void TRestGDMLReadout::BuildGeometry() {
         for (size_t i = 0; i < fReadoutParams.fReadoutInfo.size(); ++i) {
             const auto& info = fReadoutParams.fReadoutInfo[i];
             try {
-                std::regex channelRegex(info.fChannelPrefix);
+                std::regex channelRegex(info.fVolume);
 
                 if (std::regex_search(nodePath, match, channelRegex)) {
                     int physicalID = 0;
@@ -161,6 +169,7 @@ void TRestGDMLReadout::BuildGeometry() {
                     if (fPathToPhysicalIDMap.count(canonicalPath)) break;
 
                     fPathToPhysicalIDMap[canonicalPath] = physicalID;
+                    channelsOfInfo[i].emplace_back(canonicalPath, physicalID);
                     parsedChannelsCount++;
 
                     if (match.size() <= 1) currentOffsets[i]++;
@@ -169,6 +178,36 @@ void TRestGDMLReadout::BuildGeometry() {
             } catch (const std::regex_error& e) {
                 RESTError << "TRestGDMLReadout: Invalid regex format in prefix: " << e.what() << RESTendl;
             }
+        }
+    }
+
+    // Readout volume of each channel: the one matching readoutVolume in the same parent volume (the copy
+    // of the assembly holding the sensitive volume), so its position follows the rotations of each copy
+    auto parentOf = [](const std::string& path) { return path.substr(0, path.rfind('/')); };
+    for (size_t i = 0; i < fReadoutParams.fReadoutInfo.size(); ++i) {
+        const auto& info = fReadoutParams.fReadoutInfo[i];
+        if (info.fReadoutVolume.empty()) continue;
+        const std::regex readoutRegex(info.fReadoutVolume);
+        std::map<std::string, std::vector<std::string>> readoutsOfParent;
+        TGeoIterator readoutIt(fGeoManager->GetTopVolume());
+        while ((node = readoutIt())) {
+            if (!node->GetVolume() || node->GetVolume()->IsAssembly()) continue;
+            TString tPath;
+            readoutIt.GetPath(tPath);
+            const std::string nodePath = tPath.Data();
+            if (!std::regex_search(nodePath, readoutRegex) || !fGeoManager->cd(nodePath.c_str())) continue;
+            const std::string canonicalPath = fGeoManager->GetPath();
+            readoutsOfParent[parentOf(canonicalPath)].push_back(canonicalPath);
+        }
+        for (const auto& [path, physicalID] : channelsOfInfo[i]) {
+            const auto it = readoutsOfParent.find(parentOf(path));
+            const size_t found = it == readoutsOfParent.end() ? 0 : it->second.size();
+            if (found != 1) {
+                throw std::runtime_error("TRestGDMLReadout: the channel " + path + " has " +
+                                         std::to_string(found) + " volumes matching readoutVolume '" +
+                                         info.fReadoutVolume + "' in its parent volume (exactly one needed)");
+            }
+            fPhysicalIDToReadoutPath[physicalID] = it->second.front();
         }
     }
 
@@ -188,6 +227,16 @@ void TRestGDMLReadout::BuildGeometry() {
                 break;
             }
         }
+        // The readout volumes (e.g. light guides) are shown too, in another colour
+        bool isSignalReadout = false;
+        for (const auto& [id, readoutPath] : fPhysicalIDToReadoutPath) {
+            if (readoutPath.find(nodePath) != std::string::npos ||
+                nodePath.find(readoutPath) != std::string::npos) {
+                isReadoutNode = true;
+                isSignalReadout = nodePath.find(readoutPath) != std::string::npos;
+                break;
+            }
+        }
 
         if (!isReadoutNode) {
             if (!vol->IsAssembly() && vol->GetNdaughters() == 0) {
@@ -200,13 +249,35 @@ void TRestGDMLReadout::BuildGeometry() {
         } else {
             vol->SetVisibility(kTRUE);
             node->SetVisibility(kTRUE);
-            vol->SetLineColor(kGray);
+            vol->SetLineColor(isSignalReadout ? kAzure + 1 : kGray);
         }
     }
 
     fGeoManager->CloseGeometry();
     UpdateYAMLFromParams<TRestGDMLReadout>(fNode);
 
-    RESTInfo << "Successfully indexed " << parsedChannelsCount
-             << " channels conserving native geometry structures." << RESTendl;
+    RESTInfo << "Successfully indexed " << parsedChannelsCount << " channels ("
+             << fPhysicalIDToReadoutPath.size()
+             << " with readout volume) conserving native geometry structures." << RESTendl;
+}
+
+ROOT::Math::XYZVector TRestGDMLReadout::GetReadoutPosition(int daqID) const {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const ROOT::Math::XYZVector none(nan, nan, nan);
+    const auto it = fPhysicalIDToReadoutPath.find(GetPhysicalID(daqID));
+    if (it == fPhysicalIDToReadoutPath.end() || !fGeoManager || !fGeoManager->cd(it->second.c_str())) {
+        return none;
+    }
+    const TGeoMatrix* matrix = fGeoManager->GetCurrentMatrix();
+    if (!matrix) return none;
+    const double local[3] = {0, 0, 0};
+    double global[3] = {0, 0, 0};
+    matrix->LocalToMaster(local, global);
+    return {global[0], global[1], global[2]};
+}
+
+double TRestGDMLReadout::GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const {
+    const auto readoutPosition = GetReadoutPosition(daqID);
+    if (std::isnan(readoutPosition.X())) return std::numeric_limits<double>::quiet_NaN();
+    return (position - readoutPosition).R();
 }

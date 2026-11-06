@@ -99,9 +99,9 @@ void TRestEventProcessManager::LoadProcesses() {
                 inputEvent = outputEvent = fPipelineConnections.back().second;
             }
 
-            RESTInfo << "Loading process: " << proc->GetName() << " (" << proc->GetClassName() << ")"
-                     << RESTendl;
-            RESTInfo << "  Route: " << inputEvent << " -> " << outputEvent << RESTendl;
+            // One message per process, with its name (identical route messages would be suppressed)
+            RESTInfo << "Loading process: " << proc->GetName() << " (" << proc->GetClassName() << "), route "
+                     << inputEvent << " -> " << outputEvent << RESTendl;
 
             fPipelineConnections.emplace_back(inputEvent, outputEvent);
             fPipelineOutputClasses.emplace_back(outputEvent);

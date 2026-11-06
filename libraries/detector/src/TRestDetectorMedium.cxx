@@ -22,6 +22,7 @@ static const bool TRestDetectorMedium_FieldsRegistered = []() {
     reg.RegisterField<M>("pressure", &M::fPressure);
     reg.RegisterField<M>("temperature", &M::fTemperature);
     reg.RegisterField<M>("charge", &M::fChargeNode);
+    reg.RegisterField<M>("light", &M::fLightNode);
     return true;
 }();
 
@@ -106,7 +107,20 @@ void TRestDetectorMedium::LoadConfig() {
         fCharge->CheckConfig();
         fCharge->SetMedium(*this, file.get());
     }
+    fLight.reset();
+    if (fLightNode && !fLightNode.IsNull()) {
+        if (!fLightNode.IsMap()) throw std::runtime_error(prefix + "light must be a map");
+        fLight = std::make_shared<TRestDetectorLightResponse>("light", fLightNode);
+        fLight->CheckConfig();
+    }
     UpdateYAMLFromParams<TRestDetectorMedium>(fNode);
+}
+
+const TRestDetectorLightResponse& TRestDetectorMedium::GetLightResponse(const std::string& user) const {
+    if (!fLight) {
+        throw std::runtime_error(user + ": the medium '" + fName + "' has no light response (key 'light')");
+    }
+    return *fLight;
 }
 
 const TRestDetectorChargeResponse& TRestDetectorMedium::GetChargeResponse(const std::string& user) const {
@@ -146,6 +160,37 @@ YAML::Node TRestDetectorMedium::GetFileMetadata(TFile* file, const std::string& 
     }
     metadata["name"] = name;
     return metadata;
+}
+
+// ============================================================
+// TRestDetectorLightResponse
+// ============================================================
+
+static const bool TRestDetectorLightResponse_FieldsRegistered = []() {
+    auto& reg = TRestMetadataFieldRegistry::Instance();
+    using L = TRestDetectorLightResponse;
+    reg.RegisterField<L>("attenuationLength", &L::fAttenuationLength);
+    reg.RegisterField<L>("effectiveLightSpeed", &L::fEffectiveLightSpeed);
+    return true;
+}();
+
+TRestDetectorLightResponse::TRestDetectorLightResponse() : TRestMetadata() {
+    fName = "TRestDetectorLightResponse";
+}
+
+TRestDetectorLightResponse::TRestDetectorLightResponse(const std::string& instanceName,
+                                                       const YAML::Node& node)
+    : TRestMetadata(instanceName, node) {
+    LoadConfig();
+}
+
+void TRestDetectorLightResponse::LoadConfig() {
+    UpdateParamsFromYAML<TRestDetectorLightResponse>(fNode);
+    if (fAttenuationLength < 0 || fEffectiveLightSpeed < 0) {
+        throw std::runtime_error(
+            "TRestDetectorLightResponse: attenuationLength and effectiveLightSpeed must be >= 0");
+    }
+    UpdateYAMLFromParams<TRestDetectorLightResponse>(fNode);
 }
 
 // ============================================================

@@ -20,6 +20,8 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
     /// Observables
     double fTriggerTime = 0;     //!
     int fNSaturatedSignals = 0;  //!
+    /// observable trigger mode: value of triggerObservable (a double) in the output analysis tree
+    const double* fTriggerObservableValue = nullptr;  //!
 
     /// \brief Trigger time of the event (see the class description). Returns false if there is none
     bool GetTriggerTime(const TRestDetectorSignalEvent& event, double& time) const;
@@ -27,7 +29,7 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
    public:
     inline static const std::vector<std::string> kModes = {"integrate", "sample"};
     inline static const std::vector<std::string> kTriggerModes = {"firstDeposit", "integralThreshold",
-                                                                  "fixed"};
+                                                                  "fixed", "observable"};
 
     /// Width of the samples (sampling of the electronics)
     TRestWithUnits fSampling = 0;  // us
@@ -37,8 +39,11 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
     /// TRestDetectorHitsToSignalProcess); sample: the signal is interpolated at the start of each sample
     /// (waveforms, e.g. from TRestDetectorSignalShapingProcess)
     std::string fMode = "integrate";
-    /// firstDeposit, integralThreshold or fixed
+    /// firstDeposit, integralThreshold, fixed or observable
     std::string fTriggerMode = "firstDeposit";
+    /// observable: branch of the analysis tree with the trigger time (of the input file or of a previous
+    /// process), e.g. the TriggerTime of the run of another detector
+    std::string fTriggerObservable = "";
     /// Time of the trigger inside the acquisition window: the first sample starts at trigger - triggerDelay
     TRestWithUnits fTriggerDelay = 0;  // us
     /// integralThreshold: charge of the event in integralWindow that triggers

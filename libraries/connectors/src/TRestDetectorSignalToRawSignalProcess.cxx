@@ -16,7 +16,14 @@
 /// - integralThreshold: first time at which the charge of the event in the previous integralWindow (by
 ///   default half the acquisition window, as legacy) reaches integralThreshold. Events that do not reach
 ///   it are rejected;
-/// - fixed: triggerFixedStartTime.
+/// - fixed: triggerFixedStartTime;
+/// - observable: the value of the branch triggerObservable of the analysis tree (an observable of the input
+///   file or of a previous process, a scalar; events with a non finite value are rejected). E.g. the
+///   vetoes, simulated in their own run on the restG4 file (without the Micromegas signals), with the time
+///   of the first deposit in the gas of TRestGeant4AnalysisProcess, `triggerObservable:
+///   "g4Ana_gas_FirstHitTime"`, as the common trigger of the DAQ; the drift time of the first electrons
+///   and the delay of the veto electronics go into triggerDelay (measured in data). Example
+///   libraries/connectors/examples/Geant4ToRawVeto.yaml.
 ///
 /// Instead of gain and offset, a linear calibration can be given: the energies calibrationEnergy go to the
 /// fractions calibrationRange of the ADC range (0: -32768, 1: 32767). Events without signals are rejected.
@@ -24,13 +31,15 @@
 /// units) and TRestRawSignalAddNoiseProcess after, as for the data.
 ///
 /// Differences with legacy: no shaping or noise inside the process, no parameters per channel type and no
-/// ...TPC trigger modes (each detector goes in its own pipeline), no observable trigger mode, triggerDelay
+/// ...TPC trigger modes (each detector goes in its own pipeline), observable trigger with triggerObservable
+/// (legacy triggerModeObservableName) read from the analysis tree, triggerDelay
 /// in time units instead of samples, the sample mode, the saturation maxValue and the calibration offset
 /// (legacy multiplied the gain by the ADC range twice).
 ///
 /// Parameters: sampling (mandatory), nPoints (512), mode (integrate), triggerMode (firstDeposit),
-/// triggerDelay (0), integralThreshold (0), integralWindow (0), triggerFixedStartTime (0), gain (1),
-/// offset (0), calibrationEnergy and calibrationRange ([0, 0]: not used), maxValue (32767).
+/// triggerObservable (for observable), triggerDelay (0), integralThreshold (0), integralWindow (0),
+/// triggerFixedStartTime (0), gain (1), offset (0), calibrationEnergy and calibrationRange ([0, 0]: not
+/// used), maxValue (32767).
 ///
 /// Example:
 ///
@@ -67,6 +76,7 @@ static const bool TRestDetectorSignalToRawSignalProcess_FieldsRegistered = []() 
     reg.RegisterField<P>("nPoints", &P::fNPoints);
     reg.RegisterField<P>("mode", &P::fMode);
     reg.RegisterField<P>("triggerMode", &P::fTriggerMode);
+    reg.RegisterField<P>("triggerObservable", &P::fTriggerObservable);
     reg.RegisterField<P>("triggerDelay", &P::fTriggerDelay);
     reg.RegisterField<P>("integralThreshold", &P::fIntegralThreshold);
     reg.RegisterField<P>("integralWindow", &P::fIntegralWindow);
@@ -130,6 +140,15 @@ void TRestDetectorSignalToRawSignalProcess::InitProcess() {
         throw std::runtime_error(prefix + "triggerMode integralThreshold needs integralThreshold > 0");
     }
     if (fIntegralWindow < 0) throw std::runtime_error(prefix + "integralWindow must be >= 0");
+    fTriggerObservableValue = nullptr;
+    if (fTriggerMode == "observable") {
+        if (fTriggerObservable.empty()) {
+            throw std::runtime_error(prefix + "triggerMode observable needs triggerObservable");
+        }
+        fTriggerObservableValue = &fRunInfo->GetObservable<double>(fTriggerObservable);
+    } else if (!fTriggerObservable.empty()) {
+        throw std::runtime_error(prefix + "triggerObservable is only for triggerMode observable");
+    }
     if (fMaxValue <= kMinADC || fMaxValue > kMaxADC) {
         throw std::runtime_error(prefix + "maxValue must be in (-32768, 32767]");
     }
@@ -159,6 +178,10 @@ bool TRestDetectorSignalToRawSignalProcess::GetTriggerTime(const TRestDetectorSi
     if (fTriggerMode == "fixed") {
         time = fTriggerFixedStartTime;
         return true;
+    }
+    if (fTriggerMode == "observable") {
+        time = *fTriggerObservableValue;
+        return std::isfinite(time);
     }
 
     // Points with positive charge of all the signals, sorted in time

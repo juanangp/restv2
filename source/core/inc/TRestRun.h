@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <typeinfo>
 #include <vector>
 
 #include "TRestEvent.h"
@@ -25,6 +26,10 @@ class TRestRun : public TRestRunInfo {
    private:
     /// The metadata of the input file (without its TRestRun), with their objects
     TRestMetadataStore fMetadataStore;
+
+    /// \brief Address of the data of the observable `name` of the output analysis tree, checked to be of
+    /// type `type` (see GetObservable)
+    const void* GetObservableAddress(const std::string& name, const std::type_info& type) const;
 
    public:
     std::string fInputFileName = "Null";
@@ -240,22 +245,17 @@ class TRestRun : public TRestRunInfo {
             }
         }
     }
-    /// \brief Binds an observable branch for reading.
-    /// \tparam T Observable value type.
-    /// \param name Observable branch name.
-    /// \param variable Variable receiving branch values.
+    /// \brief Current value of an observable of the analysis tree. While processing (output analysis tree),
+    /// of the input file or registered by a previous process (e.g. `g4Ana_gas_FirstHitTime`); reading a
+    /// file without output (macros, browser), of the input file, with the entry of GetEntry. The reference
+    /// is bound to the data of the branch (the input tree buffer or the variable of the process), so it can
+    /// be taken once (e.g. in InitProcess, after the previous processes are initialized) and gives the value
+    /// of each entry, without binding the branch again. Any type of observable (int, double, bool,
+    /// std::string, std::vector<double>...); T must be the type of the branch. Throws if the observable is
+    /// missing or has another type.
     template <typename T>
-    void GetObservable(const std::string& name, T& variable) {
-        if (!fAnalysisTree) throw std::runtime_error("TRestRun: Input file missing");
-        TBranch* branch = fAnalysisTree->GetBranch(name.c_str());
-        if (branch) {
-            if constexpr (std::is_fundamental_v<T>) {
-                fAnalysisTree->SetBranchAddress(name.c_str(), &variable);
-            } else {
-                T** ptr = new T*(&variable);
-                fAnalysisTree->SetBranchAddress(name.c_str(), ptr);
-            }
-        }
+    const T& GetObservable(const std::string& name) const {
+        return *static_cast<const T*>(GetObservableAddress(name, typeid(T)));
     }
 
     void SyncAnalysisTreeBranches();

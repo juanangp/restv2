@@ -128,6 +128,37 @@ class TRestDetectorChargeResponse : public TRestMetadata {
                                 TRandom& random);
 };
 
+/// \class TRestDetectorLightResponse
+/// \brief Light response of a scintillating medium: the propagation of the light to the photocathode (used
+/// by TRestDetectorLightAttenuationProcess). It is the `light` key of a TRestDetectorMedium (no class key).
+/// The light yield, decay time, quenching or quantum efficiency will be other parameters when the light
+/// is parametrised.
+///
+/// Parameters:
+/// - attenuationLength: the deposited energy reaching the readout is E exp(-d / attenuationLength), with d
+///   the distance to the readout of the channel (TRestDetectorReadout::GetDistanceToReadout).
+/// - effectiveLightSpeed: the signal is delayed by d / effectiveLightSpeed (effective speed along the
+///   scintillator, with its reflections).
+///
+///      light:
+///        attenuationLength: 3 m
+///        effectiveLightSpeed: 150 mm/ns
+class TRestDetectorLightResponse : public TRestMetadata {
+   public:
+    TRestWithUnits fAttenuationLength = 0;    // mm
+    TRestWithUnits fEffectiveLightSpeed = 0;  // mm/us
+
+    TRestDetectorLightResponse();
+    TRestDetectorLightResponse(const std::string& instanceName, const YAML::Node& node);
+
+    std::string GetClassName() const override { return "TRestDetectorLightResponse"; }
+    void LoadConfig() override;
+    void Initialize() override {}
+
+    inline double GetAttenuationLength() const { return fAttenuationLength; }
+    inline double GetEffectiveLightSpeed() const { return fEffectiveLightSpeed; }
+};
+
 /// \class TRestDetectorMedium
 /// \brief A material (gas, liquid or solid) at its conditions, with its medium file (the tables generated
 /// by restGarfield, read without Garfield++) and its responses. It describes the material, not the detector
@@ -149,7 +180,7 @@ class TRestDetectorChargeResponse : public TRestMetadata {
 /// - pressure (gases only, 1 bar), temperature (293.15 K): the conditions of the detector (and the default
 ///   ones of the tables of restGarfield).
 /// - Responses, each one a key without class: `charge` (TRestDetectorChargeResponse: ionisation, transport
-///   and gain); other responses (scintillation...) will be other keys.
+///   and gain) and `light` (TRestDetectorLightResponse: propagation of the scintillation light).
 ///
 ///    medium:
 ///      class: "TRestDetectorMedium"
@@ -163,6 +194,7 @@ class TRestDetectorChargeResponse : public TRestMetadata {
 class TRestDetectorMedium : public TRestMetadata {
    private:
     std::shared_ptr<TRestDetectorChargeResponse> fCharge;  //!
+    std::shared_ptr<TRestDetectorLightResponse> fLight;    //!
 
    public:
     inline static const std::vector<std::string> kStates = {"gas", "liquid", "solid"};
@@ -173,6 +205,8 @@ class TRestDetectorMedium : public TRestMetadata {
     double fTemperature = 293.15;
     /// Configuration of the charge response (`charge` key)
     YAML::Node fChargeNode;
+    /// Configuration of the light response (`light` key)
+    YAML::Node fLightNode;
 
     TRestDetectorMedium();
     TRestDetectorMedium(const std::string& instanceName, const YAML::Node& node);
@@ -191,6 +225,11 @@ class TRestDetectorMedium : public TRestMetadata {
     inline const TRestDetectorChargeResponse* GetChargeResponse() const { return fCharge.get(); }
     /// \brief Charge response; throws if the medium has no `charge` (user is for the message)
     const TRestDetectorChargeResponse& GetChargeResponse(const std::string& user) const;
+
+    /// \brief Light response, nullptr if the medium has no `light`
+    inline const TRestDetectorLightResponse* GetLightResponse() const { return fLight.get(); }
+    /// \brief Light response; throws if the medium has no `light` (user is for the message)
+    const TRestDetectorLightResponse& GetLightResponse(const std::string& user) const;
 
     /// \brief YAML of the medium stored in its file (name, state, components)
     YAML::Node GetDefinition() const;

@@ -1,3 +1,9 @@
+# Veto readout from the GDML of the simulation (one channel per scintillator):
+# - volume: the sensitive volumes (the scintillators, where the energy is deposited), one channel each.
+# - readoutVolume: where the signal of each channel is collected, here the light guide of the same veto
+#   (the volume of the same assembly copy, so it follows the rotation of each layer); the PMT is not in the
+#   geometry, its photocathode would be at the end of the light guide. GetReadoutPosition and
+#   GetDistanceToReadout (TRestDetectorLightAttenuationProcess) use it.
 readout:
   class: "TRestGDMLReadout"
   name: "Veto_Readout"
@@ -5,11 +11,14 @@ readout:
   readoutParameters:
     gdmlFileName: "/home/juanan/restv2/packages/restG4/examples/13.IAXO/geometry/setup.gdml"
     readoutInfo:
-      - channelPrefix: .*scintillatorVolume-*
+      - volume: .*scintillatorVolume-*
+        readoutVolume: scintillatorLightGuideVolume
         offset: 288
 
 
-#      - channelPrefix: .*assembly-([0-9]+).*veto([0-9]+).*scintillatorVolume-1500\.0mm.*
+#      - volume: .*assembly-([0-9]+).*veto([0-9]+).*scintillatorVolume-1500\.0mm.*
+#        readoutVolume: scintillatorLightGuideVolume
 #        offset: 0
-#      - channelPrefix: ..*assembly-([0-9]+).*veto([0-9]+).*scintillatorVolume-800\.0mm.*
+#      - volume: .*assembly-([0-9]+).*veto([0-9]+).*scintillatorVolume-800\.0mm.*
+#        readoutVolume: scintillatorLightGuideVolume
 #        offset: 200

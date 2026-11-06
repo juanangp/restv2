@@ -142,10 +142,10 @@ class TRestDetectorSignalEvent : public TRestEvent {
         fPtrIDs = &fSignalData.signalIDs;
         fPtrOffsets = &fSignalData.offsets;
 
-        tree->SetBranchAddress("fSigAmplitude", &fPtrAmplitude);
-        tree->SetBranchAddress("fSigTime", &fPtrTime);
-        tree->SetBranchAddress("fSigIDs", &fPtrIDs);
-        tree->SetBranchAddress("fSigOffsets", &fPtrOffsets);
+        BindBranch(tree, "fSigAmplitude", &fPtrAmplitude);
+        BindBranch(tree, "fSigTime", &fPtrTime);
+        BindBranch(tree, "fSigIDs", &fPtrIDs);
+        BindBranch(tree, "fSigOffsets", &fPtrOffsets);
     }
 
     void RefreshViews() const override {

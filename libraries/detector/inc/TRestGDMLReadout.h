@@ -3,9 +3,18 @@
 
 #include "TRestDetectorReadout.h"
 
+/// \class TRestGDMLReadoutInfo
+/// \brief A group of channels of a TRestGDMLReadout: the sensitive volumes (the medium where the energy is
+/// deposited, e.g. the scintillators) and, optionally, where their signal is collected.
 class TRestGDMLReadoutInfo : public TRestMetadata {
    public:
-    std::string fChannelPrefix = "";
+    /// Regular expression of the paths of the sensitive volumes, one channel each; its captured numbers,
+    /// multiplier and offset give the physical ID
+    std::string fVolume = "";
+    /// Regular expression of the volume where the signal of each channel is collected (e.g. the light guide
+    /// or the PMT of a scintillator): exactly one in the same parent volume (assembly copy) as the
+    /// sensitive volume. Empty: no readout position (GetReadoutPosition and GetDistanceToReadout NaN)
+    std::string fReadoutVolume = "";
     int fMultiplier = 10;
     int fOffset = 0;
 
@@ -33,6 +42,8 @@ class TRestGDMLReadoutParameters : public TRestMetadata {
 class TRestGDMLReadout : public TRestDetectorReadout {
    public:
     TRestGDMLReadoutParameters fReadoutParams;
+    /// Path of the readout volume of each physical ID (from readoutVolume), stored with the readout
+    std::map<int, std::string> fPhysicalIDToReadoutPath;
 
     /// \brief Constructor.
     TRestGDMLReadout();
@@ -47,6 +58,16 @@ class TRestGDMLReadout : public TRestDetectorReadout {
     /// \brief Overrides the abstract geometry builder to import and parse a GDML file.
     /// \param readoutNode YAML node containing `gdml_parameters`.
     virtual void BuildGeometry() override;
+
+    /// \brief Origin of the readout volume of the channel (its readoutVolume) in the global frame, NaN
+    /// without one.
+    ROOT::Math::XYZVector GetReadoutPosition(int daqID) const override;
+
+    using TRestDetectorReadout::GetDistanceToReadout;
+    /// \brief Distance from a position to the readout position of the channel (e.g. from an energy deposit
+    /// in a scintillator to its PMT, for the light attenuation), NaN without readout volume. Without a
+    /// channel it stays NaN: the hits are not drifted nor projected.
+    double GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const override;
 
     // inline void SetGDMLFile(const std::string& gdlmFile){fGDMLFilePath = gdmlFile;}
 };

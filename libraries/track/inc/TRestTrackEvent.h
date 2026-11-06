@@ -118,18 +118,18 @@ class TRestTrackEvent : public TRestEvent {
         fPtrParentID = &fData.parentID;
         fPtrTrackNHits = &fData.trackNHits;
 
-        tree->SetBranchAddress("fHitX", &fPtrX);
-        tree->SetBranchAddress("fHitY", &fPtrY);
-        tree->SetBranchAddress("fHitZ", &fPtrZ);
-        tree->SetBranchAddress("fHitTime", &fPtrTime);
-        tree->SetBranchAddress("fHitEnergy", &fPtrEnergy);
-        tree->SetBranchAddress("fHitType", &fPtrType);
-        tree->SetBranchAddress("fSigmaX", &fPtrSigmaX);
-        tree->SetBranchAddress("fSigmaY", &fPtrSigmaY);
-        tree->SetBranchAddress("fSigmaZ", &fPtrSigmaZ);
-        tree->SetBranchAddress("fTrackID", &fPtrTrackID);
-        tree->SetBranchAddress("fParentID", &fPtrParentID);
-        tree->SetBranchAddress("fTrackNHits", &fPtrTrackNHits);
+        BindBranch(tree, "fHitX", &fPtrX);
+        BindBranch(tree, "fHitY", &fPtrY);
+        BindBranch(tree, "fHitZ", &fPtrZ);
+        BindBranch(tree, "fHitTime", &fPtrTime);
+        BindBranch(tree, "fHitEnergy", &fPtrEnergy);
+        BindBranch(tree, "fHitType", &fPtrType);
+        BindBranch(tree, "fSigmaX", &fPtrSigmaX);
+        BindBranch(tree, "fSigmaY", &fPtrSigmaY);
+        BindBranch(tree, "fSigmaZ", &fPtrSigmaZ);
+        BindBranch(tree, "fTrackID", &fPtrTrackID);
+        BindBranch(tree, "fParentID", &fPtrParentID);
+        BindBranch(tree, "fTrackNHits", &fPtrTrackNHits);
     }
 
     /// \brief Rebuilds the per-track hit views from the current fData layout.

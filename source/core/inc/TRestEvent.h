@@ -1,6 +1,7 @@
 #ifndef TRESTEVENT_H
 #define TRESTEVENT_H
 
+#include <TFile.h>
 #include <TH1.h>
 #include <TPad.h>
 #include <TParameter.h>
@@ -223,15 +224,15 @@ class TRestEvent {
     /// \brief Binds common ROOT branch addresses for event metadata.
     /// \param tree Source ROOT tree.
     virtual void SetBranchAddresses(TTree* tree) {
-        tree->SetBranchAddress("runOrigin", &fInfo.runOrigin);
-        tree->SetBranchAddress("subRunOrigin", &fInfo.subRunOrigin);
-        tree->SetBranchAddress("eventID", &fInfo.eventID);
-        tree->SetBranchAddress("subEventID", &fInfo.subEventID);
-        tree->SetBranchAddress("timeSeconds", &fInfo.timeSeconds);
-        tree->SetBranchAddress("timeNanoSecs", &fInfo.timeNanoSeconds);
-        tree->SetBranchAddress("ok", &fInfo.ok);
+        BindBranch(tree, "runOrigin", &fInfo.runOrigin);
+        BindBranch(tree, "subRunOrigin", &fInfo.subRunOrigin);
+        BindBranch(tree, "eventID", &fInfo.eventID);
+        BindBranch(tree, "subEventID", &fInfo.subEventID);
+        BindBranch(tree, "timeSeconds", &fInfo.timeSeconds);
+        BindBranch(tree, "timeNanoSecs", &fInfo.timeNanoSeconds);
+        BindBranch(tree, "ok", &fInfo.ok);
         fPtrSubEventTag = &fInfo.subEventTag;
-        tree->SetBranchAddress("subEventTag", &fPtrSubEventTag);
+        BindBranch(tree, "subEventTag", &fPtrSubEventTag);
     }
 
     /// \brief Refreshes cached views after ROOT read operations.
@@ -251,6 +252,23 @@ class TRestEvent {
     void SetInputFormatVersion(int version) { fInputFormatVersion = version; }
 
     static constexpr const char* kFormatVersionKey = "formatVersion";
+
+    /// \brief SetBranchAddress of a branch that must be in the tree, for SetBranchAddresses. ROOT only prints
+    /// an error for a missing branch and the events would be read without its data, so it throws: the file
+    /// is not compatible with this version of the event class (a new branch without raising
+    /// GetFormatVersion, or a file of another layout)
+    template <typename T>
+    void BindBranch(TTree* tree, const char* name, T* address) const {
+        if (!tree->GetBranch(name)) {
+            const TFile* file = tree->GetCurrentFile();
+            throw std::runtime_error("TRestEvent: the tree " + std::string(tree->GetName()) +
+                                     (file ? " of " + std::string(file->GetName()) : std::string()) +
+                                     " has no branch " + name + " of " + GetClassName() +
+                                     " (format version " + std::to_string(fInputFormatVersion) +
+                                     "): not compatible with this REST");
+        }
+        tree->SetBranchAddress(name, address);
+    }
 
     /// \brief Writes GetFormatVersion in the UserInfo of the tree (once)
     void WriteFormatVersion(TTree* tree) const {

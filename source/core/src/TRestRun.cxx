@@ -1,6 +1,10 @@
 #include "TRestRun.h"
 
+#include <TBranchElement.h>
+#include <TClass.h>
+#include <TDataType.h>
 #include <TKey.h>
+#include <TLeaf.h>
 #include <TList.h>
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
@@ -317,6 +321,9 @@ bool TRestRun::GetEntry(long long entry) {
             }
         }
     }
+    // The observables of the input file: copied to the output analysis tree, and read by the processes and
+    // macros (GetObservable)
+    if (success && fAnalysisTree) fAnalysisTree->GetEntry(entry);
     for (auto& [treeName, eventObj] : fInputEvents) {
         if (eventObj) {
             eventObj->RefreshViews();
@@ -432,6 +439,50 @@ void TRestRun::OpenOutputFile(std::string fileName, const std::string& option) {
     }
 
     fOutputAnalysisTree->SetAutoSave(0);
+}
+
+const void* TRestRun::GetObservableAddress(const std::string& name, const std::type_info& type) const {
+    const std::string prefix = "TRestRun: observable '" + name + "' ";
+    // While processing the output tree (input and previous processes), reading a file the input tree
+    TTree* tree = fOutputAnalysisTree ? fOutputAnalysisTree : fAnalysisTree;
+    if (!tree) throw std::runtime_error(prefix + "requested without analysis tree");
+    TBranch* branch = tree->GetBranch(name.c_str());
+    if (!branch) {
+        throw std::runtime_error(prefix +
+                                 "not in the analysis tree (of the input file or of a previous process)");
+    }
+
+    TClass* branchClass = nullptr;
+    EDataType branchType = kNoType_t;
+    if (branch->GetExpectedType(branchClass, branchType) != 0) {
+        throw std::runtime_error(prefix + "has an unknown type");
+    }
+    TClass* requestedClass = TClass::GetClass(type);
+    const std::string requestedName =
+        requestedClass ? requestedClass->GetName() : TDataType::GetTypeName(TDataType::GetType(type));
+
+    const void* address = nullptr;
+    if (branchClass) {
+        // Object (std::string, std::vector...): the object bound to the branch
+        if (branchClass != requestedClass) {
+            throw std::runtime_error(prefix + "is " + branchClass->GetName() + ", not " + requestedName);
+        }
+        auto* element = dynamic_cast<TBranchElement*>(branch);
+        address = element ? element->GetObject() : nullptr;
+    } else {
+        // Number or boolean: the buffer of its single leaf (the variable of the process or the input buffer)
+        if (requestedClass || branchType != TDataType::GetType(type)) {
+            throw std::runtime_error(prefix + "is " + TDataType::GetTypeName(branchType) + ", not " +
+                                     requestedName);
+        }
+        auto* leaf = static_cast<TLeaf*>(branch->GetListOfLeaves()->At(0));
+        if (branch->GetListOfLeaves()->GetEntries() != 1 || !leaf || leaf->GetLenStatic() != 1) {
+            throw std::runtime_error(prefix + "is not a single value");
+        }
+        address = leaf->GetValuePointer();
+    }
+    if (!address) throw std::runtime_error(prefix + "has no data bound to its branch");
+    return address;
 }
 
 void TRestRun::SyncAnalysisTreeBranches() {

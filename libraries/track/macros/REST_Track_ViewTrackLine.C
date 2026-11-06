@@ -12,11 +12,9 @@
 #include <TPolyLine3D.h>
 #include <TPolyMarker3D.h>
 #include <TTree.h>
-#include <TTreeFormula.h>
 
 #include <cmath>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -179,18 +177,12 @@ bool TrackLineViewer::ReadLine(double origin[3], double end[3]) const {
     TTree* tree = run ? run->fAnalysisTree : nullptr;
     if (!tree) return false;
 
-    // Formulas, so the branch addresses set by others are kept
-    std::vector<std::unique_ptr<TTreeFormula>> formulas;
+    // Values of the current entry (TRestRun::GetEntry, called by the browser)
     const std::vector<std::string> names = GetLineBranches(tree, fPrefix);
     if (names.empty()) return false;
-    for (const auto& name : names) {
-        formulas.push_back(std::make_unique<TTreeFormula>(name.c_str(), name.c_str(), tree));
-    }
-    const long long entry = run->GetCurrentEntry();
-    if (tree->GetEntry(entry) <= 0) return false;
     for (int i = 0; i < 3; i++) {
-        origin[i] = formulas[i]->EvalInstance();
-        end[i] = formulas[i + 3]->EvalInstance();
+        origin[i] = run->GetObservable<double>(names[i]);
+        end[i] = run->GetObservable<double>(names[i + 3]);
     }
     return true;
 }

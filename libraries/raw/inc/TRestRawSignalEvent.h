@@ -106,9 +106,9 @@ class TRestRawSignalEvent : public TRestEvent {
         fPtrSamples = &fSignalData.allSamples;
         fPtrIDs = &fSignalData.signalIDs;
         fPtrOffsets = &fSignalData.offsets;
-        tree->SetBranchAddress("fSigSamples", &fPtrSamples);
-        tree->SetBranchAddress("fSigIDs", &fPtrIDs);
-        tree->SetBranchAddress("fSigOffsets", &fPtrOffsets);
+        BindBranch(tree, "fSigSamples", &fPtrSamples);
+        BindBranch(tree, "fSigIDs", &fPtrIDs);
+        BindBranch(tree, "fSigOffsets", &fPtrOffsets);
     }
 
     void RefreshViews() const override {

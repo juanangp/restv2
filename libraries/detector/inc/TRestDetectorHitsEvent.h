@@ -67,12 +67,12 @@ class TRestDetectorHitsEvent : public TRestEvent {
         fPtrEnergy = &fHitsData.energy;
         fPtrType = &fHitsData.type;
 
-        tree->SetBranchAddress("fHitX", &fPtrX);
-        tree->SetBranchAddress("fHitY", &fPtrY);
-        tree->SetBranchAddress("fHitZ", &fPtrZ);
-        tree->SetBranchAddress("fHitTime", &fPtrTime);
-        tree->SetBranchAddress("fHitEnergy", &fPtrEnergy);
-        tree->SetBranchAddress("fHitType", &fPtrType);
+        BindBranch(tree, "fHitX", &fPtrX);
+        BindBranch(tree, "fHitY", &fPtrY);
+        BindBranch(tree, "fHitZ", &fPtrZ);
+        BindBranch(tree, "fHitTime", &fPtrTime);
+        BindBranch(tree, "fHitEnergy", &fPtrEnergy);
+        BindBranch(tree, "fHitType", &fPtrType);
     }
 
     /// \brief Rebuilds the fHits view to span the current size of fHitsData.

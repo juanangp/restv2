@@ -128,6 +128,15 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \return Channel centroid in detector coordinates.
     virtual ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const;
 
+    /// \brief Where the signal of a DAQ channel is collected, e.g. the photocathode of the PMT of a
+    /// scintillator (TRestGDMLReadout `readoutVolume`), unlike GetPositionFromChannel (the channel volume).
+    /// \return The position in the global frame, NaN if the readout does not define one (default).
+    virtual ROOT::Math::XYZVector GetReadoutPosition(int daqID) const {
+        (void)daqID;
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        return {nan, nan, nan};
+    }
+
     /// \brief Bounding box of the channels (the volumes with a DAQ channel) in the global frame, e.g. the
     /// extent of the readout for a gain map (TRestDataSetGainMap).
     /// \return (minimum, maximum) corners; NaN if there are no channels.

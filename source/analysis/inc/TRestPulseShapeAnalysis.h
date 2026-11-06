@@ -19,6 +19,17 @@ class TF1;
 /// This namespace define generic functions to calculate different signal parameters
 namespace TRestPulseShapeAnalysis {
 
+/// Options of CalculateBaselineAndSigma ("": mean and standard deviation, robust: median and IQR, outliers:
+/// excluding the outliers), for TRestTools::NormalizeOption
+inline const std::vector<std::string> kBaselineOptions = {"", "robust", "outliers"};
+
+/// Options of GetMax, for TRestTools::NormalizeOption
+inline const std::vector<std::string> kMaxOptions = {"onlyMax",  "tripleMax", "tripleMaxAverage",
+                                                     "gaussFit", "landauFit", "agetFit"};
+
+/// Types of ShapingFunction, ShapingSupport and BuildResponse, for TRestTools::NormalizeOption
+inline const std::vector<std::string> kShapingTypes = {"gaus", "exponential", "shaper", "shaperSin"};
+
 /// \brief AGET response shape u^3·exp(-3u), optionally times sin(u). Not clamped:
 /// callers decide what happens for u < 0.
 inline double AgetShape(double u, bool withSine = true) {

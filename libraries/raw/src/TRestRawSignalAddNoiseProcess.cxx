@@ -6,6 +6,7 @@
 
 #include "TRestPulseShapeAnalysis.h"
 #include "TRestRawSignalEvent.h"
+#include "TRestTools.h"
 
 using namespace TRestPulseShapeAnalysis;
 
@@ -38,6 +39,7 @@ TRestNoiseParameters::TRestNoiseParameters(const std::string& name, const YAML::
 
 void TRestNoiseParameters::LoadConfig() {
     UpdateParamsFromYAML<TRestNoiseParameters>(fNode);
+    fNoiseMethod = TRestTools::NormalizeOption("method", fNoiseMethod, {"white", "sin", "sinusoidal"});
     UpdateYAMLFromParams<TRestNoiseParameters>(fNode);
 }
 
@@ -107,7 +109,7 @@ bool TRestRawSignalAddNoiseProcess::ProcessEvent(const TRestEvent& input, TRestE
                 GetWhiteNoise(noiseData, noiseAmp);
                 for (int b = 0; b < sig.GetNPoints(); b++) sig.IncreaseBinBy(b, noiseData[b]);
             }
-        } else if (method == "sin" || method == "sinusoidal") {
+        } else {                                                            // sin or sinusoidal
             const double phase = gRandom->Uniform(0.0, 2.0 * TMath::Pi());  // Same phase for the event
             const double period = noisePar.fNoisePeriod;
             for (int s = 0; s < signalEvent->GetNumberOfSignals(); s++) {
@@ -117,9 +119,6 @@ bool TRestRawSignalAddNoiseProcess::ProcessEvent(const TRestEvent& input, TRestE
                 GetSinNoise(noiseData, noiseAmp, period, phase);
                 for (int b = 0; b < sig.GetNPoints(); b++) sig.IncreaseBinBy(b, noiseData[b]);
             }
-        } else {
-            RESTWarning << "TRestRawSignalAddNoiseProcess: method " << method
-                        << "not implemented. Implemented methods: 'white' and 'sin'" << RESTendl;
         }
     }
 

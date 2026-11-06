@@ -1,5 +1,7 @@
 #include "TRestGeant4BiasingVolume.h"
 
+#include "TRestTools.h"
+
 // Modern REST v3 field registry reflection hook
 static const bool TRestGeant4BiasingVolume_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -27,5 +29,6 @@ TRestGeant4BiasingVolume::~TRestGeant4BiasingVolume() = default;
 
 void TRestGeant4BiasingVolume::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4BiasingVolume>(fNode);
+    fVolumeType = TRestTools::NormalizeOption("type", fVolumeType, {"virtualBox", "virtualSphere"});
     UpdateYAMLFromParams<TRestGeant4BiasingVolume>(fNode);
 }

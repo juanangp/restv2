@@ -83,6 +83,7 @@
 
 #include "TRestHitsAnalysis.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 #include "TRestTrack.h"
 #include "TRestTrackEvent.h"
 
@@ -303,6 +304,10 @@ void TRestTrackLineAnalysisProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestTrackLineAnalysisProcess>(fNode);
+    fLineAnaMethod = TRestTools::NormalizeOption("lineAnaMethod", fLineAnaMethod, {"default", "3D"});
+    for (auto& projection : fProjections) {
+        projection = TRestTools::NormalizeOption("projections", projection, TRestHitsData::kTypeNames);
+    }
     UpdateYAMLFromParams<TRestTrackLineAnalysisProcess>(fNode);
 }
 
@@ -315,16 +320,10 @@ void TRestTrackLineAnalysisProcess::InitProcess() {
                                                  {"XZ", TRestHitsData::XZ},  {"YZ", TRestHitsData::YZ},
                                                  {"XYZ", TRestHitsData::XYZ}};
     fProjectionTracks.clear();
-    for (const auto& name : fProjections) {
-        auto it = hitTypes.find(name);
-        if (it == hitTypes.end()) {
-            RESTError << "TRestTrackLineAnalysisProcess: unknown projection '" << name
-                      << "' (X, Y, Z, XY, XZ, YZ or XYZ)" << RESTendl;
-            continue;
-        }
+    for (const auto& name : fProjections) {  // checked in LoadConfig
         ProjectionTracks projection;
         projection.name = name;
-        projection.type = it->second;
+        projection.type = hitTypes.at(name);
         fProjectionTracks.push_back(projection);
     }
 
@@ -438,10 +437,6 @@ bool TRestTrackLineAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
                     << RESTendl;
                 fMethodWarned = true;
             }
-        } else if (fLineAnaMethod != "default" && !fMethodWarned) {
-            RESTWarning << "TRestTrackLineAnalysisProcess: line analysis method " << fLineAnaMethod
-                        << " is not implemented (default or 3D), using default" << RESTendl;
-            fMethodWarned = true;
         }
         if (!paired) GetCombinedEnds(lines, origin, end);
     }

@@ -50,6 +50,7 @@
 
 #include "TRestHits.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 #include "TRestTrack.h"
 #include "TRestTrackEvent.h"
 
@@ -110,6 +111,9 @@ void TRestTrackBlobAnalysisProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestTrackBlobAnalysisProcess>(fNode);
+    for (auto& projection : fProjections) {
+        projection = TRestTools::NormalizeOption("projections", projection, TRestHitsData::kTypeNames);
+    }
     UpdateYAMLFromParams<TRestTrackBlobAnalysisProcess>(fNode);
 }
 

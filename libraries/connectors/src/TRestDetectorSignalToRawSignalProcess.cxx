@@ -58,6 +58,7 @@
 #include "TRestDetectorSignalEvent.h"
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 
 static const bool TRestDetectorSignalToRawSignalProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -115,6 +116,8 @@ void TRestDetectorSignalToRawSignalProcess::LoadConfig() {
         return;
     }
     UpdateParamsFromYAML<TRestDetectorSignalToRawSignalProcess>(fNode);
+    fMode = TRestTools::NormalizeOption("mode", fMode, kModes);
+    fTriggerMode = TRestTools::NormalizeOption("triggerMode", fTriggerMode, kTriggerModes);
     UpdateYAMLFromParams<TRestDetectorSignalToRawSignalProcess>(fNode);
 }
 
@@ -122,13 +125,6 @@ void TRestDetectorSignalToRawSignalProcess::InitProcess() {
     const std::string prefix = "TRestDetectorSignalToRawSignalProcess: ";
     if (fSampling <= 0 || fNPoints <= 0) {
         throw std::runtime_error(prefix + "sampling and nPoints must be > 0");
-    }
-    if (kModes.count(fMode) == 0) {
-        throw std::runtime_error(prefix + "unknown mode '" + fMode + "' (integrate or sample)");
-    }
-    if (kTriggerModes.count(fTriggerMode) == 0) {
-        throw std::runtime_error(prefix + "unknown triggerMode '" + fTriggerMode +
-                                 "' (firstDeposit, integralThreshold or fixed)");
     }
     if (fTriggerMode == "integralThreshold" && fIntegralThreshold <= 0) {
         throw std::runtime_error(prefix + "triggerMode integralThreshold needs integralThreshold > 0");

@@ -56,6 +56,7 @@
 
 #include "TRestDetectorHitsEvent.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 
 static const bool TRestDetectorHitsAnalysisProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -119,6 +120,9 @@ void TRestDetectorHitsAnalysisProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestDetectorHitsAnalysisProcess>(fNode);
+    for (auto& projection : fProjections) {
+        projection = TRestTools::NormalizeOption("projections", projection, TRestHitsData::kTypeNames);
+    }
     UpdateYAMLFromParams<TRestDetectorHitsAnalysisProcess>(fNode);
 }
 

@@ -165,7 +165,7 @@ class TRestDetectorMedium : public TRestMetadata {
     std::shared_ptr<TRestDetectorChargeResponse> fCharge;  //!
 
    public:
-    inline static const std::set<std::string> kStates = {"gas", "liquid", "solid"};
+    inline static const std::vector<std::string> kStates = {"gas", "liquid", "solid"};
     std::string fState = "gas";
     std::map<std::string, double> fComponents;
     std::string fMediumFile = "";

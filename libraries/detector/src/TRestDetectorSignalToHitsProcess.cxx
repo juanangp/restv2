@@ -47,6 +47,7 @@
 #include "TRestDetectorSignalEvent.h"
 #include "TRestManager.h"
 #include "TRestPulseShapeAnalysis.h"
+#include "TRestTools.h"
 
 using namespace TRestPulseShapeAnalysis;
 
@@ -137,21 +138,17 @@ void TRestDetectorSignalToHitsProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestDetectorSignalToHitsProcess>(fNode);
+    fMethod = TRestTools::NormalizeOption("method", fMethod, kMethods);
+    // [+-]X, Y or Z, the axis in upper case
+    const bool signed_ = !fDriftAxis.empty() && (fDriftAxis[0] == '+' || fDriftAxis[0] == '-');
+    fDriftAxis = (signed_ ? fDriftAxis.substr(0, 1) : "") +
+                 TRestTools::NormalizeOption("driftAxis", signed_ ? fDriftAxis.substr(1) : fDriftAxis,
+                                             {"X", "Y", "Z"});
     UpdateYAMLFromParams<TRestDetectorSignalToHitsProcess>(fNode);
 }
 
 void TRestDetectorSignalToHitsProcess::InitProcess() {
-    if (kMethods.count(fMethod) == 0) {
-        throw std::runtime_error("TRestDetectorSignalToHitsProcess: unknown method '" + fMethod + "'");
-    }
-    const std::string axis = !fDriftAxis.empty() && (fDriftAxis[0] == '+' || fDriftAxis[0] == '-')
-                                 ? fDriftAxis.substr(1)
-                                 : fDriftAxis;
-    if (axis != "X" && axis != "Y" && axis != "Z") {
-        throw std::runtime_error("TRestDetectorSignalToHitsProcess: driftAxis must be [+-]X, Y or Z, not '" +
-                                 fDriftAxis + "'");
-    }
-    fAxis = axis[0];
+    fAxis = fDriftAxis.back();  // [+-]X, Y or Z, checked in LoadConfig
     fDriftDirection = fDriftAxis[0] == '-' ? -1 : 1;
 
     auto* readouts = fManager ? dynamic_cast<TRestDetectorReadoutManager*>(

@@ -224,9 +224,8 @@ void TRestDataSetGainMap::LoadConfig() {
     if (fPeaks.empty()) throw std::runtime_error(context + ": no peaks");
     if (fNBins <= 0) throw std::runtime_error(context + ": nBins must be positive");
     if (fWindow <= 0 || fWindow >= 1) throw std::runtime_error(context + ": window must be in (0, 1)");
-    // Checked here (throw for an unknown name)
-    TRestPeakFit::ModelFromString(fPeakModel);
-    TRestPeakFit::BackgroundFromString(fBackground);
+    fPeakModel = TRestTools::NormalizeOption("peakModel", fPeakModel, TRestPeakFit::kModels);
+    fBackground = TRestTools::NormalizeOption("background", fBackground, TRestPeakFit::kBackgrounds);
     for (const auto* split : {&fSplitX, &fSplitY}) {
         if (split->empty()) continue;
         if (split->size() < 2 || !std::is_sorted(split->begin(), split->end()) ||

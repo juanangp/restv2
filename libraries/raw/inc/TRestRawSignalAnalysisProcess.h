@@ -72,16 +72,13 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     SignalObservables fObs;
 
    public:
-    /// Just a flag to quickly determine if we have to apply the range filter
-    bool fRangeEnabled = false;
-
     /// The range where the baseline range will be calculated
     std::pair<int, int> fBaselineRange = {5, 55};
 
     /// The range where the observables will be calculated
     std::pair<int, int> fIntegralRange = {10, 500};
 
-    /// Option for calculation of baseline parameters, can be set to "ROBUST"
+    /// Option for calculation of baseline parameters: "" (standard deviation), "robust" or "outliers"
     std::string fBaselineOption = "";
 
     std::string fMaxOption = "tripleMaxAverage";
@@ -96,9 +93,6 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     int fPointsOverThreshold = 5;
 
     int fNPointsFlat = 512;
-
-    /// It defines the signals id range where analysis is applied
-    std::pair<int, int> fSignalsRange = {-1, -1};  //<
 
     TRestRawSignalAnalysisProcess();
     TRestRawSignalAnalysisProcess(const std::string& instanceName, const YAML::Node& node);

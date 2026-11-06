@@ -29,7 +29,7 @@ class TRestReadoutInfo : public TRestMetadata {
 ///
 /// All the readouts are loaded (e.g. to view an event in the whole detector), but the data of a file are
 /// those of a single readout, `readout` (e.g. "micromegas" or "veto"; the detectors are split by
-/// TRestGeant4ToDetectorHitsProcess volumes in simulations and by TRestRawSignalRemoveChannelsProcess in
+/// TRestGeant4ToDetectorHitsProcess volumes in simulations and by TRestRawSignalChannelSelectionProcess in
 /// acquired data). The processes (and TRestDataSetGainMap) use it unless they give their own `readout`
 /// (SelectReadout).
 ///

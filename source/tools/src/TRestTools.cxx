@@ -547,6 +547,17 @@ std::string TRestTools::ToLower(std::string str) {
     return str;
 }
 
+std::string TRestTools::NormalizeOption(const std::string& field, const std::string& value,
+                                        const std::vector<std::string>& options) {
+    const std::string lower = ToLower(value);
+    for (const auto& option : options) {
+        if (ToLower(option) == lower) return option;
+    }
+    std::string list;
+    for (const auto& option : options) list += (list.empty() ? "\"" : ", \"") + option + "\"";
+    throw std::invalid_argument("Invalid " + field + " \"" + value + "\", options: " + list);
+}
+
 std::string TRestTools::Format(const char* format, ...) {
     va_list args;
     va_start(args, format);

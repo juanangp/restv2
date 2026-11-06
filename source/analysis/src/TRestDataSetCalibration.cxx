@@ -158,9 +158,8 @@ void TRestDataSetCalibration::LoadConfig() {
         throw std::runtime_error("TRestDataSetCalibration '" + fName + "': nBins must be positive");
     if (fWindow <= 0 || fWindow >= 1)
         throw std::runtime_error("TRestDataSetCalibration '" + fName + "': window must be in (0, 1)");
-    // Checked here (throw for an unknown name)
-    TRestPeakFit::ModelFromString(fPeakModel);
-    TRestPeakFit::BackgroundFromString(fBackground);
+    fPeakModel = TRestTools::NormalizeOption("peakModel", fPeakModel, TRestPeakFit::kModels);
+    fBackground = TRestTools::NormalizeOption("background", fBackground, TRestPeakFit::kBackgrounds);
     UpdateYAMLFromParams<TRestDataSetCalibration>(fNode);
 }
 

@@ -31,6 +31,7 @@ TRestGeant4QuenchingInfo::TRestGeant4QuenchingInfo(const std::string& name, cons
 
 void TRestGeant4QuenchingInfo::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4QuenchingInfo>(fNode);
+    fModel = TRestTools::NormalizeOption("model", fModel, {"auto", "lindhard", "birks"});
     UpdateYAMLFromParams<TRestGeant4QuenchingInfo>(fNode);
 }
 

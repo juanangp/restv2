@@ -3,7 +3,7 @@
 /// event in time coincidence windows. It replaces the legacy TRestRawPeaksFinderProcess: it works on
 /// detector signals, whose baseline is already subtracted and whose times are physical, so there is no
 /// baseline, time conversion or calibration; and channels are not selected by type, the signals of each
-/// detector (e.g. vetoes and Micromegas) are split beforehand with TRestRawSignalRemoveChannelsProcess
+/// detector (e.g. vetoes and Micromegas) are split beforehand with TRestRawSignalChannelSelectionProcess
 /// and analysed separately. Legacy veto signals (TRestRawSignal::GetPeaksVeto) used halfWindow 2,
 /// maxGreaterEqual 0, refineMaximum false and amplitudeHalfWindow 0. Legacy windows contained the peaks up
 /// to window / 2 after the first one.

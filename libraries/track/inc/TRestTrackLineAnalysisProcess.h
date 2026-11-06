@@ -40,7 +40,7 @@ class TRestTrackLineAnalysisProcess : public TRestEventProcess {
     double fAsymmetry = 0;
     double fResidual = 0;
 
-    /// The warnings for an unknown method, or "3D" without a common coordinate, are given once
+    /// The warning for "3D" without a common coordinate is given once
     bool fMethodWarned = false;
 
    public:

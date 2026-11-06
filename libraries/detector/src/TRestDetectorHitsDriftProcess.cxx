@@ -38,6 +38,7 @@
 #include "TRestDetectorReadout.h"
 #include "TRestDetectorReadoutManager.h"
 #include "TRestManager.h"
+#include "TRestTools.h"
 
 using ROOT::Math::XYZVector;
 
@@ -88,14 +89,11 @@ void TRestDetectorHitsDriftProcess::LoadConfig() {
         return;
     }
     UpdateParamsFromYAML<TRestDetectorHitsDriftProcess>(fNode);
+    fFluctuations = TRestTools::NormalizeOption("fluctuations", fFluctuations, kFluctuations);
     UpdateYAMLFromParams<TRestDetectorHitsDriftProcess>(fNode);
 }
 
 void TRestDetectorHitsDriftProcess::InitProcess() {
-    if (kFluctuations.count(fFluctuations) == 0) {
-        throw std::runtime_error("TRestDetectorHitsDriftProcess: unknown fluctuations '" + fFluctuations +
-                                 "' (fano, poisson or none)");
-    }
     if (!fManager) throw std::runtime_error("TRestDetectorHitsDriftProcess: no TRestManager");
 
     auto* readouts =

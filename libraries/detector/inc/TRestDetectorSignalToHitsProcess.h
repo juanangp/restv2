@@ -1,9 +1,9 @@
 #ifndef TRESTDETECTORSIGNALTOHITSPROCESS_H
 #define TRESTDETECTORSIGNALTOHITSPROCESS_H
 
-#include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "TRestEventProcess.h"
 
@@ -21,7 +21,7 @@ class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
    public:
     /// Methods accepted by fMethod. onlyMax, tripleMax, tripleMaxAverage, gaussFit, landauFit and agetFit
     /// are delegated to TRestPulseShapeAnalysis::GetMax
-    inline static const std::set<std::string> kMethods = {
+    inline static const std::vector<std::string> kMethods = {
         "onlyMax", "tripleMax", "tripleMaxAverage", "gaussFit", "landauFit",
         "agetFit", "integral",  "qCenter",          "all",      "intWindow"};
 

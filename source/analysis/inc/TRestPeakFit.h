@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 class TGraph;
 class TH1;
@@ -27,6 +28,10 @@ namespace TRestPeakFit {
 enum class Model { Gaussian, CrystalBall };
 /// Background under a peak
 enum class Background { None, Constant, Linear };
+
+/// Names of the models and of the backgrounds, for TRestTools::NormalizeOption
+inline const std::vector<std::string> kModels = {"gaussian", "crystalBall"};
+inline const std::vector<std::string> kBackgrounds = {"none", "constant", "linear"};
 
 /// \brief Model of a name: "gaussian" or "crystalBall"; throws for any other
 Model ModelFromString(const std::string& name);

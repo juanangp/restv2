@@ -70,6 +70,11 @@ std::string CleanString(const std::string& str);
 void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
 /// \brief The string in lower case (ASCII)
 std::string ToLower(std::string str);
+/// \brief The option of `options` equal to `value` ignoring case (its spelling, e.g. "tripleMaxAverage" for
+/// "TRIPLEMAXAVERAGE"), to normalise a configuration field in LoadConfig (the YAML saved gets it too).
+/// Throws std::invalid_argument naming `field` and the options when none matches.
+std::string NormalizeOption(const std::string& field, const std::string& value,
+                            const std::vector<std::string>& options);
 /// \brief printf-style formatted string (replaces TString::Format)
 std::string Format(const char* format, ...) __attribute__((format(printf, 1, 2)));
 /// Replacement of a match (or of the content between delimiters), nullopt: kept as it is

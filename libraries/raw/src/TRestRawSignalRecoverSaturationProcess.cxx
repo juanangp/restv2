@@ -32,6 +32,7 @@
 #include "TRestPulseShapeAnalysis.h"
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 
 using namespace TRestPulseShapeAnalysis;
 
@@ -88,6 +89,8 @@ void TRestRawSignalRecoverSaturationProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestRawSignalRecoverSaturationProcess>(fNode);
+    fBaselineOption = TRestTools::NormalizeOption("baselineOption", fBaselineOption,
+                                                  TRestPulseShapeAnalysis::kBaselineOptions);
     UpdateYAMLFromParams<TRestRawSignalRecoverSaturationProcess>(fNode);
 }
 

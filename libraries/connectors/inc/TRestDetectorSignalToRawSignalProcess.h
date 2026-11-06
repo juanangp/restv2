@@ -1,9 +1,9 @@
 #ifndef TRESTDETECTORSIGNALTORAWSIGNALPROCESS_H
 #define TRESTDETECTORSIGNALTORAWSIGNALPROCESS_H
 
-#include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "TRestEventProcess.h"
 
@@ -25,8 +25,9 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
     bool GetTriggerTime(const TRestDetectorSignalEvent& event, double& time) const;
 
    public:
-    inline static const std::set<std::string> kModes = {"integrate", "sample"};
-    inline static const std::set<std::string> kTriggerModes = {"firstDeposit", "integralThreshold", "fixed"};
+    inline static const std::vector<std::string> kModes = {"integrate", "sample"};
+    inline static const std::vector<std::string> kTriggerModes = {"firstDeposit", "integralThreshold",
+                                                                  "fixed"};
 
     /// Width of the samples (sampling of the electronics)
     TRestWithUnits fSampling = 0;  // us

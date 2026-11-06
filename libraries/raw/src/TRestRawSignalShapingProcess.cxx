@@ -8,6 +8,7 @@
 
 #include "TRestPulseShapeAnalysis.h"
 #include "TRestRawSignalEvent.h"
+#include "TRestTools.h"
 
 static const bool TRestRawSignalShapingProcess_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
@@ -56,6 +57,8 @@ void TRestRawSignalShapingProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestRawSignalShapingProcess>(fNode);
+    fShapingType =
+        TRestTools::NormalizeOption("shapingType", fShapingType, TRestPulseShapeAnalysis::kShapingTypes);
     UpdateYAMLFromParams<TRestRawSignalShapingProcess>(fNode);
 }
 

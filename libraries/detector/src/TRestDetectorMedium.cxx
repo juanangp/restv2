@@ -8,6 +8,7 @@
 #include "TFile.h"
 #include "TRandom.h"
 #include "TRestDetectorTransportManager.h"
+#include "TRestTools.h"
 #include "TRestYAMLUtils.h"
 
 using ROOT::Math::XYZVector;
@@ -58,9 +59,7 @@ void TRestDetectorMedium::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorMedium>(fNode);
     const std::string prefix = "TRestDetectorMedium '" + fName + "': ";
     if (!fNode["name"]) throw std::runtime_error("TRestDetectorMedium: the medium needs a name");
-    if (kStates.count(fState) == 0) {
-        throw std::runtime_error(prefix + "unknown state '" + fState + "' (gas, liquid or solid)");
-    }
+    fState = TRestTools::NormalizeOption("state", fState, kStates);
     for (const auto& [component, fraction] : fComponents) {
         if (fraction <= 0) throw std::runtime_error(prefix + "the fraction of " + component + " must be > 0");
     }

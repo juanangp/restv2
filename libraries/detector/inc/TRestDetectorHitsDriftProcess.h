@@ -1,8 +1,8 @@
 #ifndef TRESTDETECTORHITSDRIFTPROCESS_H
 #define TRESTDETECTORHITSDRIFTPROCESS_H
 
-#include <set>
 #include <string>
+#include <vector>
 
 #include "TRandom3.h"
 #include "TRestEventProcess.h"
@@ -22,7 +22,7 @@ class TRestDetectorHitsDriftProcess : public TRestEventProcess {
 
    public:
     /// Values accepted by fFluctuations
-    inline static const std::set<std::string> kFluctuations = {"fano", "poisson", "none"};
+    inline static const std::vector<std::string> kFluctuations = {"fano", "poisson", "none"};
 
     /// Name of the readout (in TRestDetectorReadoutManager) that gives the drift distance. It can be
     /// omitted if the manager contains a single readout.

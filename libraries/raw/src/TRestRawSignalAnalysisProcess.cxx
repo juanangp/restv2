@@ -5,6 +5,7 @@
 #include "TRestPulseShapeAnalysis.h"
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
+#include "TRestTools.h"
 
 using namespace std;
 using namespace TRestPulseShapeAnalysis;
@@ -23,8 +24,6 @@ static const bool TRestRawSignalAnalysisProcess_FieldsRegistered = []() {
                                                      &TRestRawSignalAnalysisProcess::fSignalThreshold);
     reg.RegisterField<TRestRawSignalAnalysisProcess>("pointsOverThreshold",
                                                      &TRestRawSignalAnalysisProcess::fPointsOverThreshold);
-    reg.RegisterField<TRestRawSignalAnalysisProcess>("signalsRange",
-                                                     &TRestRawSignalAnalysisProcess::fSignalsRange);
     reg.RegisterField<TRestRawSignalAnalysisProcess>("nPointsFlat",
                                                      &TRestRawSignalAnalysisProcess::fNPointsFlat);
     reg.RegisterField<TRestRawSignalAnalysisProcess>("maxOption", &TRestRawSignalAnalysisProcess::fMaxOption);
@@ -72,16 +71,14 @@ void TRestRawSignalAnalysisProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestRawSignalAnalysisProcess>(fNode);
+    fBaselineOption = TRestTools::NormalizeOption("baselineOption", fBaselineOption, kBaselineOptions);
+    fMaxOption = TRestTools::NormalizeOption("maxOption", fMaxOption, kMaxOptions);
     // Sync resolved parameters to the node
     UpdateYAMLFromParams<TRestRawSignalAnalysisProcess>(fNode);
 }
 
 /// \brief Registers all event observables produced by this process.
 void TRestRawSignalAnalysisProcess::InitProcess() {
-    if (fSignalsRange.first != -1 && fSignalsRange.second != -1) {
-        fRangeEnabled = true;
-    }
-
     RegisterObservable("SignalsID", fObs.SignalsID);
     RegisterObservable("Baseline", fObs.Baseline);
     RegisterObservable("BaselineSigma", fObs.BaselineSigma);
@@ -148,7 +145,6 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
     for (int s = 0; s < sigEvent->GetNumberOfSignals(); s++) {
         const auto& signal = sigEvent->GetSignal(s);
         const int sID = signal.GetSignalID();
-        if (fRangeEnabled && (sID < fSignalsRange.first || sID > fSignalsRange.second)) continue;
 
         double baseline, baselineSigma;
         auto data = CalculateBaselineAndSigma(signal.GetData(), fBaselineRange.first, fBaselineRange.second,

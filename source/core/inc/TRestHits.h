@@ -70,6 +70,8 @@ struct TRestHitsData {
     /// Coordinates as indices 0, 1, 2 (X, Y, Z): factor in the hit type and axis title
     static constexpr REST_HitType kAxisTypes[3] = {X, Y, Z};
     static constexpr const char* kAxisTitles[3] = {"X-axis (mm)", "Y-axis (mm)", "Z-axis (mm)"};
+    /// Names of the hit types (projections of the analysis processes), for TRestTools::NormalizeOption
+    inline static const std::vector<std::string> kTypeNames = {"X", "Y", "Z", "XY", "XZ", "YZ", "XYZ"};
     /// Projection planes XZ, YZ and XY (as legacy), as pairs of coordinates
     static constexpr int kPlanes[3][2] = {{0, 2}, {1, 2}, {0, 1}};
 

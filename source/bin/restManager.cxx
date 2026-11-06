@@ -3,10 +3,12 @@
 /// Usage: restManager --c|--config <config.yaml> [--i|--input <input.root>]
 ///                     [--o|--output <output.root>] [--v|--verbose <level>]
 ///                     [--e|--events <n>] [--r|--reference <process>=<dataset>]
-///                     [--set <name>=<value>]
+///                     [--set <name>=<value>] [--maxRepeated <n>]
 ///
 /// --set sets a parameter of the section `parameters` of the configuration for this execution (repeatable;
 /// the file is not changed), e.g. --set meshVoltage=300V
+/// --maxRepeated sets the messages (warning and info) written from the same line of the code before the
+/// next ones are suppressed (default 10, 0: no suppression); with verbose debug none is suppressed
 /// --r sets the referenceFileName of a process of the TRestDataSetProcessManager (repeatable), e.g.
 /// --r calib=D_00120_00122_Calibration.root
 
@@ -81,6 +83,19 @@ int main(int argc, char** argv) {
                 return 1;
             }
             references.emplace_back(reference.substr(0, equal), reference.substr(equal + 1));
+        } else if (arg == "--maxRepeated" && i + 1 < argc) {
+            const std::string value = argv[++i];
+            size_t end = 0;
+            int maxRepeated = -1;
+            try {
+                maxRepeated = std::stoi(value, &end);
+            } catch (const std::exception&) {
+            }
+            if (maxRepeated < 0 || end != value.size()) {
+                std::cerr << "[ERROR] --maxRepeated needs an integer >= 0, not '" << value << "'\n";
+                return 1;
+            }
+            TRestLogManager::setMaxRepeated(maxRepeated);
         } else if (arg == "--set" && i + 1 < argc) {
             try {
                 TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
@@ -93,7 +108,7 @@ int main(int argc, char** argv) {
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
                          " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
-                         " [--set <name>=<value>]\n";
+                         " [--set <name>=<value>] [--maxRepeated <n>]\n";
             return 1;
         }
     }
@@ -103,7 +118,7 @@ int main(int argc, char** argv) {
                   << " --c|--config <config.yaml> [--i|--input <input.root>]"
                      " [--o|--output <output.root>] [--v|--verbose <level>]"
                      " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
-                     " [--set <name>=<value>]\n";
+                     " [--set <name>=<value>] [--maxRepeated <n>]\n";
         return 1;
     }
 

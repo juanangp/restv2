@@ -54,7 +54,11 @@
 ///   lineColor, lineWidth, lineStyle, fillColor, fillStyle (numbers or names: colors as red or kRed+2
 ///   or #rrggbb, line styles solid, dashed, dotted, dashDotted, fill styles as legacy);
 /// * variables: one (1D) or two (2D, X and Y) of {name, range: [min, max], nBins (100)}; without range
-///   (or min >= max) the range is automatic.
+///   (or min >= max) the range is automatic. The name is an observable or an expression of them (C++, as
+///   the cuts), e.g. "sqrt(hitsAna_MeanX*hitsAna_MeanX + hitsAna_MeanY*hitsAna_MeanY)". Vector observables
+///   fill one entry per element, and can be selected element by element, e.g.
+///   "rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 25]" (the channels of the signals
+///   over 25); the cuts select events, e.g. "Sum(rawToSignal_SignalsMaxAmplitude > 25) == 1".
 /// A plot with a single histogram can give its keys directly, without `histos`.
 ///
 /// Example:
@@ -671,21 +675,30 @@ void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::st
         ROOT::RDF::RResultPtr<TH2D> histo2D;
     };
     std::vector<std::vector<HistoResult>> histoResults;
+    int nExpressions = 0;
     for (const auto& plot : fPlots) {
         auto& results = histoResults.emplace_back();
         for (const auto& histo : plot.histos) {
             auto node = withCuts(histo.cuts);
+            // A variable that is not a column is an expression of the columns, defined as a new one
+            auto column = [&](const std::string& name) {
+                if (node.HasColumn(name)) return name;
+                const std::string defined = "plotExpression" + std::to_string(nExpressions++);
+                node = node.Define(defined, name);
+                return defined;
+            };
             const auto& x = histo.variables.front();
             HistoResult result;
             if (histo.variables.size() == 1) {
                 const ROOT::RDF::TH1DModel model(histo.name.c_str(), plot.title.c_str(), x.nBins, x.min,
                                                  x.max);
-                result.histo1D = node.Histo1D(model, x.name);
+                result.histo1D = node.Histo1D(model, column(x.name));
             } else {
                 const auto& y = histo.variables.back();
                 const ROOT::RDF::TH2DModel model(histo.name.c_str(), plot.title.c_str(), x.nBins, x.min,
                                                  x.max, y.nBins, y.min, y.max);
-                result.histo2D = node.Histo2D(model, x.name, y.name);
+                const std::string xColumn = column(x.name);
+                result.histo2D = node.Histo2D(model, xColumn, column(y.name));
             }
             results.push_back(result);
         }

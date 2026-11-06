@@ -131,9 +131,16 @@ class TRestLogManager {
         logFile.open(filename, std::ios::out | std::ios::app);
     }
 
-    /// \brief Writes a message to the console (with color) and to the log file if any, from any thread
+    /// \brief Writes a message to the console (with color) and to the log file if any, from any thread.
+    /// With a call site (file not nullptr), only the first maxRepeated messages written from it are
+    /// written; the number of the suppressed ones is written at the end of the program.
     void Write(const std::string_view& color, const std::string& prefix, const std::string& name,
-               const std::string& msg);
+               const std::string& msg, const char* file = nullptr, int line = 0);
+
+    /// \brief Messages written from one call site (warning and info) before the next ones are suppressed,
+    /// 0: no suppression. The messages of a metadata (or context) with verbose debug are never suppressed.
+    static inline int maxRepeated = 10;
+    static inline void setMaxRepeated(int n) { maxRepeated = n; }
 
     /// \brief Verbose level of the messages written outside a metadata, and of the metadata without
     /// `verbose`
@@ -143,7 +150,17 @@ class TRestLogManager {
    private:
     std::ofstream logFile;
     std::mutex fMutex;
-    TRestLogManager() = default;
+    /// Messages written from each call site (defined in the source)
+    struct RepeatedMessages;
+    RepeatedMessages* fRepeated;
+
+    TRestLogManager();
+    /// \brief Writes the number of messages suppressed from each call site
+    ~TRestLogManager();
+
+    /// \brief Writes a message, with fMutex locked
+    void WriteText(const std::string_view& color, const std::string& prefix, const std::string& name,
+                   const std::string& msg);
 };
 
 // ---------------- Logger ----------------
@@ -198,12 +215,21 @@ class TRestLogScope {
 // ---------------- Log line ----------------
 /// \brief One message, written when the statement ends (RESTInfo << ... << RESTendl;) if its level is
 /// enabled by the verbose of the context. Each statement has its own buffer, so messages of different
-/// threads are not mixed.
+/// threads are not mixed. The messages of RESTWarning and RESTInfo (file not nullptr) repeated from the same
+/// call site (file and line) are suppressed after TRestLogManager::maxRepeated, unless the verbose of the
+/// context is debug.
 class TRestLogLine {
    public:
-    TRestLogLine(TRestLogManager::REST_Verbose_Level level, const std::string_view& color, const char* prefix,
-                 const TRestLogContext& context)
-        : fColor(color), fPrefix(prefix), fName(context.name), fEnabled(level <= context.level) {}
+    using Level = TRestLogManager::REST_Verbose_Level;
+
+    TRestLogLine(Level level, const std::string_view& color, const char* prefix,
+                 const TRestLogContext& context, const char* file, int line)
+        : fColor(color),
+          fPrefix(prefix),
+          fName(context.name),
+          fEnabled(level <= context.level),
+          fFile(context.level < Level::REST_Debug ? file : nullptr),
+          fLine(line) {}
 
     TRestLogLine(const TRestLogLine&) = delete;
     TRestLogLine& operator=(const TRestLogLine&) = delete;
@@ -212,7 +238,8 @@ class TRestLogLine {
         if (!fEnabled) return;
         const std::string message = fStream.str();
         if (!message.empty()) {
-            TRestLogManager::instance().Write(fColor, fPrefix, fName ? *fName : "Global", message);
+            TRestLogManager::instance().Write(fColor, fPrefix, fName ? *fName : "Global", message, fFile,
+                                              fLine);
         }
     }
 
@@ -233,6 +260,9 @@ class TRestLogLine {
     const char* fPrefix;
     const std::string* fName;
     bool fEnabled;
+    /// Call site, nullptr if its messages are not suppressed
+    const char* fFile;
+    int fLine;
     std::ostringstream fStream;
 };
 
@@ -242,15 +272,17 @@ inline std::ostream& RESTendl(std::ostream& os) {
 }
 
 // The verbose level of a message is that of the metadata writing it (its `verbose`, otherwise the global
-// one), or the global one outside a metadata
-#define REST_LOG_LINE(LEVEL, COLOR, PREFIX) \
-    TRestLogLine(TRestLogManager::REST_Verbose_Level::LEVEL, TRestLogger::COLOR, PREFIX, GetLogContext())
+// one), or the global one outside a metadata. FILE: the call site for the suppression of repeated messages
+// (only warnings and info), nullptr for none
+#define REST_LOG_LINE(LEVEL, COLOR, PREFIX, FILE)                                                         \
+    TRestLogLine(TRestLogManager::REST_Verbose_Level::LEVEL, TRestLogger::COLOR, PREFIX, GetLogContext(), \
+                 FILE, __LINE__)
 
-#define RESTError REST_LOG_LINE(REST_Error, COLOR_RED, " ERROR ")
-#define RESTWarning REST_LOG_LINE(REST_Warning, COLOR_YELLOW, " WARNING ")
-#define RESTMetadata REST_LOG_LINE(REST_Warning, COLOR_GREEN, " METADATA ")
-#define RESTLog REST_LOG_LINE(REST_Warning, COLOR_BLUE, " LOG ")
-#define RESTInfo REST_LOG_LINE(REST_Info, COLOR_BLUE, " INFO ")
-#define RESTDebug REST_LOG_LINE(REST_Debug, COLOR_RESET, " DEBUG ")
+#define RESTError REST_LOG_LINE(REST_Error, COLOR_RED, " ERROR ", nullptr)
+#define RESTWarning REST_LOG_LINE(REST_Warning, COLOR_YELLOW, " WARNING ", __FILE__)
+#define RESTMetadata REST_LOG_LINE(REST_Warning, COLOR_GREEN, " METADATA ", nullptr)
+#define RESTLog REST_LOG_LINE(REST_Warning, COLOR_BLUE, " LOG ", nullptr)
+#define RESTInfo REST_LOG_LINE(REST_Info, COLOR_BLUE, " INFO ", __FILE__)
+#define RESTDebug REST_LOG_LINE(REST_Debug, COLOR_RESET, " DEBUG ", nullptr)
 
 #endif

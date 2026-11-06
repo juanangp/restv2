@@ -40,6 +40,11 @@ class TRestGDMLReadoutParameters : public TRestMetadata {
 /// \class TRestGDMLReadout
 /// \brief Detector readout implementation that imports geometry and channels from GDML naming rules.
 class TRestGDMLReadout : public TRestDetectorReadout {
+   private:
+    /// Global position of the readout volume of each physical ID, computed at the first GetReadoutPosition
+    /// (navigating the geometry once, not for each hit); each thread has its own readouts
+    mutable std::map<int, ROOT::Math::XYZVector> fReadoutPositions;  //!
+
    public:
     TRestGDMLReadoutParameters fReadoutParams;
     /// Path of the readout volume of each physical ID (from readoutVolume), stored with the readout

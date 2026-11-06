@@ -37,6 +37,12 @@ void TRestEventProcess::LoadConfig() {
 long long TRestEventProcess::GetInputEventCount() const { return fRunInfo ? fRunInfo->GetEntries() : -1; }
 
 bool TRestEventProcess::ShouldRegisterObservable(const std::string& name) const {
+    // Two variables with the same name would share the branch, the last one replacing the other
+    if (std::find(fOfferedObservables.begin(), fOfferedObservables.end(), name) !=
+        fOfferedObservables.end()) {
+        throw std::runtime_error(GetName() + ": the observable " + name +
+                                 " is given twice (e.g. a volume and a particle with the same name)");
+    }
     fOfferedObservables.push_back(name);
     if (!fRunInfo) return false;
     for (const auto& obs : fObservables) {

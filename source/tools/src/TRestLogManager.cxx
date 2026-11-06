@@ -22,28 +22,37 @@ struct TRestLogManager::RepeatedMessages {
 namespace {
 /// Maximum number of different characters (insertions, deletions or substitutions) of similar messages
 constexpr size_t kMaxDifferences = 10;
+/// Maximum number of groups of similar messages of a call site: beyond it the new messages count in the
+/// last group, so a site writing always different messages (e.g. with long numbers) neither grows nor
+/// slows down without limit
+constexpr size_t kMaxGroups = 100;
 
 /// True if the edit distance of a and b is at most kMaxDifferences, e.g. "DaqID 12 not found" and
 /// "DaqID 135 not found" are similar, "Loading process: hitsAna (TRestDetectorHitsAnalysisProcess)" and
 /// "Loading process: trackAna (TRestTrackAnalysisProcess)" are not
 bool AreSimilar(const std::string& a, const std::string& b) {
+    constexpr size_t k = kMaxDifferences, kOut = k + 1;
     const size_t n = a.size(), m = b.size();
-    if ((n > m ? n - m : m - n) > kMaxDifferences) return false;
-    // Levenshtein distance by rows, stopped when no path can stay within the limit
-    std::vector<size_t> previous(m + 1), current(m + 1);
-    for (size_t j = 0; j <= m; j++) previous[j] = j;
+    if ((n > m ? n - m : m - n) > k) return false;
+    // Levenshtein distance by rows, only in the band |i - j| <= k (the cells out of it are > k), so the cost
+    // is n (2k + 1) whatever the length; stopped when no path can stay within the limit
+    std::vector<size_t> previous(m + 1, kOut), current(m + 1, kOut);
+    for (size_t j = 0; j <= std::min(m, k); j++) previous[j] = j;
     for (size_t i = 1; i <= n; i++) {
-        current[0] = i;
-        size_t rowMin = current[0];
-        for (size_t j = 1; j <= m; j++) {
+        const size_t from = i > k ? i - k : 1, to = std::min(m, i + k);
+        current[from - 1] = from == 1 ? i : kOut;
+        size_t rowMin = current[from - 1];
+        for (size_t j = from; j <= to; j++) {
             const size_t substitution = previous[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1);
-            current[j] = std::min({previous[j] + 1, current[j - 1] + 1, substitution});
+            current[j] = std::min({previous[j] + 1, current[j - 1] + 1, substitution, kOut});
             rowMin = std::min(rowMin, current[j]);
         }
-        if (rowMin > kMaxDifferences) return false;
+        // Out of the band for the next row
+        if (to < m) current[to + 1] = kOut;
+        if (rowMin > k) return false;
         std::swap(previous, current);
     }
-    return previous[m] <= kMaxDifferences;
+    return previous[m] <= k;
 }
 }  // namespace
 
@@ -62,6 +71,7 @@ void TRestLogManager::Write(const std::string_view& color, const std::string& pr
     auto group = std::find_if(groups.begin(), groups.end(), [&msg](const RepeatedMessages::Repeated& g) {
         return AreSimilar(g.first, msg);
     });
+    if (group == groups.end() && groups.size() >= kMaxGroups) group = std::prev(groups.end());
     if (group == groups.end()) {
         groups.emplace_back();
         group = std::prev(groups.end());

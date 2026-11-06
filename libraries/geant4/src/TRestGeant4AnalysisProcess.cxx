@@ -375,15 +375,11 @@ void TRestGeant4AnalysisProcess::InitProcess() {
                                selection.splitEnergy[p]);
         }
         if (!selection.perVolumeIDs.empty()) {
-            // Volume names as observable names, an error if two give the same one
-            std::set<std::string> volumeNames;
+            // Volume names as observable names (two equal names, of volumes or particles, are an error of
+            // RegisterObservable)
             for (size_t v = 0; v < selection.perVolumeIDs.size(); v++) {
                 const auto volume =
                     VolumeObservableName(fGeometryInfo->GetVolumeFromID(selection.perVolumeIDs[v]));
-                if (!volumeNames.insert(volume).second) {
-                    throw std::runtime_error("TRestGeant4AnalysisProcess: selection '" + selection.name +
-                                             "', two volumes give the observable name '" + volume + "'");
-                }
                 RegisterObservable(prefix + volume + "_Energy", selection.volumeEnergy[v]);
             }
             RegisterObservable(prefix + "MaxVolumeEnergy", selection.maxVolumeEnergy);

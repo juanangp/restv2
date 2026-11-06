@@ -145,6 +145,7 @@ void TRestDetectorSignalToRawSignalProcess::InitProcess() {
         if (fTriggerObservable.empty()) {
             throw std::runtime_error(prefix + "triggerMode observable needs triggerObservable");
         }
+        if (!fRunInfo) throw std::runtime_error(prefix + "triggerMode observable needs a TRestRun");
         fTriggerObservableValue = &fRunInfo->GetObservable<double>(fTriggerObservable);
     } else if (!fTriggerObservable.empty()) {
         throw std::runtime_error(prefix + "triggerObservable is only for triggerMode observable");

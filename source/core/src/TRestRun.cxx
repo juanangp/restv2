@@ -448,8 +448,10 @@ const void* TRestRun::GetObservableAddress(const std::string& name, const std::t
     if (!tree) throw std::runtime_error(prefix + "requested without analysis tree");
     TBranch* branch = tree->GetBranch(name.c_str());
     if (!branch) {
-        throw std::runtime_error(prefix +
-                                 "not in the analysis tree (of the input file or of a previous process)");
+        throw std::runtime_error(
+            prefix +
+            "not in the analysis tree (of the input file or of a previous process: is it "
+            "in the observables of that process?)");
     }
 
     TClass* branchClass = nullptr;

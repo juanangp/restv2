@@ -102,6 +102,7 @@ void TRestGDMLReadout::BuildGeometry() {
 
     fPathToPhysicalIDMap.clear();
     fPhysicalIDToReadoutPath.clear();
+    fReadoutPositions.clear();
     if (!LoadDecoding(fDecodingFile)) RESTError << "Decoding file not found " << RESTendl;
 
     RESTInfo << "Importing external GDML layout file: " << fReadoutParams.fGDMLFileName << RESTendl;
@@ -122,8 +123,16 @@ void TRestGDMLReadout::BuildGeometry() {
     std::vector<std::vector<std::pair<std::string, int>>> channelsOfInfo(fReadoutParams.fReadoutInfo.size());
 
     std::vector<int> currentOffsets;
+    // Compiled once (not for each node); an invalid expression is an error of the configuration
+    std::vector<std::regex> channelRegexes;
     for (const auto& info : fReadoutParams.fReadoutInfo) {
         currentOffsets.push_back(info.fOffset);
+        try {
+            channelRegexes.emplace_back(info.fVolume);
+        } catch (const std::regex_error& e) {
+            throw std::runtime_error("TRestGDMLReadout: invalid regular expression volume '" + info.fVolume +
+                                     "': " + e.what());
+        }
     }
 
     TGeoIterator it(fGeoManager->GetTopVolume());
@@ -138,45 +147,39 @@ void TRestGDMLReadout::BuildGeometry() {
 
         for (size_t i = 0; i < fReadoutParams.fReadoutInfo.size(); ++i) {
             const auto& info = fReadoutParams.fReadoutInfo[i];
-            try {
-                std::regex channelRegex(info.fVolume);
+            if (std::regex_search(nodePath, match, channelRegexes[i])) {
+                int physicalID = 0;
 
-                if (std::regex_search(nodePath, match, channelRegex)) {
-                    int physicalID = 0;
-
-                    if (match.size() > 2) {
-                        try {
-                            int firstCapturedNum = std::stoi(match.str(1));
-                            int secondCapturedNum = std::stoi(match.str(2));
-                            physicalID =
-                                currentOffsets[i] + (firstCapturedNum * info.fMultiplier) + secondCapturedNum;
-                        } catch (const std::exception& e) {
-                            continue;
-                        }
-                    } else if (match.size() > 1) {
-                        try {
-                            physicalID = currentOffsets[i] + std::stoi(match.str(1));
-                        } catch (const std::exception& e) {
-                            continue;
-                        }
-                    } else {
-                        physicalID = currentOffsets[i];
+                if (match.size() > 2) {
+                    try {
+                        int firstCapturedNum = std::stoi(match.str(1));
+                        int secondCapturedNum = std::stoi(match.str(2));
+                        physicalID =
+                            currentOffsets[i] + (firstCapturedNum * info.fMultiplier) + secondCapturedNum;
+                    } catch (const std::exception& e) {
+                        continue;
                     }
-
-                    if (!fGeoManager->cd(nodePath.c_str())) continue;
-                    std::string canonicalPath = fGeoManager->GetPath();
-
-                    if (fPathToPhysicalIDMap.count(canonicalPath)) break;
-
-                    fPathToPhysicalIDMap[canonicalPath] = physicalID;
-                    channelsOfInfo[i].emplace_back(canonicalPath, physicalID);
-                    parsedChannelsCount++;
-
-                    if (match.size() <= 1) currentOffsets[i]++;
-                    break;
+                } else if (match.size() > 1) {
+                    try {
+                        physicalID = currentOffsets[i] + std::stoi(match.str(1));
+                    } catch (const std::exception& e) {
+                        continue;
+                    }
+                } else {
+                    physicalID = currentOffsets[i];
                 }
-            } catch (const std::regex_error& e) {
-                RESTError << "TRestGDMLReadout: Invalid regex format in prefix: " << e.what() << RESTendl;
+
+                if (!fGeoManager->cd(nodePath.c_str())) continue;
+                std::string canonicalPath = fGeoManager->GetPath();
+
+                if (fPathToPhysicalIDMap.count(canonicalPath)) break;
+
+                fPathToPhysicalIDMap[canonicalPath] = physicalID;
+                channelsOfInfo[i].emplace_back(canonicalPath, physicalID);
+                parsedChannelsCount++;
+
+                if (match.size() <= 1) currentOffsets[i]++;
+                break;
             }
         }
     }
@@ -187,7 +190,13 @@ void TRestGDMLReadout::BuildGeometry() {
     for (size_t i = 0; i < fReadoutParams.fReadoutInfo.size(); ++i) {
         const auto& info = fReadoutParams.fReadoutInfo[i];
         if (info.fReadoutVolume.empty()) continue;
-        const std::regex readoutRegex(info.fReadoutVolume);
+        std::regex readoutRegex;
+        try {
+            readoutRegex = std::regex(info.fReadoutVolume);
+        } catch (const std::regex_error& e) {
+            throw std::runtime_error("TRestGDMLReadout: invalid regular expression readoutVolume '" +
+                                     info.fReadoutVolume + "': " + e.what());
+        }
         std::map<std::string, std::vector<std::string>> readoutsOfParent;
         TGeoIterator readoutIt(fGeoManager->GetTopVolume());
         while ((node = readoutIt())) {
@@ -262,18 +271,22 @@ void TRestGDMLReadout::BuildGeometry() {
 }
 
 ROOT::Math::XYZVector TRestGDMLReadout::GetReadoutPosition(int daqID) const {
-    const double nan = std::numeric_limits<double>::quiet_NaN();
-    const ROOT::Math::XYZVector none(nan, nan, nan);
-    const auto it = fPhysicalIDToReadoutPath.find(GetPhysicalID(daqID));
-    if (it == fPhysicalIDToReadoutPath.end() || !fGeoManager || !fGeoManager->cd(it->second.c_str())) {
-        return none;
+    if (fReadoutPositions.empty() && fGeoManager) {
+        // Origin of each readout volume in the global frame
+        for (const auto& [physicalID, path] : fPhysicalIDToReadoutPath) {
+            if (!fGeoManager->cd(path.c_str())) continue;
+            const TGeoMatrix* matrix = fGeoManager->GetCurrentMatrix();
+            if (!matrix) continue;
+            const double local[3] = {0, 0, 0};
+            double global[3] = {0, 0, 0};
+            matrix->LocalToMaster(local, global);
+            fReadoutPositions[physicalID] = {global[0], global[1], global[2]};
+        }
     }
-    const TGeoMatrix* matrix = fGeoManager->GetCurrentMatrix();
-    if (!matrix) return none;
-    const double local[3] = {0, 0, 0};
-    double global[3] = {0, 0, 0};
-    matrix->LocalToMaster(local, global);
-    return {global[0], global[1], global[2]};
+    const auto it = fReadoutPositions.find(GetPhysicalID(daqID));
+    if (it != fReadoutPositions.end()) return it->second;
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    return {nan, nan, nan};
 }
 
 double TRestGDMLReadout::GetDistanceToReadout(int daqID, const ROOT::Math::XYZVector& position) const {

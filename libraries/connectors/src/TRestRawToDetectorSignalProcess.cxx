@@ -9,7 +9,19 @@
 ///
 /// Signals without points are not added to the output. Events without signals are rejected.
 ///
-/// Observables: NSignalsRejected (number of signals without points).
+/// Observables:
+/// * NSignalsRejected: number of signals without points.
+/// * SignalsID: DAQ channel (signal ID) of each output signal.
+/// * SignalsMaxAmplitude: maximum amplitude of the points of each output signal (gain applied).
+/// * SignalsPhysicalID: physical (readout) channel of each output signal, -1 if its DAQ channel is not in
+///   the readout. Only with a TRestDetectorReadoutManager in the configuration (readout `readout`, the
+///   data readout if empty).
+///
+/// The vectors follow the order of the output signals. With TRestAnalysisPlot they give the channel
+/// activity of the legacy TRestDetectorSignalChannelActivityProcess, e.g. for an instance rawToSignal:
+/// * all the signals: variable "rawToSignal_SignalsID" (DAQ) or "rawToSignal_SignalsPhysicalID";
+/// * over a threshold: variable "rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 25]";
+/// * by multiplicity: a TRestCut "Sum(rawToSignal_SignalsMaxAmplitude > 25) == 1" with the previous one.
 ///
 /// Example:
 ///
@@ -26,15 +38,24 @@
 ///      pointsOverThreshold: 7
 ///      observables:
 ///        - "NSignalsRejected"
+///        - "SignalsID"
+///        - "SignalsPhysicalID"
+///        - "SignalsMaxAmplitude"
 ///
 /// Migrated from the legacy connectors library (Javier Gracia, Javier Galan, JuanAn Garcia).
+/// SignalsID, SignalsPhysicalID and SignalsMaxAmplitude are new (they replace the histograms of the legacy
+/// TRestDetectorSignalChannelActivityProcess).
 
 #include "TRestRawToDetectorSignalProcess.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <vector>
 
+#include "TRestDetectorReadout.h"
+#include "TRestDetectorReadoutManager.h"
 #include "TRestDetectorSignalEvent.h"
+#include "TRestManager.h"
 #include "TRestPulseShapeAnalysis.h"
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
@@ -56,6 +77,7 @@ static const bool TRestRawToDetectorSignalProcess_FieldsRegistered = []() {
     reg.RegisterField<P>("signalThreshold", &P::fSignalThreshold);
     reg.RegisterField<P>("pointsOverThreshold", &P::fPointsOverThreshold);
     reg.RegisterField<P>("nPointsFlat", &P::fNPointsFlat);
+    reg.RegisterField<P>("readout", &P::fReadoutName);
     return true;
 }();
 
@@ -99,6 +121,23 @@ void TRestRawToDetectorSignalProcess::LoadConfig() {
 
 void TRestRawToDetectorSignalProcess::InitProcess() {
     RegisterObservable("NSignalsRejected", fNSignalsRejected);
+    RegisterObservable("SignalsID", fSignalsID);
+    RegisterObservable("SignalsMaxAmplitude", fSignalsMaxAmplitude);
+
+    auto* readouts = fManager ? dynamic_cast<TRestDetectorReadoutManager*>(
+                                    fManager->GetMetadataClass("TRestDetectorReadoutManager"))
+                              : nullptr;
+    fReadout = nullptr;
+    if (readouts) {
+        fReadout = readouts->SelectReadout(fReadoutName, "TRestRawToDetectorSignalProcess");
+        // The stored metadata keeps the readout used
+        UpdateYAMLFromParams<TRestRawToDetectorSignalProcess>(fNode);
+        RegisterObservable("SignalsPhysicalID", fSignalsPhysicalID);
+    } else if (std::find(fObservables.begin(), fObservables.end(), "SignalsPhysicalID") !=
+               fObservables.end()) {
+        throw std::runtime_error(
+            "TRestRawToDetectorSignalProcess: SignalsPhysicalID needs a TRestDetectorReadoutManager");
+    }
 }
 
 bool TRestRawToDetectorSignalProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
@@ -114,6 +153,9 @@ bool TRestRawToDetectorSignalProcess::ProcessEvent(const TRestEvent& input, TRes
     signalEvent->SetEventInfo(&input);
 
     fNSignalsRejected = 0;
+    fSignalsID.clear();
+    fSignalsPhysicalID.clear();
+    fSignalsMaxAmplitude.clear();
     const auto thrParams = std::make_pair(fPointsThreshold, fSignalThreshold);
 
     for (int s = 0; s < rawEvent->GetNumberOfSignals(); s++) {
@@ -145,6 +187,9 @@ bool TRestRawToDetectorSignalProcess::ProcessEvent(const TRestEvent& input, TRes
             continue;
         }
         signalEvent->AddSignal(rawSignal.GetSignalID(), times, amplitudes);
+        fSignalsID.push_back(rawSignal.GetSignalID());
+        fSignalsMaxAmplitude.push_back(*std::max_element(amplitudes.begin(), amplitudes.end()));
+        if (fReadout) fSignalsPhysicalID.push_back(fReadout->GetPhysicalID(rawSignal.GetSignalID()));
     }
 
     return signalEvent->GetNumberOfSignals() > 0;

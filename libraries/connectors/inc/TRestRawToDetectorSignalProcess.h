@@ -3,8 +3,11 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "TRestEventProcess.h"
+
+class TRestDetectorReadout;
 
 /// \class TRestRawToDetectorSignalProcess
 /// \brief Transforms a TRestRawSignalEvent (ADC samples per bin) into a TRestDetectorSignalEvent
@@ -13,6 +16,18 @@ class TRestRawToDetectorSignalProcess : public TRestEventProcess {
    private:
     /// Number of signals of the event without any point in the output
     int fNSignalsRejected = 0;
+
+    /// Readout used for SignalsPhysicalID, nullptr without TRestDetectorReadoutManager
+    const TRestDetectorReadout* fReadout = nullptr;
+
+    /// DAQ channel (signal ID) of each output signal
+    std::vector<int> fSignalsID;
+
+    /// Physical (readout) channel of each output signal, -1 if its DAQ channel is not in the readout
+    std::vector<int> fSignalsPhysicalID;
+
+    /// Maximum amplitude of the points of each output signal
+    std::vector<double> fSignalsMaxAmplitude;
 
    public:
     /// Sampling time used to transform the bin number into time
@@ -51,6 +66,10 @@ class TRestRawToDetectorSignalProcess : public TRestEventProcess {
 
     /// Number of flat points that end a pulse over threshold (zero suppression)
     int fNPointsFlat = 512;
+
+    /// Name of the readout (in TRestDetectorReadoutManager) for SignalsPhysicalID. It can be omitted if
+    /// the manager contains a single readout (the data readout)
+    std::string fReadoutName = "";
 
     TRestRawToDetectorSignalProcess();
     TRestRawToDetectorSignalProcess(const std::string& instanceName, const YAML::Node& node);

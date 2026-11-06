@@ -132,12 +132,14 @@ class TRestLogManager {
     }
 
     /// \brief Writes a message to the console (with color) and to the log file if any, from any thread.
-    /// With a call site (file not nullptr), only the first maxRepeated messages written from it are
-    /// written; the number of the suppressed ones is written at the end of the program.
+    /// With a call site (file not nullptr), only the first maxRepeated similar messages written from it
+    /// (at most 10 different characters) are written; the number of the suppressed ones is written at
+    /// the end of the program.
     void Write(const std::string_view& color, const std::string& prefix, const std::string& name,
                const std::string& msg, const char* file = nullptr, int line = 0);
 
-    /// \brief Messages written from one call site (warning and info) before the next ones are suppressed,
+    /// \brief Similar messages (at most 10 different characters) written from one call site (warning
+    /// and info) before the next ones are suppressed,
     /// 0: no suppression. The messages of a metadata (or context) with verbose debug are never suppressed.
     static inline int maxRepeated = 10;
     static inline void setMaxRepeated(int n) { maxRepeated = n; }
@@ -215,9 +217,9 @@ class TRestLogScope {
 // ---------------- Log line ----------------
 /// \brief One message, written when the statement ends (RESTInfo << ... << RESTendl;) if its level is
 /// enabled by the verbose of the context. Each statement has its own buffer, so messages of different
-/// threads are not mixed. The messages of RESTWarning and RESTInfo (file not nullptr) repeated from the same
-/// call site (file and line) are suppressed after TRestLogManager::maxRepeated, unless the verbose of the
-/// context is debug.
+/// threads are not mixed. The similar messages (at most 10 different characters) of RESTWarning and
+/// RESTInfo (file not nullptr) repeated from the same call site (file and line) are suppressed after
+/// TRestLogManager::maxRepeated, unless the verbose of the context is debug.
 class TRestLogLine {
    public:
     using Level = TRestLogManager::REST_Verbose_Level;

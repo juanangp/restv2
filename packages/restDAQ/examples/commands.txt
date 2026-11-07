@@ -1,0 +1,7 @@
+# femclient restDAQ.yaml -e commands.txt: one command per line, as in the console (# comments).
+# The commands that are not of femclient go to the active FEMs (`fem <id>` or `fem *`).
+fopen
+# The run ends at nEvents or time of the TRestRawDAQMetadata (or CTRL-C)
+startDAQ
+stopDAQ
+fclose

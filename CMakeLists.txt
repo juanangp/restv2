@@ -275,6 +275,16 @@ if(REST_GARFIELD)
   add_subdirectory(packages/restGarfield)
 endif()
 
+option(REST_DAQ
+       "Build the optional restDAQ package application (requires readline)" OFF)
+if(REST_DAQ AND NOT TARGET ${RAW_LIB})
+  message(STATUS "restDAQ: ${RAW_LIB} not built, restDAQ not built")
+  set(REST_DAQ OFF)
+endif()
+if(REST_DAQ)
+  add_subdirectory(packages/restDAQ)
+endif()
+
 add_subdirectory(source/bin)
 
 # Create thisREST.sh
@@ -296,6 +306,7 @@ message(STATUS "  ${GEANT4_LIB}: ${${GEANT4_LIB}}")
 message(STATUS "  ${CONNECTORS_LIB}: ${${CONNECTORS_LIB}}")
 message(STATUS "  REST_G4 : ${REST_G4}")
 message(STATUS "  REST_GARFIELD : ${REST_GARFIELD}")
+message(STATUS "  REST_DAQ : ${REST_DAQ}")
 message(STATUS "")
 
 # ---------------------------------------------------------------------------

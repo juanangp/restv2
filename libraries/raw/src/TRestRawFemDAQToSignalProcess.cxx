@@ -77,7 +77,7 @@ void TRestRawFemDAQToSignalProcess::InitProcess() {
             "TRestRawFemDAQToSignalProcess: missing input file in process config and TRestRun");
     }
 
-    if (inputFilename.substr(inputFilename.size() - 5) != ".root") {
+    if (inputFilename.size() < 5 || inputFilename.substr(inputFilename.size() - 5) != ".root") {
         throw std::runtime_error("TRestRawFemDAQToSignalProcess: Input file is not a root file");
     }
 

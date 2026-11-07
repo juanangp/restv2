@@ -117,7 +117,18 @@ void TRestRun::LoadConfig() {
     // (TRestAnalysisPlot), the pipeline reads one file
     const bool isPattern = fInputFileName.find_first_of("*?") != std::string::npos;
     if (!fInputFileName.empty() && fInputFileName != "Null" && !isPattern) {
-        OpenInputFile(fInputFileName);
+        // Other files (e.g. a DAQ file) are not opened: they are the input of a process reading it
+        if (isValidTRestRun(GetFullPath(fInputFileName))) {
+            OpenInputFile(fInputFileName);
+        } else {
+            fInputFileName = GetFullPath(fInputFileName);
+            if (!fileExists(fInputFileName)) {
+                RESTWarning << "TRestRun: input file " << fInputFileName << " not found" << RESTendl;
+            } else {
+                RESTInfo << "TRestRun: " << fInputFileName << " is not a REST run file, not opened (input "
+                         << "of a process)" << RESTendl;
+            }
+        }
     }
 
     // The parameters not given: from the name of the input file (inputFormat), otherwise from its run
@@ -183,16 +194,14 @@ void TRestRun::SetOutputEvent(const std::string& v) {
 }
 
 void TRestRun::OpenInputFile(const std::string& filename) {
-    if (fInputFile) return;
+    if (fInputFile || filename.empty()) return;
 
     fInputFileName = GetFullPath(filename);
 
     if (!isValidTRestRun(fInputFileName)) {
-        RESTError << filename << " is not a valid TRestRun " << RESTendl;
-        delete fAnalysisTree;
-        fAnalysisTree = nullptr;
-        fInputFile.reset();
-        return;
+        throw std::runtime_error("TRestRun: " + filename +
+                                 " is not a valid REST run file (not found, not a ROOT file, or without "
+                                 "AnalysisTree or TRestRun metadata)");
     }
 
     fInputFile = std::make_unique<TFile>(fInputFileName.c_str(), "READ");
@@ -430,7 +439,9 @@ void TRestRun::OpenOutputFile(std::string fileName, const std::string& option) {
         return;
     }
 
-    if (fAnalysisTree) {
+    // Without inputAnalysisStorage only the event info and the observables of the processes, as without
+    // input analysis tree
+    if (CopiesInputAnalysisTree()) {
         fOutputAnalysisTree = fAnalysisTree->CloneTree(0);
         fAnalysisTree->CopyAddresses(fOutputAnalysisTree);
         SyncAnalysisTreeBranches();
@@ -542,6 +553,7 @@ void TRestRun::CloseFiles() {
         fOutputFile.reset();
         fOutputEventTrees.clear();
         fOutputAnalysisTree = nullptr;
+        fObservablePointers.clear();
     }
     if (fInputFile) {
         fInputFile->Close();
@@ -577,13 +589,20 @@ std::map<std::string, std::string> TRestRun::ParseInputFormat() const {
     std::map<std::string, std::string> parameters;
     if (fInputFormat.empty() || fInputFileName.empty() || fInputFileName == "Null") return parameters;
 
-    std::string filenameBase = std::filesystem::path(fInputFileName).stem().string();
-    std::string regexStr = fInputFormat;
+    // The pattern of the file name (without directories nor the extension of the file) as a regex: each
+    // [tag] a part without "_", the rest literal
+    std::string pattern = std::filesystem::path(fInputFormat).filename().string();
+    const std::string extension = std::filesystem::path(fInputFileName).extension().string();
+    if (!extension.empty() && pattern.size() > extension.size() &&
+        pattern.compare(pattern.size() - extension.size(), extension.size(), extension) == 0)
+        pattern.resize(pattern.size() - extension.size());
+    const std::regex bracketRe(R"(\[([\w.]+)\])");
+    const std::regex special(R"([.^$|()\[\]{}*+?\\])");
     std::vector<std::string> tags;
-
-    std::regex bracketRe(R"(\[([\w.]+)\])");
+    std::string regexStr;
+    std::string rest = pattern;
     std::smatch m;
-    while (std::regex_search(regexStr, m, bracketRe)) {
+    while (std::regex_search(rest, m, bracketRe)) {
         const std::string tag = m[1].str();
         if (std::find(kRunParameters.begin(), kRunParameters.end(), tag) == kRunParameters.end() &&
             tag.rfind("runInfo.", 0) != 0) {
@@ -592,15 +611,20 @@ std::map<std::string, std::string> TRestRun::ParseInputFormat() const {
                                      "runTag, runDescription, experimentName) nor runInfo.key");
         }
         tags.push_back(tag);
-        regexStr = m.prefix().str() + "([^\\_]+)" + m.suffix().str();
+        regexStr += std::regex_replace(m.prefix().str(), special, R"(\$&)") + "([^_]+)";
+        rest = m.suffix().str();
     }
+    regexStr += std::regex_replace(rest, special, R"(\$&)");
 
-    if (regexStr.size() > 5 && regexStr.substr(regexStr.size() - 5) == ".root")
-        regexStr.resize(regexStr.size() - 5);
-
+    const std::string filenameBase = std::filesystem::path(fInputFileName).stem().string();
     std::smatch matches;
-    if (std::regex_match(filenameBase, matches, std::regex(regexStr))) {
-        for (size_t i = 1; i < matches.size(); ++i) parameters[tags[i - 1]] = matches[i].str();
+    // Not an error: the input file can have another name (e.g. a tag with "_"), the parameters keep their
+    // values
+    if (!std::regex_match(filenameBase, matches, std::regex(regexStr))) {
+        RESTWarning << "TRestRun: the input " << fInputFileName << " does not match the inputFormat \""
+                    << fInputFormat << "\": no run parameters taken from its name" << RESTendl;
+        return parameters;
     }
+    for (size_t i = 1; i < matches.size(); ++i) parameters[tags[i - 1]] = matches[i].str();
     return parameters;
 }

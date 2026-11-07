@@ -112,27 +112,21 @@ bool IsNeutralParticleWithoutBirksQuenching(const string& particleName) {
            name.find("neutrino") != string::npos;
 }
 
+/// The length of the Geant4 step of a hit: the energy of a hit is deposited along the step ending at it,
+/// which starts at the previous hit of the track (in the same volume). The fallback length for the first hit
+/// of the track, or if the previous hit is in another volume (the steps in between are not stored)
 double EstimateStepLength(const TRestGeant4Track& track, int hitIndex, double fallbackStepLength) {
-    const auto nHits = static_cast<int>(track.GetNumberOfHits());
-    if (nHits <= 1) {
+    if (hitIndex <= 0 || hitIndex >= static_cast<int>(track.GetNumberOfHits())) {
         return fallbackStepLength;
     }
 
-    const auto volumeId = track.GetHitVolumeID(hitIndex);
-
-    const auto position = track.GetHitPosition(hitIndex);
-
-    double stepLength = numeric_limits<double>::max();
-
-    if (hitIndex > 0 && track.GetHitVolumeID(hitIndex - 1) == volumeId) {
-        stepLength = min(stepLength, (position - track.GetHitPosition(hitIndex - 1)).R());
+    if (track.GetHitVolumeID(hitIndex - 1) != track.GetHitVolumeID(hitIndex)) {
+        return fallbackStepLength;
     }
 
-    if (hitIndex + 1 < nHits && track.GetHitVolumeID(hitIndex + 1) == volumeId) {
-        stepLength = min(stepLength, (track.GetHitPosition(hitIndex + 1) - position).R());
-    }
+    const double stepLength = (track.GetHitPosition(hitIndex) - track.GetHitPosition(hitIndex - 1)).R();
 
-    if (!std::isfinite(stepLength) || stepLength <= 0 || stepLength == numeric_limits<double>::max()) {
+    if (!std::isfinite(stepLength) || stepLength <= 0) {
         return fallbackStepLength;
     }
 

@@ -1,6 +1,7 @@
 #include "TRestLogManager.h"
 
 #include <algorithm>
+#include <chrono>
 #include <ctime>
 #include <iterator>
 #include <map>
@@ -11,7 +12,9 @@ struct TRestLogManager::RepeatedMessages {
     /// Similar messages written from one call site, with the last one suppressed
     struct Repeated {
         std::string first;  ///< First message of the group, the one the others are compared with
-        int count = 0;
+        std::chrono::steady_clock::time_point windowStart;  ///< Start of the current time window
+        int count = 0;                                      ///< Messages in the current window
+        int suppressed = 0;  ///< Messages suppressed, once maxRepeated were reached in a window (for ever)
         std::string_view color;
         std::string prefix, name, lastMessage;
     };
@@ -54,6 +57,15 @@ bool AreSimilar(const std::string& a, const std::string& b) {
     }
     return previous[m] <= k;
 }
+
+/// \brief Line with the number of suppressed messages of a group (empty if none)
+std::string SuppressedSummary(int suppressed, const std::string& lastMessage, const std::string& file,
+                              int line) {
+    if (suppressed <= 0) return "";
+    const std::string fileName = file.substr(file.find_last_of('/') + 1);
+    return std::to_string(suppressed) + " similar messages suppressed (" + fileName + ":" +
+           std::to_string(line) + "), the last one: " + lastMessage;
+}
 }  // namespace
 
 TRestLogManager::TRestLogManager() : fRepeated(new RepeatedMessages) {}
@@ -61,8 +73,11 @@ TRestLogManager::TRestLogManager() : fRepeated(new RepeatedMessages) {}
 void TRestLogManager::Write(const std::string_view& color, const std::string& prefix, const std::string& name,
                             const std::string& msg, const char* file, int line) {
     std::lock_guard<std::mutex> lock(fMutex);
+    const int limit = maxRepeated;
+    const double interval = repeatedInterval;
+    const auto now = std::chrono::steady_clock::now();
 
-    if (!file || maxRepeated <= 0) {
+    if (!file || limit <= 0) {
         WriteText(color, prefix, name, msg);
         return;
     }
@@ -76,21 +91,30 @@ void TRestLogManager::Write(const std::string_view& color, const std::string& pr
         groups.emplace_back();
         group = std::prev(groups.end());
         group->first = msg;
+        group->windowStart = now;
     }
     auto& repeated = *group;
-    repeated.count++;
-    if (repeated.count > maxRepeated) {
+    if (repeated.suppressed > 0) {
+        repeated.suppressed++;
         repeated.color = color;
         repeated.prefix = prefix;
         repeated.name = name;
         repeated.lastMessage = msg;
         return;
     }
-    if (repeated.count < maxRepeated) {
+    // A new time window (interval > 0): the messages of the previous one were fewer than the limit
+    if (interval > 0 && std::chrono::duration<double>(now - repeated.windowStart).count() >= interval) {
+        repeated.windowStart = now;
+        repeated.count = 0;
+    }
+    repeated.count++;
+    if (repeated.count < limit) {
         WriteText(color, prefix, name, msg);
         return;
     }
-    // The last one written, marked before its final line breaks
+    // The limit reached in a window: this is the last one written, marked before its final line breaks, and
+    // the next ones are suppressed for ever (counted from 1 here, the summary subtracts it)
+    repeated.suppressed = 1;
     std::string text = msg;
     text.insert(text.find_last_not_of('\n') + 1, " (further similar messages suppressed)");
     WriteText(color, prefix, name, text);
@@ -98,14 +122,12 @@ void TRestLogManager::Write(const std::string_view& color, const std::string& pr
 
 TRestLogManager::~TRestLogManager() {
     std::lock_guard<std::mutex> lock(fMutex);
+    // The messages suppressed of each group
     for (const auto& [site, groups] : fRepeated->sites) {
-        const std::string fileName = site.first.substr(site.first.find_last_of('/') + 1);
         for (const auto& repeated : groups) {
-            if (repeated.count <= maxRepeated) continue;
-            WriteText(repeated.color, repeated.prefix, repeated.name,
-                      std::to_string(repeated.count - maxRepeated) + " similar messages suppressed (" +
-                          fileName + ":" + std::to_string(site.second) +
-                          "), the last one: " + repeated.lastMessage);
+            const std::string summary =
+                SuppressedSummary(repeated.suppressed - 1, repeated.lastMessage, site.first, site.second);
+            if (!summary.empty()) WriteText(repeated.color, repeated.prefix, repeated.name, summary);
         }
     }
     delete fRepeated;
@@ -121,7 +143,9 @@ void TRestLogManager::WriteText(const std::string_view& color, const std::string
 
     // Timestamp
     std::time_t t = std::time(nullptr);
-    char timebuf[20];
-    std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", std::localtime(&t));
+    char timebuf[32];
+    std::tm local{};
+    localtime_r(&t, &local);  // std::localtime is not thread safe (static buffer)
+    if (std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &local) == 0) timebuf[0] = '\0';
     logFile << timebuf << " [" << name << "] " << prefix << msg << std::endl;
 }

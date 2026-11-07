@@ -29,7 +29,8 @@ class TRestDetectorHitsSmearingProcess : public TRestEventProcess {
     /// Name of the TRestDetectorMedium (only with subtractFano). It can be omitted if the manager contains a
     /// single medium.
     std::string fMediumName = "";
-    /// Seed of the random generator (0: random seed)
+    /// Seed of the random generator (0: random seed). Otherwise the generator is re-seeded at each event
+    /// with TRestDetectorHitsEvent::EventSeed (seed, event and subevent IDs): independent of the threads.
     unsigned long fSeed = 0;
 
     TRestDetectorHitsSmearingProcess();

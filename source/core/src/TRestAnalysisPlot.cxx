@@ -50,7 +50,9 @@
 /// normalize (integral of each histogram), scale (each histogram divided by this expression of binSize,
 /// entries, integral and runLength, e.g. "binSize*runLength*3600" for a rate), save (file of the pad
 /// alone), enabled (true) and `histos`: list of histograms with
-/// * name, option (draw option), cuts (TRestCut names), stats (only for plots of a single histogram),
+/// * name (legend and name in outputFileName; default the plot name for a plot of a single histogram, and
+///   plotName_index in `histos`), option (draw option), cuts (TRestCut names), stats (only for plots of a
+///   single histogram),
 ///   lineColor, lineWidth, lineStyle, fillColor, fillStyle (numbers or names: colors as red or kRed+2
 ///   or #rrggbb, line styles solid, dashed, dotted, dashDotted, fill styles as legacy);
 /// * variables: one (1D) or two (2D, X and Y) of {name, range: [min, max], nBins (100)}; without range
@@ -131,6 +133,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <regex>
 #include <set>
@@ -519,7 +522,10 @@ void TRestAnalysisPlot::ReadPlots() {
                 CheckKeys(histoNode, histoKeys, "TRestAnalysisPlot '" + fName + "', plot " + plot.name);
             }
             Histo histo;
-            histo.name = GetParam<std::string>(histoNode, "name", plot.name);
+            // Without name, distinct names for the histograms of a list (legend, outputFileName)
+            const std::string defaultName =
+                node["histos"] ? plot.name + "_" + std::to_string(plot.histos.size()) : plot.name;
+            histo.name = GetParam<std::string>(histoNode, "name", defaultName);
             histo.drawOption = GetParam<std::string>(histoNode, "option");
             histo.cuts = GetList(histoNode, "cuts");
             if (histoNode["variables"]) {
@@ -855,8 +861,14 @@ void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::st
         WaitForEnter();
     }
 
-    // Files are drawn without window, at canvasSize
-    gROOT->SetBatch(true);
+    // Files are drawn without window, at canvasSize; the batch mode is restored also on exceptions
+    struct BatchGuard {
+        bool previous;
+        explicit BatchGuard(bool batchMode) : previous(gROOT->IsBatch()) { gROOT->SetBatch(batchMode); }
+        ~BatchGuard() { gROOT->SetBatch(previous); }
+        BatchGuard(const BatchGuard&) = delete;
+        BatchGuard& operator=(const BatchGuard&) = delete;
+    } batchGuard(true);
     for (auto& plot : fPlots) {
         if (plot.save.empty()) continue;
         TCanvas canvas(("save_" + plot.name).c_str(), plot.title.c_str(), fCanvasSize[0], fCanvasSize[1]);
@@ -905,11 +917,24 @@ void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::st
             }
             file->cd();
             canvas.Write("", TObject::kOverwrite);
+            // Each histogram with its name, or plotName_name if several have the same name
+            // (plotName_name_index if they are in the same plot), so they do not overwrite each other
+            std::map<std::string, int> nameCount;
+            for (const auto& plot : fPlots) {
+                for (const auto& histo : plot.histos) nameCount[histo.name]++;
+            }
+            std::set<std::string> written;
             for (auto& plot : fPlots) {
-                for (auto& histo : plot.histos) histo.histo->Write("", TObject::kOverwrite);
+                for (size_t h = 0; h < plot.histos.size(); h++) {
+                    auto& histo = plot.histos[h];
+                    std::string name = histo.name;
+                    if (nameCount[name] > 1) name = plot.name + "_" + histo.name;
+                    if (written.count(name)) name += "_" + std::to_string(h);
+                    written.insert(name);
+                    histo.histo->Write(name.c_str(), TObject::kOverwrite);
+                }
             }
             RESTInfo << "TRestAnalysisPlot '" << fName << "': written in " << outputFileName << RESTendl;
         }
     }
-    gROOT->SetBatch(batch);
 }

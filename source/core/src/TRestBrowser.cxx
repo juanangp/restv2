@@ -122,8 +122,8 @@ void TRestBrowser::SetViewer(const std::string& viewerName, double geomScale) {
         }
 
         std::unique_ptr<TRestEventViewer> viewer(static_cast<TRestEventViewer*>(cl->New()));
-        viewer->SetGeomScale(geomScale);
         if (viewer != nullptr) {
+            viewer->SetGeomScale(geomScale);
             SetViewer(viewer.release(), geomScale);
         } else {
             RESTError << viewerName << " not recognized! Did you install the corresponding library?"
@@ -345,9 +345,30 @@ bool TRestBrowser::LoadEventId(int eventID, int subEventID) {
 
 bool TRestBrowser::OpenFile(const std::string& filename) {
     if (filename.find("http") != std::string::npos || TRestTools::fileExists(filename)) {
-        fInputFileName = filename;
+        // A file already open: a new run (deleting the events of the previous one), the viewer without
+        // event and the event types of the new file
+        if (fRestRun->GetInputFile() != nullptr) {
+            if (fEventViewer != nullptr) fEventViewer->SetEvent(nullptr);
+            delete fRestRun;
+            fRestRun = new TRestRun();
+            if (fEventTypeComboBox != nullptr) fEventTypeComboBox->RemoveAll();
+            fEventRow = 0;
+            if (fEventRowNumberBox != nullptr) fEventRowNumberBox->SetIntNumber(0);
+            pureAnalysis = kTRUE;
+            if (fEventViewer != nullptr) fEventViewer->Plot("");
+        }
 
-        fRestRun->OpenInputFile(fInputFileName);
+        try {
+            fRestRun->OpenInputFile(filename);
+        } catch (const std::exception& error) {
+            RESTError << "TRestBrowser: cannot open " << filename << ": " << error.what() << RESTendl;
+            return false;
+        }
+        if (!fRestRun->IsOpen()) {
+            RESTError << "TRestBrowser: cannot open " << filename << RESTendl;
+            return false;
+        }
+        fInputFileName = filename;
         fRestRun->fInputFile->cd();
 
         TGeoManager* geometry = gGeoManager;
@@ -472,65 +493,57 @@ void TRestBrowser::IdValueChangedAction(long val) {
     }
 }
 
-void TRestBrowser::NextEventAction() {
-    string sel = (string)fSelectionTextBox->GetText();
-    if (sel.empty()) {
-        fEventRow++;
-        LoadEventEntry(fEventRow);
-    } else {
-        auto tree = fRestRun->fAnalysisTree;
-        TTreeFormula formula("Selection", sel.c_str(), tree);
-        if (formula.GetNdim() > 0) {  // valid expression
-            fEventRow++;
-            while (true) {
-                tree->GetEntry(fEventRow);
-                if (formula.EvalInstance(fEventRow) == 1) {
-                    LoadEventEntry(fEventRow);
-                    break;
-                } else {
-                    cout << fEventRow << endl;
-                    fEventRow++;
-                }
-                if (fEventRow >= fRestRun->fAnalysisTree->GetEntries()) {
-                    LoadEventEntry(fEventRow);
-                    break;
-                }
-            }
-        } else {
-            cout << "invalid selection!" << endl;
+namespace {
+/// \brief First entry of the tree from `start` (included), in steps of `step`, passing the selection
+/// formula (any of its instances not zero); -1 if none.
+long long FindSelectedEntry(TTree* tree, TTreeFormula& formula, long long start, int step) {
+    const long long entries = tree->GetEntries();
+    int treeNumber = -1;
+    for (long long row = start; row >= 0 && row < entries; row += step) {
+        if (tree->LoadTree(row) < 0) return -1;
+        if (tree->GetTreeNumber() != treeNumber) {
+            treeNumber = tree->GetTreeNumber();
+            formula.UpdateFormulaLeaves();
+        }
+        const int ndata = formula.GetNdata();
+        for (int i = 0; i < ndata; ++i) {
+            if (formula.EvalInstance(i) != 0) return row;
         }
     }
+    return -1;
+}
+}  // namespace
+
+void TRestBrowser::SelectEvent(int step) {
+    const std::string sel = fSelectionTextBox->GetText();
+    if (sel.empty()) {
+        fEventRow += step;
+        LoadEventEntry(fEventRow);
+        return;
+    }
+    TTree* tree = fRestRun->fAnalysisTree;
+    if (tree == nullptr) {
+        RESTWarning << "TRestBrowser: no analysis tree for the selection" << RESTendl;
+        return;
+    }
+    TTreeFormula formula("Selection", sel.c_str(), tree);
+    if (formula.GetNdim() <= 0) {
+        cout << "invalid selection!" << endl;
+        return;
+    }
+    const long long row = FindSelectedEntry(tree, formula, fEventRow + step, step);
+    if (row < 0) {
+        RESTWarning << "TRestBrowser: no " << (step > 0 ? "next" : "previous") << " entry passing \"" << sel
+                    << "\"" << RESTendl;
+        return;
+    }
+    fEventRow = row;
+    LoadEventEntry(fEventRow);
 }
 
-void TRestBrowser::PreviousEventAction() {
-    string sel = (string)fSelectionTextBox->GetText();
-    if (sel.empty()) {
-        fEventRow--;
-        LoadEventEntry(fEventRow);
-    } else {
-        auto tree = fRestRun->fAnalysisTree;
-        TTreeFormula formula("Selection", sel.c_str(), tree);
-        if (formula.GetNdim() > 0) {  // valid expression
-            fEventRow--;
-            while (true) {
-                tree->GetEntry(fEventRow);
-                if (formula.EvalInstance(fEventRow) == 1) {
-                    LoadEventEntry(fEventRow);
-                    break;
-                } else {
-                    cout << fEventRow << endl;
-                    fEventRow--;
-                }
-                if (fEventRow < 0) {
-                    LoadEventEntry(fEventRow);
-                    break;
-                }
-            }
-        } else {
-            cout << "invalid selection!" << endl;
-        }
-    }
-}
+void TRestBrowser::NextEventAction() { SelectEvent(1); }
+
+void TRestBrowser::PreviousEventAction() { SelectEvent(-1); }
 
 void TRestBrowser::LoadFileAction() {
     TGFileInfo fi;

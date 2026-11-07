@@ -39,6 +39,9 @@ class TRestEventProcessManager : public TRestMetadata {
    public:
     int fEventsToProcess = 0;
     unsigned int fNThreads = 1;
+    /// inputAnalysisStorage: the output analysis tree copies the observables of the input file (default).
+    /// With false it only has the event info and the observables of the processes of this pipeline, as
+    /// without input file; then TRestRun::GetObservable only finds the observables of the processes.
     bool fInputAnalysisStorage = true;
     bool fInputEventStorage = false;
     bool fOutputEventStorage = true;

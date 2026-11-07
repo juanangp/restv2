@@ -1,5 +1,8 @@
 #include "TRestMicromegasReadout.h"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
 #include <map>
 #include <stdexcept>
 
@@ -104,7 +107,10 @@ void TRestMicromegasReadout::BuildGeometry() {
     }
 
     InitializeReadout();
-    if (!LoadDecoding(fDecodingFile)) RESTError << "Decoding file not found " << RESTendl;
+    if (!LoadDecoding(fDecodingFile)) {
+        throw std::runtime_error("TRestMicromegasReadout::BuildGeometry - cannot load the decoding file '" +
+                                 fDecodingFile + "' (not found or without channels)");
+    }
 
     const auto pitch = fReadoutParams.fPitch;
     const auto nChannels = fReadoutParams.fNChannels;
@@ -121,7 +127,7 @@ void TRestMicromegasReadout::BuildGeometry() {
 
     TGeoMedium* copperMedium = fGeoManager->GetMedium("copper_medium");
     if (!copperMedium) {
-        TGeoMaterial* matCopper = new TGeoMaterial("Copper", 29.0, 63.546, 8.96);
+        TGeoMaterial* matCopper = new TGeoMaterial("Copper", 63.546, 29.0, 8.96);
         copperMedium = new TGeoMedium("copper_medium", 1, matCopper);
     }
 
@@ -297,6 +303,31 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
     }
 
     return ROOT::Math::XYZVector(posX, posY, posZ);
+}
+
+std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> TRestMicromegasReadout::GetChannelsBoundingBox()
+    const {
+    if (fReadoutParams.fGlobalRotation == 0.0) return TRestDetectorReadout::GetChannelsBoundingBox();
+
+    const double inf = std::numeric_limits<double>::infinity();
+    double minimum[2] = {inf, inf}, maximum[2] = {-inf, -inf};
+    for (const auto& [physicalID, daqID] : fPhysicalToDAQMap) {
+        const auto position = GetPositionFromChannel(daqID);
+        const double coordinates[2] = {position.X(), position.Y()};
+        for (int a = 0; a < 2; a++) {
+            if (!std::isfinite(coordinates[a])) continue;
+            minimum[a] = std::min(minimum[a], coordinates[a]);
+            maximum[a] = std::max(maximum[a], coordinates[a]);
+        }
+    }
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    if (minimum[0] > maximum[0] || minimum[1] > maximum[1]) {
+        return {ROOT::Math::XYZVector(nan, nan, nan), ROOT::Math::XYZVector(nan, nan, nan)};
+    }
+    const double halfPitch = fReadoutParams.fPitch / 2.0;
+    const double z = fReadoutParams.fPositionRelative[2];
+    return {ROOT::Math::XYZVector(minimum[0] - halfPitch, minimum[1] - halfPitch, z),
+            ROOT::Math::XYZVector(maximum[0] + halfPitch, maximum[1] + halfPitch, z)};
 }
 
 double TRestMicromegasReadout::GetDistanceToReadout(const ROOT::Math::XYZVector& position) const {

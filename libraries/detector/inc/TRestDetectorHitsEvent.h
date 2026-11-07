@@ -1,6 +1,7 @@
 #ifndef TRESTDETECTORHITSEVENT_H
 #define TRESTDETECTORHITSEVENT_H
 
+#include <cstdint>
 #include <vector>
 
 #include "Math/Vector3Dfwd.h"
@@ -40,6 +41,24 @@ class TRestDetectorHitsEvent : public TRestEvent {
 
    public:
     std::string GetClassName() const override { return "TRestDetectorHitsEvent"; }
+
+    /// \brief Seed of the random generator of a process for one event: the seed of the process (non 0)
+    /// mixed with the event and subevent IDs (splitmix64). The processes re-seed with it at the start of
+    /// each event, so a fixed seed gives the same result whatever the number of threads. 32 bits (as
+    /// TRandom3 uses) and never 0 (0 is a random seed for TRandom3).
+    static unsigned long EventSeed(unsigned long seed, const TRestEvent& event) {
+        auto mix = [](uint64_t x) {
+            x += 0x9e3779b97f4a7c15ULL;
+            x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+            x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+            return x ^ (x >> 31);
+        };
+        uint64_t h = mix(seed);
+        h = mix(h ^ static_cast<uint32_t>(event.GetID()));
+        h = mix(h ^ static_cast<uint32_t>(event.GetSubID()));
+        const unsigned long folded = (h ^ (h >> 32)) & 0xffffffffULL;
+        return folded != 0 ? folded : 1;
+    }
 
     void Initialize() override {
         TRestEvent::Initialize();

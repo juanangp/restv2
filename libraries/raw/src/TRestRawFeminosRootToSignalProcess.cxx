@@ -58,10 +58,10 @@ void TRestRawFeminosRootToSignalProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawFeminosRootToSignalProcess>(fNode);
 }
 
-void TRestRawFeminosRootToSignalProcess::ReadRunInfo(TTree* runTree) {
+bool TRestRawFeminosRootToSignalProcess::ReadRunInfo(TTree* runTree) {
     if (runTree->GetEntries() == 0) {
         RESTWarning << "TRestRawFeminosRootToSignalProcess: the 'run' tree is empty" << RESTendl;
-        return;
+        return false;
     }
 
     unsigned long long startTimestamp = 0;
@@ -114,6 +114,7 @@ void TRestRawFeminosRootToSignalProcess::ReadRunInfo(TTree* runTree) {
     delete runTag;
     delete comments;
     delete detector;
+    return hasStart;
 }
 
 void TRestRawFeminosRootToSignalProcess::InitProcess() {
@@ -139,7 +140,7 @@ void TRestRawFeminosRootToSignalProcess::InitProcess() {
                                  inputFileName);
     }
 
-    if (fUseFeminosDaqRunInfo) ReadRunInfo(runTree);
+    fStartFromRunTree = fUseFeminosDaqRunInfo && ReadRunInfo(runTree);
 
     fInputTree->SetBranchAddress("timestamp", &fTimestamp);
     fInputTree->SetBranchAddress("signal_ids", &fSignalIds);
@@ -185,7 +186,7 @@ bool TRestRawFeminosRootToSignalProcess::ProcessEvent(const TRestEvent& input, T
 
 void TRestRawFeminosRootToSignalProcess::EndProcess() {
     if (fRunInfo && fEndTimestamp > 0) {
-        if (!fUseFeminosDaqRunInfo) fRunInfo->SetStartTimeStamp(fStartTimestamp / 1000.0);  // ms to s
+        if (!fStartFromRunTree) fRunInfo->SetStartTimeStamp(fStartTimestamp / 1000.0);  // ms to s
         fRunInfo->SetEndTimeStamp(fEndTimestamp / 1000.0);
     }
 

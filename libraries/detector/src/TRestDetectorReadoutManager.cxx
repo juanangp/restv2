@@ -66,8 +66,12 @@ TRestDetectorReadoutManager::TRestDetectorReadoutManager(const std::string& file
 }
 
 TRestDetectorReadoutManager::~TRestDetectorReadoutManager() {
-    for (auto& [name, ptr] : fReadoutMap) {
-        delete ptr;
+    // A view drawn by the manager uses the shapes and media of the geometries of its readouts and may still
+    // be displayed: the readouts (and their geometries) are then left to ROOT, not deleted
+    if (!fViewGeo) {
+        for (auto& [name, ptr] : fReadoutMap) {
+            delete ptr;
+        }
     }
     fReadoutMap.clear();
 }

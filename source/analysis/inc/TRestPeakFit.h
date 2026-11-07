@@ -89,7 +89,9 @@ std::optional<std::pair<double, double>> FindPeakWindow(const TH1& histogram,
                                                         double fraction);
 
 /// \brief Linear fit (pol1, kept in the graph as "linearFit") of y against x, e.g. the energy against the
-/// position of the peaks: (intercept, slope). Points (0, 0) are added if there are less than 2 points.
+/// position of the peaks: (intercept, slope). The points not finite (e.g. the mean of a failed peak fit) are
+/// removed with a warning, then points (0, 0) are added if there are less than 2 points. Throws
+/// std::runtime_error if no point is left, if all the points have the same x or if the fit fails.
 std::pair<double, double> FitLine(TGraph& graph);
 
 }  // namespace TRestPeakFit

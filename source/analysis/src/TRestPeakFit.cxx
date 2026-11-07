@@ -11,6 +11,7 @@
 #include <RooMsgService.h>
 #include <RooRealVar.h>
 #include <TF1.h>
+#include <TFitResult.h>
 #include <TGraph.h>
 #include <TH1.h>
 #include <TH1D.h>
@@ -19,7 +20,10 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
+
+#include "TRestLogManager.h"
 
 namespace TRestPeakFit {
 
@@ -231,9 +235,30 @@ std::pair<double, double> EstimateWindow(const TH1& histogram, double maximumEne
 }
 
 std::pair<double, double> FitLine(TGraph& graph) {
+    // The points not finite (e.g. the mean of a failed peak fit, NaN) are removed
+    for (int i = graph.GetN() - 1; i >= 0; i--) {
+        if (std::isfinite(graph.GetPointX(i)) && std::isfinite(graph.GetPointY(i))) continue;
+        RESTWarning << "TRestPeakFit::FitLine: point (" << graph.GetPointX(i) << ", " << graph.GetPointY(i)
+                    << ") of " << graph.GetName() << " not finite, removed from the linear fit" << RESTendl;
+        graph.RemovePoint(i);
+    }
+    if (graph.GetN() == 0) {
+        throw std::runtime_error(std::string("TRestPeakFit::FitLine: no valid points in ") + graph.GetName() +
+                                 " for the linear fit");
+    }
     while (graph.GetN() < 2) graph.SetPoint(graph.GetN(), 0, 0);
+    const double xMin = *std::min_element(graph.GetX(), graph.GetX() + graph.GetN());
+    const double xMax = *std::max_element(graph.GetX(), graph.GetX() + graph.GetN());
+    if (xMin == xMax) {
+        throw std::runtime_error(std::string("TRestPeakFit::FitLine: all the points of ") + graph.GetName() +
+                                 " have the same x (" + std::to_string(xMin) + "): no line can be fitted");
+    }
     TF1 line("linearFit", "pol1", 0, 1, TF1::EAddToList::kNo);
-    graph.Fit(&line, "SQ");
+    const TFitResultPtr result = graph.Fit(&line, "SQ");
+    if (static_cast<int>(result) != 0 || !result.Get() || !result->IsValid()) {
+        throw std::runtime_error(std::string("TRestPeakFit::FitLine: the linear fit of ") + graph.GetName() +
+                                 " failed (status " + std::to_string(static_cast<int>(result)) + ")");
+    }
     return {line.GetParameter(0), line.GetParameter(1)};
 }
 

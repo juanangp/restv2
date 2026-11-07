@@ -95,8 +95,9 @@ void TRestDetectorMedium::LoadConfig() {
                         << RESTendl;
         }
     }
-    // The pressure only applies to gases
-    if (!IsGas() && fNode["pressure"]) {
+    // The pressure only applies to gases. UpdateYAMLFromParams writes the default one (1 bar) also for the
+    // other states, so it is accepted (re-building the medium from its own node or from a file)
+    if (!IsGas() && fNode["pressure"] && std::abs(fPressure - 1.) > 1e-9) {
         throw std::runtime_error(prefix + "pressure is only for gases (state " + fState + ")");
     }
 

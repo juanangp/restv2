@@ -240,8 +240,18 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     fRemoveUnwantedTracksVolumesToKeep.clear();
     fRemoveUnwantedTracksVolumesToKeep.insert(fActiveVolumes.begin(), fActiveVolumes.end());
     fRemoveUnwantedTracksVolumesToKeep.insert(fSensitiveVolumes.begin(), fSensitiveVolumes.end());
+    // Kill volumes resolved as the active ones (expressions of physical or logical names), the ones without
+    // match are kept as written (restG4 DetectorConstruction stops if they are not in the geometry)
     fKillVolumes.clear();
-    fKillVolumes.insert(fKillVolumesRegistry.begin(), fKillVolumesRegistry.end());
+    for (const auto& killExpr : fKillVolumesRegistry) {
+        if (killExpr.empty()) continue;
+        const auto matchedPhysicals = geometryInfo.GetAllPhysicalVolumesMatchingExpression(killExpr);
+        if (matchedPhysicals.empty()) {
+            fKillVolumes.insert(killExpr);
+        } else {
+            fKillVolumes.insert(matchedPhysicals.begin(), matchedPhysicals.end());
+        }
+    }
     fFullChainStopIsotopes.clear();
     fFullChainStopIsotopes.insert(fFullChainStopIsotopesRegistry.begin(),
                                   fFullChainStopIsotopesRegistry.end());

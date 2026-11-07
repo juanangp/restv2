@@ -27,6 +27,6 @@ void REST_Detector_GenerateGDMLReadout(const std::string& yamlFile = "GDMLReadou
     }
 
     TFile* fOut = TFile::Open(outputFile.c_str(), "RECREATE");
-    gdmlReadout->Export(fOut, gdmlReadout->GetName(), "veto_decoding.dec");
+    gdmlReadout->Export(fOut, gdmlReadout->GetName(), "veto_decoding");
     fOut->Close();
 }

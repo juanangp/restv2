@@ -15,7 +15,9 @@
 /// its own pipeline) and the optional Fano subtraction.
 ///
 /// Parameters: energyReference (5.9 keV), resolutionReference (FWHM in %, 15), subtractFano (false),
-/// medium (name, optional if there is only one, only with subtractFano), seed (0).
+/// medium (name, optional if there is only one, only with subtractFano), seed (0: random seed; otherwise
+/// the generator is re-seeded at each event from the seed and the event and subevent IDs,
+/// TRestDetectorHitsEvent::EventSeed, so the result does not depend on the number of threads).
 ///
 /// Example:
 ///
@@ -106,6 +108,7 @@ void TRestDetectorHitsSmearingProcess::InitProcess() {
     }
 
     fNBelowFano = 0;
+    // Seed 0: random seed. Otherwise re-seeded at each event in ProcessEvent
     fRandom.SetSeed(fSeed);
 }
 
@@ -119,6 +122,7 @@ bool TRestDetectorHitsSmearingProcess::ProcessEvent(const TRestEvent& input, TRe
 
     outputEvent->Initialize();
     outputEvent->SetEventInfo(inputEvent);
+    if (fSeed != 0) fRandom.SetSeed(TRestDetectorHitsEvent::EventSeed(fSeed, *inputEvent));
 
     double energy = 0;
     for (size_t n = 0; n < inputEvent->GetNumberOfHits(); n++) {

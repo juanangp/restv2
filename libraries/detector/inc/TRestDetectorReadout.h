@@ -31,6 +31,8 @@ class TRestDetectorReadout : public TRestMetadata {
     /// ROOT geometry manager used for geometry navigation and position lookup.
     TGeoManager* fGeoManager = nullptr;
 
+    /// Geometry of the last view drawn (ViewReadoutGeometry, ViewActiveEvent), with the shapes and media of
+    /// fGeoManager
     mutable TGeoManager* fViewGeo = nullptr;
 
     /// Decoding map from geometry physical ID to DAQ channel ID.
@@ -57,8 +59,13 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Constructs a readout from file+section metadata references.
     TRestDetectorReadout(const std::string& fileName, const std::string& sectionName);
 
-    /// \brief Destructor.
+    /// \brief Destructor: deletes the geometry, owned by the readout (kept if a view was drawn, see
+    /// ReleaseGeometry).
     virtual ~TRestDetectorReadout();
+
+    /// Not copyable: the readout owns its geometry
+    TRestDetectorReadout(const TRestDetectorReadout&) = delete;
+    TRestDetectorReadout& operator=(const TRestDetectorReadout&) = delete;
 
     /// \brief Returns the class name used by REST metadata introspection.
     /// \return The literal class name.
@@ -139,8 +146,9 @@ class TRestDetectorReadout : public TRestMetadata {
 
     /// \brief Bounding box of the channels (the volumes with a DAQ channel) in the global frame, e.g. the
     /// extent of the readout for a gain map (TRestDataSetGainMap).
-    /// \return (minimum, maximum) corners; NaN if there are no channels.
-    std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> GetChannelsBoundingBox() const;
+    /// \return (minimum, maximum) corners; NaN if there are no channels. A readout whose channel positions
+    /// (GetPositionFromChannel) are in another frame gives it in that frame (TRestMicromegasReadout rotated).
+    virtual std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> GetChannelsBoundingBox() const;
 
     /// \brief Returns the signed distance from a position to the readout of a DAQ channel, projected on the
     /// readout normal (as legacy TRestDetectorReadoutPlane::GetDistanceTo: (pos - plane) · normal).
@@ -160,7 +168,8 @@ class TRestDetectorReadout : public TRestMetadata {
 
     /// \brief Maximum distance to the readout inside its drift volume (the cathode, as the legacy readout
     /// plane height).
-    /// \return The distance, or NaN if the readout does not define one (default).
+    /// \return The distance, or NaN if the readout does not define one (default): no cathode, the drift
+    /// processes apply no upper cut.
     virtual double GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const {
         (void)position;
         return std::numeric_limits<double>::quiet_NaN();
@@ -215,7 +224,8 @@ class TRestDetectorReadout : public TRestMetadata {
     static void DrawViewItems(std::vector<ViewItem>& items, TGeoManager*& viewGeo,
                               const std::string& option = "ogl");
 
-    /// \brief Sets the geometry manager used by this readout.
+    /// \brief Sets the geometry manager used by this readout, which owns it from now on (the previous one is
+    /// deleted, see ReleaseGeometry).
     /// \param geo Geometry manager pointer.
     void SetGeoManager(TGeoManager* geo);
 
@@ -224,6 +234,10 @@ class TRestDetectorReadout : public TRestMetadata {
     TGeoManager* GetGeoManager() const { return fGeoManager; }
 
    protected:
+    /// \brief Deletes fGeoManager (TRestTools::DeleteGeometry), unless a view was drawn: the view uses its
+    /// shapes and may still be displayed, so both are then left to ROOT. Resets both pointers.
+    void ReleaseGeometry();
+
     virtual void CollectViewItems(const std::set<int>& activeIDs, std::vector<ViewItem>& items) const;
 };
 

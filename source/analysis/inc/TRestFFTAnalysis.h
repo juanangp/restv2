@@ -28,7 +28,7 @@ Spectrum ProduceDelta(int t0, int nfft);
 Spectrum GaussianSecondOrderResponse(int nfft, double f1, double f2, double Ao, double sigma);
 Spectrum SecondOrderAnalyticalResponse(int nfft, double f1, double f2, double to);
 
-// --- In-place filters (they keep Hermitian symmetry) ---
+// --- In-place filters (they keep Hermitian symmetry), up to the Nyquist bin N/2 included ---
 
 void ButterWorthFilter(Spectrum& spectrum, int cutOff, int order);
 void KillFrequencies(Spectrum& spectrum, int cutOff);
@@ -36,7 +36,8 @@ void ApplyLowPassFilter(Spectrum& spectrum, int cutFrequency);
 void RemoveBaseline(Spectrum& spectrum);
 void RenormalizeNode(Spectrum& spectrum, int n, double factor);
 
-// --- Spectrum arithmetic over bins [from, to); to <= 0 means N/2 ---
+// --- Spectrum arithmetic over bins [from, to) (and their mirrors); to <= 0 means N/2 + 1 (Nyquist included)
+// ---
 
 bool MultiplyBy(Spectrum& spectrum, const Spectrum& other, int from = 0, int to = 0);
 bool DivideBy(Spectrum& spectrum, const Spectrum& other, int from = 0, int to = 0);

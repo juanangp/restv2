@@ -14,7 +14,9 @@
 /// (energyReference, resolutionReference: that is TRestDetectorHitsSmearingProcess, not to be used with
 /// this process).
 ///
-/// Parameters: amplificationVoltage, gap, medium (name, optional if there is only one), table (""), seed (0).
+/// Parameters: amplificationVoltage, gap, medium (name, optional if there is only one), table (""), seed (0:
+/// random seed; otherwise the generator is re-seeded at each event from the seed and the event and subevent
+/// IDs, TRestDetectorHitsEvent::EventSeed, so the result does not depend on the number of threads).
 ///
 /// Example:
 ///
@@ -110,6 +112,7 @@ void TRestDetectorAvalancheProcess::InitProcess() {
     // The stored metadata keeps the medium, the table and the gain used
     UpdateYAMLFromParams<TRestDetectorAvalancheProcess>(fNode);
 
+    // Seed 0: random seed. Otherwise re-seeded at each event in ProcessEvent
     fEngine.seed(fSeed != 0 ? fSeed : std::random_device{}());
 }
 
@@ -123,6 +126,7 @@ bool TRestDetectorAvalancheProcess::ProcessEvent(const TRestEvent& input, TRestE
 
     outputEvent->Initialize();
     outputEvent->SetEventInfo(inputEvent);
+    if (fSeed != 0) fEngine.seed(TRestDetectorHitsEvent::EventSeed(fSeed, *inputEvent));
 
     const double wValue = fCharge->GetWValue();
     for (size_t n = 0; n < inputEvent->GetNumberOfHits(); n++) {

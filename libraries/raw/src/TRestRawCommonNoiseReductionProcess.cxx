@@ -183,7 +183,7 @@ void TRestRawCommonNoiseReductionProcess::ProcessBlock(TRestRawSignalEvent& sign
     }
     const double norm = (double)(end - begin + 1);
 
-    std::vector<short> deltas(nBins);
+    std::vector<int> deltas(nBins);
     for (int b = 0; b < nBins; b++) {
         short* row = matrix.data() + (size_t)b * nClean;
 
@@ -198,12 +198,12 @@ void TRestRawCommonNoiseReductionProcess::ProcessBlock(TRestRawSignalEvent& sign
             binCorrection = sum / norm;
         }
 
-        deltas[b] = (short)std::lround(baselineMean - binCorrection);
+        deltas[b] = (int)std::lround(baselineMean - binCorrection);
     }
 
     for (int pos : active) {
         auto& sig = signalEvent.GetSignal(pos);
-        for (int b = 0; b < nBins; b++) sig.IncreaseBinBy(b, deltas[b]);
+        for (int b = 0; b < nBins; b++) sig.IncreaseBinByClamped(b, deltas[b]);
     }
 }
 

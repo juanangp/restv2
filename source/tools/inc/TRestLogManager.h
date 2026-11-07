@@ -1,6 +1,7 @@
 #ifndef TRESTLOGMANAGER_H
 #define TRESTLOGMANAGER_H
 
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -132,21 +133,30 @@ class TRestLogManager {
     }
 
     /// \brief Writes a message to the console (with color) and to the log file if any, from any thread.
-    /// With a call site (file not nullptr), only the first maxRepeated similar messages written from it
-    /// (at most 10 different characters) are written; the number of the suppressed ones is written at
-    /// the end of the program.
+    /// With a call site (file not nullptr), the similar messages written from it (at most 10 different
+    /// characters) are counted in time windows of repeatedInterval seconds: if maxRepeated of them arrive in
+    /// a window, the next ones are suppressed for ever (the number of the suppressed ones is written at the
+    /// end of the program); slower repetitions are always written.
     void Write(const std::string_view& color, const std::string& prefix, const std::string& name,
                const std::string& msg, const char* file = nullptr, int line = 0);
 
     /// \brief Similar messages (at most 10 different characters) written from one call site (warning
     /// and info) before the next ones are suppressed,
     /// 0: no suppression. The messages of a metadata (or context) with verbose debug are never suppressed.
-    static inline int maxRepeated = 10;
+    /// Atomic: set by the main thread, read by any.
+    static inline std::atomic<int> maxRepeated{10};
     static inline void setMaxRepeated(int n) { maxRepeated = n; }
 
+    /// \brief Length in seconds of the time windows of the similar messages of a call site (Write): they are
+    /// suppressed (for ever) only if maxRepeated of them arrive within one window. 0: a single window, from
+    /// the start of the program (the first maxRepeated written).
+    /// Atomic: set by the main thread, read by any.
+    static inline std::atomic<double> repeatedInterval{10};
+    static inline void setRepeatedInterval(double seconds) { repeatedInterval = seconds; }
+
     /// \brief Verbose level of the messages written outside a metadata, and of the metadata without
-    /// `verbose`
-    static inline REST_Verbose_Level globalVerboseLevel = REST_Verbose_Level::REST_Info;
+    /// `verbose`. Atomic: set by the main thread, read by any.
+    static inline std::atomic<REST_Verbose_Level> globalVerboseLevel{REST_Verbose_Level::REST_Info};
     static inline void setGlobalVerboseLevel(REST_Verbose_Level lvl) { globalVerboseLevel = lvl; }
 
    private:

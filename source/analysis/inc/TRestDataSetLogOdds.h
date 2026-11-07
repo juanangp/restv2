@@ -56,7 +56,8 @@ class TRestDataSetLogOdds : public TRestDataSetProcess {
     void LoadConfig() override;
 
     /// \brief Adds the columns GetColumn(observable) = log(1 - p) - log(p), with p the probability of the
-    /// bin of the value of the entry in the PDF (1000 if p is 0), and GetTotalColumn() with their sum
+    /// bin of the value of the entry in the PDF (1000 if p is 0, -1000 if p is 1), and GetTotalColumn() with
+    /// their sum
     void Apply(TRestDataSet& dataSet) const override;
     /// \brief Writes the PDF of each observable as a histogram, pdf_<observable>
     void WriteObjects(TDirectory* directory) const override;

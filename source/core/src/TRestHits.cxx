@@ -331,19 +331,35 @@ double TRestHits::GetSkewZ() const {
 
 // --- Distance / geometry ---
 
-double TRestHits::GetDistance2(int n, int m) const {
+TRestHits::DistanceView TRestHits::GetDistanceView() const {
+    if (areXY()) return DistanceView::XY;
+    if (areXZ()) return DistanceView::XZ;
+    if (areYZ()) return DistanceView::YZ;
+    return DistanceView::XYZ;
+}
+
+double TRestHits::GetDistance2(int n, int m, DistanceView view) const {
     double dx = GetX(n) - GetX(m);
     double dy = GetY(n) - GetY(m);
     double dz = GetZ(n) - GetZ(m);
-    if (areXY()) return dx * dx + dy * dy;
-    if (areXZ()) return dx * dx + dz * dz;
-    if (areYZ()) return dy * dy + dz * dz;
-    return dx * dx + dy * dy + dz * dz;
+    switch (view) {
+        case DistanceView::XY:
+            return dx * dx + dy * dy;
+        case DistanceView::XZ:
+            return dx * dx + dz * dz;
+        case DistanceView::YZ:
+            return dy * dy + dz * dz;
+        default:
+            return dx * dx + dy * dy + dz * dz;
+    }
 }
 
+double TRestHits::GetDistance2(int n, int m) const { return GetDistance2(n, m, GetDistanceView()); }
+
 double TRestHits::GetTotalDistance() const {
+    const DistanceView view = GetDistanceView();
     double distance = 0;
-    for (int i = 0; i + 1 < fNHits; ++i) distance += std::sqrt(GetDistance2(i, i + 1));
+    for (int i = 0; i + 1 < fNHits; ++i) distance += std::sqrt(GetDistance2(i, i + 1, view));
     return distance;
 }
 
@@ -351,8 +367,9 @@ double TRestHits::GetHitsPathLength(int n, int m) const {
     if (n < 0) n = 0;
     if (m > fNHits - 1) m = fNHits - 1;
 
+    const DistanceView view = GetDistanceView();
     double distance = 0;
-    for (int i = n; i < m; ++i) distance += std::sqrt(GetDistance2(i, i + 1));
+    for (int i = n; i < m; ++i) distance += std::sqrt(GetDistance2(i, i + 1, view));
     return distance;
 }
 
@@ -367,12 +384,13 @@ double TRestHits::GetDistanceToNode(int n) {
 double TRestHits::GetMaximumHitDistance2() const {
     if (fNHits < 2) return 0;
 
+    const DistanceView view = GetDistanceView();
     constexpr int kExactThreshold = 500;
     if (fNHits <= kExactThreshold) {
         double maxDistance = 0;
         for (int n = 0; n < fNHits; ++n) {
             for (int m = n + 1; m < fNHits; ++m) {
-                double d = GetDistance2(n, m);
+                double d = GetDistance2(n, m, view);
                 if (d > maxDistance) maxDistance = d;
             }
         }
@@ -380,11 +398,11 @@ double TRestHits::GetMaximumHitDistance2() const {
     }
 
     // Heuristic "farthest-point" O(n)
-    auto farthestFrom = [this](int from) {
+    auto farthestFrom = [this, view](int from) {
         int best = from;
         double bestDist = 0;
         for (int i = 0; i < fNHits; ++i) {
-            double d = GetDistance2(from, i);
+            double d = GetDistance2(from, i, view);
             if (d > bestDist) {
                 bestDist = d;
                 best = i;

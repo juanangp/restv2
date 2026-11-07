@@ -2,13 +2,15 @@
 
 #include <iostream>
 #include <mutex>
+#include <shared_mutex>
 
 #include "TRestMetadata.h"
 
 using namespace std;
 
-// Global thread-safety guard interface for parallel multi-threaded Geant4 execution
-static std::mutex insertMutex;
+// Global thread-safety guard of the insertions by the Geant4 worker threads: the check (once per step) under
+// a shared lock, the insertion under an exclusive one
+static std::shared_mutex insertMutex;
 
 // Modern REST v3 field registry reflection hooks for composite metadata storage loading
 static const bool TRestGeant4PhysicsInfo_FieldsRegistered = []() {
@@ -49,20 +51,24 @@ std::set<std::string> TRestGeant4PhysicsInfo::GetAllProcessTypes() const {
 
 void TRestGeant4PhysicsInfo::InsertProcessName(int id, const std::string& processName,
                                                const std::string& processType) {
-    if (fProcessNamesMap.count(id) > 0) {
-        return;
+    {
+        std::shared_lock<std::shared_mutex> lock(insertMutex);
+        if (fProcessNamesMap.count(id) > 0) return;
     }
-    std::lock_guard<std::mutex> lock(insertMutex);
+    std::unique_lock<std::shared_mutex> lock(insertMutex);
+    if (fProcessNamesMap.count(id) > 0) return;  // inserted by another thread meanwhile
     fProcessNamesMap[id] = processName;
     fProcessNamesReverseMap[processName] = id;
     fProcessTypesMap[processName] = processType;
 }
 
 void TRestGeant4PhysicsInfo::InsertParticleName(int id, const std::string& particleName) {
-    if (fParticleNamesMap.count(id) > 0) {
-        return;
+    {
+        std::shared_lock<std::shared_mutex> lock(insertMutex);
+        if (fParticleNamesMap.count(id) > 0) return;
     }
-    std::lock_guard<std::mutex> lock(insertMutex);
+    std::unique_lock<std::shared_mutex> lock(insertMutex);
+    if (fParticleNamesMap.count(id) > 0) return;  // inserted by another thread meanwhile
     fParticleNamesMap[id] = particleName;
     fParticleNamesReverseMap[particleName] = id;
 }

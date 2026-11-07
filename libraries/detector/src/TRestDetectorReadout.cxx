@@ -61,9 +61,17 @@ TRestDetectorReadout::TRestDetectorReadout(const std::string& fileName, const st
     LoadConfig();
 }
 
-/// \brief Destructor.
-TRestDetectorReadout::~TRestDetectorReadout() {
-    // TGeoManager is globally owned by ROOT (gGeoManager), it unregisters automatically.
+/// \brief Destructor: deletes its geometry (ReleaseGeometry).
+TRestDetectorReadout::~TRestDetectorReadout() { ReleaseGeometry(); }
+
+/// \brief Deletes the geometry of the readout (TRestTools::DeleteGeometry, which keeps gGeoManager if it is
+/// another one). If a view was drawn (ViewReadoutGeometry, ViewActiveEvent), the view geometry uses the
+/// shapes and media of the readout geometry and may still be displayed (e.g. after the macro that drew it
+/// ends), so neither is deleted (they are left to ROOT).
+void TRestDetectorReadout::ReleaseGeometry() {
+    if (!fViewGeo) TRestTools::DeleteGeometry(fGeoManager);
+    fGeoManager = nullptr;
+    fViewGeo = nullptr;
 }
 
 /// \brief Reads the readout parameters from YAML. The decoding file is only read by BuildGeometry: a
@@ -76,10 +84,7 @@ void TRestDetectorReadout::LoadConfig() {
 }
 
 void TRestDetectorReadout::InitializeReadout() {
-    if (fGeoManager) {
-        delete fGeoManager;
-        fGeoManager = nullptr;
-    }
+    ReleaseGeometry();
     gGeoManager = nullptr;  // el constructor no debe borrar la geometría de otro readout
     fGeoManager = new TGeoManager(fName.c_str(), fName.c_str());
     TGeoManager::SetVerboseLevel(0);
@@ -91,6 +96,7 @@ void TRestDetectorReadout::InitializeReadout() {
 /// \brief Parses decoding text with `daqChannel physicalID` rows (legacy order).
 /// \param text Multiline decoding text.
 /// \param decodingMap Output map receiving parsed values.
+/// Malformed rows (not two integers) and repeated physical IDs (the last row is kept) give a warning.
 /// \return `true` when at least one valid row is parsed.
 static bool ParseDecodingString(const std::string& text, std::map<int, int>& decodingMap) {
     std::stringstream stream(text);
@@ -109,8 +115,20 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
         int daqID = -1;
         int physicalID = -1;
         if (ss >> daqID >> physicalID) {
-            if (physicalID >= 0) decodingMap[physicalID] = daqID;
+            if (physicalID >= 0) {
+                const auto [it, inserted] = decodingMap.emplace(physicalID, daqID);
+                if (!inserted) {
+                    RESTWarning << "Decoding: physical ID " << physicalID << " repeated (DAQ channels "
+                                << it->second << " and " << daqID << "), DAQ channel " << daqID << " kept"
+                                << RESTendl;
+                    it->second = daqID;
+                }
+            }
             linesParsed++;
+        } else {
+            RESTWarning
+                << "Decoding: malformed line skipped (two integers, daqChannel physicalID, expected): '"
+                << line << "'" << RESTendl;
         }
     }
 
@@ -216,7 +234,7 @@ void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManag
     TGeoManager* prevGeo = gGeoManager;
     if (viewGeo) {
         if (prevGeo == viewGeo) prevGeo = nullptr;
-        delete viewGeo;
+        TRestTools::DeleteGeometry(viewGeo);
         viewGeo = nullptr;
     }
 
@@ -444,7 +462,7 @@ bool TRestDetectorReadout::ImportGeometry(TFile* fIn, const std::string& geometr
 
     SetGeoManager(geo);
 
-    fNode = ReadMetadata(fIn, geometryName);
+    fNode = ReadMetadata(fIn, resolvedGeometryName);
     return true;
 }
 
@@ -525,6 +543,11 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
     return true;
 }
 
-/// \brief Sets the geometry manager and updates top assembly pointer.
+/// \brief Sets the geometry manager, owned by the readout from now on; the previous one is deleted
+/// (ReleaseGeometry).
 /// \param geo Geometry manager pointer.
-void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) { fGeoManager = geo; }
+void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) {
+    if (geo == fGeoManager) return;
+    ReleaseGeometry();
+    fGeoManager = geo;
+}

@@ -20,7 +20,8 @@ class TTree;
 /// With `useFeminosDaqRunInfo` (true) the run takes from the `run` tree its number, tag, description
 /// (comments) and start time (the ones not empty, they replace the configuration and the input file
 /// name), and adds to `runInfo` the detector, driftField (V/cm/bar), meshVoltage (V) and pressure (bar),
-/// unless the configuration already gives them. Otherwise the start time is the one of the first event.
+/// unless the configuration already gives them. Otherwise, or if the `run` tree has no `timestamp`, the
+/// start time is the one of the first event.
 /// The end time is always the one of the last event.
 class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
    private:
@@ -34,9 +35,12 @@ class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
     std::vector<unsigned short>* fSignalValues = nullptr;
     unsigned long long fStartTimestamp = std::numeric_limits<unsigned long long>::max();
     unsigned long long fEndTimestamp = 0;
+    /// True when the run start time was taken from the `run` tree
+    bool fStartFromRunTree = false;
 
-    /// \brief Copies the run information of the `run` tree to the TRestRun.
-    void ReadRunInfo(TTree* runTree);
+    /// \brief Copies the run information of the `run` tree to the TRestRun. Returns true if it set the
+    /// run start time (the tree has a `timestamp` branch).
+    bool ReadRunInfo(TTree* runTree);
 
    public:
     bool fUseFeminosDaqRunInfo = true;

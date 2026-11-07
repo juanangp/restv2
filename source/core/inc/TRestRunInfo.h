@@ -73,6 +73,7 @@ class TRestRunInfo : public TRestMetadata {
     void SetExperimentName(const std::string& v) { fExperimentName = v; }
     void SetStartTimeStamp(double v) { fStartTime = v; }
     void SetEndTimeStamp(double v) { fEndTime = v; }
+    void SetEntriesSaved(long long v) { fEntriesSaved = v; }
 
     /// \brief Parameters of the run (the fields of TRestRunInfo, current values; also for a TRestRun, without
     /// its processing fields) as a YAML node.

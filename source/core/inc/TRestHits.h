@@ -105,6 +105,14 @@ class TRestHits {
     /// \return Global index into shared storage.
     inline int GetGlobalIdx(int n) const { return fStartIdx + n; }
 
+   private:
+    /// Coordinates of the distances: all the hits XY, XZ or YZ (the plane), otherwise XYZ
+    enum class DistanceView { XYZ, XY, XZ, YZ };
+    /// \brief View of the distances of these hits (areXY/areXZ/areYZ, O(N)): computed once per method
+    DistanceView GetDistanceView() const;
+    /// \brief Squared distance between hits n and m in the given view
+    double GetDistance2(int n, int m, DistanceView view) const;
+
    public:
     /// \brief Constructs a hit-view over shared data.
     /// \param data Shared hit storage.

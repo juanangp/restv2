@@ -33,7 +33,7 @@ class SimulationManager {
     void WriteEvents(bool blocking = true);
 
     std::unique_ptr<std::thread> fPeriodicPrintThread = nullptr;
-    bool fPeriodicPrintThreadEndFlag = false;
+    std::atomic<bool> fPeriodicPrintThreadEndFlag{false};
 
    public:
     inline TRestRun* GetRestRun() const { return fRestRun; }
@@ -75,7 +75,7 @@ class SimulationManager {
     TRestGeant4PhysicsLists* fRestGeant4PhysicsLists = nullptr;
     TRestGeant4Metadata* fRestGeant4Metadata = nullptr;
 
-    int fNumberOfProcessedEvents = 0;
+    std::atomic<int> fNumberOfProcessedEvents{0};
     std::atomic<int> fNumberOfStoredEvents{0};
 
     std::atomic<bool> fAbortFlag{false};
@@ -109,7 +109,8 @@ class OutputManager {
     void AddEnergyToVolumeForParticleForProcess(double energy, int volumeID, int particleID, int processID);
 
     inline int GetEventCounter() const { return fProcessedEventsCounter; }
-    inline void ResetEventCounter() { fProcessedEventsCounter = 0; }
+    /// \brief The events processed since the last call, reset atomically (the worker thread increments it)
+    inline int TakeEventCounter() { return fProcessedEventsCounter.exchange(0); }
 
     void BeginOfEventAction();
     void UpdatePrimaryData(const G4Event* event);
@@ -126,7 +127,7 @@ class OutputManager {
     std::unique_ptr<TRestGeant4Event> fEvent{};
     SimulationManager* fSimulationManager = nullptr;
 
-    int fProcessedEventsCounter = 0;
+    std::atomic<int> fProcessedEventsCounter{0};
 
     // start time
     double fEventTimeWallPrimaryGeneration = 0;

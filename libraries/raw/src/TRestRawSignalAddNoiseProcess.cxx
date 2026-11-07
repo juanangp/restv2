@@ -107,7 +107,7 @@ bool TRestRawSignalAddNoiseProcess::ProcessEvent(const TRestEvent& input, TRestE
                 auto& sig = signalEvent->GetSignal(s);
                 noiseData.resize(sig.GetNPoints());
                 GetWhiteNoise(noiseData, noiseAmp);
-                for (int b = 0; b < sig.GetNPoints(); b++) sig.IncreaseBinBy(b, noiseData[b]);
+                for (int b = 0; b < sig.GetNPoints(); b++) sig.IncreaseBinByClamped(b, noiseData[b]);
             }
         } else {                                                            // sin or sinusoidal
             const double phase = gRandom->Uniform(0.0, 2.0 * TMath::Pi());  // Same phase for the event
@@ -117,7 +117,7 @@ bool TRestRawSignalAddNoiseProcess::ProcessEvent(const TRestEvent& input, TRestE
                 noiseData.resize(sig.GetNPoints());
 
                 GetSinNoise(noiseData, noiseAmp, period, phase);
-                for (int b = 0; b < sig.GetNPoints(); b++) sig.IncreaseBinBy(b, noiseData[b]);
+                for (int b = 0; b < sig.GetNPoints(); b++) sig.IncreaseBinByClamped(b, noiseData[b]);
             }
         }
     }

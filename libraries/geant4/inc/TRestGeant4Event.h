@@ -179,7 +179,15 @@ class TRestGeant4Event : public TRestEvent {
     void RebuildVolumeIndex();
     void RebuildCrossIndex();
 
+    /// \brief Clears the tracks and their hits only (the energies, volumes and primaries are kept): the
+    /// event without tracks (storeTracks false). Initialize resets the whole event
     void ClearTracks();
+
+    /// \brief Fills the secondaries of each track (trackSecondariesIDs, Index and Offsets) from the parent
+    /// IDs: the IDs of the children of the track n, in storage order, are trackSecondariesIDs[i] for i in
+    /// [trackSecondariesIndices[n], trackSecondariesIndices[n] + trackSecondariesOffsets[n]). The children
+    /// of a track are not consecutive while simulating, restG4 calls it when the event is submitted
+    void RebuildSecondaries();
 
     mutable std::map<int, int> fTrackIDToTrackIndex;
 

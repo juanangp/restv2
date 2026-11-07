@@ -13,8 +13,9 @@
 /// (PDF) of each observable is built in the reference (referenceFileName with the cuts, see
 /// TRestDataSetProcess), a histogram in its range normalized to 1; for each entry of the dataset, with p the
 /// probability of the bin of its value, the column `<name>_<observable>` = log(1 - p) - log(p) is added
-/// (1000 if p is 0, e.g. outside the range), and `<name>_total` with their sum. The lower the value, the
-/// more likely the entry is in the distribution of the reference.
+/// (1000 if p is 0, e.g. outside the range, and -1000 if p is 1, a single bin with entries), and
+/// `<name>_total` with their sum. The lower the value, the more likely the entry is in the distribution of
+/// the reference.
 ///
 /// ### Parameters
 /// * observables: list of `observable` (column), `range` of the PDF and `nBins` (100).
@@ -68,8 +69,11 @@ const bool kRegistered = []() {
     return true;
 }();
 
+/// log(1 - p) - log(p), finite and decreasing: 1000 for p <= 0, -1000 for p >= 1 (all the entries of the
+/// reference in one bin), instead of +-infinity
 double LogOdds(double probability) {
     if (probability <= 0) return 1000.;
+    if (probability >= 1) return -1000.;
     return std::log(1. - probability) - std::log(probability);
 }
 }  // namespace

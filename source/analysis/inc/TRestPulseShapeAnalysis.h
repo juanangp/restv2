@@ -55,6 +55,8 @@ std::vector<double> BuildResponse(const std::string& type, double shapingTime, d
 std::vector<double> Convolve(const std::vector<double>& in, const std::vector<double>& response, int center,
                              bool ignoreNegative);
 
+/// \brief Baseline and its sigma of the bins [startBin, endBin) of the signal (clamped to it) with an option
+/// of kBaselineOptions. An empty range gives 0 and 0 (all the options); returns true.
 template <typename T>
 bool GetBaselineSigma(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
                       double& baseLineSigma, std::string option = "");

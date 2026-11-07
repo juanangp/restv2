@@ -220,6 +220,9 @@ std::string TRestGDMLParser::WriteResolved(const std::string& gdmlFile) {
 
 TGeoManager* TRestGDMLParser::Import(const std::string& gdmlFile) {
     const std::string resolved = WriteResolved(gdmlFile);
+    // TGeoManager::Import deletes the current gGeoManager, which may be owned by someone else (e.g. the
+    // geometry of a readout, deleted by it): it is only replaced as current
+    gGeoManager = nullptr;
     TGeoManager* geometry = TGeoManager::Import(resolved.c_str());
     fs::remove(resolved);
     return geometry;

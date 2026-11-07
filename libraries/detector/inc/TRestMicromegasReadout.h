@@ -8,6 +8,10 @@
 class TRestMicromegasReadoutParameters : public TRestMetadata {
    public:
     std::array<TRestWithUnits, 3> fPositionRelative = {0.0, 0.0, 0.0};
+    /// Rotation of the plane about Z, applied to the geometry (GetChannelFromPosition works with global
+    /// positions). The positions of the channels (GetPositionFromChannel, strips: only X or only Y) are in
+    /// the frame of the readout plane (unrotated), so the hits reconstructed from the signals are in that
+    /// frame
     TRestWithUnits fGlobalRotation = 0;
     int fNChannels = 0;
     TRestWithUnits fPitch = 0;
@@ -54,8 +58,13 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     /// \param readoutNode YAML node containing the `geometry_parameters`
     /// section used to define rows, columns, pitch, position and rotation.
     void BuildGeometry() override;
-    /// \brief Returns the geometric centroid of a Micromegas DAQ channel.
+    /// \brief Returns the nominal position of a Micromegas DAQ channel: X for the X strips and Y for the Y
+    /// strips (the other coordinates NaN), in the frame of the readout plane (without globalRotation).
     ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const override;
+    /// \brief With globalRotation, the bounding box in the frame of the readout plane (that of
+    /// GetPositionFromChannel and of the reconstructed hits, e.g. for the gain map): the strip positions
+    /// extended by half a pitch, Z the plane. Without rotation, that of the geometry (TRestDetectorReadout).
+    std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> GetChannelsBoundingBox() const override;
     /// \brief Adjacent strips of a DAQ channel in its plane (Y strips: physical IDs 0 to nChannels - 1, X
     /// strips: nChannels to 2 nChannels - 1): the last Y strip and the first X strip are not neighbours.
     std::pair<int, int> GetAdjacentChannels(int daqID) const override;
@@ -64,7 +73,7 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     /// towards the cathode).
     double GetDistanceToReadout(const ROOT::Math::XYZVector& position) const override;
     /// \brief Returns the distance from the readout plane to the cathode (end of the gasThickness volume),
-    /// or NaN if gasThickness is not set.
+    /// or NaN if gasThickness is not set (no cathode: the drift processes apply no upper cut).
     double GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const override;
 };
 

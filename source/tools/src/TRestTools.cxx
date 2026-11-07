@@ -15,6 +15,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <charconv>
 #include <cstdarg>
@@ -33,6 +34,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 
 #include "TRestLogManager.h"
 #include "TRestSystemOfUnits.h"
@@ -83,10 +85,13 @@ std::pair<std::string, std::string> TRestTools::SeparatePathAndName(const std::s
 }
 
 std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
-    char tmpstm[20];  //"YYYY-MM-DD HH:MM:SS" + \0
+    char tmpstm[32];  //"YYYY-MM-DD HH:MM:SS" + \0 (more for years > 9999)
     std::time_t time = static_cast<std::time_t>(tm);
 
-    std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
+    // localtime_r: std::localtime uses a static buffer (not thread safe)
+    std::tm local{};
+    if (!localtime_r(&time, &local)) return "";
+    if (std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d %H:%M:%S", &local) == 0) return "";
 
     return std::string(tmpstm);
 }
@@ -185,20 +190,20 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
 
             std::string instanceName = key->GetName();
 
-            TObjString* yamlObj = nullptr;
-            metadataDir->GetObject(instanceName.c_str(), yamlObj);
+            // Only the TObjString (YAML) are read, owned here
+            if (std::string(key->GetClassName()) != "TObjString") continue;
+            std::unique_ptr<TObjString> yamlObj(metadataDir->Get<TObjString>(instanceName.c_str()));
+            if (!yamlObj) continue;
 
-            if (yamlObj) {
+            try {
                 YAML::Node testConfig = YAML::Load(yamlObj->GetString().Data());
-
-                if (testConfig && !testConfig.IsNull() && testConfig["class"]) {
-                    std::string className = testConfig["class"].as<std::string>();
-
-                    if (className == "TRestRun") {
-                        hasRestRunMetadata = true;
-                        break;
-                    }
+                if (testConfig && testConfig.IsMap() && testConfig["class"] &&
+                    testConfig["class"].as<std::string>() == "TRestRun") {
+                    hasRestRunMetadata = true;
+                    break;
                 }
+            } catch (const YAML::Exception&) {
+                // Not valid YAML metadata: ignored
             }
         }
     }
@@ -217,6 +222,43 @@ bool TRestTools::isDataSet(const std::string& filename) {
     return file->GetKey("AnalysisTree") && runs;
 }
 
+namespace {
+/// Reading a TGeoManager deletes gGeoManager (TGeoManager::Init) and makes it the current one: the readings
+/// are serialized and gGeoManager is kept
+std::mutex gGeometryMutex;
+
+/// Reads the geometry with gGeoManager kept (it becomes the geometry read only if there was none); the
+/// caller holds gGeometryMutex
+TGeoManager* ReadGeometryLocked(TDirectory* folder, const std::string& key) {
+    TGeoManager* currentGeometry = gGeoManager;
+    gGeoManager = nullptr;
+    TGeoManager* geometry = nullptr;
+    folder->GetObject(key.c_str(), geometry);
+    gGeoManager = currentGeometry ? currentGeometry : geometry;
+    return geometry;
+}
+
+/// Deletes a geometry keeping gGeoManager and gGeoIdentity (~TGeoManager sets both to nullptr) unless it was
+/// the current one; the caller holds gGeometryMutex
+void DeleteGeometryLocked(TGeoManager* geometry) {
+    if (!geometry) return;
+    TGeoManager* currentGeometry = gGeoManager;
+    TGeoIdentity* currentIdentity = gGeoIdentity;
+    // gGeoIdentity is a matrix of a geometry (e.g. the last one read): it dies with it
+    const TObjArray* matrices = geometry->GetListOfMatrices();
+    const bool ownsIdentity = currentIdentity && matrices && matrices->IndexOf(currentIdentity) >= 0;
+    delete geometry;
+    if (currentGeometry == geometry) return;
+    gGeoManager = currentGeometry;
+    if (!ownsIdentity) {
+        gGeoIdentity = currentIdentity;
+    } else if (currentGeometry && currentGeometry->GetListOfMatrices() &&
+               currentGeometry->GetListOfMatrices()->GetEntriesFast() > 0) {
+        gGeoIdentity = dynamic_cast<TGeoIdentity*>(currentGeometry->GetListOfMatrices()->At(0));
+    }
+}
+}  // namespace
+
 void TRestTools::CopyDirectory(TDirectory* source, TDirectory* target) {
     if (!source || !target) return;
     for (auto* object : *source->GetListOfKeys()) {
@@ -229,15 +271,28 @@ void TRestTools::CopyDirectory(TDirectory* source, TDirectory* target) {
             CopyDirectory(source->GetDirectory(key->GetName()), folder);
             continue;
         }
-        // Reading a geometry makes it the current one
-        TGeoManager* currentGeometry = gGeoManager;
+        if (type->InheritsFrom(TGeoManager::Class())) {
+            // Reading a geometry deletes gGeoManager (TGeoManager::Init) and makes it the current one: read
+            // and deleted with the geometry lock, gGeoManager and gGeoIdentity kept
+            std::lock_guard<std::mutex> lock(gGeometryMutex);
+            TGeoManager* currentGeometry = gGeoManager;
+            TGeoIdentity* currentIdentity = gGeoIdentity;
+            gGeoManager = nullptr;
+            auto* geometry = dynamic_cast<TGeoManager*>(key->ReadObj());
+            gGeoManager = currentGeometry;
+            if (geometry) {
+                target->cd();
+                geometry->Write(key->GetName(), TObject::kOverwrite);
+            }
+            DeleteGeometryLocked(geometry);
+            gGeoIdentity = currentIdentity;
+            continue;
+        }
         std::unique_ptr<TObject> copy(key->ReadObj());
         if (copy) {
             target->cd();
             copy->Write(key->GetName(), TObject::kOverwrite);
         }
-        copy.reset();
-        gGeoManager = currentGeometry;
     }
 }
 
@@ -275,23 +330,6 @@ void TRestTools::WriteGeometry(TDirectory* folder, TGeoManager* geometry, const 
     hash.Write((key + "MD5").c_str(), TObject::kOverwrite);
 }
 
-namespace {
-/// Reading a TGeoManager deletes gGeoManager (TGeoManager::Init) and makes it the current one: the readings
-/// are serialized and gGeoManager is kept
-std::mutex gGeometryMutex;
-
-/// Reads the geometry with gGeoManager kept (it becomes the geometry read only if there was none); the
-/// caller holds gGeometryMutex
-TGeoManager* ReadGeometryLocked(TDirectory* folder, const std::string& key) {
-    TGeoManager* currentGeometry = gGeoManager;
-    gGeoManager = nullptr;
-    TGeoManager* geometry = nullptr;
-    folder->GetObject(key.c_str(), geometry);
-    gGeoManager = currentGeometry ? currentGeometry : geometry;
-    return geometry;
-}
-}  // namespace
-
 TGeoManager* TRestTools::ReadGeometry(TDirectory* folder, const std::string& key) {
     if (!folder || !folder->GetKey(key.c_str())) return nullptr;
     static std::map<std::string, TGeoManager*> geometries;
@@ -316,8 +354,15 @@ std::string TRestTools::ReadGeometryHash(TDirectory* folder, const std::string& 
     std::unique_ptr<TObjString> stored(folder->Get<TObjString>((key + "MD5").c_str()));
     if (stored) return stored->GetString().Data();
     // Written before the hash: a copy of the geometry is read (gGeoManager kept)
-    std::unique_ptr<TGeoManager> geometry(ReadGeometryCopy(folder, key));
+    std::unique_ptr<TGeoManager, void (*)(TGeoManager*)> geometry(ReadGeometryCopy(folder, key),
+                                                                  &TRestTools::DeleteGeometry);
     return geometry ? GetGeometryHash(geometry.get()) : "";
+}
+
+void TRestTools::DeleteGeometry(TGeoManager* geometry) {
+    if (!geometry) return;
+    std::lock_guard<std::mutex> lock(gGeometryMutex);
+    DeleteGeometryLocked(geometry);
 }
 
 int TRestTools::GetRunNumberAuto() {
@@ -615,8 +660,26 @@ std::string TRestTools::DownloadFile(const std::string& url) {
     const char* home = std::getenv("REST_HOME");
     if (!home) home = std::getenv("HOME");
     if (!home) throw std::runtime_error("DownloadFile: neither REST_HOME nor HOME are defined");
+    // The URL goes into a shell command (between single quotes): only the URL characters (RFC 3986) without
+    // ' (nor $, `, \, spaces or control characters) are accepted, with a scheme (http://...) first (not an
+    // option of curl)
+    const size_t scheme = url.find("://");
+    if (scheme == std::string::npos || scheme == 0 || scheme + 3 >= url.size() ||
+        !std::isalpha(static_cast<unsigned char>(url[0])) ||
+        !std::all_of(url.begin(), url.begin() + scheme,
+                     [](unsigned char c) { return std::isalnum(c) || c == '+' || c == '-' || c == '.'; })) {
+        throw std::runtime_error("DownloadFile: invalid URL " + url);
+    }
+    static const std::string allowed = "-._~:/?#[]@!&()*+,;=%";
+    for (const char character : url) {
+        if (!std::isalnum(static_cast<unsigned char>(character)) &&
+            allowed.find(character) == std::string::npos) {
+            throw std::runtime_error("DownloadFile: URL with an unsafe character ('" +
+                                     std::string(1, character) + "'): " + url);
+        }
+    }
     const std::filesystem::path directory = std::filesystem::path(home) / ".rest" / "download";
-    std::string name = url.substr(url.find("://") + 3);
+    std::string name = url.substr(scheme + 3);
     for (char& character : name) {
         if (character == '/' || character == ':' || character == '?' || character == '&') character = '_';
     }
@@ -624,7 +687,15 @@ std::string TRestTools::DownloadFile(const std::string& url) {
     if (std::filesystem::exists(fileName)) return fileName.string();
 
     std::filesystem::create_directories(directory);
-    const std::filesystem::path partial = fileName.string() + ".part" + std::to_string(getpid());
+    // Unique per process and call (threads): pid, thread and counter
+    static std::atomic<unsigned long> downloads{0};
+    const std::filesystem::path partial =
+        fileName.string() + ".part" + std::to_string(getpid()) + "_" +
+        std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())) + "_" +
+        std::to_string(downloads++);
+    if (partial.string().find('\'') != std::string::npos) {
+        throw std::runtime_error("DownloadFile: download path with a quote: " + partial.string());
+    }
     const std::string command = "curl -sSfL -o '" + partial.string() + "' '" + url + "'";
     std::cout << "Downloading " << url << " to " << fileName.string() << std::endl;
     if (std::system(command.c_str()) != 0 || !std::filesystem::exists(partial)) {

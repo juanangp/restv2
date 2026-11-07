@@ -381,6 +381,27 @@ void TRestGeant4Event::ClearTracks() {
     fPendingInitialStepIndex = 0;
 }
 
+void TRestGeant4Event::RebuildSecondaries() {
+    auto& d = fEventData;
+    const std::size_t n = d.trackIDs.size();
+
+    std::map<int, std::vector<int>> children;
+    for (std::size_t i = 0; i < n && i < d.parentIDs.size(); ++i) {
+        children[d.parentIDs[i]].push_back(d.trackIDs[i]);
+    }
+
+    d.trackSecondariesIDs.clear();
+    d.trackSecondariesIndices.assign(n, 0);
+    d.trackSecondariesOffsets.assign(n, 0);
+    for (std::size_t i = 0; i < n; ++i) {
+        d.trackSecondariesIndices[i] = static_cast<int>(d.trackSecondariesIDs.size());
+        const auto it = children.find(d.trackIDs[i]);
+        if (it == children.end()) continue;
+        d.trackSecondariesIDs.insert(d.trackSecondariesIDs.end(), it->second.begin(), it->second.end());
+        d.trackSecondariesOffsets[i] = static_cast<int>(it->second.size());
+    }
+}
+
 void TRestGeant4Event::RemoveTrackHits(std::size_t trackIndex) {
     if (trackIndex >= fEventData.trackIDs.size()) return;
     if (trackIndex >= fEventData.trackStartIndices.size() || trackIndex >= fEventData.trackNHits.size())

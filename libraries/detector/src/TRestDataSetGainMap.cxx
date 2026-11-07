@@ -29,7 +29,8 @@
 /// fitted in the spectrum of `observable` of each segment and of the whole readout, and the energy against
 /// their position is fitted with a line. The columns added, for all the events, are:
 /// * `<name>_<calibratedObservable>` (e.g. gainMap_Energy): calibrated with the segment of the event,
-///   slope * observable + intercept (keV);
+///   slope * observable + intercept (keV); NaN (not calibrated) if a spatial observable of the event is not
+///   finite (e.g. no position); outside the edges, the first or last segment;
 /// * `<name>_<calibratedObservable>NoSegmentation`: calibrated with the whole readout.
 ///
 /// A detector with several readouts (e.g. the two sides of TREX-DM) has a gain map per readout, each one
@@ -282,6 +283,20 @@ double TRestDataSetGainMap::GetIntercept(double x, double y) const {
     return fIntercept[i][j];
 }
 
+namespace {
+// Linear fit of the calibration points (intercept, slope); NaN (the segment not calibrated) if it fails, e.g.
+// a segment where no peak could be fitted
+std::pair<double, double> FitLineOrNaN(TGraph& graph, const std::string& name) {
+    try {
+        return TRestPeakFit::FitLine(graph);
+    } catch (const std::exception& e) {
+        RESTWarning << "TRestDataSetGainMap: no calibration for " << name << ": " << e.what() << RESTendl;
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        return {nan, nan};
+    }
+}
+}  // namespace
+
 std::pair<double, double> TRestDataSetGainMap::FitPeaks(TH1D& spectrum, TGraph& graph) const {
     graph.Set(0);
     if (spectrum.Integral() <= 0) {
@@ -321,7 +336,7 @@ std::pair<double, double> TRestDataSetGainMap::FitPeaks(TH1D& spectrum, TGraph& 
         graph.SetPoint(graph.GetN(), fit.mean, energy);
     }
     if (fZeroPoint) graph.SetPoint(graph.GetN(), 0, 0);
-    return TRestPeakFit::FitLine(graph);
+    return FitLineOrNaN(graph, spectrum.GetName());
 }
 
 std::pair<double, double> TRestDataSetGainMap::UpdateLinearFit(TH1D& spectrum, TGraph& graph) const {
@@ -337,7 +352,7 @@ std::pair<double, double> TRestDataSetGainMap::UpdateLinearFit(TH1D& spectrum, T
         graph.SetPoint(graph.GetN(), mean, static_cast<double>(fPeaks[i].fEnergy));
     }
     if (fZeroPoint) graph.SetPoint(graph.GetN(), 0, 0);
-    return TRestPeakFit::FitLine(graph);
+    return FitLineOrNaN(graph, spectrum.GetName());
 }
 
 void TRestDataSetGainMap::ComputeParameters(const TRestDataSet& reference, ROOT::RDF::RNode frame) {
@@ -436,6 +451,8 @@ void TRestDataSetGainMap::Apply(TRestDataSet& dataSet) const {
     const std::string x = AsDouble(frame, fSpatialObservableX);
     const std::string y = AsDouble(frame, fSpatialObservableY);
     auto calibrate = [splitX, splitY, slope, intercept](double value, double posX, double posY) {
+        // Without position (NaN) the event cannot be calibrated with a segment
+        if (!std::isfinite(posX) || !std::isfinite(posY)) return std::numeric_limits<double>::quiet_NaN();
         const size_t i = SegmentIndex(splitX, posX), j = SegmentIndex(splitY, posY);
         if (i >= slope.size() || j >= slope[i].size()) return std::numeric_limits<double>::quiet_NaN();
         return slope[i][j] * value + intercept[i][j];

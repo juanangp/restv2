@@ -121,6 +121,8 @@ void TRestEventProcessManager::Run() {
         return;
     }
 
+    // Without inputAnalysisStorage the output analysis tree does not copy the observables of the input
+    fRunInfo->SetInputAnalysisStorage(fInputAnalysisStorage);
     if (!fRunInfo->HasOutputFileOpen()) {
         fRunInfo->OpenOutputFile();
     }
@@ -227,12 +229,9 @@ void TRestEventProcessManager::Run() {
     if (fEntryStart != -1) loopStart = fEntryStart;
     if (fEntryEnd != -1) loopEnd = fEntryEnd;
 
-    if (fEntryEnd == -1 && fEventsToProcess > 0) {
-        loopEnd = loopStart + fEventsToProcess;
-        if (totalEntries > 0) {
-            loopEnd = std::min(loopEnd, totalEntries);
-        }
-    }
+    if (fEntryEnd == -1 && fEventsToProcess > 0) loopEnd = loopStart + fEventsToProcess;
+    // Neither eventsToProcess nor an explicit entry range go beyond the entries of the input
+    if (totalEntries > 0) loopEnd = std::min(loopEnd, totalEntries);
 
     if (readUntilEnd && loopStart > 0) {
         throw std::runtime_error("TRestEventProcessManager::Run - process '" + fileSource->GetName() +
@@ -271,8 +270,11 @@ void TRestEventProcessManager::Run() {
             break;
         }
 
-        if (hasInputTree) {
-            fRunInfo->GetEntry(entry);
+        // No more entries in the input event trees
+        if (hasInputTree && !fRunInfo->GetEntry(entry) && !fRunInfo->fInputEventTrees.empty()) {
+            RESTWarning << "TRestEventProcessManager: entry " << entry
+                        << " could not be read from the input file, breaking event loop" << RESTendl;
+            break;
         }
 
         bool eventAccepted = true;

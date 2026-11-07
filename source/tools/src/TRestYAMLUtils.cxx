@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <regex>
 #include <stdexcept>
 
@@ -26,8 +27,10 @@ YAML::Node ResolveEnvVars(const YAML::Node& node) {
             std::string varName = match[1].str();
             const char* envValue = std::getenv(varName.c_str());
             std::string replacement = envValue ? envValue : "";
-            str.replace(match.position(0), match.length(0), replacement);
-            searchStart = str.cbegin() + match.position(0) + replacement.size();
+            // match.position is relative to searchStart; the value is not searched again
+            const size_t position = (searchStart - str.cbegin()) + match.position(0);
+            str.replace(position, match.length(0), replacement);
+            searchStart = str.cbegin() + position + replacement.size();
         }
         return YAML::Node(str);
     } else if (node.IsSequence()) {
@@ -46,18 +49,36 @@ YAML::Node ResolveEnvVars(const YAML::Node& node) {
     return node;
 }
 
-/// The parameters of the last configuration resolved and those used
+/// The parameters of the last configuration resolved and those used. Written by ResolveRefs (normally once,
+/// by the executable, in the main thread) but also read by TRestMetadata(fileName, section) and the GDML
+/// parser, so they are accessed with gParametersMutex
+std::mutex gParametersMutex;
 std::map<std::string, std::string> gParameters;
 std::set<std::string> gUsedParameters;
 
-/// \brief Node with `${PARAM:name}` replaced by the parameter `name`; throws if it is not defined
+/// Substitutions in a scalar: the replaced text is searched again (a value can have references), so a
+/// reference to itself (e.g. `a: "${a}"`) would never end
+constexpr int kMaxSubstitutions = 1000;
+
+void CheckSubstitutions(int& substitutions, const std::string& original) {
+    if (++substitutions > kMaxSubstitutions) {
+        throw std::runtime_error("more than " + std::to_string(kMaxSubstitutions) + " substitutions in '" +
+                                 original + "': a reference that contains itself (e.g. a: \"${a}\")?");
+    }
+}
+
+/// \brief Node with `${PARAM:name}` replaced by the parameter `name`; throws if it is not defined or if a
+/// parameter contains itself. The caller holds gParametersMutex.
 YAML::Node ResolveParameters(const YAML::Node& node) {
     if (node.IsScalar()) {
         std::string str = node.as<std::string>();
+        const std::string original = str;
         const std::regex re(R"(\$\{PARAM:([^}]+)\})");
         std::smatch match;
         bool replaced = false;
+        int substitutions = 0;
         while (std::regex_search(str, match, re)) {
+            CheckSubstitutions(substitutions, original);
             const std::string name = match[1].str();
             const auto parameter = gParameters.find(name);
             if (parameter == gParameters.end()) {
@@ -81,14 +102,18 @@ YAML::Node ResolveParameters(const YAML::Node& node) {
     return node;
 }
 
-/// \brief Recursively resolves YAML placeholder references.
+/// \brief Recursively resolves YAML placeholder references (a referenced value can have references; a
+/// reference to itself throws).
 YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node) {
     if (node.IsScalar()) {
         std::string str = node.as<std::string>();
+        const std::string original = str;
         std::smatch match;
+        int substitutions = 0;
 
         std::regex yamlRe(R"(\$\{([^}]+)\})");
         while (std::regex_search(str, match, yamlRe)) {
+            CheckSubstitutions(substitutions, original);
             std::string keyPath = match[1].str();
 
             YAML::Node refNode = YAML::Clone(root);
@@ -125,8 +150,22 @@ YAML::Node TRestYAMLUtils::OpenConfigFile(const std::string& fileName,
 }
 
 YAML::Node TRestYAMLUtils::ResolveRefs(const YAML::Node& root,
-                                       const std::map<std::string, std::string>& overrides) {
+                                       const std::map<std::string, std::string>& overrides,
+                                       bool setCurrentParameters) {
     YAML::Node cfg = YAML::Clone(root);
+    std::lock_guard<std::mutex> lock(gParametersMutex);
+    // Without setCurrentParameters the current ones are restored when leaving (also on errors)
+    struct Restore {
+        bool active;
+        std::map<std::string, std::string> parameters;
+        std::set<std::string> used;
+        ~Restore() {
+            if (!active) return;
+            gParameters = std::move(parameters);
+            gUsedParameters = std::move(used);
+        }
+    } restore{!setCurrentParameters, setCurrentParameters ? decltype(gParameters){} : gParameters,
+              setCurrentParameters ? decltype(gUsedParameters){} : gUsedParameters};
     gParameters.clear();
     gUsedParameters.clear();
     YAML::Node parameters;
@@ -157,11 +196,18 @@ YAML::Node TRestYAMLUtils::ResolveRefs(const YAML::Node& root,
     return ResolveYamlRefs(cfg, cfg);
 }
 
-const std::map<std::string, std::string>& TRestYAMLUtils::GetParameters() { return gParameters; }
+std::map<std::string, std::string> TRestYAMLUtils::GetParameters() {
+    std::lock_guard<std::mutex> lock(gParametersMutex);
+    return gParameters;
+}
 
-void TRestYAMLUtils::MarkParameterUsed(const std::string& name) { gUsedParameters.insert(name); }
+void TRestYAMLUtils::MarkParameterUsed(const std::string& name) {
+    std::lock_guard<std::mutex> lock(gParametersMutex);
+    gUsedParameters.insert(name);
+}
 
 void TRestYAMLUtils::CheckParametersUsed() {
+    std::lock_guard<std::mutex> lock(gParametersMutex);
     std::string unused;
     for (const auto& [name, value] : gParameters) {
         if (!gUsedParameters.count(name)) unused += (unused.empty() ? "" : ", ") + name;

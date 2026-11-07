@@ -142,6 +142,9 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
     fObs.MaxPeakTime = 0.0;
     fObs.AveragePeakTime = 0.0;
 
+    // A signal is considered "good" (legacy criterion) when it has at least 2 points over threshold
+    constexpr size_t kMinGoodPoints = 2;
+
     for (int s = 0; s < sigEvent->GetNumberOfSignals(); s++) {
         const auto& signal = sigEvent->GetSignal(s);
         const int sID = signal.GetSignalID();
@@ -150,26 +153,34 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         auto data = CalculateBaselineAndSigma(signal.GetData(), fBaselineRange.first, fBaselineRange.second,
                                               baseline, baselineSigma, fBaselineOption);
 
-        auto pointsOverThr = GetPointsOverThreshold(data, fIntegralRange, thrParams, fPointsOverThreshold,
-                                                    fNPointsFlat, baselineSigma);
+        // GetPointsOverThreshold clamps the range to the signal length: use a per-signal copy
+        auto range = fIntegralRange;
+        auto pointsOverThr =
+            GetPointsOverThreshold(data, range, thrParams, fPointsOverThreshold, fNPointsFlat, baselineSigma);
+        const bool good = pointsOverThr.size() >= kMinGoodPoints;
 
         fObs.NSignals++;
-        if (pointsOverThr.size() > fPointsThreshold) fObs.NGoodSignals++;
+        if (good) fObs.NGoodSignals++;
 
-        int thrIntegral = 0;
+        double thrIntegral = 0;
         for (const auto& [bin, value] : pointsOverThr) {
             thrIntegral += value;
         }
 
-        const std::string title = "Signal ID: " + std::to_string(sID);
-        auto sGraph = GetGraphPair(pointsOverThr, title);
-        const auto maxPeak = GetMax(sGraph, fMaxOption);
-        std::pair<double, double> minVal{std::numeric_limits<double>::max(),
-                                         std::numeric_limits<double>::max()};
-        if (pointsOverThr.size() > 0) minVal = GetMin(sGraph);
+        // Neutral values when there are no points over threshold
+        std::pair<double, double> maxPeak{0., 0.};
+        std::pair<double, double> minVal{0., 0.};
+        if (!pointsOverThr.empty()) {
+            const std::string title = "Signal ID: " + std::to_string(sID);
+            auto sGraph = GetGraphPair(pointsOverThr, title);
+            maxPeak = GetMax(sGraph, fMaxOption);
+            minVal = GetMin(sGraph);
+            // A fit-based maximum can fall outside the signal: treat it as invalid
+            if (maxPeak.first < 0 || maxPeak.first >= signal.GetNPoints()) maxPeak = {0., 0.};
+        }
         const auto riseTime = GetRiseTime(pointsOverThr);
         const auto riseSlope = GetRiseSlope(pointsOverThr);
-        bool saturated = signal.GetPoint(maxPeak.first) >= 4096;
+        const bool saturated = signal.IsADCSaturation();
         // Full width at half maximum of the baseline-subtracted pulse, in bins
         const double width = pointsOverThr.empty() ? 0. : GetMaxPeakWidth(data);
 
@@ -185,8 +196,8 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         fObs.PointsOverThr.push_back(pointsOverThr.size());
         fObs.Saturated.push_back(saturated);
 
-        if (pointsOverThr.size() > fPointsThreshold) {
-            fObs.FullIntegralSum += GetIntegral(data, fIntegralRange.first, fIntegralRange.second);
+        if (good) {
+            fObs.FullIntegralSum += GetIntegral(data, range.first, range.second);
             fObs.ThresholdIntegralSum += thrIntegral;
             fObs.MaxIntegral += maxPeak.second;
             fObs.SlopeIntegral += GetSlopeIntegral(pointsOverThr);
@@ -202,18 +213,24 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         }
     }
 
-    if (fObs.NSignals <= 0) return true;
+    if (fObs.NSignals <= 0) {
+        // Empty event: do not leave the accumulation sentinels (DBL_MAX) in the observables
+        fObs.MinPeakAmplitude = 0.0;
+        fObs.MinEventValue = 0.0;
+        fObs.MinPeakTime = 0.0;
+        return true;
+    }
     fObs.BaselineAvg = std::accumulate(fObs.Baseline.begin(), fObs.Baseline.end(), 0.0) / fObs.NSignals;
     fObs.BaselineSigmaAvg =
         std::accumulate(fObs.BaselineSigma.begin(), fObs.BaselineSigma.end(), 0.0) / fObs.NSignals;
 
     auto calcAvgOverThr = [](const auto& data, const std::vector<int>& pointsThr,
-                             double threshold) -> double {
+                             size_t minPoints) -> double {
         if (data.size() != pointsThr.size()) return 0.0;
         double sum = 0.0;
         int count = 0;
         for (size_t i = 0; i < data.size(); ++i) {
-            if (pointsThr[i] > threshold) {
+            if ((size_t)pointsThr[i] >= minPoints) {
                 sum += data[i];
                 count++;
             }
@@ -221,16 +238,17 @@ bool TRestRawSignalAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestE
         return (count > 0) ? (sum / count) : 0.0;
     };
 
-    fObs.RiseSlopeAvg = calcAvgOverThr(fObs.RiseSlope, fObs.PointsOverThr, fPointsThreshold);
-    fObs.RiseTimeAvg = calcAvgOverThr(fObs.RiseTime, fObs.PointsOverThr, fPointsThreshold);
-    fObs.AmplitudeAvg = calcAvgOverThr(fObs.AmpSgnMaxMethod, fObs.PointsOverThr, fPointsThreshold);
-    fObs.IntegralAvg = calcAvgOverThr(fObs.AmpSgnIntMethod, fObs.PointsOverThr, fPointsThreshold);
-    fObs.WidthAvg = calcAvgOverThr(fObs.Width, fObs.PointsOverThr, fPointsThreshold);
-    fObs.PointsOverThrAvg = calcAvgOverThr(fObs.PointsOverThr, fObs.PointsOverThr, fPointsThreshold);
+    fObs.RiseSlopeAvg = calcAvgOverThr(fObs.RiseSlope, fObs.PointsOverThr, kMinGoodPoints);
+    fObs.RiseTimeAvg = calcAvgOverThr(fObs.RiseTime, fObs.PointsOverThr, kMinGoodPoints);
+    fObs.AmplitudeAvg = calcAvgOverThr(fObs.AmpSgnMaxMethod, fObs.PointsOverThr, kMinGoodPoints);
+    fObs.IntegralAvg = calcAvgOverThr(fObs.AmpSgnIntMethod, fObs.PointsOverThr, kMinGoodPoints);
+    fObs.WidthAvg = calcAvgOverThr(fObs.Width, fObs.PointsOverThr, kMinGoodPoints);
+    fObs.PointsOverThrAvg = calcAvgOverThr(fObs.PointsOverThr, fObs.PointsOverThr, kMinGoodPoints);
     fObs.TimeBinLength = sigEvent->GetSignal(0).GetNPoints();
-    fObs.RateOfChangeAvg = fObs.RiseSlopeAvg / fObs.SlopeIntegral;
-    fObs.IntegralBalance = (fObs.FullIntegralSum - fObs.ThresholdIntegralSum) /
-                           (fObs.FullIntegralSum + fObs.ThresholdIntegralSum);
+    fObs.RateOfChangeAvg = (fObs.SlopeIntegral != 0) ? fObs.RiseSlopeAvg / fObs.SlopeIntegral : 0.0;
+    const double integralTotal = fObs.FullIntegralSum + fObs.ThresholdIntegralSum;
+    fObs.IntegralBalance =
+        (integralTotal != 0) ? (fObs.FullIntegralSum - fObs.ThresholdIntegralSum) / integralTotal : 0.0;
 
     if (fObs.MaxIntegral > 0) fObs.AmplitudeIntegralRatio = fObs.ThresholdIntegralSum / fObs.MaxIntegral;
     if (fObs.MaxPeakAmplitude > 0) fObs.AmplitudeRatio = fObs.MaxIntegral / fObs.MaxPeakAmplitude;

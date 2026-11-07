@@ -3,14 +3,17 @@
 /// chosen fluctuations) and diffuses each electron with the TRestDetectorMedium at its drift field
 /// (driftField of its charge; gaussian diffusion and attachment, from a transport table of the medium or its
 /// fixed parameters; the values used are written to the metadata of the process). Each surviving electron
-/// becomes a hit with the energy of the original hit divided by its number of electrons, the diffused
-/// position and the time of the original hit: only the position changes, the drift time is added when
-/// converting to signals.
+/// becomes a hit with the diffused position and the time of the original hit (only the position changes,
+/// the drift time is added when converting to signals) and the energy of its electrons: the electrons of a
+/// hit carry the fluctuated number of electrons times the W-value (the energy of the hit without
+/// fluctuations), so the fluctuation is kept. A hit whose number of electrons fluctuates to 0 or less is
+/// removed.
 ///
 /// The drift distance and its direction are given by TRestDetectorReadout::GetDistanceToReadout (e.g. the
 /// Micromegas plane and its normal). Hits without a distance or outside the drift volume (distance < 0 or
 /// beyond TRestDetectorReadout::GetMaxDistanceToReadout, the cathode) are removed. Diffused electrons are
-/// kept between the readout plane and the cathode, as legacy.
+/// kept between the readout plane and the cathode, as legacy. A readout without maximum distance (NaN, e.g.
+/// a Micromegas readout without gasThickness) has no cathode: no upper cut.
 ///
 /// Differences with legacy: the attachment is exp(-attachment * distance) with attachment in 1/cm (as
 /// Garfield), the gas parameters come from the medium instead of the process, there are no veto planes
@@ -19,7 +22,9 @@
 ///
 /// Parameters: readout (empty: the data readout of the TRestDetectorReadoutManager), medium (name,
 /// optional if there is only one), fluctuations ("fano", "poisson" or "none"), maxHits (1000, 0: no
-/// limit), seed (0).
+/// limit), seed (0: random seed; otherwise the generator is re-seeded at each event from the seed and the
+/// event and subevent IDs, TRestDetectorHitsEvent::EventSeed, so the result does not depend on the number
+/// of threads).
 ///
 /// Example:
 ///
@@ -122,6 +127,7 @@ void TRestDetectorHitsDriftProcess::InitProcess() {
     // The stored metadata keeps the medium and the transport used
     UpdateYAMLFromParams<TRestDetectorHitsDriftProcess>(fNode);
 
+    // Seed 0: random seed. Otherwise re-seeded at each event in ProcessEvent
     fRandom.SetSeed(fSeed);
 }
 
@@ -135,6 +141,7 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
 
     outputEvent->Initialize();
     outputEvent->SetEventInfo(inputEvent);
+    if (fSeed != 0) fRandom.SetSeed(TRestDetectorHitsEvent::EventSeed(fSeed, *inputEvent));
 
     double totalEnergy = 0;
     for (size_t n = 0; n < inputEvent->GetNumberOfHits(); n++) {
@@ -151,8 +158,10 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
 
         const XYZVector position = inputEvent->GetPosition(n);
         const double distance = fReadout->GetDistanceToReadout(position);
+        // NaN maximum distance: no cathode, no upper cut
         const double maxDistance = fReadout->GetMaxDistanceToReadout(position);
-        if (std::isnan(distance) || distance < 0 || distance > maxDistance) continue;
+        const bool hasCathode = !std::isnan(maxDistance);
+        if (std::isnan(distance) || distance < 0 || (hasCathode && distance > maxDistance)) continue;
         const XYZVector normal = fReadout->GetReadoutNormal(position);
 
         double electrons = energy / wValue;
@@ -161,8 +170,10 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
         } else if (fFluctuations == "poisson") {
             electrons = fRandom.Poisson(electrons);
         }
+        if (!(electrons > 0)) continue;
+        // The electrons of the hit carry the fluctuated charge (electrons * W)
         const long nElectrons = std::max(1L, std::lround(electrons * wValue / effectiveW));
-        const double electronEnergy = energy / nElectrons;
+        const double electronEnergy = electrons * wValue / nElectrons;
 
         for (long e = 0; e < nElectrons; e++) {
             XYZVector electron = position;
@@ -174,7 +185,8 @@ bool TRestDetectorHitsDriftProcess::ProcessEvent(const TRestEvent& input, TRestE
             // Kept between the readout plane and the cathode
             const double diffusedDistance = fReadout->GetDistanceToReadout(electron);
             if (diffusedDistance < 0) electron -= diffusedDistance * normal;
-            if (diffusedDistance > maxDistance) electron -= (diffusedDistance - maxDistance) * normal;
+            if (hasCathode && diffusedDistance > maxDistance)
+                electron -= (diffusedDistance - maxDistance) * normal;
             outputEvent->AddHit(electron, electronEnergy, inputEvent->GetTime(n), inputEvent->GetType(n));
         }
     }

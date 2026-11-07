@@ -121,7 +121,8 @@ class TRestGeant4Metadata : public TRestMetadata {
     /// A container related to fRemoveUnwantedTracks
     std::set<std::string> fRemoveUnwantedTracksVolumesToKeep;
 
-    /// A container to store volumes where particles are killed instantly
+    /// A container to store volumes where particles are killed instantly: the physical volumes matching the
+    /// `killVolumes` expressions (filled by SyncActiveVolumesFromMetadata). They do not need to be active
     std::set<std::string> fKillVolumes;
     std::vector<std::string> fKillVolumesRegistry;  //! YAML adapter for registry
 
@@ -346,6 +347,9 @@ class TRestGeant4Metadata : public TRestMetadata {
         }
         if (fRemoveUnwantedTracksVolumesToKeep.count(originalName) > 0) {
             fRemoveUnwantedTracksVolumesToKeep.insert(physicalName);
+        }
+        if (fKillVolumes.count(originalName) > 0) {
+            fKillVolumes.insert(physicalName);
         }
     }
 

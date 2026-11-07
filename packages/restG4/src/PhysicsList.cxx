@@ -10,6 +10,7 @@
 #include <G4EmPenelopePhysics.hh>
 #include <G4EmStandardPhysics_option3.hh>
 #include <G4EmStandardPhysics_option4.hh>
+#include <G4GenericIon.hh>
 #include <G4HadronElasticPhysicsHP.hh>
 #include <G4HadronPhysicsQGSP_BIC_HP.hh>
 #include <G4IonBinaryCascadePhysics.hh>
@@ -17,12 +18,12 @@
 #include <G4LossTableManager.hh>
 #include <G4NeutronTrackingCut.hh>
 #include <G4ParticleHPManager.hh>
-#include <G4PhotonEvaporation.hh>
 #include <G4ProcessManager.hh>
 #include <G4RadioactiveDecay.hh>
 #include <G4RadioactiveDecayPhysics.hh>
 #include <G4StepLimiter.hh>
 #include <G4SystemOfUnits.hh>
+#include <G4Triton.hh>
 #include <G4UImanager.hh>
 #include <G4UnitsTable.hh>
 #include <G4Version.hh>
@@ -289,40 +290,51 @@ void PhysicsList::ConstructProcess() {
         hadronicPhysicsList->ConstructProcess();
     }
 
-    if (fRestPhysicsLists->FindPhysicsList("G4RadioactiveDecay")) {
-        auto radioactiveDecay = new G4RadioactiveDecay();
+    if (fRestPhysicsLists->FindPhysicsList("G4RadioactiveDecay") >= 0) {
+        // The options are applied to the radioactive decay processes registered (by
+        // G4RadioactiveDecayPhysics) for the generic ions and the triton of this thread, before their
+        // physics tables are built. The Geant4 half-life and very long decay time thresholds are not changed
+        // (the legacy 1 ns threshold was set on a process never attached, as a very long decay time
+        // threshold it would make stable every nuclide living more than 1 ns)
+        std::vector<G4RadioactiveDecay*> radioactiveDecays;
+        for (G4ParticleDefinition* particle : {static_cast<G4ParticleDefinition*>(G4GenericIon::Definition()),
+                                               static_cast<G4ParticleDefinition*>(G4Triton::Definition())}) {
+            auto* processManager = particle->GetProcessManager();
+            if (processManager == nullptr) continue;
+            const auto* processes = processManager->GetProcessList();
+            for (std::size_t i = 0; i < processes->size(); i++) {
+                if (auto* radioactiveDecay = dynamic_cast<G4RadioactiveDecay*>((*processes)[i])) {
+                    radioactiveDecays.push_back(radioactiveDecay);
+                }
+            }
+        }
+        if (radioactiveDecays.empty() &&
+            fRestPhysicsLists->GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Silent) {
+            RESTWarning << "PhysicsList 'G4RadioactiveDecay': no radioactive decay process registered "
+                           "(G4RadioactiveDecayPhysics missing?), options 'ICM' and 'ARM' not applied"
+                        << RESTendl;
+        }
 
-        const auto decayTimeThreshold = nanosecond;
-#ifdef GEANT4_VERSION_LESS_11_0_0
-        radioactiveDecay->SetHLThreshold(decayTimeThreshold);
-#else
-        radioactiveDecay->SetThresholdForVeryLongDecayTime(decayTimeThreshold);
-        // ICM option not tested, if it does not work as expected please post an issue on
-        // https://github.com/rest-for-physics/restG4/issues
-        auto photonEvaporation = new G4PhotonEvaporation();
-#endif
         // Setting Internal Conversion (ICM) option.
-        if (fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "ICM") == "true") {
-#ifdef GEANT4_VERSION_LESS_11_0_0
-            radioactiveDecay->SetICM(true);
+        const auto icm = fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "ICM");
+        if (icm == "true" || icm == "false") {
+#if G4VERSION_NUMBER < 1120
+            for (auto* radioactiveDecay : radioactiveDecays) radioactiveDecay->SetICM(icm == "true");
 #else
-            photonEvaporation->SetICM(true);
-#endif
-        } else if (fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "ICM") == "false") {
-#ifdef GEANT4_VERSION_LESS_11_0_0
-            radioactiveDecay->SetICM(false);
-#else
-            photonEvaporation->SetICM(false);
+            // Since Geant4 11.2 the radioactive decay always applies the internal conversion
+            if (icm == "false") {
+                RESTWarning << "PhysicsList 'G4RadioactiveDecay' option 'ICM' false ignored: Geant4 "
+                            << G4VERSION_NUMBER << " always applies the internal conversion" << RESTendl;
+            }
 #endif
         } else if (fRestPhysicsLists->GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Silent) {
             RESTWarning << "PhysicsList 'G4RadioactiveDecay' option 'ICM' not defined" << RESTendl;
         }
 
         // Enabling electron re-arrangement (ARM) option.
-        if (fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "ARM") == "true") {
-            radioactiveDecay->SetARM(true);
-        } else if (fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "ARM") == "false") {
-            radioactiveDecay->SetARM(false);
+        const auto arm = fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "ARM");
+        if (arm == "true" || arm == "false") {
+            for (auto* radioactiveDecay : radioactiveDecays) radioactiveDecay->SetARM(arm == "true");
         } else if (fRestPhysicsLists->GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Silent) {
             RESTWarning << "PhysicsList 'G4RadioactiveDecay' option 'ARM' not defined" << RESTendl;
         }
@@ -331,6 +343,8 @@ void PhysicsList::ConstructProcess() {
         /*
          * If no TritiumDecay is set, do not produce tritium decay unless particle source is H3
          * If H3 is particle source, produce tritium decay unless TritiumDecay option is explicitly disabled
+         * (since Geant4 11 G4RadioactiveDecayPhysics already gives the triton its radioactive decay, then
+         * this only makes it unstable)
          */
         if (!(fRestPhysicsLists->GetPhysicsListOptionValue("G4RadioactiveDecay", "TritiumDecay") ==
               "false") &&
@@ -345,6 +359,15 @@ void PhysicsList::ConstructProcess() {
             G4ParticleDefinition* tritium = G4Triton::Definition();
             tritium->SetPDGStable(false);
 
+            // G4RadioactiveDecayPhysics already registers a radioactive decay for the triton (Geant4 11):
+            // a second one would make it decay twice as often
+            bool tritiumHasRadioactiveDecay = false;
+            if (const auto* processes = tritium->GetProcessManager()->GetProcessList()) {
+                for (std::size_t i = 0; i < processes->size(); i++) {
+                    if (dynamic_cast<G4RadioactiveDecay*>((*processes)[i])) tritiumHasRadioactiveDecay = true;
+                }
+            }
+
             G4VProcess* decay = nullptr;
             G4ProcessManager* tritiumProcessManager = tritium->GetProcessManager();
             G4ProcessVector* tritiumProcessVector = tritiumProcessManager->GetAtRestProcessVector();
@@ -356,9 +379,9 @@ void PhysicsList::ConstructProcess() {
                 tritiumProcessManager->RemoveProcess(decay);
             }
 
-            decay = new G4RadioactiveDecay();
-
-            tritium->GetProcessManager()->AddProcess(decay, 1000, -1, 1000);
+            if (!tritiumHasRadioactiveDecay) {
+                tritium->GetProcessManager()->AddProcess(new G4RadioactiveDecay(), 1000, -1, 1000);
+            }
         }
 #endif
     }

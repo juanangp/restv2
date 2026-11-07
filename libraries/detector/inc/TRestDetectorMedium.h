@@ -178,7 +178,8 @@ class TRestDetectorLightResponse : public TRestMetadata {
 /// - mediumFile: path of the medium file (a leading ~ is $HOME). restGarfield writes to it (by default
 ///   `<name>.root`).
 /// - pressure (gases only, 1 bar), temperature (293.15 K): the conditions of the detector (and the default
-///   ones of the tables of restGarfield).
+///   ones of the tables of restGarfield). A pressure other than 1 bar for a liquid or a solid is an error
+///   (1 bar is accepted, it is written to the metadata for any state).
 /// - Responses, each one a key without class: `charge` (TRestDetectorChargeResponse: ionisation, transport
 ///   and gain) and `light` (TRestDetectorLightResponse: propagation of the scintillation light).
 ///

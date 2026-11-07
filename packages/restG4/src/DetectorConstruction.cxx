@@ -264,6 +264,14 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
         }
     }
 
+    for (const auto& killVolumeName : restG4Metadata->GetKillVolumes()) {
+        if (GetPhysicalVolume((G4String)killVolumeName) == nullptr) {
+            cerr << "DetectorConstruction::Construct - Kill volume '" << killVolumeName
+                 << "' is not defined in the geometry" << endl;
+            exit(1);
+        }
+    }
+
     // Resolve Geant4-mangled physical volume names (e.g. assembly imprints such as
     // "av_1_impr_1_gasVolume_pv_0") as aliases of the user-declared active/sensitive
     // volume names, so runtime lookups by physical name succeed directly.

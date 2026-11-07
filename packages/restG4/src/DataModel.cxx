@@ -8,7 +8,9 @@
 
 #include "SimulationManager.h"
 
-static double globalTimeOffset = 0;
+// Time offset of the radioactive decays with global time reset, per Geant4 worker thread (each thread
+// simulates its own events)
+static thread_local double globalTimeOffset = 0;
 
 using namespace std;
 
@@ -25,9 +27,6 @@ TRestGeant4Event::TRestGeant4Event(const G4Event* event) : TRestGeant4Event() {
 void TRestGeant4Event::UpdatePrimaryData(const G4Event* event) {
     if (!event) return;
 
-    auto* primaryVertex = event->GetPrimaryVertex();
-    if (!primaryVertex) return;
-
     auto& d = fEventData;
     d.primaryParticleIDs.clear();
     d.primaryEnergies.clear();
@@ -35,30 +34,40 @@ void TRestGeant4Event::UpdatePrimaryData(const G4Event* event) {
     d.primaryDirectionY.clear();
     d.primaryDirectionZ.clear();
 
-    const auto& position = primaryVertex->GetPosition();
+    // The primary generator gives a vertex per particle (each with its own origin): the particles of all
+    // the vertices are stored, the primary position is the one of the first vertex
+    const auto* firstVertex = event->GetPrimaryVertex();
+    if (!firstVertex) return;
+
+    const auto& position = firstVertex->GetPosition();
     d.primaryPositionX = position.x() / CLHEP::mm;
     d.primaryPositionY = position.y() / CLHEP::mm;
     d.primaryPositionZ = position.z() / CLHEP::mm;
 
     const auto* metadata = GetGeant4Metadata();
-    for (int i = 0; i < primaryVertex->GetNumberOfParticle(); ++i) {
-        const auto* primaryParticle = primaryVertex->GetPrimary(i);
+    for (int v = 0; v < event->GetNumberOfPrimaryVertex(); ++v) {
+        const auto* primaryVertex = event->GetPrimaryVertex(v);
+        if (!primaryVertex) continue;
 
-        if (!primaryParticle || !primaryParticle->GetParticleDefinition()) continue;
+        for (int i = 0; i < primaryVertex->GetNumberOfParticle(); ++i) {
+            const auto* primaryParticle = primaryVertex->GetPrimary(i);
 
-        const auto* definition = primaryParticle->GetParticleDefinition();
-        d.primaryParticleIDs.push_back(definition->GetPDGEncoding());
-        if (metadata) {
-            metadata->fGeant4PhysicsInfo.InsertParticleName(definition->GetPDGEncoding(),
-                                                            definition->GetParticleName());
+            if (!primaryParticle || !primaryParticle->GetParticleDefinition()) continue;
+
+            const auto* definition = primaryParticle->GetParticleDefinition();
+            d.primaryParticleIDs.push_back(definition->GetPDGEncoding());
+            if (metadata) {
+                metadata->fGeant4PhysicsInfo.InsertParticleName(definition->GetPDGEncoding(),
+                                                                definition->GetParticleName());
+            }
+
+            d.primaryEnergies.emplace_back(primaryParticle->GetKineticEnergy() / CLHEP::keV);
+
+            const auto& direction = primaryParticle->GetMomentumDirection();
+            d.primaryDirectionX.push_back(direction.x());
+            d.primaryDirectionY.push_back(direction.y());
+            d.primaryDirectionZ.push_back(direction.z());
         }
-
-        d.primaryEnergies.emplace_back(primaryParticle->GetKineticEnergy() / CLHEP::keV);
-
-        const auto& direction = primaryParticle->GetMomentumDirection();
-        d.primaryDirectionX.push_back(direction.x());
-        d.primaryDirectionY.push_back(direction.y());
-        d.primaryDirectionZ.push_back(direction.z());
     }
 }
 
@@ -138,17 +147,10 @@ bool TRestGeant4Event::InsertTrack(const G4Track* track) {
     fEventData.trackInitialPositionY.push_back(trackOrigin.y() / CLHEP::mm);
     fEventData.trackInitialPositionZ.push_back(trackOrigin.z() / CLHEP::mm);
 
-    fEventData.trackSecondariesIndices.push_back(fEventData.trackSecondariesIDs.size());
-
+    // Filled by RebuildSecondaries when the event is submitted: the children of a track are not
+    // consecutive while simulating (Geant4 stack order)
+    fEventData.trackSecondariesIndices.push_back(0);
     fEventData.trackSecondariesOffsets.push_back(0);
-
-    const auto parentTrackIt = fTrackIDToTrackIndex.find(track->GetParentID());
-
-    if (parentTrackIt != fTrackIDToTrackIndex.end()) {
-        fEventData.trackSecondariesIDs.push_back(track->GetTrackID());
-
-        fEventData.trackSecondariesOffsets[parentTrackIt->second]++;
-    }
 
     fHasPendingInitialStep = false;
     fPendingInitialStepIndex = 0;
@@ -176,7 +178,8 @@ void TRestGeant4Event::UpdateTrack(const G4Track* track) {
 
     fEventData.trackTimeOffsets[index] = globalTimeOffset;
 
-    const double precision = metadata->GetResetTimePrecision() / CLHEP::microsecond;
+    // In us, as the times stored
+    const double precision = metadata->GetResetTimePrecision();
 
     const double globalTime = track->GetGlobalTime() / CLHEP::microsecond;
 
@@ -217,35 +220,22 @@ void TRestGeant4Event::InsertStep(const G4Step* step) {
 
     const auto& geometryInfo = metadata->GetGeant4GeometryInfo();
 
-    auto touchable = step->GetPreStepPoint()->GetTouchable();
+    // The Geant4 physical volume name (unique in the geometry, DetectorConstruction checks it), as the
+    // active, kill and sensitive volumes and the volume IDs: also for nested volumes and the volumes of
+    // assemblies (av_<n>_impr_<n>_<logical>_pv_<n>, placed in the mother of the assembly)
+    const auto* physicalVolume = step->GetPreStepPoint()->GetPhysicalVolume();
 
-    if (!touchable) return;
+    if (!physicalVolume) return;
 
-    const G4int depth = touchable->GetHistoryDepth();
+    const std::string volumeName = physicalVolume->GetName();
 
-    G4String geant4path = "";
-
-    if (depth == 0) {
-        auto* volume = touchable->GetVolume();
-
-        if (volume) geant4path = volume->GetName();
-    }
-
-    for (G4int i = 1; i <= depth; ++i) {
-        G4VPhysicalVolume* pv = touchable->GetVolume(depth - i);
-
-        if (pv) {
-            if (geant4path != "") geant4path += geometryInfo.GetPathSeparator().c_str();
-
-            geant4path += pv->GetName();
-        }
-    }
-
-    const auto volumeName = geometryInfo.GetAlternativePathFromGeant4Path(geant4path);
-
-    if (!metadata->IsActiveVolume(volumeName) && !isInitialStep) return;
-
+    // A kill volume does not need to be active: the track is killed, its hits are not stored
     const bool kill = metadata->IsKillVolume(volumeName);
+
+    if (!metadata->IsActiveVolume(volumeName) && !isInitialStep) {
+        if (kill) const_cast<G4Track*>(track)->SetTrackStatus(fStopAndKill);
+        return;
+    }
 
     const auto* particle = track->GetDefinition();
 

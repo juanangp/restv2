@@ -92,14 +92,12 @@ bool BaselineSigmaIQR(const std::vector<T>& signal, int startBin, int endBin, do
     baseLine = 0;
     baseLineSigma = 0;
 
-    if (signal.empty()) return false;
+    // [startBin, endBin) clamped to the signal, as the default option; an empty range gives 0 and 0
     if (startBin < 0) startBin = 0;
-    if (startBin >= (int)signal.size()) return false;
-    if (endBin >= (int)signal.size()) endBin = signal.size() - 1;
-    if (endBin < startBin) return false;
+    if (endBin > (int)signal.size()) endBin = signal.size();
+    if (endBin <= startBin) return true;
 
-    std::vector<T> v(signal.begin() + startBin, signal.begin() + endBin + 1);
-    if (v.empty()) return false;
+    std::vector<T> v(signal.begin() + startBin, signal.begin() + endBin);
 
     baseLine = TMath::Median((int)v.size(), v.data());
 
@@ -116,16 +114,13 @@ bool BaselineSigmaExcludeOutliers(const std::vector<T>& signal, int startBin, in
     baseLine = 0;
     baseLineSigma = 0;
 
-    if (signal.empty()) return false;
+    // [startBin, endBin) clamped to the signal, as the default option; an empty range gives 0 and 0
     if (startBin < 0) startBin = 0;
-    if (startBin >= (int)signal.size()) return false;
-    if (endBin >= (int)signal.size()) endBin = signal.size() - 1;
-    if (endBin < startBin) return false;
+    if (endBin > (int)signal.size()) endBin = signal.size();
+    if (endBin <= startBin) return true;
 
     std::vector<double> v;
-    for (int i = startBin; i <= endBin; ++i) v.emplace_back(signal[i]);
-
-    if (v.empty()) return false;
+    for (int i = startBin; i < endBin; ++i) v.emplace_back(signal[i]);
 
     std::sort(v.begin(), v.end());
     const size_t q1 = static_cast<size_t>(0.25 * (v.size() - 1));
@@ -607,9 +602,10 @@ std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetPeaks(
 
 ///////////////////////////////////////////////
 /// \brief It performs a gaussian fit to the signal
-/// which is stored inside a TGraph. It returns
-/// a TVector 2 with the maximum and the mean of the
-/// gaussian fit
+/// which is stored inside a TGraph, in a window around its
+/// maximum. It returns (mean, amplitude) of the gaussian
+/// fit, or (-1, -1) for an empty graph or if the fit fails
+/// (not valid): the callers take a negative time as no maximum.
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxGauss(TGraph& signal) {
     return FitAroundMaximum(signal, "gaussian", 0.1, 0.2, [](double lo, double hi) {
@@ -619,9 +615,10 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMaxGauss(TGraph& signal) {
 
 ///////////////////////////////////////////////
 /// \brief It performs a landau fit to the signal
-/// which is stored inside a TGraph. It returns
-/// a TVector 2 with the maximum and the mean of the
-/// landau fit
+/// which is stored inside a TGraph, in a window around its
+/// maximum. It returns (mean, amplitude) of the landau
+/// fit, or (-1, -1) for an empty graph or if the fit fails
+/// (not valid): the callers take a negative time as no maximum.
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxLandau(TGraph& signal) {
     return FitAroundMaximum(signal, "landau", 0.1, 0.2, [](double lo, double hi) {
@@ -707,15 +704,21 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMaxAget(TGraph& signal) {
 ///////////////////////////////////////////////
 /// \brief It averages the pulse inside the time window
 /// passed as argument. It returns a vector of pairs
-/// with the integrated window time and energy (charge)
+/// with the integrated window time and energy (charge).
+/// The windows are [k * intWindow, (k + 1) * intWindow) for any integer k (also negative times).
+/// Throws std::invalid_argument if intWindow is not positive.
 ///
 std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetIntWindow(TGraph& signal,
                                                                              double intWindow) {
+    if (!(intWindow > 0) || !std::isfinite(intWindow)) {
+        throw std::invalid_argument("GetIntWindow: the integration window must be positive (" +
+                                    std::to_string(intWindow) + ")");
+    }
     const int nPoints = signal.GetN();
 
     std::map<int, std::pair<int, double>> windowMap;
     for (int j = 0; j < nPoints; j++) {
-        int index = signal.GetPointX(j) / intWindow;
+        const int index = static_cast<int>(std::floor(signal.GetPointX(j) / intWindow));
         auto it = windowMap.find(index);
         if (it != windowMap.end()) {
             it->second.first++;
@@ -736,7 +739,9 @@ std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetIntWindow(TGr
     return result;
 }
 
+/// \brief (time, value) of the minimum point; (-1, -1) for an empty graph
 std::pair<double, double> TRestPulseShapeAnalysis::GetMin(TGraph& signal) {
+    if (signal.GetN() == 0) return {-1, -1};
     int minBin = TMath::LocMin(signal.GetN(), signal.GetY());
     double minX = signal.GetX()[minBin];
     double minY = signal.GetY()[minBin];
@@ -744,6 +749,8 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMin(TGraph& signal) {
     return std::pair<double, double>(minX, minY);
 }
 
+/// \brief (time, amplitude) of the maximum with an option of kMaxOptions (default onlyMax); (-1, -1) for an
+/// empty graph or a failed fit (gaussFit, landauFit, agetFit)
 std::pair<double, double> TRestPulseShapeAnalysis::GetMax(TGraph& signal, std::string option) {
     if (option == "onlyMax") return GetMaxAmplitude(signal);
     if (option == "tripleMax") return GetTripleMaxIntegral(signal);
@@ -756,7 +763,10 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMax(TGraph& signal, std::s
     return GetMaxAmplitude(signal);
 }
 
+/// \brief (time, value) of the maximum point; (-1, -1) for an empty graph, as the fits (GetMaxGauss,
+/// GetMaxLandau, GetMaxAget) when they fail
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxAmplitude(TGraph& signal) {
+    if (signal.GetN() == 0) return {-1, -1};
     int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
 
     return std::pair<double, double>(signal.GetX()[maxBin], signal.GetY()[maxBin]);
@@ -766,12 +776,16 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMaxAmplitude(TGraph& signa
 /// \brief It calculates the triple max over a TGraph
 /// and returns an array of pairs with the time and
 /// the energy of the maximum and the neighbouring
-/// points(three points in total).
+/// points(three points in total). The three are (-1, -1) for an empty graph.
 ///
 std::array<std::pair<double, double>, 3> TRestPulseShapeAnalysis::GetTripleMax(TGraph& signal) {
-    int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
-
     std::array<std::pair<double, double>, 3> tripleMax;
+    if (signal.GetN() == 0) {
+        tripleMax.fill({-1, -1});
+        return tripleMax;
+    }
+
+    int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
 
     for (int i = 0; i < 3; i++) {
         int index = maxBin + i - 1;
@@ -788,9 +802,10 @@ std::array<std::pair<double, double>, 3> TRestPulseShapeAnalysis::GetTripleMax(T
 ///////////////////////////////////////////////
 /// \brief It calculates the triple max average over
 /// a TGraph and returns a std::pair with the average
-/// time and energy (charge)
+/// time and energy (charge); (-1, -1) for an empty graph
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetTripleMaxAverage(TGraph& signal) {
+    if (signal.GetN() == 0) return {-1, -1};
     auto tripleMax = TRestPulseShapeAnalysis::GetTripleMax(signal);
     double eAvg = 0;
     double hitTimeAvg = 0;
@@ -810,9 +825,10 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetTripleMaxAverage(TGraph& s
 ///////////////////////////////////////////////
 /// \brief It calculates the triple max integral over
 /// a TGraph and returns the addition of the maximum plus
-/// the neigbouring bins.
+/// the neigbouring bins; (-1, -1) for an empty graph.
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetTripleMaxIntegral(TGraph& signal) {
+    if (signal.GetN() == 0) return {-1, -1};
     auto tripleMax = TRestPulseShapeAnalysis::GetTripleMax(signal);
     double totEn = 0;
     double hitTimeAvg = 0;

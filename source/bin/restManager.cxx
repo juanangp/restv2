@@ -3,12 +3,14 @@
 /// Usage: restManager --c|--config <config.yaml> [--i|--input <input.root>]
 ///                     [--o|--output <output.root>] [--v|--verbose <level>]
 ///                     [--e|--events <n>] [--r|--reference <process>=<dataset>]
-///                     [--set <name>=<value>] [--maxRepeated <n>]
+///                     [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]
 ///
 /// --set sets a parameter of the section `parameters` of the configuration for this execution (repeatable;
 /// the file is not changed), e.g. --set meshVoltage=300V
-/// --maxRepeated sets the messages (warning and info) written from the same line of the code before the
-/// next ones are suppressed (default 10, 0: no suppression); with verbose debug none is suppressed
+/// --maxRepeated sets the similar messages (warning and info) from the same line of the code that, arriving
+/// within a time window of --repeatedInterval seconds, make the next ones be suppressed for ever (default 10,
+/// 0: no suppression; interval default 10 s, 0: a single window for the whole execution); with verbose debug
+/// none is suppressed
 /// --r sets the referenceFileName of a process of the TRestDataSetProcessManager (repeatable), e.g.
 /// --r calib=D_00120_00122_Calibration.root
 
@@ -96,6 +98,20 @@ int main(int argc, char** argv) {
                 return 1;
             }
             TRestLogManager::setMaxRepeated(maxRepeated);
+        } else if (arg == "--repeatedInterval" && i + 1 < argc) {
+            const std::string value = argv[++i];
+            size_t end = 0;
+            double interval = -1;
+            try {
+                interval = std::stod(value, &end);
+            } catch (const std::exception&) {
+            }
+            if (!(interval >= 0) || end != value.size()) {
+                std::cerr << "[ERROR] --repeatedInterval needs a number of seconds >= 0, not '" << value
+                          << "'\n";
+                return 1;
+            }
+            TRestLogManager::setRepeatedInterval(interval);
         } else if (arg == "--set" && i + 1 < argc) {
             try {
                 TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
@@ -108,7 +124,7 @@ int main(int argc, char** argv) {
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
                          " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
-                         " [--set <name>=<value>] [--maxRepeated <n>]\n";
+                         " [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]\n";
             return 1;
         }
     }
@@ -118,7 +134,7 @@ int main(int argc, char** argv) {
                   << " --c|--config <config.yaml> [--i|--input <input.root>]"
                      " [--o|--output <output.root>] [--v|--verbose <level>]"
                      " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
-                     " [--set <name>=<value>] [--maxRepeated <n>]\n";
+                     " [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]\n";
         return 1;
     }
 

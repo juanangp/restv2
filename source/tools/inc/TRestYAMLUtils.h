@@ -20,7 +20,9 @@ YAML::Node OpenConfigFile(const std::string& fileName,
                           const std::map<std::string, std::string>& overrides = {});
 /// \brief Node with `${ENV:VAR}` replaced by the environment variable VAR (empty if it is not defined),
 /// `${PARAM:name}` by the parameter `name` and `${a.b}` by the scalar at the path a.b of the node. Throws if
-/// a reference is not found or is not a scalar.
+/// a reference is not found or is not a scalar. The replaced values of `${PARAM:name}` and `${a.b}` are
+/// resolved again (they can have references); a reference that contains itself (e.g. `a: "${a}"`) throws
+/// (more than 1000 substitutions in a value). Thread safe (the parameters are global, see GetParameters).
 ///
 /// Parameters: the section `parameters` at the root of the configuration, name: value (a number, with units
 /// or not, or a text) or `${ENV:VAR}`, e.g.
@@ -34,11 +36,14 @@ YAML::Node OpenConfigFile(const std::string& fileName,
 /// `overrides` (the `--set name=value` of the executables) replace their values for this execution (the
 /// file is not changed); a name that is not in `parameters` is an error. The section is removed from the
 /// returned node (the configurations stored are the resolved ones); its values are kept as the current
-/// parameters (GetParameters), those of the last configuration resolved.
-YAML::Node ResolveRefs(const YAML::Node& root, const std::map<std::string, std::string>& overrides = {});
+/// parameters (GetParameters), those of the last configuration resolved, unless setCurrentParameters is false
+/// (another file read by a metadata, TRestMetadata(fileName, section): the parameters of the main
+/// configuration and those used are kept).
+YAML::Node ResolveRefs(const YAML::Node& root, const std::map<std::string, std::string>& overrides = {},
+                       bool setCurrentParameters = true);
 /// \brief The parameters of the last configuration resolved (ResolveRefs): name -> value as written, with
-/// `${ENV:VAR}` and the overrides applied
-const std::map<std::string, std::string>& GetParameters();
+/// `${ENV:VAR}` and the overrides applied (a copy: thread safe)
+std::map<std::string, std::string> GetParameters();
 /// \brief Marks a parameter as used (by the configuration or the GDML), for CheckParametersUsed
 void MarkParameterUsed(const std::string& name);
 /// \brief Throws if a parameter of the last configuration resolved is not used, by the configuration nor by

@@ -7,8 +7,10 @@
 /// the channel (GetChannelFromPosition), and arrives at time + distance / driftVelocity. The drift velocity
 /// is the one of the TRestDetectorMedium at its drift field, unless driftVelocity is given.
 /// Hits outside the drift volume (distance < 0 or beyond the cathode, GetMaxDistanceToReadout) or without
-/// channel are rejected (fiducialization), and counted in the observable NHitsRejected. For readouts without
-/// a distance (e.g. a PMT) the channel is the one at the hit position and the time is the hit time.
+/// channel are rejected (fiducialization), and counted in the observable NHitsRejected. A readout without
+/// maximum distance (NaN, e.g. a Micromegas readout without gasThickness) has no cathode: no upper cut. For
+/// readouts without a distance (e.g. a PMT) the channel is the one at the hit position and the time is the
+/// hit time.
 ///
 /// With sampling > 0 the arrival times are rounded down to multiples of it (fewer points per signal);
 /// otherwise the times are exact. Events without signals are rejected.
@@ -139,7 +141,9 @@ bool TRestDetectorHitsToSignalProcess::ProcessEvent(const TRestEvent& input, TRe
 
         const double distance = fReadout->GetDistanceToReadout(position);
         if (!std::isnan(distance)) {
-            if (distance < 0 || distance > fReadout->GetMaxDistanceToReadout(position)) {
+            // NaN maximum distance: no cathode, no upper cut
+            const double maxDistance = fReadout->GetMaxDistanceToReadout(position);
+            if (distance < 0 || (!std::isnan(maxDistance) && distance > maxDistance)) {
                 fNHitsRejected++;
                 continue;
             }

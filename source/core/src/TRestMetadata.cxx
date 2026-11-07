@@ -18,7 +18,8 @@ TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& 
 TRestMetadata::TRestMetadata(const std::string& fileName, const std::string& sectionName)
     : fConfigFileName(fileName), fSectionName(sectionName) {
     YAML::Node raw = YAML::LoadFile(fileName);
-    YAML::Node cfg = TRestYAMLUtils::ResolveRefs(raw);
+    // Its own parameters, without replacing those of the main configuration
+    YAML::Node cfg = TRestYAMLUtils::ResolveRefs(raw, {}, false);
     fNode = cfg[sectionName];
     if (fNode) {
         fName = TRestYAMLUtils::ReadParamOrDefault<std::string>(fNode, "name", sectionName);
@@ -86,7 +87,6 @@ void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
 }
 
 YAML::Node TRestMetadata::ReadMetadata(TFile* file, const std::string& instanceName) {
-    if (!file || file->IsZombie()) return YAML::Node();
     if (!file || file->IsZombie()) return YAML::Node();
 
     file->cd();

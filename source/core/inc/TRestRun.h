@@ -31,6 +31,18 @@ class TRestRun : public TRestRunInfo {
     /// type `type` (see GetObservable)
     const void* GetObservableAddress(const std::string& name, const std::type_info& type) const;
 
+    /// Pointers to the objects bound to the observable branches (SetObservable of a non-fundamental type),
+    /// owned here so they live as long as the output analysis tree
+    std::vector<std::shared_ptr<void>> fObservablePointers;  //!
+
+    /// Whether the output analysis tree copies the observables of the input analysis tree (see
+    /// SetInputAnalysisStorage)
+    bool fInputAnalysisStorage = true;  //!
+
+    /// \brief Whether the output analysis tree is a copy of the input one (input analysis tree and
+    /// fInputAnalysisStorage)
+    bool CopiesInputAnalysisTree() const { return fAnalysisTree && fInputAnalysisStorage; }
+
    public:
     std::string fInputFileName = "Null";
     /// Output file; "/dev/null" (default, also "Null" or empty) for no output: the pipeline runs but
@@ -78,7 +90,8 @@ class TRestRun : public TRestRunInfo {
 
     void FormOutputFile();
 
-    /// \brief Parameters in the name of the input file, from the [parameter] of inputFormat.
+    /// \brief Parameters in the name of the input file, from the [parameter] of inputFormat (its file name,
+    /// without directories; the rest is literal). Throws if the name of the input file does not match it.
     /// \return Parameter name (e.g. runNumber, runInfo.meshVoltage) and value as written in the name.
     std::map<std::string, std::string> ParseInputFormat() const;
 
@@ -133,13 +146,19 @@ class TRestRun : public TRestRunInfo {
     /// \brief Sets the last saved event type of the output file and mirrors it into the YAML node.
     void SetOutputEvent(const std::string& v);
 
-    /// \brief Opens input ROOT file and initializes input tree bindings.
+    /// \brief Opens input ROOT file and initializes input tree bindings. Throws if the file is not a REST
+    /// run file (nothing is done for an empty name or if a file is already open).
     /// \param filename Input file path.
     void OpenInputFile(const std::string& filename);
 
     bool IsOpen() const { return fInputFile && !fInputFile->IsZombie(); }
     /// \brief Input ROOT file, or nullptr if none is open.
     TFile* GetInputFile() const { return fInputFile.get(); }
+
+    /// \brief Whether the output analysis tree copies the observables of the input file (default true).
+    /// When false, it only has the event info branches and the observables of the processes (as without
+    /// input analysis tree). Must be set before OpenOutputFile.
+    void SetInputAnalysisStorage(bool store) { fInputAnalysisStorage = store; }
 
     /// \brief Opens output ROOT file and creates output trees.
     void OpenOutputFile(std::string fileName = "", const std::string& option = "RECREATE");
@@ -216,8 +235,8 @@ class TRestRun : public TRestRunInfo {
         if (fOutputBasketSize > 0) fOutputEventTrees[className]->SetBasketSize("*", fOutputBasketSize);
 
         // Event info branches of the analysis tree only once, bound to the first registered event (the
-        // following ones copy its info); with an input analysis tree they are cloned from it
-        if (fOutputAnalysisTree && !fAnalysisTree && !fOutputAnalysisTree->GetBranch("eventID")) {
+        // following ones copy its info); with an input analysis tree copied they are cloned from it
+        if (fOutputAnalysisTree && !CopiesInputAnalysisTree() && !fOutputAnalysisTree->GetBranch("eventID")) {
             eventObject.TRestEvent::CreateBranches(fOutputAnalysisTree);
         }
     }
@@ -237,7 +256,9 @@ class TRestRun : public TRestRunInfo {
             else
                 fOutputAnalysisTree->SetBranchAddress(name.c_str(), &variable);
         } else {
-            T** ptr = new T*(&variable);
+            auto holder = std::make_shared<T*>(&variable);
+            fObservablePointers.push_back(holder);
+            T** ptr = holder.get();
             if (!branch) {
                 fOutputAnalysisTree->Branch(name.c_str(), ptr);
             } else {
@@ -246,7 +267,8 @@ class TRestRun : public TRestRunInfo {
         }
     }
     /// \brief Current value of an observable of the analysis tree. While processing (output analysis tree),
-    /// of the input file or registered by a previous process (e.g. `g4Ana_gas_FirstHitTime`); reading a
+    /// of the input file (not with inputAnalysisStorage: false, see SetInputAnalysisStorage) or registered by
+    /// a previous process (e.g. `g4Ana_gas_FirstHitTime`); reading a
     /// file without output (macros, browser), of the input file, with the entry of GetEntry. The reference
     /// is bound to the data of the branch (the input tree buffer or the variable of the process), so it can
     /// be taken once (e.g. in InitProcess, after the previous processes are initialized) and gives the value

@@ -2,6 +2,9 @@
 
 #include <TGeoManager.h>
 
+#include <charconv>
+#include <stdexcept>
+
 #include "TRestTools.h"
 
 namespace REST_Units {
@@ -33,8 +36,9 @@ double ParseUnit(const std::string& UnitsExpr) {
         std::string base = cleanExpr.substr(startBase, i - startBase);
 
         if (base.empty()) {
-            RESTError << "ERROR: Invalid format in position " << i << " in: " << UnitsExpr << RESTendl;
-            break;
+            throw std::invalid_argument("invalid units '" + UnitsExpr +
+                                        "': unexpected character at position " + std::to_string(i) + " of '" +
+                                        cleanExpr + "'");
         }
 
         int exp = 1;
@@ -50,17 +54,15 @@ double ParseUnit(const std::string& UnitsExpr) {
             try {
                 exp = std::stoi(cleanExpr.substr(startExp, i - startExp));
             } catch (...) {
-                RESTError << "ERROR: invalid exponent: " << UnitsExpr << RESTendl;
+                throw std::invalid_argument("invalid units '" + UnitsExpr + "': invalid exponent");
             }
         }
 
         auto it = REST_Units_Map.find(base);
-        double unitFactor = 1.0;
         if (it == REST_Units_Map.end()) {
-            RESTError << "ERROR: Unit '" << base << "' not found" << RESTendl;
-        } else {
-            unitFactor = std::pow(it->second.second, exp);
+            throw std::invalid_argument("invalid units '" + UnitsExpr + "': unknown unit '" + base + "'");
         }
+        const double unitFactor = std::pow(it->second.second, exp);
 
         if (currentMultiply) {
             totalFactor *= unitFactor;
@@ -73,13 +75,23 @@ double ParseUnit(const std::string& UnitsExpr) {
 }
 
 std::optional<double> ParseValueWithUnits(const std::string& text) {
-    std::istringstream stream(text);
+    // std::from_chars (locale independent) takes the longest number: "10eV" is 10 and "eV" (an incomplete
+    // exponent is not part of the number), which a stream (>> double) fails to read
+    const char* begin = text.data();
+    const char* end = text.data() + text.size();
+    while (begin != end && std::isspace(static_cast<unsigned char>(*begin))) begin++;
+    if (begin != end && *begin == '+') begin++;  // from_chars does not accept '+'
     double value = 0;
-    if (!(stream >> value)) return std::nullopt;
-    std::string units;
-    std::getline(stream, units);
-    units = TRestTools::Trim(units);
-    if (!units.empty()) value *= ParseUnit(units);
+    const auto [rest, error] = std::from_chars(begin, end, value);
+    if (error != std::errc() || rest == begin) return std::nullopt;
+    const std::string units = TRestTools::Trim(std::string(rest, end));
+    if (!units.empty()) {
+        try {
+            value *= ParseUnit(units);
+        } catch (const std::invalid_argument&) {
+            return std::nullopt;
+        }
+    }
     return value;
 }
 

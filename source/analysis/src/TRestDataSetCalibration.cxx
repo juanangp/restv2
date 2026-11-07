@@ -2,6 +2,7 @@
 
 #include <TDirectory.h>
 
+#include <cmath>
 #include <stdexcept>
 #include <tuple>
 
@@ -20,7 +21,8 @@
 /// The position of the peaks is estimated from the maximum of the spectrum, which should be the first
 /// peak: each peak is fitted in ±window (15%) of its estimated position, or in its `range` if it is given.
 /// The fits are made with TRestPeakFit (RooFit): a gaussian (as legacy) or a Crystal Ball, optionally
-/// with a constant or linear background under the peak.
+/// with a constant or linear background under the peak. A peak whose fit gives no finite position is not
+/// used for the linear fit (with a warning); it throws if no peak is left or the linear fit fails.
 ///
 /// ### Parameters
 /// * observable: the observable calibrated.
@@ -211,12 +213,26 @@ void TRestDataSetCalibration::ComputeParameters(const TRestDataSet&, ROOT::RDF::
         peak.fFitParameters = YAML::Node(YAML::NodeType::Map);
         for (const auto& [parameter, value] : fit.parameters)
             peak.fFitParameters[parameter] = std::vector<double>{value.first, value.second};
+        // A failed fit (mean not finite) is not used for the linear fit
+        if (!std::isfinite(fit.mean)) {
+            RESTWarning << "TRestDataSetCalibration '" << fName << "': the position of the peak " << energy
+                        << " keV is not finite (" << fit.mean << "), not used for the linear fit" << RESTendl;
+            continue;
+        }
         fLinearFit->SetPoint(fLinearFit->GetN(), fit.mean, energy);
         RESTDebug << "  peak " << energy << " keV fitted in (" << start << ", " << end << "): " << fit.mean
                   << RESTendl;
     }
+    if (fLinearFit->GetN() == 0) {
+        throw std::runtime_error("TRestDataSetCalibration '" + fName +
+                                 "': no peak could be fitted, no linear fit is possible");
+    }
     if (fZeroPoint) fLinearFit->SetPoint(fLinearFit->GetN(), 0, 0);
-    std::tie(fIntercept, fSlope) = TRestPeakFit::FitLine(*fLinearFit);
+    try {
+        std::tie(fIntercept, fSlope) = TRestPeakFit::FitLine(*fLinearFit);
+    } catch (const std::exception& error) {
+        throw std::runtime_error("TRestDataSetCalibration '" + fName + "': " + error.what());
+    }
     UpdateYAMLFromParams<TRestDataSetCalibration>(fNode);
 
     RESTInfo << "TRestDataSetCalibration '" << fName << "': energy = " << fSlope << " * " << fObservable

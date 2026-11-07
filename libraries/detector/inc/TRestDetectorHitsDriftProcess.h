@@ -38,7 +38,8 @@ class TRestDetectorHitsDriftProcess : public TRestEventProcess {
     /// several (as legacy, an effective W-value), to limit the processing time.
     int fMaxHits = 1000;
 
-    /// Seed of the random generator (0: random seed)
+    /// Seed of the random generator (0: random seed). Otherwise the generator is re-seeded at each event
+    /// with TRestDetectorHitsEvent::EventSeed (seed, event and subevent IDs): independent of the threads.
     unsigned long fSeed = 0;
 
     /// Written with the transport used, from the medium at its drift field (not inputs): longitudinal and

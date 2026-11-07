@@ -58,17 +58,20 @@ void TRestEventViewer::Embed(TBrowser* b) {
 void TRestEventViewer::AddEvent(TRestEvent* ev) { fEvent = ev; }
 
 void TRestEventViewer::Plot(const char* option) {
-    if (fPad == nullptr) fPad = new TPad();
+    // The pad is the one of the event (DrawEvent), owned by it: the viewer does not create nor delete it
     if (fEvent != nullptr) {
         fPad = fEvent->DrawEvent(option);
         fCanvas->cd();
-        fPad->Draw();
-        fPad->Update();
+        if (fPad != nullptr) {
+            fPad->Draw();
+            fPad->Update();
+        }
         fCanvas->Update();
     } else {
+        // Without event the pad of the previous one may be deleted: only the canvas is cleared
+        fPad = nullptr;
         fCanvas->cd();
-        fPad->Clear();
-        fPad->Update();
+        fCanvas->Clear();
         fCanvas->Update();
     }
 }

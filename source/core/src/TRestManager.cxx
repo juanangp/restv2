@@ -3,6 +3,7 @@
 #include <TFile.h>
 #include <TFileMerger.h>
 
+#include <exception>
 #include <filesystem>
 #include <stdexcept>
 #include <string_view>
@@ -187,8 +188,10 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
 
     long long totalEntries = fProcessManager->fEventsToProcess;
 
-    if (totalEntries <= 0) {
-        totalEntries = fRunInfo->GetEntries();
+    // Not beyond the entries of the input file
+    const long long inputEntries = fRunInfo->GetEntries();
+    if (totalEntries <= 0 || (inputEntries > 0 && totalEntries > inputEntries)) {
+        totalEntries = inputEntries;
     }
 
     if (totalEntries <= 0) {
@@ -219,44 +222,89 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
     }
 
     std::vector<std::string> threadOutputs(nThreads);
+    // Entries saved by each thread (their runs fill, not this one), and the exception of each thread: an
+    // exception escaping a std::thread would terminate the program
+    std::vector<long long> threadEntriesSaved(nThreads, 0);
+    std::vector<std::exception_ptr> threadErrors(nThreads);
+    const bool stopRequestedBefore = StopRequested();
     std::vector<std::thread> workers;
 
     for (unsigned int t = 0; t < nThreads; ++t) {
         threadOutputs[t] = (dir.empty() ? "" : dir + "/") + stem + ".thread" + std::to_string(t) + ext;
         if (nullOutput) threadOutputs[t] = baseOutput;
 
-        workers.emplace_back([this, t, &ranges, &threadOutputs] {
-            YAML::Node threadManagerNode = YAML::Clone(fNode);
+        workers.emplace_back([this, t, &ranges, &threadOutputs, &threadEntriesSaved, &threadErrors] {
+            try {
+                YAML::Node threadManagerNode = YAML::Clone(fNode);
 
-            auto [runKey, runNode] = TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestRun");
-            auto [pipeKey, pipeNode] =
-                TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestEventProcessManager");
-            if (!runNode || runNode.IsNull() || !pipeNode || pipeNode.IsNull()) {
-                throw std::runtime_error("TRestManager::RunMultithreaded - run/pipeline no encontrados");
+                auto [runKey, runNode] = TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestRun");
+                auto [pipeKey, pipeNode] =
+                    TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestEventProcessManager");
+                if (!runNode || runNode.IsNull() || !pipeNode || pipeNode.IsNull()) {
+                    throw std::runtime_error("TRestManager::RunMultithreaded - run/pipeline no encontrados");
+                }
+
+                TRestYAMLUtils::OverrideParam(runNode, "outputFileName", threadOutputs[t]);
+                TRestYAMLUtils::OverrideParam(pipeNode, "nThreads", std::string("1"));
+
+                TRestManager threadManager(GetName(), threadManagerNode);
+
+                auto* threadRun = threadManager.GetRunInfo();
+                auto* threadPipeline = dynamic_cast<TRestEventProcessManager*>(
+                    threadManager.GetMetadataClass("TRestEventProcessManager"));
+                if (!threadRun || !threadPipeline) {
+                    throw std::runtime_error(
+                        "TRestManager::RunMultithreaded - cannot get retreive TRestEventProcessManager");
+                }
+
+                threadPipeline->SetEntryRange(ranges[t].first, ranges[t].second);
+                threadPipeline->SetManager(&threadManager);
+                threadPipeline->Run();
+
+                threadEntriesSaved[t] = threadRun->GetEntriesSaved();
+                threadRun->CloseFiles();
+            } catch (...) {
+                threadErrors[t] = std::current_exception();
+                // The other threads stop at their next entry
+                RequestStop();
             }
-
-            TRestYAMLUtils::OverrideParam(runNode, "outputFileName", threadOutputs[t]);
-            TRestYAMLUtils::OverrideParam(pipeNode, "nThreads", std::string("1"));
-
-            TRestManager threadManager(GetName(), threadManagerNode);
-
-            auto* threadRun = threadManager.GetRunInfo();
-            auto* threadPipeline = dynamic_cast<TRestEventProcessManager*>(
-                threadManager.GetMetadataClass("TRestEventProcessManager"));
-            if (!threadRun || !threadPipeline) {
-                throw std::runtime_error(
-                    "TRestManager::RunMultithreaded - cannot get retreive TRestEventProcessManager");
-            }
-
-            threadPipeline->SetEntryRange(ranges[t].first, ranges[t].second);
-            threadPipeline->SetManager(&threadManager);
-            threadPipeline->Run();
-
-            threadRun->CloseFiles();
         });
     }
 
     for (auto& w : workers) w.join();
+
+    // The first error is thrown, before merging; the outputs of the threads are removed
+    std::exception_ptr firstError;
+    for (unsigned int t = 0; t < nThreads; ++t) {
+        if (!threadErrors[t]) continue;
+        if (!firstError) firstError = threadErrors[t];
+        try {
+            std::rethrow_exception(threadErrors[t]);
+        } catch (const std::exception& error) {
+            RESTError << "TRestManager::RunMultithreaded: thread " << t << " failed: " << error.what()
+                      << RESTendl;
+        } catch (...) {
+            RESTError << "TRestManager::RunMultithreaded: thread " << t << " failed (unknown exception)"
+                      << RESTendl;
+        }
+    }
+    if (firstError) {
+        // The stop was requested by the failing thread, not by the user
+        if (!stopRequestedBefore) ResetStopRequest();
+        if (!nullOutput) {
+            std::error_code error;
+            for (const auto& f : threadOutputs) std::filesystem::remove(f, error);
+        }
+        RESTError << "TRestManager::RunMultithreaded: a thread failed, the output of the threads is not "
+                     "merged"
+                  << RESTendl;
+        std::rethrow_exception(firstError);
+    }
+
+    // The entries saved by this run (written with its metadata) are the ones of the threads
+    long long entriesSaved = 0;
+    for (const auto entries : threadEntriesSaved) entriesSaved += entries;
+    fRunInfo->SetEntriesSaved(entriesSaved);
 
     if (nullOutput) return;
 

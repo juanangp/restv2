@@ -95,15 +95,15 @@ void TRestGDMLReadout::BuildGeometry() {
         throw std::runtime_error("TRestGDMLReadout: fNode is not initialized!");
     }
 
-    if (fGeoManager) {
-        delete fGeoManager;
-        fGeoManager = nullptr;
-    }
+    ReleaseGeometry();
 
     fPathToPhysicalIDMap.clear();
     fPhysicalIDToReadoutPath.clear();
     fReadoutPositions.clear();
-    if (!LoadDecoding(fDecodingFile)) RESTError << "Decoding file not found " << RESTendl;
+    if (!LoadDecoding(fDecodingFile)) {
+        throw std::runtime_error("TRestGDMLReadout::BuildGeometry - cannot load the decoding file '" +
+                                 fDecodingFile + "' (not found or without channels)");
+    }
 
     RESTInfo << "Importing external GDML layout file: " << fReadoutParams.fGDMLFileName << RESTendl;
 

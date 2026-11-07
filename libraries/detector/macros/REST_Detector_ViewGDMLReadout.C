@@ -36,7 +36,11 @@ void REST_Detector_ViewGDMLReadout(const std::string& instanceName = "Veto_Reado
         throw std::runtime_error("Cannot cast to TRestDetectorReadout.");
     }
 
-    readout->Import(fIn, instanceName, decodingName);
+    if (!readout->Import(fIn, instanceName, decodingName)) {
+        std::cerr << "[-] Cannot import the readout '" << instanceName << "' with the decoding '"
+                  << decodingName << "' from " << inputFile << std::endl;
+        return;
+    }
     readout->PrintMetadata();
 
     std::cout << "\n--- TESTING SPATIAL LOOKUP ---" << std::endl;

@@ -26,7 +26,8 @@ class TRestDetectorAvalancheProcess : public TRestEventProcess {
     std::string fMediumName = "";
     /// Key of the amplification table. Only needed if the medium has several with the gap
     std::string fTable = "";
-    /// Seed of the random generator (0: random seed)
+    /// Seed of the random generator (0: random seed). Otherwise the generator is re-seeded at each event
+    /// with TRestDetectorHitsEvent::EventSeed (seed, event and subevent IDs): independent of the threads.
     unsigned long fSeed = 0;
 
     /// Written with the values used (not inputs): mean gain and Polya parameter at the field

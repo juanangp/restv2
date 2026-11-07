@@ -58,10 +58,11 @@ TRestEveEventViewer::TRestEveEventViewer() {
 }
 
 TRestEveEventViewer::~TRestEveEventViewer() {
-    delete fEnergyDeposits;
-    // TRestEveEventViewer destructor
+    // DeleteCurrentEvent deletes the energy deposits and creates new empty ones (not added to the scene)
     DeleteCurrentEvent();
     DeleteGeometry();
+    delete fEnergyDeposits;
+    fEnergyDeposits = nullptr;
 }
 
 void InitializePerspectiveView() {

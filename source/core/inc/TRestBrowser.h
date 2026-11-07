@@ -76,6 +76,9 @@ class TRestBrowser {
     void SetBottomPanelButtons();
     bool LoadEventId(int eventID, int subEventID = -1);
     bool LoadEventEntry(int n);
+    /// \brief Loads the next (step 1) or previous (step -1) entry, the next one passing the selection
+    /// (selection box, an expression of the observables of the analysis tree) if it is not empty.
+    void SelectEvent(int step);
 
    public:
     // tool method

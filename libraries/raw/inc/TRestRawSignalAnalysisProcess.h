@@ -9,6 +9,13 @@ class TRestRawSignalEvent;
 /// \class TRestRawSignalAnalysisProcess
 /// \brief Computes pulse-shape observables for each signal inside a raw signal event.
 ///
+/// A signal is "good" (counted in NGoodSignals and used for the event-level sums, extrema and
+/// averages) when it has at least 2 points over threshold (legacy criterion). Signals without points
+/// over threshold get 0 peak time and amplitude; a maximum found outside the signal is also set to 0.
+/// Saturated uses the legacy flat-top criterion (TRestRawSignal::IsADCSaturation with 3 flat bins).
+/// Events without good signals get 0 in MinPeakAmplitude, MinEventValue and MinPeakTime, and ratios
+/// with a null denominator (RateOfChangeAvg, IntegralBalance) are set to 0.
+///
 class TRestRawSignalAnalysisProcess : public TRestEventProcess {
    private:
     struct SignalObservables {

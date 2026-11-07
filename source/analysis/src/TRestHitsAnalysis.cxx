@@ -3,6 +3,10 @@
 #include <TF1.h>
 #include <TFitResult.h>
 #include <TGraphErrors.h>
+#include <TMatrixD.h>
+#include <TMatrixDSym.h>
+#include <TMatrixDSymEigen.h>
+#include <TVectorD.h>
 
 #include <algorithm>
 #include <cmath>
@@ -184,33 +188,25 @@ bool FitLine(const std::vector<XYZVector>& points, const std::vector<double>& en
             for (int b = 0; b < 3; b++) covariance[a][b] += w * c[a] * c[b];
         }
     }
-    auto multiply = [&covariance](const XYZVector& v) {
-        const double c[3] = {v.X(), v.Y(), v.Z()};
-        double r[3] = {};
-        for (int a = 0; a < 3; a++) {
-            for (int b = 0; b < 3; b++) r[a] += covariance[a][b] * c[b];
-        }
-        return XYZVector(r[0], r[1], r[2]);
-    };
-
-    // Direction of largest spread (principal eigenvector, power iteration), starting from the column of
-    // the covariance with the largest norm, which is not orthogonal to it. A single point gives no
-    // direction
-    axis = XYZVector();
+    // Direction of largest spread: eigenvector of the largest eigenvalue (TMatrixDSymEigen sorts them in
+    // descending order), with the sign of the column of the covariance with the largest norm. A single
+    // point (no spread) gives no direction
+    TMatrixDSym matrix(3);
     for (int a = 0; a < 3; a++) {
-        const XYZVector column(covariance[0][a], covariance[1][a], covariance[2][a]);
-        if (column.R() > axis.R()) axis = column;
+        for (int b = 0; b < 3; b++) matrix(a, b) = covariance[a][b];
     }
-    if (axis.R() > 0) {
-        axis = axis.Unit();
-        for (int it = 0; it < 100; it++) {
-            const XYZVector next = multiply(axis);
-            if (next.R() == 0) break;
-            const XYZVector unit = next.Unit();
-            const bool converged = (unit - axis).R() < 1e-12;
-            axis = unit;
-            if (converged) break;
+    const TMatrixDSymEigen eigen(matrix);
+    const TVectorD& eigenValues = eigen.GetEigenValues();
+    const TMatrixD& eigenVectors = eigen.GetEigenVectors();
+    axis = XYZVector();
+    if (eigenValues[0] > 0) {
+        axis = XYZVector(eigenVectors(0, 0), eigenVectors(1, 0), eigenVectors(2, 0)).Unit();
+        XYZVector largestColumn;
+        for (int a = 0; a < 3; a++) {
+            const XYZVector column(covariance[0][a], covariance[1][a], covariance[2][a]);
+            if (column.R() > largestColumn.R()) largestColumn = column;
         }
+        if (axis.Dot(largestColumn) < 0) axis = -axis;
     }
     return true;
 }
@@ -219,6 +215,12 @@ bool FitLine(const std::vector<XYZVector>& points, const std::vector<double>& en
 std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vector<XYZVector>& points,
                                                                  double distance,
                                                                  const std::array<bool, 3>& coordinates) {
+    // distance <= 0 (or NaN): no points are joined, every point is a cluster
+    if (!(distance > 0)) {
+        std::vector<std::vector<size_t>> clusters(points.size());
+        for (size_t n = 0; n < points.size(); n++) clusters[n] = {n};
+        return clusters;
+    }
     const double maxDistance2 = distance * distance;
     auto distance2 = [&](size_t a, size_t b) {
         double d2 = 0;
@@ -231,9 +233,8 @@ std::vector<std::vector<size_t>> TRestHitsAnalysis::FindClusters(const std::vect
     };
 
     // Cells of side distance along the enabled coordinates (0 along the others): the points closer than
-    // distance to a point are in its cell or in the adjacent ones. With distance <= 0 no points are
-    // joined, whatever the cell size
-    const double cellSize = distance > 0 ? distance : 1.;
+    // distance to a point are in its cell or in the adjacent ones
+    const double cellSize = distance;
     auto getCell = [&](size_t n) { return GetCell(points[n], cellSize, coordinates); };
 
     std::unordered_map<Cell, std::vector<size_t>, CellHash> cells;
@@ -566,14 +567,16 @@ double TRestHitsAnalysis::GetGaussSigma(const std::vector<double>& values,
     TF1 fit("", "gaus");
     fit.SetParameter(0, *maxIt);
     fit.SetParameter(1, x[maxIt - y.begin()]);
-    fit.SetParameter(2, (x.back() - x.front()) / 2.0);
+    // The values are not sorted: the extent is given by their minimum and maximum (with the added points)
+    const double extent = addPoints ? xMax - xMin + 1.0 : xMax - xMin;
+    fit.SetParameter(2, extent / 2.0);
 
     // Q: quiet; N: no plot; B: given start parameters; S: return the fit result
     TFitResultPtr fitResult = graph.Fit(&fit, "QNBS");
-    if (!fitResult->IsValid()) return -1;
+    if (!fitResult.Get() || !fitResult->IsValid()) return -1;
     // A sigma beyond the extent of the points is a diverged fit (a flat gaussian)
     const double sigma = std::abs(fit.GetParameter(2));
-    return sigma <= x.back() - x.front() ? sigma : -1;
+    return sigma <= extent ? sigma : -1;
 }
 
 double TRestHitsAnalysis::GetTwist(const std::vector<XYZVector>& points, size_t n, size_t m) {

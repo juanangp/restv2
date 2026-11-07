@@ -37,6 +37,7 @@ set(ROOT_REQUIRED_LIBRARIES
     Graf
     Hist
     Physics
+    Matrix
     Geom
     Gui
     Eve

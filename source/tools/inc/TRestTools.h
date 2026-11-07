@@ -50,8 +50,14 @@ TGeoManager* ReadGeometryCopy(TDirectory* folder, const std::string& key = "Geom
 /// written before), computed reading the geometry (slow; the current gGeoManager is kept). Empty if the
 /// folder has no geometry.
 std::string ReadGeometryHash(TDirectory* folder, const std::string& key = "Geometry");
+/// \brief Deletes a geometry (e.g. one of ReadGeometryCopy) with the same lock as ReadGeometry: ~TGeoManager
+/// sets gGeoManager and gGeoIdentity to nullptr, so they are restored afterwards unless the deleted geometry
+/// was the current one (gGeoIdentity is taken from the current geometry if it belonged to the deleted one).
+/// nullptr does nothing. Use it instead of `delete` (or a std::unique_ptr) for any TGeoManager.
+void DeleteGeometry(TGeoManager* geometry);
 /// \brief Local copy of a URL (curl), cached in $REST_HOME/.rest/download (or $HOME) and reused if it is
-/// already there; throws if it cannot be downloaded
+/// already there; throws if it cannot be downloaded or if the URL has characters that are not safe in a
+/// shell command (', $, `, \, spaces, control characters...: only the RFC 3986 ones) or no scheme (http://)
 std::string DownloadFile(const std::string& url);
 std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
 std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);

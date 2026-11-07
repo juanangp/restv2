@@ -7,6 +7,11 @@
 ///
 /// The fit range is the span of the points over threshold of each signal plus fitMargin bins on each side.
 ///
+/// Signals whose maximum is below minSaturationValue are skipped unless processAllSignals is true. With
+/// processAllSignals, signals with fewer than minSaturatedBins flat bins at the maximum are also processed:
+/// the nBinsIfNotSaturated bins around the maximum are replaced by the fit values (each bin is moved by
+/// the difference between the fit and its own value). Recovered values are clamped to the short range.
+///
 /// Parameters: minSaturatedBins (3), minSaturationValue (4095), processAllSignals (false),
 /// nBinsIfNotSaturated (20), baselineRange ([5,55]), baselineOption (""), pointsThreshold (2),
 /// signalThreshold (5), pointsOverThreshold (5), fitMargin (20), nPointsFlat (512).
@@ -24,6 +29,7 @@
 #include "TRestRawSignalRecoverSaturationProcess.h"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <memory>
 
@@ -134,7 +140,7 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
         std::vector<int> saturatedBins;
         for (int i = maxPeakBin; i < nPoints && data[i] == maxValue; i++) saturatedBins.push_back(i);
 
-        if (maxValue < fMinSaturationValue) continue;
+        if (maxValue < fMinSaturationValue && !fProcessAllSignals) continue;
 
         if ((int)saturatedBins.size() < fMinSaturatedBins && !fProcessAllSignals) {
             skip(signal, "only " + std::to_string(saturatedBins.size()) + " consecutive bins at maximum " +
@@ -211,11 +217,14 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
 
         bool anyBinRecovered = false;
         double signalAddedAmplitude = 0, signalAddedIntegral = 0;
-        std::vector<short> deltas(nPoints, 0);
+        std::vector<int> deltas(nPoints, 0);
         for (int b : saturatedBins) {
-            const double value = fit->Eval(b) - maxValue;
+            // Difference to each bin value (the window of processAllSignals is not flat), keeping the
+            // recovered value within the range of a short sample
+            const double value =
+                std::clamp(fit->Eval(b) - data[b], (double)SHRT_MIN - data[b], (double)SHRT_MAX - data[b]);
             if (value > 0 || fProcessAllSignals) {
-                deltas[b] = (short)value;
+                deltas[b] = (int)value;
                 anyBinRecovered = true;
                 signalAddedIntegral += value;
                 signalAddedAmplitude = std::max(signalAddedAmplitude, value);
@@ -228,7 +237,7 @@ bool TRestRawSignalRecoverSaturationProcess::ProcessEvent(const TRestEvent& inpu
         }
 
         for (int b : saturatedBins) {
-            if (deltas[b] != 0) signal.IncreaseBinBy(b, deltas[b]);
+            if (deltas[b] != 0) signal.IncreaseBinByClamped(b, deltas[b]);
         }
         fObs.SignalsIDsRecovered.push_back(signal.GetSignalID());
         fObs.SignalsRecovered++;

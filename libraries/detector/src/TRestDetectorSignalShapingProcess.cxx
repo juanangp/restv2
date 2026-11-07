@@ -11,9 +11,11 @@
 /// TRestPulseShapeAnalysis::ShapingFunction: gaus (sigma shapingTime, centred), exponential, shaper and
 /// shaperSin (AGET response, time constant shapingTime).
 ///
-/// The shaped signal is a waveform evaluated on a fine grid (multiples of shapingTime / 10) from the first
-/// point to the end of the response of the last one. The sampling of the electronics is given only in
-/// TRestDetectorSignalToRawSignalProcess, in `sample` mode, which interpolates the waveform.
+/// The shaped signal is a waveform evaluated on a fine grid (multiples of shapingTime / 10) covering the
+/// response of each point, only on the union of their supports: between groups of points far apart in time
+/// (e.g. Geant4 delayed decays) there are no grid points (the response is negligible at the ends of its
+/// support). The sampling of the electronics is given only in TRestDetectorSignalToRawSignalProcess, in
+/// `sample` mode, which interpolates the waveform.
 ///
 /// Difference with TRestRawSignalShapingProcess (for data, in bins): the raw response is normalized so that
 /// its samples add up to gain, which depends on the sampling.
@@ -133,32 +135,43 @@ bool TRestDetectorSignalShapingProcess::ProcessEvent(const TRestEvent& input, TR
 
     for (int s = 0; s < inputEvent->GetNumberOfSignals(); s++) {
         const auto& signal = inputEvent->GetSignal(s);
-        const auto points = signal.GetPointsVector();
+        auto points = signal.GetPointsVector();
         if (points.empty()) continue;
+        std::sort(points.begin(), points.end());
 
-        double minTime = points.front().first, maxTime = minTime;
-        for (const auto& [time, charge] : points) {
-            minTime = std::min(minTime, time);
-            maxTime = std::max(maxTime, time);
-        }
-        // Grid of multiples of step covering the response of all the points
+        // Grid of multiples of step covering the response of each point, only on the union of their
+        // supports: points far apart in time (e.g. delayed decays) do not fill the time between them
         const double step = fShapingTime / kPointsPerShapingTime;
-        const long first = std::lround(std::floor((minTime + fSupport.first * fShapingTime) / step));
-        const long last = std::lround(std::ceil((maxTime + fSupport.second * fShapingTime) / step));
+        auto firstIndex = [&](double time) {
+            return std::lround(std::floor((time + fSupport.first * fShapingTime) / step));
+        };
+        auto lastIndex = [&](double time) {
+            return std::lround(std::ceil((time + fSupport.second * fShapingTime) / step));
+        };
 
         std::vector<double> times, values;
-        times.reserve(last - first + 1);
-        values.reserve(last - first + 1);
-        for (long k = first; k <= last; k++) {
-            const double t = k * step;
-            double value = 0;
-            for (const auto& [time, charge] : points) {
-                const double u = (t - time) / fShapingTime;
-                if (u < fSupport.first || u > fSupport.second) continue;
-                value += charge * Response(u);
+        size_t begin = 0;
+        while (begin < points.size()) {
+            // Group of consecutive points whose supports overlap (or touch)
+            const long first = firstIndex(points[begin].first);
+            long last = lastIndex(points[begin].first);
+            size_t end = begin + 1;
+            while (end < points.size() && firstIndex(points[end].first) <= last + 1) {
+                last = std::max(last, lastIndex(points[end].first));
+                end++;
             }
-            times.push_back(t);
-            values.push_back(fNormalization * value);
+            for (long k = first; k <= last; k++) {
+                const double t = k * step;
+                double value = 0;
+                for (size_t i = begin; i < end; i++) {
+                    const double u = (t - points[i].first) / fShapingTime;
+                    if (u < fSupport.first || u > fSupport.second) continue;
+                    value += points[i].second * Response(u);
+                }
+                times.push_back(t);
+                values.push_back(fNormalization * value);
+            }
+            begin = end;
         }
         outputEvent->AddSignal(signal.GetSignalID(), times, values);
     }

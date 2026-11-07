@@ -1,14 +1,22 @@
 #include "TRestEvent.h"
 
+#include <cmath>
+
 #include "TRestLogManager.h"
 #include "TRestRun.h"
 #include "TRestTools.h"
 
 void TRestEvent::SetTime(double time) {
-    auto seconds = static_cast<int>(time);
-    auto nanoseconds = static_cast<int>((time - seconds) * 1e9);
-    fInfo.timeSeconds = seconds;
-    fInfo.timeNanoSeconds = nanoseconds;
+    // Whole seconds (floor, also for negative times, beyond the range of int) and nanoseconds in [0, 1e9)
+    const double seconds = std::floor(time);
+    auto nanoseconds = static_cast<long long>(std::llround((time - seconds) * 1e9));
+    auto wholeSeconds = static_cast<long long>(seconds);
+    if (nanoseconds >= 1000000000LL) {
+        nanoseconds -= 1000000000LL;
+        ++wholeSeconds;
+    }
+    fInfo.timeSeconds = wholeSeconds;
+    fInfo.timeNanoSeconds = static_cast<int>(nanoseconds);
 }
 
 void TRestEvent::SetEventInfo(const TRestEvent* eve) {

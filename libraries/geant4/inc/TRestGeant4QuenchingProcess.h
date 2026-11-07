@@ -46,8 +46,10 @@ class TRestGeant4QuenchingProcess : public TRestEventProcess {
     std::map<std::string, double> fVolumeBirksConstants;
     std::map<std::string, double> fVolumeBirksFallbackStepLengths;
 
-    TRestWithUnits fBirksConstant = 0.000126;       // mm/keV, equivalent to 0.126 mm/MeV
-    TRestWithUnits fBirksFallbackStepLength = 0.5;  // mm
+    TRestWithUnits fBirksConstant = 0.000126;  // mm/keV, equivalent to 0.126 mm/MeV
+    /// mm, the Birks step length of a hit is its distance to the previous hit of the track; this one if
+    /// there is none in the same volume (first hit of the track)
+    TRestWithUnits fBirksFallbackStepLength = 0.5;
     bool fApplyToHitEnergies = true;
 
     TRestGeant4Metadata* fGeant4Metadata = nullptr;

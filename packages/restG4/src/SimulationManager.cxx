@@ -11,6 +11,7 @@
 #include <G4RunManager.hh>
 #include <G4Threading.hh>
 #include <csignal>
+#include <ctime>
 
 #include "TRestTools.h"
 
@@ -119,6 +120,7 @@ void SimulationManager::BeginOfRunAction() {
     std::signal(SIGINT, interruptSignalHandler);
 
     fTimeStartUnix = chrono::steady_clock::now().time_since_epoch().count();
+    fPeriodicPrintThreadEndFlag = false;
 #ifndef GEANT4_WITHOUT_G4RunManagerFactory
     // gives segfault in old Geant4 versions such as 10.4.3, didn't look into it
     if (GetRestMetadata()->PrintProgress() ||
@@ -143,9 +145,10 @@ void SimulationManager::EndOfRunAction() {
         }
     }
 
+    // The output managers (one per worker thread, built once by ActionInitialization::Build) are kept for
+    // the next run (/run/beamOn again), deleted by the destructor
     for (auto& outputManager : fOutputManagerContainer) {
-        fNumberOfProcessedEvents += outputManager->GetEventCounter();
-        delete outputManager;
+        fNumberOfProcessedEvents += outputManager->TakeEventCounter();
     }
     GetRestMetadata()->SetNumberOfEvents(fNumberOfProcessedEvents);
 
@@ -156,8 +159,6 @@ void SimulationManager::EndOfRunAction() {
         G4cout << "CRY showers simulated: " << generatorInfo.GetCRYShowersUsed() << ", exposure "
                << generatorInfo.GetCRYExposureTime() / 1e6 << " s" << G4endl;
     }
-
-    fOutputManagerContainer.clear();
 }
 
 SimulationManager::~SimulationManager() {
@@ -247,8 +248,7 @@ void SimulationManager::SyncStatsFromChild(OutputManager* outputManager) {
         return;
     }
     lock_guard<mutex> guard(fSimulationManagerMutex);
-    fNumberOfProcessedEvents += outputManager->GetEventCounter();
-    outputManager->ResetEventCounter();
+    fNumberOfProcessedEvents += outputManager->TakeEventCounter();
 }
 
 // OutputManager
@@ -290,11 +290,15 @@ void OutputManager::UpdateEvent() {
     auto event = G4EventManager::GetEventManager()->GetConstCurrentEvent();
 
     if (!fEvent) {
-        fEvent = make_unique<TRestGeant4Event>(event);
+        fEvent = make_unique<TRestGeant4Event>();
     } else {
-        fEvent->ClearTracks();
-        fEvent->SetID(event->GetEventID());
+        // The event not submitted (not valid) is reused: everything is reset (tracks, hits, energies,
+        // volumes, sub-event data and sub-event ID, the caller sets it for the next sub-event)
+        fEvent->Initialize();
     }
+    fEvent->SetID(event->GetEventID());
+    fEvent->SetOK(true);
+    fEvent->SetTime(static_cast<double>(time(nullptr)));
 
     if (fSimulationManager->GetRestMetadata() != nullptr) {
         fEvent->SetGeant4Metadata(fSimulationManager->GetRestMetadata());
@@ -303,6 +307,9 @@ void OutputManager::UpdateEvent() {
     if (fSimulationManager->GetRestRun() != nullptr) {
         fEvent->InitializeReferences(fSimulationManager->GetRestRun());
     }
+
+    // The primaries of the current Geant4 event (also set by the primary generator, before)
+    fEvent->UpdatePrimaryData(event);
 
     const auto metadata = fSimulationManager->GetRestMetadata();
     if (metadata == nullptr) {
@@ -313,8 +320,12 @@ void OutputManager::UpdateEvent() {
                     errMsg.str().c_str());
     }
 
-    const auto primaryVertex = event->GetPrimaryVertex();
-    const int primaryParticles = primaryVertex != nullptr ? primaryVertex->GetNumberOfParticle() : 0;
+    // The primary generator gives a vertex per particle: the particles of all the vertices
+    int primaryParticles = 0;
+    for (int v = 0; v < event->GetNumberOfPrimaryVertex(); ++v) {
+        const auto* primaryVertex = event->GetPrimaryVertex(v);
+        if (primaryVertex != nullptr) primaryParticles += primaryVertex->GetNumberOfParticle();
+    }
     const int numberOfSources = metadata->GetNumberOfSources();
 
     // A Decay0 source and the cry generator give the particles of their event
@@ -355,6 +366,7 @@ bool OutputManager::IsValidEvent() const {
 void OutputManager::FinishAndSubmitEvent() {
     if (IsValidEvent()) {
         if (fSimulationManager->GetRestMetadata()->GetRemoveUnwantedTracks()) RemoveUnwantedTracks();
+        fEvent->RebuildSecondaries();
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> elapsed = end - fEventTimeStart;

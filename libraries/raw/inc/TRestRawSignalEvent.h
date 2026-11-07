@@ -2,6 +2,7 @@
 #define TRESTRAWSIGNALEVENT_H
 
 #include <algorithm>
+#include <climits>
 #include <stdexcept>
 #include <vector>
 
@@ -60,6 +61,30 @@ class TRestRawSignal {
 
     /// \brief Adds delta to one ADC sample bin in-place.
     void IncreaseBinBy(int bin, short delta) { fData->allSamples[fData->offsets[fSignalIdx] + bin] += delta; }
+
+    /// \brief Adds delta to one ADC sample bin in-place, clamping the result to [SHRT_MIN, SHRT_MAX].
+    void IncreaseBinByClamped(int bin, int delta) {
+        short& sample = fData->allSamples[fData->offsets[fSignalIdx] + bin];
+        sample = static_cast<short>(std::clamp((int)sample + delta, (int)SHRT_MIN, (int)SHRT_MAX));
+    }
+
+    /// \brief Returns true if the raw waveform shows an ADC saturation flat top.
+    ///
+    /// Legacy criterion (TRestRawSignal::IsADCSaturation): the first bin holding the maximum raw value
+    /// and the following bins, nFlat in total, all have that same maximum value. It does not depend on
+    /// the ADC range, so it works for 12-bit data and for simulated signals with any maximum value.
+    bool IsADCSaturation(int nFlat = 3) const {
+        if (nFlat <= 0) return false;
+        const int nPoints = GetNPoints();
+        if (nPoints <= 0) return false;
+        const short* samples = fData->allSamples.data() + fData->offsets[fSignalIdx];
+        const int maxBin = std::distance(samples, std::max_element(samples, samples + nPoints));
+        if (maxBin + nFlat > nPoints) return false;
+        for (int i = maxBin + 1; i < maxBin + nFlat; i++) {
+            if (samples[i] != samples[maxBin]) return false;
+        }
+        return true;
+    }
 
     /// \brief Builds a ROOT graph representation for quick waveform inspection.
     TGraph GetGraph() const {

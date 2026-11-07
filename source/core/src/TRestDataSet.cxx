@@ -337,16 +337,21 @@ std::string TRestDataSet::DefineRunParameters(ROOT::RDF::RNode& frame, const std
                 std::string remainder;
                 for (size_t i = length; i < parts.size(); i++) remainder += "." + parts[i];
 
+                // A run parameter if some run has it; then all the runs must have it
                 std::vector<std::string> texts;
-                for (const auto& runParameters : parameters) {
-                    const YAML::Node node = GetNodeAtPath(runParameters, path);
-                    if (!node || !node.IsScalar()) break;
+                std::optional<size_t> missing;
+                for (size_t r = 0; r < parameters.size(); r++) {
+                    const YAML::Node node = GetNodeAtPath(parameters[r], path);
+                    if (!node || !node.IsScalar()) {
+                        if (!missing) missing = r;
+                        continue;
+                    }
                     texts.push_back(node.Scalar());
                 }
                 if (texts.empty()) continue;
-                if (texts.size() != fRuns.size()) {
+                if (missing) {
                     throw std::runtime_error("TRestDataSet '" + fName + "': run parameter " + path +
-                                             " is not in the run " + RunKeys(fRuns[texts.size()]).front());
+                                             " is not in the run " + RunKeys(fRuns[*missing]).front());
                 }
 
                 std::string column = "runParameter_" + path;
@@ -744,8 +749,8 @@ void TRestDataSet::Write(const std::string& fileNamePattern) {
             }
             if (input->GetKey(kGeometryKey.c_str())) {
                 // A copy read to write it, with its hash (also for files without it); gGeoManager kept
-                std::unique_ptr<TGeoManager> geometry(
-                    TRestTools::ReadGeometryCopy(input.get(), kGeometryKey));
+                std::unique_ptr<TGeoManager, void (*)(TGeoManager*)> geometry(
+                    TRestTools::ReadGeometryCopy(input.get(), kGeometryKey), &TRestTools::DeleteGeometry);
                 TRestTools::WriteGeometry(file.get(), geometry.get(), kGeometryKey);
             }
         }

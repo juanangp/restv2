@@ -16,6 +16,8 @@ using TRestFFTAnalysis::Spectrum;
 
 // FFTW only guarantees thread safety when executing a plan, not when creating
 // or destroying it. Plan handling is serialized; execution runs unlocked.
+// Option K: each plan owns its transform (without it TVirtualFFT::FFT returns and
+// reinitializes the shared global fgFFT, used by every thread).
 std::mutex gPlanMutex;
 
 class FFTPlan {
@@ -42,7 +44,7 @@ Spectrum RunC2C(const std::vector<double>& re, const std::vector<double>& im, bo
     const int n = (int)re.size();
     if (n <= 0) return {};
 
-    FFTPlan plan(n, forward ? "C2CFORWARD ES" : "C2CBACKWARD ES");
+    FFTPlan plan(n, forward ? "C2CFORWARD ES K" : "C2CBACKWARD ES K");
     if (!plan.Get()) {
         RESTError << "TRestFFTAnalysis: could not create the FFT plan (is FFTW available in this ROOT?)"
                   << RESTendl;
@@ -79,7 +81,8 @@ bool CombineSpectra(Spectrum& s, const Spectrum& other, int from, int to, const 
         return false;
     }
     const int n = (int)s.size();
-    if (to <= 0 || to > n / 2) to = n / 2;
+    // Up to the Nyquist bin (n / 2) included
+    if (to <= 0 || to > n / 2 + 1) to = n / 2 + 1;
     for (int i = std::max(0, from); i < to; i++) SetHermitian(s, i, op(s[i], other[i]));
     return true;
 }
@@ -166,7 +169,7 @@ Spectrum SecondOrderAnalyticalResponse(int nfft, double f1, double f2, double to
 
 void ButterWorthFilter(Spectrum& s, int cutOff, int order) {
     const int n = (int)s.size();
-    for (int i = std::max(0, cutOff + 1); i < n / 2; i++) {
+    for (int i = std::max(0, cutOff + 1); i <= n / 2; i++) {
         const double gain = 1.0 / std::sqrt(1.0 + std::pow((double)i / cutOff, 2.0 * order));
         SetHermitian(s, i, s[i] * gain);
     }
@@ -174,7 +177,7 @@ void ButterWorthFilter(Spectrum& s, int cutOff, int order) {
 
 void KillFrequencies(Spectrum& s, int cutOff) {
     const int n = (int)s.size();
-    for (int i = std::max(0, cutOff); i < n / 2; i++) SetHermitian(s, i, 0.0);
+    for (int i = std::max(0, cutOff); i <= n / 2; i++) SetHermitian(s, i, 0.0);
 }
 
 void ApplyLowPassFilter(Spectrum& s, int cutFrequency) {
@@ -224,7 +227,7 @@ bool ApplyResponse(Spectrum& s, const Spectrum& response, int cutOff) {
     if (denom <= 0) return true;  // nothing above cutOff to rescale
 
     const double scale = std::sqrt(std::norm(s[cutOff - 1]) / denom);
-    for (int i = cutOff; i < n / 2; i++) SetHermitian(s, i, s[i] * scale);
+    for (int i = cutOff; i <= n / 2; i++) SetHermitian(s, i, s[i] * scale);
     return true;
 }
 

@@ -144,6 +144,9 @@ void TRestDetectorSignalToHitsProcess::LoadConfig() {
     fDriftAxis = (signed_ ? fDriftAxis.substr(0, 1) : "") +
                  TRestTools::NormalizeOption("driftAxis", signed_ ? fDriftAxis.substr(1) : fDriftAxis,
                                              {"X", "Y", "Z"});
+    if (fMethod == "intWindow" && !(fIntWindow > 0)) {
+        throw std::runtime_error("TRestDetectorSignalToHitsProcess: method intWindow needs intWindow > 0");
+    }
     UpdateYAMLFromParams<TRestDetectorSignalToHitsProcess>(fNode);
 }
 
@@ -207,17 +210,20 @@ bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRe
             }
         } else if (fMethod == "integral") {
             const bool wholeSignal = fIntegralRange.first >= fIntegralRange.second;
-            double charge = 0, maxCharge = 0, maxTime = -1;
+            // Negative times are valid (e.g. a trigger delay): a flag marks the maximum found
+            double charge = 0, maxCharge = 0, maxTime = 0;
+            bool found = false;
             for (int j = 0; j < signal.GetNPoints(); j++) {
                 const auto [time, value] = signal.GetPoint(j);
                 if (!wholeSignal && (time < fIntegralRange.first || time > fIntegralRange.second)) continue;
                 charge += value;
-                if (maxTime < 0 || value > maxCharge) {
+                if (!found || value > maxCharge) {
                     maxCharge = value;
                     maxTime = time;
+                    found = true;
                 }
             }
-            if (maxTime >= 0 && charge > 0) hits.emplace_back(maxTime, charge);
+            if (found && charge > 0) hits.emplace_back(maxTime, charge);
         } else if (fMethod == "qCenter") {
             double charge = 0, weightedTime = 0;
             for (int j = 0; j < signal.GetNPoints(); j++) {
@@ -236,7 +242,9 @@ bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRe
                 for (int j = 0; j < graph.GetN(); j++) graph.SetPointY(j, smoothed[j]);
             }
             const auto hit = GetMax(graph, fMethod);
-            if (hit.first >= 0 && hit.second > 0) hits.push_back(hit);  // fits return -1 on failure
+            // Failures (empty signal, failed fit) return (-1, -1), rejected by the amplitude: negative times
+            // are valid
+            if (std::isfinite(hit.first) && hit.second > 0) hits.push_back(hit);
         }
 
         const auto [driftOffset, driftSlope] =

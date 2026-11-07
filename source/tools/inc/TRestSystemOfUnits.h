@@ -80,7 +80,8 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
     {"arcsec", {Angle, TMath::DegToRad() / 3600.}},
 };
 
-/// \brief Factor to REST units of a units expression (e.g. "kV/cm", "keV^2"); 1 if empty.
+/// \brief Factor to REST units of a units expression (e.g. "kV/cm", "keV^2"); 1 if empty. Throws
+/// std::invalid_argument if a unit is unknown or the expression is not valid.
 double ParseUnit(const std::string& UnitsExpr);
 
 template <typename T>
@@ -166,8 +167,10 @@ inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit q
 /// Sets the TGeoManager default units (mm, MeV, ns). Safe to call multiple times.
 bool SetGeoManagerDefaultUnits();
 
-/// \brief Value of a number with optional units (e.g. "300 V", "1 kV/cm") in REST units.
-/// \return nullopt if the text does not start with a number.
+/// \brief Value of a number with optional units (e.g. "300 V", "1 kV/cm", "10eV", "-3.5e2 keV") in REST
+/// units.
+/// \return nullopt if the text does not start with a number or the text after it is not valid units
+/// (ParseUnit), e.g. "5 apples".
 std::optional<double> ParseValueWithUnits(const std::string& text);
 
 }  // namespace REST_Units
@@ -204,7 +207,10 @@ struct convert<TRestWithUnits> {
     static bool decode(const Node& node, TRestWithUnits& rhs) {
         if (!node || !node.IsScalar()) return false;
 
-        const double val = REST_Units::ParseValueWithUnits(node.as<std::string>()).value_or(0.0);
+        // Not a number with valid units: false, yaml-cpp throws (TypedBadConversion)
+        const auto parsed = REST_Units::ParseValueWithUnits(node.as<std::string>());
+        if (!parsed) return false;
+        const double val = *parsed;
         rhs.value = val;
 
         // Mutate the local node to a plain number so it exports clean later

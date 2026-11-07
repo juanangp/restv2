@@ -11,7 +11,8 @@ class TTree;
 class TRestRawSignalEvent;
 
 /// \class TRestRawFemDAQToSignalProcess
-/// \brief Converts FemDAQ ROOT tree entries into REST raw signal events.
+/// \brief Converts the ROOT files of the old FEMDAQ (tree `SignalEvent`, before restDAQ) into REST raw
+/// signal events. The files of restDAQ are REST files, read directly.
 ///
 class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
    private:

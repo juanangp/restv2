@@ -56,7 +56,7 @@
 <!-- end of Bolts on Shim -->
 
 <!-- 截取的圆球-->
-<sphere name = "VesselWallSolid_11" rmin="0" rmax="2000+18" deltaphi="360" deltatheta="180" aunit="deg" lunit= "mm"/>
+<sphere name="VesselWallSolid_11" rmin="0" rmax="2000+18" deltaphi="360" deltatheta="180" aunit="deg" lunit="mm"/>
 <tube name="VesselWallSolid_12" startphi="0" deltaphi="360" rmin="0" rmax="2000+18" z="2000" aunit="deg" lunit="mm" />
 <intersection name="VesselWallSolid_1" >
     <first ref="VesselWallSolid_11" />
@@ -65,7 +65,7 @@
 </intersection>
 
 <!-- 截取的圆环-->
-<torus name = "VesselWallSolid_21" rmin="0" rmax="218" rtor="1018-218" deltaphi="360" startphi="0" aunit="deg" lunit= "mm"/>
+<torus name="VesselWallSolid_21" rmin="0" rmax="218" rtor="1018-218" deltaphi="360" startphi="0" aunit="deg" lunit="mm"/>
 <tube name="VesselWallSolid_22" startphi="0" deltaphi="360" rmin="0" rmax="2000" z="4687/24" aunit="deg" lunit="mm" />
 <tube name="VesselWallSolid_23" startphi="0" deltaphi="360" rmin="0" rmax="1018-218" z="218*2" aunit="deg" lunit="mm" />
 <union name="VesselWallSolid_24" >

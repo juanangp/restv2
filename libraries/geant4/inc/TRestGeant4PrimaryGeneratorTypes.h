@@ -9,6 +9,8 @@
 class TF1;
 class TF2;
 class TH1;
+class TH1D;
+class TH2D;
 class TRandom;
 
 /// Named formulas of the primary generator: energy (keV), angle (rad) and energy and angle; the names are
@@ -59,6 +61,12 @@ TF2 EnergyAndAngularDistributionFormulasToRootFormula(EnergyAndAngularDistributi
 
 /// \brief A copy (not attached to any file) of the histogram `name` of the ROOT file, an error if missing
 std::unique_ptr<TH1> ReadHistogram(const std::string& fileName, const std::string& name);
+/// \brief ReadHistogram as a TH1D: any 1D histogram (TH1F, TH1I...) is converted (same bins, contents and
+/// errors); an error if it is not 1D
+std::unique_ptr<TH1D> ReadHistogram1D(const std::string& fileName, const std::string& name);
+/// \brief ReadHistogram as a TH2D: any 2D histogram (TH2F, TH2I...) is converted (same bins, contents and
+/// errors); an error if it is not 2D
+std::unique_ptr<TH2D> ReadHistogram2D(const std::string& fileName, const std::string& name);
 
 /// \brief A uniform direction in 4 pi
 ROOT::Math::XYZVector IsotropicDirection(TRandom& random);

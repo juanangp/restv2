@@ -19,7 +19,8 @@ links it. Its contents are free functions grouped in namespaces, plus the loggin
 
 ### Configuration
 
-- `TRestYAMLUtils` (TRestYAMLUtils.h): opening a YAML configuration with its references resolved
+- `TRestYAMLUtils` (TRestYAMLUtils.h): opening a YAML configuration with its `include` keys expanded (a
+  section taken from another file, its own keys overriding it; LoadConfigFile) and its references resolved
   (`${ENV:VAR}`, `${PARAM:name}`, `${a.b}`), the `parameters` section and its `--set` overrides, access to
   the parameters of a node (GetParam, GetList, ReadParamOrDefault), editing YAML files in place
   (SetValuesInFile) and reading the metadata stored in a REST file (ReadMetadataStore).

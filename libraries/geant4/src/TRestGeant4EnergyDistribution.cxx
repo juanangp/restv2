@@ -80,7 +80,7 @@ TRestGeant4EnergyDistributionMono::TRestGeant4EnergyDistributionMono(const strin
 
 void TRestGeant4EnergyDistributionMono::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4EnergyDistributionMono>(fNode);
-    if (fEnergy <= 0) throw runtime_error(GetClassName() + ": 'energy' must be positive");
+    if (fEnergy < 0) throw runtime_error(GetClassName() + ": 'energy' must not be negative (0: at rest)");
     UpdateYAMLFromParams<TRestGeant4EnergyDistributionMono>(fNode);
 }
 
@@ -187,9 +187,7 @@ unique_ptr<TRestGeant4EnergyDistribution> TRestGeant4EnergyDistributionTH1D::Clo
 }
 
 void TRestGeant4EnergyDistributionTH1D::LoadDistribution() {
-    auto histogram = ReadHistogram(fFilename, fNameInFile);
-    fHistogram.reset(dynamic_cast<TH1D*>(histogram.release()));
-    if (!fHistogram) throw runtime_error(GetClassName() + ": '" + fNameInFile + "' is not a TH1D");
+    fHistogram = ReadHistogram1D(fFilename, fNameInFile);  // Any 1D histogram, as a TH1D
 
     // As legacy, the unit from the axis title
     const std::string title = fHistogram->GetXaxis()->GetTitle();

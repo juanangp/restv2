@@ -5,6 +5,7 @@
 #include <TF2.h>
 #include <TFile.h>
 #include <TH1.h>
+#include <TH2.h>
 #include <TMath.h>
 #include <TRandom.h>
 
@@ -13,6 +14,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <stdexcept>
+#include <vector>
 
 #include "TRestTools.h"
 
@@ -71,12 +73,12 @@ TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula) 
     switch (formula) {
         case EnergyDistributionFormulas::COSMIC_NEUTRONS: {
             const char* title = "Cosmic Neutrons at Sea Level";
-            auto distribution = TF1(title,
-                                    "1.006E-6 * TMath::Exp(-0.3500 * TMath::Power(TMath::Log(x * 1E-3), 2.0) "
-                                    "+ 2.1451 * TMath::Log(x * 1E-3)) + "
-                                    "1.011E-3 * TMath::Exp(-0.4106 * TMath::Power(TMath::Log(x * 1E-3), 2.0) "
-                                    "- 0.6670 * TMath::Log(x * 1E-3))",
-                                    1.0E2, 1.0E7);
+            auto cosmicNeutrons = [](double* xs, double*) {
+                const double logE = std::log(xs[0] * 1E-3);
+                return 1.006E-6 * std::exp(-0.3500 * logE * logE + 2.1451 * logE) +
+                       1.011E-3 * std::exp(-0.4106 * logE * logE - 0.6670 * logE);
+            };
+            auto distribution = TF1(title, cosmicNeutrons, 1.0E2, 1.0E7, 0);
             distribution.SetNormalized(true);
             distribution.SetTitle(title);
             distribution.GetXaxis()->SetTitle("Energy (keV)");
@@ -89,8 +91,10 @@ TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula) 
         }
         case EnergyDistributionFormulas::FISSION_NEUTRONS_U238: {
             const char* title = "Watt formula: Neutrons from U238 fission";
-            auto distribution =
-                TF1(title, "TMath::Exp(-x/712.4) * TMath::SinH(TMath::Sqrt(0.0056405*x))", 0.0, 10000.0);
+            auto watt = [](double* xs, double*) {
+                return std::exp(-xs[0] / 712.4) * std::sinh(std::sqrt(0.0056405 * xs[0]));
+            };
+            auto distribution = TF1(title, watt, 0.0, 10000.0, 0);
             distribution.SetNormalized(true);
             distribution.SetTitle(title);
             distribution.GetXaxis()->SetTitle("Energy (keV)");
@@ -98,8 +102,10 @@ TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula) 
         }
         case EnergyDistributionFormulas::ENVIRONMENTAL_GAMMAS: {
             const char* title = "Environmental Gammas";
-            auto distribution =
-                TF1(title, "(1.0 / TMath::Power(x, 1.5)) * TMath::Exp(-x / 1500.0)", 250.0, 10000.0);
+            auto gammas = [](double* xs, double*) {
+                return (1.0 / std::pow(xs[0], 1.5)) * std::exp(-xs[0] / 1500.0);
+            };
+            auto distribution = TF1(title, gammas, 250.0, 10000.0, 0);
             distribution.SetNormalized(true);
             distribution.SetTitle(title);
             distribution.GetXaxis()->SetTitle("Energy (keV)");
@@ -107,7 +113,8 @@ TF1 EnergyDistributionFormulasToRootFormula(EnergyDistributionFormulas formula) 
         }
         case EnergyDistributionFormulas::ENVIRONMENTAL_NEUTRONS: {
             const char* title = "Environmental Neutrons";
-            auto distribution = TF1(title, "TMath::Exp(-x * 0.0005)", 0.0, 10000.0);
+            auto neutrons = [](double* xs, double*) { return std::exp(-xs[0] * 0.0005); };
+            auto distribution = TF1(title, neutrons, 0.0, 10000.0, 0);
             distribution.SetNormalized(true);
             distribution.SetTitle(title);
             distribution.GetXaxis()->SetTitle("Energy (keV)");
@@ -219,18 +226,21 @@ TF2 EnergyAndAngularDistributionFormulasToRootFormula(EnergyAndAngularDistributi
         // Input parameter y: zenith angle theta (in radians)
         const char* title = "Cosmic Muons Energy and Angular";
 
-        auto f = TF2(title,
-                     "2.0*TMath::Pi()*1.0E-6*0.14*TMath::Power(x*1.0E-6*(1.0+3.64/"
-                     "(x*1.0E-6*TMath::Power((TMath::Power(TMath::Cos(y),2.0)+0.0105212-0.068287*"
-                     "TMath::Power(TMath::Cos(y),0.958633)+0.0407253*TMath::Power(TMath::Cos(y),0.817285)"
-                     ")/(0.982960),0.5),1.29))),-2.7)*(1.0/"
-                     "(1.0+(1.1*x*1.0E-6*TMath::Power((TMath::Power(TMath::Cos(y),2.0)+0.0105212-0.068287*"
-                     "TMath::Power(TMath::Cos(y),0.958633)+0.0407253*TMath::Power(TMath::Cos(y),0.817285))/"
-                     "(0.982960),0.5))/115.0)+0.054/"
-                     "(1.0+(1.1*x*1.0E-6*TMath::Power((TMath::Power(TMath::Cos(y),2.0)+0.0105212-0.068287*"
-                     "TMath::Power(TMath::Cos(y),0.958633)+0.0407253*TMath::Power(TMath::Cos(y),0.817285))/"
-                     "(0.982960),0.5))/850.0))*(2.0*TMath::Sin(y)*TMath::Pi())",
-                     2.0E5, 5.0E9, 0.0, TMath::Pi() / 2.0);
+        // Compiled (not a formula string): no interpreter needed, e.g. in the generator of each thread
+        auto guan = [](double* xs, double*) {
+            const double energy = xs[0] * 1.0E-6;  // GeV
+            const double c = std::cos(xs[1]);
+            if (c < 0) return 0.0;
+            const double cosStar = std::sqrt(
+                (c * c + 0.0105212 - 0.068287 * std::pow(c, 0.958633) + 0.0407253 * std::pow(c, 0.817285)) /
+                0.982960);
+            return 2.0 * TMath::Pi() * 1.0E-6 * 0.14 *
+                   std::pow(energy * (1.0 + 3.64 / (energy * std::pow(cosStar, 1.29))), -2.7) *
+                   (1.0 / (1.0 + 1.1 * energy * cosStar / 115.0) +
+                    0.054 / (1.0 + 1.1 * energy * cosStar / 850.0)) *
+                   (2.0 * std::sin(xs[1]) * TMath::Pi());
+        };
+        auto f = TF2(title, guan, 2.0E5, 5.0E9, 0.0, TMath::Pi() / 2.0, 0);
 
         f.SetTitle(title);
         return f;
@@ -254,6 +264,66 @@ std::unique_ptr<TH1> ReadHistogram(const string& fileName, const string& name) {
     unique_ptr<TH1> copy(static_cast<TH1*>(histogram->Clone()));
     copy->SetDirectory(nullptr);
     return copy;
+}
+
+namespace {
+/// Bin edges of an axis (variable or fixed bins)
+std::vector<double> BinEdges(const TAxis& axis) {
+    std::vector<double> edges(axis.GetNbins() + 1);
+    for (int b = 1; b <= axis.GetNbins() + 1; b++) edges[b - 1] = axis.GetBinLowEdge(b);
+    return edges;
+}
+}  // namespace
+
+std::unique_ptr<TH1D> ReadHistogram1D(const string& fileName, const string& name) {
+    auto histogram = ReadHistogram(fileName, name);
+    if (histogram->GetDimension() != 1) {
+        throw invalid_argument("ReadHistogram1D: '" + name + "' of '" + fileName + "' is not a 1D histogram");
+    }
+    if (auto* h = dynamic_cast<TH1D*>(histogram.get())) {
+        histogram.release();
+        return std::unique_ptr<TH1D>(h);
+    }
+    const auto edges = BinEdges(*histogram->GetXaxis());
+    auto out = std::make_unique<TH1D>(histogram->GetName(), histogram->GetTitle(), histogram->GetNbinsX(),
+                                      edges.data());
+    out->SetDirectory(nullptr);
+    // The axis titles give the units (e.g. "Energy (GeV)")
+    out->GetXaxis()->SetTitle(histogram->GetXaxis()->GetTitle());
+    out->GetYaxis()->SetTitle(histogram->GetYaxis()->GetTitle());
+    for (int b = 0; b <= histogram->GetNbinsX() + 1; b++) {
+        out->SetBinContent(b, histogram->GetBinContent(b));
+        out->SetBinError(b, histogram->GetBinError(b));
+    }
+    out->SetEntries(histogram->GetEntries());
+    return out;
+}
+
+std::unique_ptr<TH2D> ReadHistogram2D(const string& fileName, const string& name) {
+    auto histogram = ReadHistogram(fileName, name);
+    if (histogram->GetDimension() != 2) {
+        throw invalid_argument("ReadHistogram2D: '" + name + "' of '" + fileName + "' is not a 2D histogram");
+    }
+    if (auto* h = dynamic_cast<TH2D*>(histogram.get())) {
+        histogram.release();
+        return std::unique_ptr<TH2D>(h);
+    }
+    const auto xEdges = BinEdges(*histogram->GetXaxis());
+    const auto yEdges = BinEdges(*histogram->GetYaxis());
+    auto out = std::make_unique<TH2D>(histogram->GetName(), histogram->GetTitle(), histogram->GetNbinsX(),
+                                      xEdges.data(), histogram->GetNbinsY(), yEdges.data());
+    out->SetDirectory(nullptr);
+    out->GetXaxis()->SetTitle(histogram->GetXaxis()->GetTitle());
+    out->GetYaxis()->SetTitle(histogram->GetYaxis()->GetTitle());
+    out->GetZaxis()->SetTitle(histogram->GetZaxis()->GetTitle());
+    for (int bx = 0; bx <= histogram->GetNbinsX() + 1; bx++) {
+        for (int by = 0; by <= histogram->GetNbinsY() + 1; by++) {
+            out->SetBinContent(bx, by, histogram->GetBinContent(bx, by));
+            out->SetBinError(bx, by, histogram->GetBinError(bx, by));
+        }
+    }
+    out->SetEntries(histogram->GetEntries());
+    return out;
 }
 
 ROOT::Math::XYZVector IsotropicDirection(TRandom& random) {

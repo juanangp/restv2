@@ -4,8 +4,10 @@
 #include <TKey.h>
 #include <TObjString.h>
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -144,11 +146,105 @@ YAML::Node ResolveYamlRefs(const YAML::Node& root, const YAML::Node& node) {
     return node;
 }
 
+/// \brief `local` over `base`: the maps are merged recursively (the keys of `local` win), any other node of
+/// `local` (scalar, list) replaces the one of `base`
+YAML::Node MergeNodes(const YAML::Node& base, const YAML::Node& local) {
+    if (!base.IsMap() || !local.IsMap()) return YAML::Clone(local);
+    YAML::Node out = YAML::Clone(base);
+    for (const auto& element : local) {
+        const std::string key = element.first.Scalar();
+        const YAML::Node& constOut = out;  // Const access: a missing key is not added
+        const YAML::Node baseValue = constOut[key];
+        if (baseValue && baseValue.IsMap() && element.second.IsMap())
+            out[key] = MergeNodes(baseValue, element.second);
+        else
+            out[key] = YAML::Clone(element.second);
+    }
+    return out;
+}
+
+/// \brief Node with its `include` keys expanded (LoadConfigFile), at any depth. `directory`: the one of the
+/// file of the node, for the relative paths; `stack`: the files being included, to detect cycles
+YAML::Node ExpandIncludes(const YAML::Node& node, const std::filesystem::path& directory,
+                          std::vector<std::string>& stack) {
+    if (node.IsSequence()) {
+        YAML::Node out(YAML::NodeType::Sequence);
+        for (const auto& element : node) out.push_back(ExpandIncludes(element, directory, stack));
+        return out;
+    }
+    if (!node.IsMap()) return YAML::Clone(node);
+
+    YAML::Node local(YAML::NodeType::Map);
+    // A default YAML::Node is a defined (null) node: whether there is an include is kept apart
+    bool hasInclude = false;
+    YAML::Node include;
+    for (const auto& element : node) {
+        const std::string key = element.first.Scalar();
+        if (key == "include") {
+            hasInclude = true;
+            include.reset(element.second);
+        } else {
+            local[key] = ExpandIncludes(element.second, directory, stack);
+        }
+    }
+    if (!hasInclude) return local;
+
+    if (!include.IsScalar() || include.Scalar().empty())
+        throw std::runtime_error("include: a file name expected (\"file.yaml\" or \"file.yaml:key\")");
+    // "file.yaml:key": the section `key` of the file
+    std::string fileName = ResolveEnvVars(include).Scalar();
+    std::string sectionKey;
+    const size_t colon = fileName.rfind(':');
+    if (colon != std::string::npos) {
+        const std::string prefix = fileName.substr(0, colon);
+        auto endsWith = [&prefix](const std::string& end) {
+            return prefix.size() > end.size() &&
+                   prefix.compare(prefix.size() - end.size(), end.size(), end) == 0;
+        };
+        if (endsWith(".yaml") || endsWith(".yml")) {
+            sectionKey = fileName.substr(colon + 1);
+            fileName = prefix;
+        }
+    }
+
+    std::filesystem::path path(fileName);
+    if (path.is_relative()) path = directory / path;
+    path = std::filesystem::weakly_canonical(path);
+    const std::string pathString = path.string();
+    if (!std::filesystem::exists(path))
+        throw std::runtime_error("include: file " + pathString +
+                                 " not found (relative paths are relative to " +
+                                 "the file that includes it)");
+    if (std::find(stack.begin(), stack.end(), pathString) != stack.end())
+        throw std::runtime_error("include: " + pathString + " includes itself (directly or not)");
+
+    stack.push_back(pathString);
+    YAML::Node included = ExpandIncludes(YAML::LoadFile(pathString), path.parent_path(), stack);
+    stack.pop_back();
+
+    if (!sectionKey.empty()) {
+        const YAML::Node& constIncluded = included;
+        if (!constIncluded.IsMap() || !constIncluded[sectionKey])
+            throw std::runtime_error("include: no key '" + sectionKey + "' in " + pathString);
+        included.reset(YAML::Clone(constIncluded[sectionKey]));
+    }
+    if (!included.IsMap())
+        throw std::runtime_error("include: the content of " + include.Scalar() +
+                                 " must be a map (the keys of the section)");
+    return MergeNodes(included, local);
+}
+
 }  // namespace
+
+YAML::Node TRestYAMLUtils::LoadConfigFile(const std::string& fileName) {
+    std::vector<std::string> stack{std::filesystem::weakly_canonical(fileName).string()};
+    return ExpandIncludes(YAML::LoadFile(fileName), std::filesystem::path(stack.front()).parent_path(),
+                          stack);
+}
 
 YAML::Node TRestYAMLUtils::OpenConfigFile(const std::string& fileName,
                                           const std::map<std::string, std::string>& overrides) {
-    return ResolveRefs(YAML::LoadFile(fileName), overrides);
+    return ResolveRefs(LoadConfigFile(fileName), overrides);
 }
 
 YAML::Node TRestYAMLUtils::ResolveRefs(const YAML::Node& root,
@@ -397,60 +493,104 @@ void TRestYAMLUtils::SetValuesInFile(const std::string& fileName,
                                       reason);
         };
 
-        // Parsed again after each change: the positions of the nodes in the text (lines and columns from 0)
-        std::string text;
-        for (const auto& line : lines) text += line + "\n";
-        const YAML::Node root = YAML::Load(text);
-
         const auto keys = TRestTools::Split(path, '.');
         if (keys.empty()) throw error("empty path");
-        YAML::Node parent;
-        parent.reset(root);
-        for (size_t k = 0; k + 1 < keys.size(); k++) {
-            const YAML::Node current = parent;  // Const access: a missing key is not added
-            if (!current.IsMap() || !current[keys[k]]) throw error("no key " + keys[k]);
-            parent.reset(current[keys[k]]);
-        }
-        if (!parent.IsMap() || parent.size() == 0 || parent.Style() == YAML::EmitterStyle::Flow)
-            throw error("its parent is not a block map");
-
         const std::string& key = keys.back();
         const std::string scalar = ScalarText(value);
-        bool found = false;
-        for (const auto& element : parent) {
-            if (element.first.Scalar() != key) continue;
-            found = true;
-            const YAML::Node valueNode = element.second;
-            if (!valueNode.IsScalar() && !valueNode.IsNull()) throw error("not a scalar");
 
-            const YAML::Mark keyMark = element.first.Mark();
-            std::string& line = lines.at(keyMark.line);
-            const bool quotedKey = line[keyMark.column] == '"' || line[keyMark.column] == '\'';
-            const size_t keyEnd = quotedKey ? ScalarEnd(line, keyMark.column) : keyMark.column + key.size();
-            const size_t colon = keyEnd == std::string::npos ? std::string::npos : line.find(':', keyEnd);
-            if (colon == std::string::npos) throw error("key not found in its line");
+        // A missing parent key is added (e.g. runInfo of a section whose runInfo is in an included file),
+        // then the text is parsed again: at most one more attempt per key
+        bool done = false;
+        for (size_t attempt = 0; !done; attempt++) {
+            if (attempt > keys.size()) throw error("its parent keys cannot be added");
 
-            size_t start = line.find_first_not_of(" \t", colon + 1);
-            if (start == std::string::npos || line[start] == '#') {
-                // No value (null): written after the colon, before the comment
-                const std::string comment = start == std::string::npos ? "" : " " + line.substr(start);
-                line = line.substr(0, colon + 1) + " " + scalar + comment;
+            // Parsed again after each change: the positions of the nodes in the text (lines and columns
+            // from 0)
+            std::string text;
+            for (const auto& line : lines) text += line + "\n";
+            const YAML::Node root = YAML::Load(text);
+
+            YAML::Node parent;
+            parent.reset(root);
+            YAML::Mark parentKeyMark;  // Key of `parent` in its map (not for the root)
+            bool parentIsRoot = true;
+            bool added = false;
+            for (size_t k = 0; k + 1 < keys.size(); k++) {
+                const YAML::Node current = parent;  // Const access: a missing key is not added
+                if (current.IsNull() && !parentIsRoot) {
+                    // A key without value: its first key added below it
+                    lines.insert(lines.begin() + parentKeyMark.line + 1,
+                                 std::string(parentKeyMark.column + 2, ' ') + ScalarText(keys[k]) + ":");
+                    added = true;
+                    break;
+                }
+                if (!current.IsMap() || current.size() == 0 || current.Style() == YAML::EmitterStyle::Flow)
+                    throw error("the parent of " + keys[k] + " is not a block map");
+                if (!current[keys[k]]) {
+                    // Added before the first key of the map, with its indentation
+                    const YAML::Mark first = current.begin()->first.Mark();
+                    lines.insert(lines.begin() + first.line,
+                                 std::string(first.column, ' ') + ScalarText(keys[k]) + ":");
+                    added = true;
+                    break;
+                }
+                for (const auto& element : current) {
+                    if (element.first.Scalar() != keys[k]) continue;
+                    parentKeyMark = element.first.Mark();
+                    break;
+                }
+                parent.reset(current[keys[k]]);
+                parentIsRoot = false;
+            }
+            if (added) continue;
+            done = true;
+
+            if (parent.IsNull() && !parentIsRoot) {
+                lines.insert(lines.begin() + parentKeyMark.line + 1,
+                             std::string(parentKeyMark.column + 2, ' ') + ScalarText(key) + ": " + scalar);
                 break;
             }
-            if (valueNode.Mark().line != keyMark.line) throw error("the value is not in the line of its key");
-            start = valueNode.Mark().column;
-            if (line[start] == '|' || line[start] == '>') throw error("block scalar");
-            const size_t end = ScalarEnd(line, start);
-            if (end == std::string::npos) throw error("value of several lines");
-            line = line.substr(0, start) + scalar + line.substr(end);
-            break;
-        }
+            if (!parent.IsMap() || parent.size() == 0 || parent.Style() == YAML::EmitterStyle::Flow)
+                throw error("its parent is not a block map");
 
-        if (!found) {
-            // Added before the first key of the map, with its indentation
-            const YAML::Mark first = parent.begin()->first.Mark();
-            lines.insert(lines.begin() + first.line,
-                         std::string(first.column, ' ') + ScalarText(key) + ": " + scalar);
+            bool found = false;
+            for (const auto& element : parent) {
+                if (element.first.Scalar() != key) continue;
+                found = true;
+                const YAML::Node valueNode = element.second;
+                if (!valueNode.IsScalar() && !valueNode.IsNull()) throw error("not a scalar");
+
+                const YAML::Mark keyMark = element.first.Mark();
+                std::string& line = lines.at(keyMark.line);
+                const bool quotedKey = line[keyMark.column] == '"' || line[keyMark.column] == '\'';
+                const size_t keyEnd =
+                    quotedKey ? ScalarEnd(line, keyMark.column) : keyMark.column + key.size();
+                const size_t colon = keyEnd == std::string::npos ? std::string::npos : line.find(':', keyEnd);
+                if (colon == std::string::npos) throw error("key not found in its line");
+
+                size_t start = line.find_first_not_of(" \t", colon + 1);
+                if (start == std::string::npos || line[start] == '#') {
+                    // No value (null): written after the colon, before the comment
+                    const std::string comment = start == std::string::npos ? "" : " " + line.substr(start);
+                    line = line.substr(0, colon + 1) + " " + scalar + comment;
+                    break;
+                }
+                if (valueNode.Mark().line != keyMark.line)
+                    throw error("the value is not in the line of its key");
+                start = valueNode.Mark().column;
+                if (line[start] == '|' || line[start] == '>') throw error("block scalar");
+                const size_t end = ScalarEnd(line, start);
+                if (end == std::string::npos) throw error("value of several lines");
+                line = line.substr(0, start) + scalar + line.substr(end);
+                break;
+            }
+
+            if (!found) {
+                // Added before the first key of the map, with its indentation
+                const YAML::Mark first = parent.begin()->first.Mark();
+                lines.insert(lines.begin() + first.line,
+                             std::string(first.column, ' ') + ScalarText(key) + ": " + scalar);
+            }
         }
     }
 

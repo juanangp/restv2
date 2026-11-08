@@ -17,7 +17,7 @@ TRestMetadata::TRestMetadata(const std::string& instanceName, const YAML::Node& 
 
 TRestMetadata::TRestMetadata(const std::string& fileName, const std::string& sectionName)
     : fConfigFileName(fileName), fSectionName(sectionName) {
-    YAML::Node raw = YAML::LoadFile(fileName);
+    YAML::Node raw = TRestYAMLUtils::LoadConfigFile(fileName);
     // Its own parameters, without replacing those of the main configuration
     YAML::Node cfg = TRestYAMLUtils::ResolveRefs(raw, {}, false);
     fNode = cfg[sectionName];

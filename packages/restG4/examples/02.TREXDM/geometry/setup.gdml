@@ -3,7 +3,7 @@
 
 <!DOCTYPE gdml [
         <!-- Parameter of FullChainFromReadout.yaml: the gas, a material of materials.xml
-             (% written &#37; in an entity; restG4 --set gas=Argon1%Isobutane1bar) -->
+             (% written &#37; in an entity; restG4 option set: gas=Argon1%Isobutane1bar) -->
         <!ENTITY gas "Neon1&#37;Isobutane10bar">
         <!ENTITY geometry SYSTEM "geometry.gdml">
         <!ENTITY materials SYSTEM "materials.xml">

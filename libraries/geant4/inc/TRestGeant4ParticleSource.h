@@ -83,19 +83,27 @@ class TRestGeant4ParticleSource : public TRestMetadata {
 
    private:
     /// Energy and angle sampled together (formula2, TH2D, cosmic)
-    std::string fJointType;                 //!
-    std::string fJointFormula;              //! formula2
-    std::string fJointFile, fJointName;     //! TH2D and cosmic (histogram name)
-    std::unique_ptr<TF2> fJointFunction;    //!
-    std::unique_ptr<TH2D> fJointHistogram;  //!
-    double fJointEnergyUnit = 1;            //!
-    double fJointAngleUnit = 1;             //!
+    std::string fJointType;               //!
+    std::string fJointFormula;            //! formula2
+    std::string fJointFile, fJointName;   //! TH2D and cosmic (histogram name)
+    std::unique_ptr<TF2> fJointFunction;  //!
+    /// Cumulative integral of fJointFunction over its Npx x Npy cells (normalized to 1), to sample it:
+    /// built once and shared by the copies (TF2::GetRandom2 integrates each cell adaptively, minutes for
+    /// the 5000 x 500 cells of the cosmic muons)
+    std::shared_ptr<const std::vector<double>> fJointCumulative;  //!
+    std::unique_ptr<TH2D> fJointHistogram;                        //!
+    double fJointEnergyUnit = 1;                                  //!
+    double fJointAngleUnit = 1;                                   //!
 
     /// Decay0 events, read once and shared by the copies
     std::shared_ptr<const std::vector<std::vector<TRestGeant4ParticleState>>> fDecay0Events;  //!
 
     void CheckJoint();
     void LoadJointDistribution();
+    /// \brief fJointCumulative of fJointFunction (2 x 2 Gauss-Legendre points per cell)
+    void BuildJointCumulative();
+    /// \brief Energy (x) and angle (y) sampled from fJointFunction with fJointCumulative
+    void SampleJointFunction(TRandom& random, double& x, double& y) const;
 };
 
 #endif

@@ -14,7 +14,7 @@ g4Manager:
     class: "TRestRun"
     experimentName: "Alphas"
     runType: "simulation"
-    runNumber: 1
+    runNumber: auto  # a new run number in each simulation: the datasets (plots.yaml) need different runs
     runTag: "${PARAM:energy}MeV_${PARAM:foil}um"
     outputFileName: "data/Run_[runTag].root"
     runDescription: ""

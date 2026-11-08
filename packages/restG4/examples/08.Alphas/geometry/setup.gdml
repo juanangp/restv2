@@ -13,7 +13,7 @@
 
     <define>
         <constant name="world_size" value="20000"/>
-		<!-- Foil thickness in um: parameter foil of alphas.yaml (restG4 --set foil=1) -->
+		<!-- Foil thickness in um: parameter foil of alphas.yaml (restG4 option set: foil=1) -->
 		<constant name="foil" value="5"/>
 		<constant name="foilThickness" value="0.001*foil"/>
 

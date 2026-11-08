@@ -128,7 +128,8 @@ void RunConfig::UpdateInfo() {
 
     // The values typed are written in the run section of the configuration file, only them (the rest of
     // the file, its comments and format, is kept)
-    const std::string section = TRestYAMLUtils::GetMetadataClass(YAML::LoadFile(fileName), "TRestRun").first;
+    const std::string section =
+        TRestYAMLUtils::GetMetadataClass(TRestYAMLUtils::LoadConfigFile(fileName), "TRestRun").first;
     if (section.empty()) throw std::runtime_error("no section of class TRestRun in " + fileName);
     std::vector<std::pair<std::string, std::string>> changes;
 

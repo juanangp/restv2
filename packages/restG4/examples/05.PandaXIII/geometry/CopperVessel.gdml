@@ -1,5 +1,5 @@
 <!-- 截取的圆球-->
-<sphere name = "CopperVesselSolid_11" rmin="0" rmax="2000" starttheta="0" deltaphi="360" deltatheta="60" aunit="deg" lunit= "mm"/>
+<sphere name="CopperVesselSolid_11" rmin="0" rmax="2000" starttheta="0" deltaphi="360" deltatheta="60" aunit="deg" lunit="mm"/>
 <tube name="CopperVesselSolid_12" startphi="0" deltaphi="360" rmin="0" rmax="2000" z="2000" aunit="deg" lunit="mm" />
 <intersection name="CopperVesselSolid_1" >
     <first ref="CopperVesselSolid_11" />
@@ -8,7 +8,7 @@
 </intersection>
 
 <!-- 截取的圆环-->
-<torus name = "CopperVesselSolid_21" rmin="0" rmax="200" rtor="1000-200" deltaphi="360" startphi="0" aunit="deg" lunit= "mm"/>
+<torus name="CopperVesselSolid_21" rmin="0" rmax="200" rtor="1000-200" deltaphi="360" startphi="0" aunit="deg" lunit="mm"/>
 <tube name="CopperVesselSolid_22" startphi="0" deltaphi="360" rmin="0" rmax="2000" z="1075/6" aunit="deg" lunit="mm" />
 <tube name="CopperVesselSolid_23" startphi="0" deltaphi="360" rmin="0" rmax="1000-200" z="200*2" aunit="deg" lunit="mm" />
 <union name="CopperVesselSolid_24" >

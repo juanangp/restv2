@@ -3,7 +3,7 @@
 
 <!DOCTYPE gdml [
         <!-- Parameter of DetectorResponse.yaml: the gas, a material of materials.xml
-             (% written &#37; in an entity; restG4 --set gas=XenonNeon2.3%Isobutane1.5bar) -->
+             (% written &#37; in an entity; restG4 option set: gas=XenonNeon2.3%Isobutane1.5bar) -->
         <!ENTITY gas "Xenon30&#37;Neon1.5bar">
         <!ENTITY geometry SYSTEM "geometry.gdml">
 		<!ENTITY materials SYSTEM "materials.xml">

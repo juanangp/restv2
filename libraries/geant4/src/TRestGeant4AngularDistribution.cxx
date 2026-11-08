@@ -182,9 +182,7 @@ unique_ptr<TRestGeant4AngularDistribution> TRestGeant4AngularDistributionTH1D::C
 }
 
 void TRestGeant4AngularDistributionTH1D::LoadDistribution() {
-    auto histogram = ReadHistogram(fFilename, fNameInFile);
-    fHistogram.reset(dynamic_cast<TH1D*>(histogram.release()));
-    if (!fHistogram) throw runtime_error(GetClassName() + ": '" + fNameInFile + "' is not a TH1D");
+    fHistogram = ReadHistogram1D(fFilename, fNameInFile);  // Any 1D histogram, as a TH1D
     for (int i = 1; i <= fHistogram->GetNbinsX(); i++) {
         const double angle = fHistogram->GetBinCenter(i);
         if (angle < fRange.first || angle > fRange.second) fHistogram->SetBinContent(i, 0);

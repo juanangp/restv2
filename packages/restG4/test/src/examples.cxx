@@ -203,8 +203,9 @@ TEST(restG4Examples, MuonsFromPoint) {
         totalEnergy += event.GetTotalDepositedEnergy() / simulation.run.GetEntries();
         sensitiveEnergy += event.GetSensitiveVolumeEnergy() / simulation.run.GetEntries();
     });
-    EXPECT_LT(Relative(totalEnergy, 18.281), 0.2) << totalEnergy;
-    EXPECT_LT(Relative(sensitiveEnergy, 8.71483), 0.2) << sensitiveEnergy;
+    // Gas Argon1%Isobutane1bar of materials.xml (legacy: Ar_ISO of rest.xml, 18.281 and 8.71483)
+    EXPECT_LT(Relative(totalEnergy, 30.8638), 0.2) << totalEnergy;
+    EXPECT_LT(Relative(sensitiveEnergy, 14.6071), 0.2) << sensitiveEnergy;
 }
 
 TEST(restG4Examples, CosmicMuonsFromWall) {
@@ -252,8 +253,9 @@ TEST(restG4Examples, CosmicMuons) {
         totalEnergy += event.GetTotalDepositedEnergy() / simulation.run.GetEntries();
         sensitiveEnergy += event.GetSensitiveVolumeEnergy() / simulation.run.GetEntries();
     });
-    EXPECT_LT(Relative(totalEnergy, 15.244), 0.2) << totalEnergy;
-    EXPECT_LT(Relative(sensitiveEnergy, 14.8731), 0.2) << sensitiveEnergy;
+    // Gas Argon1%Isobutane1bar of materials.xml (legacy: Ar_ISO of rest.xml, 15.244 and 14.8731)
+    EXPECT_LT(Relative(totalEnergy, 23.9010), 0.2) << totalEnergy;
+    EXPECT_LT(Relative(sensitiveEnergy, 23.4667), 0.2) << sensitiveEnergy;
 }
 
 // --- 05.PandaXIII: Decay0 events in the gas of the PandaX-III geometry ---
@@ -277,8 +279,10 @@ TEST(restG4Examples, IonRecoils) {
     EXPECT_GT(simulation.run.GetEndTime(), simulation.run.GetStartTime());
     simulation.ForEachEvent([&](const TRestGeant4Event& event) {
         EXPECT_EQ(event.GetPrimaryParticleName(0), "F20");
+        // The recoil (up to 10 keV) and the beta decay of the F20 primary (11 s), in the same event as in
+        // legacy (only the secondary nuclei go to a sub-event): the energy range stored, (0, 30) keV
         EXPECT_GT(event.GetSensitiveVolumeEnergy(), 0);
-        EXPECT_LE(event.GetSensitiveVolumeEnergy(), 10 + 1e-6);
+        EXPECT_LE(event.GetSensitiveVolumeEnergy(), 30 + 1e-6);
     });
 }
 
@@ -297,7 +301,15 @@ std::set<std::string> DecayingIsotopes(Simulation& simulation) {
 TEST(restG4Examples, FullChainDecay) {
     ASSERT_TRUE(RestG4("07.FullChainDecay", "fullChain.yaml", "-o fullChain.root"));
     Simulation fullChain(Path("07.FullChainDecay", "fullChain.root"));
-    EXPECT_EQ(DecayingIsotopes(fullChain).size(), 16u);
+    // The main U238 chain, and some isotopes of its rare branches (they appear or not with the random
+    // numbers)
+    const auto chain = DecayingIsotopes(fullChain);
+    for (const std::string isotope : {"U238", "Th234", "Pa234", "U234", "Th230", "Ra226", "Rn222", "Po218",
+                                      "Pb214", "Bi214", "Po214", "Pb210", "Bi210", "Po210"}) {
+        EXPECT_TRUE(chain.count(isotope)) << isotope;
+    }
+    EXPECT_GE(chain.size(), 16u);
+    EXPECT_LE(chain.size(), 18u);
 
     ASSERT_TRUE(RestG4("07.FullChainDecay", "singleDecay.yaml", "-n 1000 -o singleDecay.root"));
     Simulation singleDecay(Path("07.FullChainDecay", "singleDecay.root"));
@@ -332,7 +344,7 @@ TEST(restG4Examples, Alphas) {
         EXPECT_NEAR(*frame.Mean("g4Ana_thetaPrimary"), M_PI / 2, 0.1) << tag;
         EXPECT_NEAR(*frame.Mean("g4Ana_phiPrimary"), 0, 0.2) << tag;
     }
-    ASSERT_TRUE(RestManager("08.Alphas", "plots.yaml", "data/Run_g4Analysis_*.root"));
+    ASSERT_TRUE(RestManager("08.Alphas", "plots.yaml", "data/Run_g4Analysis_*_5um.root"));
     EXPECT_TRUE(fs::exists(Path("08.Alphas", "plots.root")));
 
     // --update-gdml writes the parameter in the constant of the GDML, without simulating
@@ -410,11 +422,12 @@ TEST(restG4Examples, Xrays) {
     ASSERT_TRUE(RestG4("11.Xrays", "Fe55.yaml", "-n " + std::to_string(events) + " -o Fe55.root"));
     ASSERT_TRUE(RestManager("11.Xrays", "analysis.yaml", "Fe55.root", "Fe55_analysis.root"));
     ROOT::RDataFrame frame("AnalysisTree", Path("11.Xrays", "Fe55_analysis.root"));
-    // Legacy: 1600 to 1750 of 100000 in the peak
+    // Legacy: 1600 to 1750 of 100000 in the peak, with Ar_ISO of 1.805 mg/cm3; the gas of materials.xml,
+    // Argon1%Isobutane1bar, has 1.619 mg/cm3 (about 10% less absorption): 0.01425 with this seed
     const double fraction =
         double(*frame.Filter("g4Ana_totalEdep > 5.7 && g4Ana_totalEdep < 5.95").Count()) / events;
-    EXPECT_GT(fraction, 0.0145);
-    EXPECT_LT(fraction, 0.019);
+    EXPECT_GT(fraction, 0.0130);
+    EXPECT_LT(fraction, 0.0165);
 
     ASSERT_TRUE(RestG4("11.Xrays", "xrays.yaml", "-o xrays.root"));
     ASSERT_TRUE(RestManager("11.Xrays", "analysis.yaml", "xrays.root", "xrays_analysis.root"));
@@ -507,8 +520,9 @@ TEST(restG4Examples, IAXO) {
         EXPECT_GE(simulation.run.GetEntries(), 1) << config;
         ASSERT_NE(simulation.metadata, nullptr);
         const auto& geometry = simulation.metadata->GetGeant4GeometryInfo();
-        EXPECT_EQ(geometry.GetAllPhysicalVolumes().size(), 309u) << config;
-        EXPECT_EQ(geometry.GetAllLogicalVolumes().size(), 22u) << config;
+        EXPECT_EQ(geometry.GetAllPhysicalVolumes().size(), 97u) << config;  // Unique TGeo names
+        EXPECT_EQ(geometry.GetAllLogicalVolumes().size(), 46u)
+            << config;  // All TGeo volumes (assemblies too)
     }
 }
 

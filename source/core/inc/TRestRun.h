@@ -202,6 +202,10 @@ class TRestRun : public TRestRunInfo {
     /// run file (nothing is done for an empty name or if a file is already open).
     /// \param filename Input file path.
     void OpenInputFile(const std::string& filename);
+    /// \brief The parameters of the run of the input file (runNumber, runTag, runType..., the times of the
+    /// data taking, entriesSaved and runInfo) as those of this run; used by TRestRun(inputFileName), which
+    /// has no configuration (a configured run takes them with inheritInputRun or inputFormat)
+    void LoadInputRunParameters();
 
     /// \brief Whether an input file is open and valid.
     bool IsOpen() const { return fInputFile && !fInputFile->IsZombie(); }

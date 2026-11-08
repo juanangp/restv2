@@ -15,7 +15,20 @@ class TFile;
 /// The generic functions (strings, files, ROOT files, geometries) are in TRestTools.
 namespace TRestYAMLUtils {
 
-/// \brief Configuration file with its references resolved (ResolveRefs), the parameters with `overrides`
+/// \brief A YAML configuration file with its `include` keys expanded, at any depth: a map with
+/// `include: "file.yaml"` takes the content of that file (a map, the keys of the section) and its own keys
+/// override it (the maps are merged recursively, lists and scalars replaced); `include: "file.yaml:key"`
+/// takes the section `key` of a file with several. The path is relative to the file that includes it
+/// (absolute paths and ${ENV:VAR} are accepted; not ${PARAM:...}: the parameters are resolved after, by
+/// ResolveRefs, with the `parameters` of the main file only). Included files can include others; a cycle,
+/// a missing file or key, or a content that is not a map throw. E.g.
+///
+///     run:
+///       include: "common/run.yaml"
+///       runTag: "calib"            # overrides the one of common/run.yaml
+YAML::Node LoadConfigFile(const std::string& fileName);
+/// \brief Configuration file (LoadConfigFile, its includes expanded) with its references resolved
+/// (ResolveRefs), the parameters with `overrides`
 YAML::Node OpenConfigFile(const std::string& fileName,
                           const std::map<std::string, std::string>& overrides = {});
 /// \brief Node with `${ENV:VAR}` replaced by the environment variable VAR (empty if it is not defined),
@@ -65,8 +78,10 @@ YAML::Node Detach(const YAML::Node& node);
 void CheckKeys(const YAML::Node& node, const std::set<std::string>& allowed, const std::string& context);
 /// \brief Sets values of a YAML file in its text, keeping the rest as it is (comments, order, format): each
 /// (path of keys separated by dots, e.g. "run.runInfo.operator"; value). A value is written plain if it reads
-/// back the same, otherwise double quoted. A key that is not there is added at the start of its map. Throws
-/// if a path cannot be set (a parent missing or not a block map, a value that is not a scalar of one line).
+/// back the same, otherwise double quoted. A key that is not there is added at the start of its map, and so
+/// are its missing parent keys (e.g. a value of a section taken from an included file: it is written in this
+/// file, overriding the included one). Throws if a path cannot be set (a parent that is not a block map, a
+/// value that is not a scalar of one line).
 void SetValuesInFile(const std::string& fileName,
                      const std::vector<std::pair<std::string, std::string>>& values);
 

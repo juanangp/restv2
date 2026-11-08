@@ -6,7 +6,7 @@
 <structure>
 
 <volume name="gasVolume">
-    <materialref ref="Neon_ISO"/>
+    <materialref ref="NeonGas"/>  <!-- Neon at about 1 bar (materials.xml) -->
     <solidref ref="gasSolid"/>
 </volume>
 

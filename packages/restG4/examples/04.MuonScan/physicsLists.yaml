@@ -1,0 +1,25 @@
+# Physics lists of the cosmic muon examples of this directory (TRestGeant4PhysicsLists), included by
+# CosmicMuons.yaml, CosmicMuonsFromWall.yaml and CosmicMuonsFromCircle.yaml (key `include`).
+class: "TRestGeant4PhysicsLists"
+cutForGamma: 1 um
+cutForElectron: 1 um
+cutForPositron: 1 um
+cutForMuon: 1 mm
+cutForNeutron: 1 mm
+minEnergyRangeProductionCuts: 1 keV
+maxEnergyRangeProductionCuts: 1 GeV
+
+physicsList:
+  - name: "G4EmLivermorePhysics"
+  - name: "G4DecayPhysics"
+  - name: "G4RadioactiveDecayPhysics"
+  - name: "G4RadioactiveDecay"
+    option:
+      - name: "ICM"
+        value: "true"
+      - name: "ARM"
+        value: "true"
+  - name: "G4HadronElasticPhysicsHP"
+  - name: "G4IonBinaryCascadePhysics"
+  - name: "G4HadronPhysicsQGSP_BIC_HP"
+  - name: "G4EmExtraPhysics"

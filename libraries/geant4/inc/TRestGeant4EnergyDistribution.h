@@ -57,7 +57,8 @@ class TRestGeant4EnergyDistribution : public TRestMetadata {
 /// \brief `type: "mono"`: `energy`.
 class TRestGeant4EnergyDistributionMono : public TRestGeant4EnergyDistribution {
    public:
-    TRestWithUnits fEnergy = 0.0;  ///< `energy` (keV), must be positive
+    TRestWithUnits fEnergy =
+        0.0;  ///< `energy` (keV), 0 for a particle at rest (e.g. an ion that decays), not negative
 
     TRestGeant4EnergyDistributionMono() = default;
     /// \brief Configured from the `energy` section.

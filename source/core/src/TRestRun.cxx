@@ -54,6 +54,7 @@ TRestRun::TRestRun() { fName = "TRestRun"; }
 TRestRun::TRestRun(const std::string& inputFileName) {
     fName = "TRestRun";
     OpenInputFile(inputFileName);
+    LoadInputRunParameters();
 }
 
 TRestRun::TRestRun(const std::string& instanceName, const YAML::Node& node)
@@ -82,6 +83,20 @@ const std::vector<std::string> kRunParameters = {"runNumber", "subRunNumber",   
                                                  "runTag",    "runDescription", "experimentName"};
 
 }  // namespace
+
+void TRestRun::LoadInputRunParameters() {
+    const YAML::Node& inputRun = fInputFileNode;
+    if (!inputRun || !inputRun.IsMap()) return;
+    // The run of the file: its parameters, the times of the data taking and its runInfo
+    YAML::Node parameters(YAML::NodeType::Map);
+    for (const auto& key : kRunParameters)
+        if (inputRun[key]) parameters[key] = inputRun[key];
+    for (const std::string key : {"startTime", "endTime", "mergedSubRuns", "entriesSaved"})
+        if (inputRun[key]) parameters[key] = inputRun[key];
+    UpdateParamsFromYAML<TRestRun>(parameters);
+    if (inputRun["runInfo"] && inputRun["runInfo"].IsMap())
+        fRunInformation = inputRun["runInfo"].as<std::map<std::string, std::string>>();
+}
 
 void TRestRun::LoadConfig() {
     if (!fNode || fNode.IsNull()) {

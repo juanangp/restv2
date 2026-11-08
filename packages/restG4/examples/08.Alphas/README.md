@@ -47,7 +47,7 @@ restG4 alphas.yaml --set energy=1 --set foil=5
 restManager --c analysis.yaml --i data/Run_1MeV_5um.root
 restManager --c analysis.yaml --i data/Run_5MeV_1um.root
 restManager --c analysis.yaml --i data/Run_5MeV_5um.root
-restManager --c plots.yaml --i "data/Run_g4Analysis_*.root"
+restManager --c plots.yaml --i "data/Run_g4Analysis_*_5um.root"  # same geometry (foil) in a dataset
 ```
 
 

@@ -21,8 +21,10 @@
 /// \class TRestDataSetGainMap
 ///
 /// Gain map of a readout, a process of TRestDataSetProcessManager: corrects the gain inhomogeneities of
-/// big readouts (e.g. TREX-DM) by calibrating each segment. The extent of the readout in X and Y (the
-/// bounding box of its channels, TRestDetectorReadout::GetChannelsBoundingBox) is divided in `segments`,
+/// big readouts (e.g. TREX-DM) by calibrating each segment. The extent of the readout in the two axes of its
+/// plane (the bounding box of its channels, TRestDetectorReadout::GetChannelsBoundingBox; the normal is the
+/// axis of smallest extent, X and Y of the map the two others in cyclic order: X and Y for a plane XY, Y
+/// and Z for a normal X, Z and X for a normal Y) is divided in `segments`,
 /// and the events of a segment are those with the spatial observables inside it. The readout is the one
 /// of the reference dataset (its TRestDetectorReadoutManager, TRestDataSet::GetMetadataOfType). In the
 /// reference (referenceFileName with the cuts, see TRestDataSetProcess), the peaks of known energy are
@@ -359,14 +361,24 @@ void TRestDataSetGainMap::ComputeParameters(const TRestDataSet& reference, ROOT:
     // The extent of the readout, divided in segments
     if (fSplitX.empty() || fSplitY.empty()) {
         const auto [minimum, maximum] = FindReadout(reference).GetChannelsBoundingBox();
-        if (!std::isfinite(minimum.X()) || !std::isfinite(maximum.X())) {
+        const double low[3] = {minimum.X(), minimum.Y(), minimum.Z()};
+        const double high[3] = {maximum.X(), maximum.Y(), maximum.Z()};
+        // The plane of the readout: its normal is the axis of smallest extent (Z for a plane XY), X and Y
+        // of the map the two other axes in cyclic order (those of the strips of a Micromegas)
+        int normal = 2;
+        for (int a = 0; a < 3; a++)
+            if (high[a] - low[a] < high[normal] - low[normal]) normal = a;
+        const int axisX = (normal + 1) % 3, axisY = (normal + 2) % 3;
+        if (!std::isfinite(low[axisX]) || !std::isfinite(high[axisX])) {
             throw std::runtime_error("TRestDataSetGainMap '" + fName +
                                      "': the readout has no channels (give splitX and splitY)");
         }
-        if (fSplitX.empty()) fSplitX = EqualSplit(fSegments.first, minimum.X(), maximum.X());
-        if (fSplitY.empty()) fSplitY = EqualSplit(fSegments.second, minimum.Y(), maximum.Y());
-        RESTInfo << "TRestDataSetGainMap '" << fName << "': readout extent x [" << minimum.X() << ", "
-                 << maximum.X() << "], y [" << minimum.Y() << ", " << maximum.Y() << "]" << RESTendl;
+        if (fSplitX.empty()) fSplitX = EqualSplit(fSegments.first, low[axisX], high[axisX]);
+        if (fSplitY.empty()) fSplitY = EqualSplit(fSegments.second, low[axisY], high[axisY]);
+        const char* names = "xyz";
+        RESTInfo << "TRestDataSetGainMap '" << fName << "': readout extent " << names[axisX] << " ["
+                 << low[axisX] << ", " << high[axisX] << "], " << names[axisY] << " [" << low[axisY] << ", "
+                 << high[axisY] << "]" << RESTendl;
     }
 
     // Automatic range: up to where the last 1% of the spectrum starts (as legacy)

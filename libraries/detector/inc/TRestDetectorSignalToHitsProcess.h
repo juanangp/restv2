@@ -44,9 +44,10 @@ class TRestDetectorSignalToHitsProcess : public TRestEventProcess {
     std::string fMediumName = "";
 
     /// Axis and sense of the drift from the readout into the drift volume (Z, -Z, X, ...; as the legacy
-    /// plane normal). The sense is only used if the readout defines no distance (otherwise it comes from
-    /// the readout normal). The drift only fills it for channels where the readout leaves it undefined (NaN),
-    /// so channels of detectors without drift keep their position.
+    /// plane normal). Only used if the readout defines no distance: otherwise the axis and the sense come
+    /// from the readout normal (e.g. a Micromegas with normal [0, -1, 0] drifts along Y). The drift only
+    /// fills it for channels where the readout leaves it undefined (NaN), so channels of detectors without
+    /// drift keep their position.
     std::string fDriftAxis = "Z";
 
     /// Method used to extract the hits from each signal: onlyMax, tripleMax, tripleMaxAverage, gaussFit,

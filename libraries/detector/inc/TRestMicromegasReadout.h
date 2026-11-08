@@ -10,12 +10,13 @@
 /// nChannels, pitch, thickness, gasThickness, normal and checkOverlaps.
 class TRestMicromegasReadoutParameters : public TRestMetadata {
    public:
-    /// Translation of the readout plane (its centre); positionRelative[2] is the Z of the plane
+    /// Translation of the readout plane (its centre, global coordinates); its component along the normal
+    /// axis is the position of the plane
     std::array<TRestWithUnits, 3> fPositionRelative = {0.0, 0.0, 0.0};
-    /// Rotation of the plane about Z, applied to the geometry (GetChannelFromPosition works with global
-    /// positions). The positions of the channels (GetPositionFromChannel, strips: only X or only Y) are in
-    /// the frame of the readout plane (unrotated), so the hits reconstructed from the signals are in that
-    /// frame
+    /// Rotation of the plane about its normal axis, applied to the geometry (GetChannelFromPosition works
+    /// with global positions). The positions of the channels (GetPositionFromChannel, strips: a single
+    /// coordinate) are in the frame of the readout plane (unrotated), so the hits reconstructed from the
+    /// signals are in that frame
     TRestWithUnits fGlobalRotation = 0;
     /// Number of strips per axis (nChannels X strips and nChannels Y strips)
     int fNChannels = 0;
@@ -26,8 +27,9 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     /// Thickness of the drift volume (the cathode at that distance from the plane); 0: no drift volume nor
     /// cathode
     TRestWithUnits fGasThickness = 0;
-    /// Normal of the readout plane pointing to the cathode (drift volume side). Only +Z or -Z, since
-    /// globalRotation is around Z
+    /// Normal of the readout plane pointing to the cathode (drift volume side), along an axis: [+-1, 0, 0],
+    /// [0, +-1, 0] or [0, 0, +-1]. The X and Y strips measure the two other axes, in cyclic order: normal Z:
+    /// X and Y; normal X: Y and Z; normal Y: Z and X
     std::array<double, 3> fNormal = {0.0, 0.0, 1.0};
     /// Run a sampling overlap check on the strips after building (slow for large nChannels)
     bool fCheckOverlaps = false;
@@ -36,15 +38,21 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     TRestMicromegasReadoutParameters();
     /// \brief Builds the parameters from the `readoutParameters` node (LoadConfig).
     TRestMicromegasReadoutParameters(const std::string& name, const YAML::Node& node);
-    /// \brief Reads the parameters; throws if normal is not [0, 0, 1] or [0, 0, -1].
+    /// \brief Reads the parameters; throws if normal is not along an axis (a single non zero component).
     void LoadConfig() override;
     /// \brief Nothing to initialise.
     void Initialize() override {}
     /// \brief Returns the class name, "TRestMicromegasReadoutParameters".
     std::string GetClassName() const override { return "TRestMicromegasReadoutParameters"; }
 
-    /// \brief Side of the readout plane where the cathode is: +1 (+Z) or -1 (-Z).
-    int GetNormalSign() const { return fNormal[2] < 0 ? -1 : 1; }
+    /// \brief Axis of the normal: 0 X, 1 Y, 2 Z.
+    int GetNormalAxis() const { return fNormal[0] != 0 ? 0 : fNormal[1] != 0 ? 1 : 2; }
+    /// \brief Side of the readout plane where the cathode is: +1 or -1 along the normal axis.
+    int GetNormalSign() const { return fNormal[GetNormalAxis()] < 0 ? -1 : 1; }
+    /// \brief Global axis measured by the X strips (the first axis of the plane, cyclic after the normal).
+    int GetStripAxisX() const { return (GetNormalAxis() + 1) % 3; }
+    /// \brief Global axis measured by the Y strips (the second axis of the plane).
+    int GetStripAxisY() const { return (GetNormalAxis() + 2) % 3; }
 };
 
 /// \class TRestMicromegasReadout
@@ -56,13 +64,16 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
 ///
 /// The plane has nChannels X strips and nChannels Y strips of interleaved pixels (pitch / sqrt(2), rotated
 /// 45 degrees): the Y strips have the physical IDs 0 to nChannels - 1 and the X strips nChannels to
-/// 2 nChannels - 1 (the UniqueID of the pixel nodes). The plane is centred at positionRelative and rotated
-/// by globalRotation about Z; with gasThickness > 0 a gas volume (the drift volume) is added on the side of
-/// the normal, which gives the cathode (GetMaxDistanceToReadout). The positions of the channels are those
-/// of the strips (only X or only Y), in the frame of the plane.
+/// 2 nChannels - 1 (the UniqueID of the pixel nodes). The normal of the plane is along an axis (X, Y or Z,
+/// `normal`), the X and Y strips measure the two other axes in cyclic order (normal Z: X and Y; normal X:
+/// Y and Z; normal Y: Z and X). The plane is centred at positionRelative and rotated by globalRotation
+/// about its normal; with gasThickness > 0 a gas volume (the drift volume) is added on the side of the
+/// normal, which gives the cathode (GetMaxDistanceToReadout). The positions of the channels are those of the
+/// strips (only their axis defined, the others NaN), in the frame of the plane.
 ///
 /// Parameters: decodingFile and, in `readoutParameters`, nChannels, pitch, thickness, gasThickness,
-/// positionRelative, globalRotation, normal ([0, 0, 1] or [0, 0, -1]) and checkOverlaps.
+/// positionRelative, globalRotation, normal (along an axis, e.g. [0, 0, 1], [0, -1, 0]) and
+/// checkOverlaps.
 ///
 ///    readout:
 ///      class: "TRestMicromegasReadout"
@@ -107,8 +118,8 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     /// strips: nChannels to 2 nChannels - 1): the last Y strip and the first X strip are not neighbours.
     std::pair<int, int> GetAdjacentChannels(int daqID) const override;
     using TRestDetectorReadout::GetDistanceToReadout;
-    /// \brief Returns the distance to the readout plane z = positionRelative[2] along its normal (positive
-    /// towards the cathode).
+    /// \brief Returns the distance to the readout plane (positionRelative along the normal axis) along its
+    /// normal (positive towards the cathode).
     double GetDistanceToReadout(const ROOT::Math::XYZVector& position) const override;
     /// \brief Returns the distance from the readout plane to the cathode (end of the gasThickness volume),
     /// or NaN if gasThickness is not set (no cathode: the drift processes apply no upper cut).

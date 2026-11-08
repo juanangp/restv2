@@ -4,12 +4,12 @@
 /// driftVelocity > 0, the coordinate along driftAxis where the distance to the readout is
 /// driftVelocity * time (as legacy: plane position + normal * distance). If the readout defines
 /// TRestDetectorReadout::GetDistanceToReadout (e.g. the Micromegas plane, positive towards its cathode
-/// as set by its normal), the plane and the drift sense come from the readout and the sign of driftAxis
-/// is ignored. Otherwise the plane is at 0 and the sense is the sign of driftAxis ("-Z" puts the drift
-/// volume on the -Z side). The drift only fills a
-/// coordinate the readout leaves undefined: channels whose readout already gives it (e.g. the centre of
-/// a scintillator) keep their position, so detectors with and without drift can share the process.
-/// The hit type (X, Y, XY, ...) is deduced from the coordinates that are defined.
+/// as set by its normal), the drift axis (the one of its normal, e.g. Y for a Micromegas with normal
+/// [0, -1, 0]), the plane and the drift sense come from the readout and driftAxis is ignored. Otherwise the
+/// plane is at 0, the axis is driftAxis and the sense its sign ("-Z" puts the drift volume on the -Z side).
+/// The drift only fills a coordinate the readout leaves undefined: channels whose readout already gives it
+/// (e.g. the centre of a scintillator) keep their position, so detectors with and without drift can share the
+/// process. The hit type (X, Y, XY, ...) is deduced from the coordinates that are defined.
 ///
 /// Methods (energy, time of each hit):
 /// - onlyMax, tripleMax, tripleMaxAverage, gaussFit, landauFit, agetFit: one hit at the pulse maximum.
@@ -97,6 +97,28 @@ std::pair<double, double> GetDriftLine(const TRestDetectorReadout& readout, int 
     const double d1 = readout.GetDistanceToReadout(daqID, p + step);
     if (std::isnan(d0) || std::isnan(d1) || d1 == d0) return {0, direction};
     return {-d0 / (d1 - d0), 1 / (d1 - d0)};
+}
+
+/// Drift axis of a channel: that of the normal of its readout (the axis along which the distance to the
+/// readout changes most), `fallback` if the readout defines no distance
+char GetDriftAxis(const TRestDetectorReadout& readout, int daqID, ROOT::Math::XYZVector p, char fallback) {
+    if (std::isnan(p.X())) p.SetX(0);
+    if (std::isnan(p.Y())) p.SetY(0);
+    if (std::isnan(p.Z())) p.SetZ(0);
+    const double d0 = readout.GetDistanceToReadout(daqID, p);
+    if (std::isnan(d0)) return fallback;
+    const char axes[3] = {'X', 'Y', 'Z'};
+    const ROOT::Math::XYZVector steps[3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    char axis = fallback;
+    double largest = 0;
+    for (int a = 0; a < 3; a++) {
+        const double change = std::abs(readout.GetDistanceToReadout(daqID, p + steps[a]) - d0);
+        if (std::isfinite(change) && change > largest) {
+            largest = change;
+            axis = axes[a];
+        }
+    }
+    return axis;
 }
 
 /// Hit type from the coordinates that are defined
@@ -247,13 +269,14 @@ bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRe
             if (std::isfinite(hit.first) && hit.second > 0) hits.push_back(hit);
         }
 
+        const char axis = fDriftVelocity > 0 ? GetDriftAxis(*fReadout, daqID, channelPos, fAxis) : fAxis;
         const auto [driftOffset, driftSlope] =
-            fDriftVelocity > 0 ? GetDriftLine(*fReadout, daqID, channelPos, fAxis, fDriftDirection)
+            fDriftVelocity > 0 ? GetDriftLine(*fReadout, daqID, channelPos, axis, fDriftDirection)
                                : std::pair<double, double>{0, 0};
         for (const auto& [time, energy] : hits) {
             auto position = channelPos;
             if (fDriftVelocity > 0) {
-                SetDriftCoordinate(position, fAxis, driftOffset + driftSlope * fDriftVelocity * time);
+                SetDriftCoordinate(position, axis, driftOffset + driftSlope * fDriftVelocity * time);
             }
             hitsEvent->AddHit(position, energy, time, GetHitType(position));
         }

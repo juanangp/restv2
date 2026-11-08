@@ -27,7 +27,7 @@ A readout gives the channel of a position and the position of a channel, the dis
 | Class | Description |
 | --- | --- |
 | `TRestDetectorReadout` | Abstract base: ROOT `TGeoManager` geometry, decoding physical ID ↔ DAQ ID, position lookup, distance to the readout, export/import to ROOT files, 3D views. |
-| `TRestMicromegasReadout` | Micromegas strip plane (X and Y strips of interleaved pixels) with `nChannels`, `pitch`, position, rotation about Z, normal and the drift volume (`gasThickness`, the cathode). |
+| `TRestMicromegasReadout` | Micromegas strip plane (X and Y strips of interleaved pixels) with `nChannels`, `pitch`, position, normal along an axis (X, Y or Z; the strips measure the two other axes), rotation about the normal and the drift volume (`gasThickness`, the cathode). |
 | `TRestMicromegasReadoutParameters` | The `readoutParameters` of a `TRestMicromegasReadout`. |
 | `TRestGDMLReadout` | Readout taken from the GDML geometry of the simulation (e.g. vetoes): channels selected by regular expressions on the volume paths, with an optional readout volume (light guide) for the light attenuation. |
 | `TRestGDMLReadoutParameters`, `TRestGDMLReadoutInfo` | The `readoutParameters` of a `TRestGDMLReadout` and each group of channels (`volume`, `readoutVolume`, `offset`, `multiplier`). |

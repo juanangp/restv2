@@ -55,9 +55,14 @@ TRestMicromegasReadoutParameters::TRestMicromegasReadoutParameters(const std::st
 
 void TRestMicromegasReadoutParameters::LoadConfig() {
     UpdateParamsFromYAML<TRestMicromegasReadoutParameters>(fNode);
-    if (fNormal[0] != 0 || fNormal[1] != 0 || fNormal[2] == 0) {
-        throw std::runtime_error("TRestMicromegasReadoutParameters: normal must be [0, 0, 1] or [0, 0, -1]");
+    const int nonZero = (fNormal[0] != 0) + (fNormal[1] != 0) + (fNormal[2] != 0);
+    if (nonZero != 1) {
+        throw std::runtime_error(
+            "TRestMicromegasReadoutParameters: normal must be along an axis ([+-1, 0, 0], [0, +-1, 0] or "
+            "[0, 0, +-1])");
     }
+    // A unit vector
+    for (auto& component : fNormal) component = component > 0 ? 1 : component < 0 ? -1 : 0;
     UpdateYAMLFromParams<TRestMicromegasReadoutParameters>(fNode);
 }
 
@@ -114,8 +119,13 @@ void TRestMicromegasReadout::BuildGeometry() {
     const auto pitch = fReadoutParams.fPitch;
     const auto nChannels = fReadoutParams.fNChannels;
     double visibleThickness = fReadoutParams.fThickness;
-    const double posRel[3] = {fReadoutParams.fPositionRelative[0], fReadoutParams.fPositionRelative[1],
-                              fReadoutParams.fPositionRelative[2]};
+    // The plane is built in its local frame (X and Y strips along local X and Y, normal along local Z) and
+    // placed with the rotation of its axes (globalMatrix): positionRelative in that frame
+    const int axisX = fReadoutParams.GetStripAxisX(), axisY = fReadoutParams.GetStripAxisY();
+    const int axisNormal = fReadoutParams.GetNormalAxis();
+    const double posRel[3] = {fReadoutParams.fPositionRelative[axisX],
+                              fReadoutParams.fPositionRelative[axisY],
+                              fReadoutParams.fPositionRelative[axisNormal]};
 
     double pixelSize = pitch / std::sqrt(2.0);
 
@@ -231,13 +241,24 @@ void TRestMicromegasReadout::BuildGeometry() {
         globalRot->RotateZ(fReadoutParams.fGlobalRotation * TMath::RadToDeg());
         globalMatrix->MultiplyLeft(globalRot);
     }
+    // Local axes X, Y, Z to the global axes of the X strips, Y strips and normal (a cyclic permutation:
+    // a proper rotation)
+    if (axisNormal != 2) {
+        double axes[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};  // Row major: global = axes * local
+        axes[axisX * 3 + 0] = 1;
+        axes[axisY * 3 + 1] = 1;
+        axes[axisNormal * 3 + 2] = 1;
+        TGeoRotation* axesRotation = new TGeoRotation("axesRotation");
+        axesRotation->SetMatrix(axes);
+        globalMatrix->MultiplyLeft(axesRotation);
+    }
 
     TGeoVolume* top = fGeoManager->GetTopVolume();
     TGeoNode* readoutNode = top->AddNode(readoutGeom, 0, globalMatrix);
     readoutNode->SetUniqueID(kNoPhysicalID);
 
     fGeoManager->CloseGeometry();
-    std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single unified Z plane." << std::endl;
+    std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single plane." << std::endl;
 
     if (fReadoutParams.fCheckOverlaps) {
         // Only the direct daughters of readoutGeom (strips + gas) are checked, which covers X vs Y pixel
@@ -285,23 +306,28 @@ ROOT::Math::XYZVector TRestMicromegasReadout::GetPositionFromChannel(int daqID) 
     double offsetX = -moduleSizeX / 2.0;
     double offsetY = -moduleSizeY / 2.0;
 
+    // Coordinates along the X strips axis and the Y strips axis (in the frame of the plane)
     double posX = REST_nan;
     double posY = REST_nan;
-    double posZ = REST_nan;
+    const int axisX = fReadoutParams.GetStripAxisX(), axisY = fReadoutParams.GetStripAxisY();
 
     bool isChannelX = (targetPhysicalID >= fReadoutParams.fNChannels);
 
     if (isChannelX) {
         int nCh = targetPhysicalID - fReadoutParams.fNChannels;
         double localY_fixed = nCh * fReadoutParams.fPitch - fReadoutParams.fPitch / 4.0;
-        posX = localY_fixed + offsetX + fReadoutParams.fPositionRelative[0];
+        posX = localY_fixed + offsetX + fReadoutParams.fPositionRelative[axisX];
     } else {
         int nCh = targetPhysicalID;
         double localX_fixed = (1.0 + nCh) * fReadoutParams.fPitch;
-        posY = localX_fixed + offsetY + fReadoutParams.fPositionRelative[1];
+        posY = localX_fixed + offsetY + fReadoutParams.fPositionRelative[axisY];
     }
 
-    return ROOT::Math::XYZVector(posX, posY, posZ);
+    // Global axes: the strip coordinate on its axis, the others NaN
+    double position[3] = {REST_nan, REST_nan, REST_nan};
+    position[axisX] = posX;
+    position[axisY] = posY;
+    return ROOT::Math::XYZVector(position[0], position[1], position[2]);
 }
 
 std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> TRestMicromegasReadout::GetChannelsBoundingBox()
@@ -309,10 +335,13 @@ std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> TRestMicromegasReadout::
     if (fReadoutParams.fGlobalRotation == 0.0) return TRestDetectorReadout::GetChannelsBoundingBox();
 
     const double inf = std::numeric_limits<double>::infinity();
+    const int axisX = fReadoutParams.GetStripAxisX(), axisY = fReadoutParams.GetStripAxisY();
+    const int axisNormal = fReadoutParams.GetNormalAxis();
     double minimum[2] = {inf, inf}, maximum[2] = {-inf, -inf};
     for (const auto& [physicalID, daqID] : fPhysicalToDAQMap) {
         const auto position = GetPositionFromChannel(daqID);
-        const double coordinates[2] = {position.X(), position.Y()};
+        const double global[3] = {position.X(), position.Y(), position.Z()};
+        const double coordinates[2] = {global[axisX], global[axisY]};
         for (int a = 0; a < 2; a++) {
             if (!std::isfinite(coordinates[a])) continue;
             minimum[a] = std::min(minimum[a], coordinates[a]);
@@ -324,14 +353,20 @@ std::pair<ROOT::Math::XYZVector, ROOT::Math::XYZVector> TRestMicromegasReadout::
         return {ROOT::Math::XYZVector(nan, nan, nan), ROOT::Math::XYZVector(nan, nan, nan)};
     }
     const double halfPitch = fReadoutParams.fPitch / 2.0;
-    const double z = fReadoutParams.fPositionRelative[2];
-    return {ROOT::Math::XYZVector(minimum[0] - halfPitch, minimum[1] - halfPitch, z),
-            ROOT::Math::XYZVector(maximum[0] + halfPitch, maximum[1] + halfPitch, z)};
+    double low[3], high[3];
+    low[axisX] = minimum[0] - halfPitch;
+    low[axisY] = minimum[1] - halfPitch;
+    high[axisX] = maximum[0] + halfPitch;
+    high[axisY] = maximum[1] + halfPitch;
+    low[axisNormal] = high[axisNormal] = fReadoutParams.fPositionRelative[axisNormal];
+    return {ROOT::Math::XYZVector(low[0], low[1], low[2]), ROOT::Math::XYZVector(high[0], high[1], high[2])};
 }
 
 double TRestMicromegasReadout::GetDistanceToReadout(const ROOT::Math::XYZVector& position) const {
-    // Single readout plane at z = positionRelative[2]; the global rotation is around Z, so the normal is +-Z
-    return fReadoutParams.GetNormalSign() * (position.Z() - fReadoutParams.fPositionRelative[2]);
+    // Single readout plane at positionRelative along the normal axis; the global rotation is around it
+    const int axis = fReadoutParams.GetNormalAxis();
+    const double coordinate = axis == 0 ? position.X() : axis == 1 ? position.Y() : position.Z();
+    return fReadoutParams.GetNormalSign() * (coordinate - fReadoutParams.fPositionRelative[axis]);
 }
 
 double TRestMicromegasReadout::GetMaxDistanceToReadout(const ROOT::Math::XYZVector& position) const {

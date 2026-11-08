@@ -18,9 +18,9 @@ class FEMDAQARCFEM : public FEMDAQ {
     static std::atomic<bool> stopReceiver;
 
     // limits the burst that the switch and the socket buffers have to absorb
-    uint32_t kReqFrames = 8;
+    std::atomic<uint32_t> kReqFrames{8};
     // Pending frames needed to send a new request
-    uint32_t kFrameThr = 2;
+    std::atomic<uint32_t> kFrameThr{2};
     // Lost frames that trigger a resync of the credits
     uint8_t kLostThr = 1;
 
@@ -45,14 +45,10 @@ class FEMDAQARCFEM : public FEMDAQ {
     void FEMReceiverThread(FEMProxy& FEM);
     void EventBuilder();
     void SendCommand(const char* cmd, FEMProxy& FEM, bool wait = true);
-    void waitForCmd(FEMProxy& FEM);
+    /// \brief Waits (10 s timeout) for a reply of the FEM: cmd_rcv (frames that are not data) above the
+    /// value it had before sending the command
+    void waitForCmd(FEMProxy& FEM, uint32_t repliesBefore);
     void SendDAQCmdThread(FEMProxy& FEM);
 
     void PrintMonitoring(uint16_t* buff, const uint16_t& size, FEMProxy& FEM);
-
-   private:
-    struct Registrar {
-        Registrar();
-    };
-    static Registrar registrar_;
 };

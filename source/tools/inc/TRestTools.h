@@ -15,6 +15,8 @@ namespace TRestTools {
 
 std::vector<std::string> GetFilesMatchingPattern(const std::string& filePattern);
 std::string GetTimeStampFromUnixTime(const double tm);
+/// \brief Current Unix time in seconds (with microseconds)
+double GetCurrentTime();
 /// \brief Unix time of a local date, "YYYY/MM/DD", "YYYY-MM-DD" and optionally " HH:MM" or " HH:MM:SS" (as
 /// legacy REST_StringHelper::StringToTimeStamp). Throws if it is not a valid date.
 double StringToTimeStamp(const std::string& date);
@@ -59,9 +61,13 @@ void DeleteGeometry(TGeoManager* geometry);
 /// already there; throws if it cannot be downloaded or if the URL has characters that are not safe in a
 /// shell command (', $, `, \, spaces, control characters...: only the RFC 3986 ones) or no scheme (http://)
 std::string DownloadFile(const std::string& url);
+/// \brief Directory of the files of REST of the user (history, settings, downloads...): $REST_HOME/.rest, or
+/// $HOME/.rest without REST_HOME; created if it does not exist. Throws if neither is defined.
+std::string GetRESTUserDirectory();
 std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
 std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);
 bool StringToBool(std::string booleanString);
+/// \brief Duration with its unit, e.g. "2.50 hours" (seconds, minutes, hours, days or weeks)
 std::string ToTimeStringLong(double seconds);
 std::vector<std::string> Split(const std::string& s, char delim);
 int CountString(const std::string& in, const std::string& substring);

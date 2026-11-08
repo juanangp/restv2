@@ -10,17 +10,17 @@
 #include <sstream>
 #include <thread>
 
-std::atomic<bool> CommandFetcher::g_interrupted(false);
+#include "TRestTools.h"
+
 std::atomic<bool> CommandFetcher::g_shutdown(false);
 
 CommandFetcher::CommandFetcher(RunConfig& rC) : runConfig(rC) {
     daq = FEMDAQ::Create(runConfig);
 
-    // Load history file (create ~/.femdaq_history if it doesn't exist)
-    const char* home = getenv("HOME");
-    histFile = (home ? std::string(home) : ".") + "/.femdaq_history";
+    // History of the commands, in the directory of REST of the user (created if it does not exist)
+    histFile = TRestTools::GetRESTUserDirectory() + "/femclient_history";
     read_history(histFile.c_str());
-    if (runConfig.verboseLevel >= RunConfig::Verbosity::Info)
+    if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info)
         std::cout << "History file " << histFile << std::endl;
 }
 
@@ -103,10 +103,13 @@ void CommandFetcher::handleCreditsCommand(const std::vector<std::string>& args) 
             auto res1 = std::from_chars(args[1].data(), args[1].data() + args[1].size(), frameThr);
             auto res2 = std::from_chars(args[2].data(), args[2].data() + args[2].size(), reqFrames);
 
-            if (res1.ec == std::errc() && res2.ec == std::errc()) {
-                daq->CreditsRestore(frameThr, reqFrames);
-            } else {
+            if (res1.ec != std::errc() || res2.ec != std::errc()) {
                 std::cout << "Error: Invalid integer arguments for credits restore." << std::endl;
+            } else if (frameThr == 0 || frameThr > reqFrames) {
+                // frameThr 0 would send requests without end, above reqFrames none
+                std::cout << "Error: credits restore needs 0 < frameThr <= reqFrames." << std::endl;
+            } else {
+                daq->CreditsRestore(reqFrames, frameThr);
             }
         } else {
             std::cout << "Usage: credits restore (to use defaults) OR credits "
@@ -142,7 +145,7 @@ void CommandFetcher::runInteractive() {
         if (!line.empty()) {
             add_history(line.c_str());
             append_history(1, histFile.c_str());
-            handleCommand(line);
+            runCommand(line);
         }
     }
 
@@ -164,22 +167,26 @@ void CommandFetcher::execFile(const std::string& filename) {
     while (std::getline(file, line)) {
         // if (shutdownRequested()) break;
         if (line.empty() || line[0] == '#') continue;
-        if (runConfig.verboseLevel >= RunConfig::Verbosity::Info) std::cout << "> " << line << std::endl;
-        handleCommand(line);
+        if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info) std::cout << "> " << line << std::endl;
+        runCommand(line);
     }
     daq->SetExecFile("");
 }
 
-void CommandFetcher::requestInterrupt() {
-    FEMDAQ::abrt = true;
-    g_interrupted = true;
+void CommandFetcher::runCommand(const std::string& line) {
+    // A failed command (wrong arguments, FEM timeout...) does not end the session
+    try {
+        handleCommand(line);
+    } catch (const std::exception& e) {
+        // CTRL-C during a command (e.g. addMetadata) ends the program, as in FEMDAQ
+        if (shutdownRequested()) throw;
+        std::cout << "[!] Command '" << line << "' failed: " << e.what() << std::endl;
+    }
 }
 
 void CommandFetcher::requestShutdown() {
     g_shutdown = true;
     FEMDAQ::abrt = true;
 }
-
-bool CommandFetcher::interrupted() { return g_interrupted.load(); }
 
 bool CommandFetcher::shutdownRequested() { return g_shutdown.load(); }

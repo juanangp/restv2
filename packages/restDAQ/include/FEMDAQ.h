@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -15,6 +16,7 @@
 #include "PrometheusManager.h"
 #include "RunConfig.h"
 #include "TRestRawDAQSignalEvent.h"
+#include "TRestTools.h"
 
 /// \brief Data taking of a set of FEMs: commands, event builder and output files. The derived classes
 /// implement each electronics (FEMDAQARCFEM: ARC and FEMINOS, FEMDAQDCC: DCC, TCM).
@@ -24,16 +26,16 @@
 /// TRestRun and TRestRawDAQMetadata as metadata.
 class FEMDAQ {
    public:
-    std::vector<FEMProxy> FEMArray;
+    /// The FEMs (or the TCM); a deque so they are never moved (their threads hold references to them)
+    std::deque<FEMProxy> FEMArray;
 
-    virtual ~FEMDAQ() {
-        if (HasRootFile()) WriteRunEndTime(getCurrentTime());
-        CloseFiles();
-    }
+    virtual ~FEMDAQ();
 
     void setActiveFEM(const std::string& FEMID);
 
     virtual void startDAQ(const std::vector<std::string>& flags) = 0;
+    /// \brief Stops the event builder and the update thread (waits for them); nothing if they are not
+    /// running. startDAQ calls it when the run ends, so the files can be closed after it.
     void stopDAQ();
     virtual void SendCommand(const char* cmd) = 0;
     virtual void Pedestals(const std::vector<std::string>& flags) {
@@ -82,24 +84,18 @@ class FEMDAQ {
 
     bool isReadOnly() const { return runConfig.readOnly; }
 
-    static double getCurrentTime();
-    static std::string GetTimeStampFromUnixTime(const double tm);
-    static std::string FormatElapsedTime(const double seconds);
-
     std::thread UpdateRunThread;
     std::thread eventBuilderThread;
 
-    using FactoryFunc = std::function<std::unique_ptr<FEMDAQ>(RunConfig&)>;
+    /// \brief Runs the function of a thread: an exception stops the run and is written, instead of
+    /// ending the program (std::terminate)
+    static void RunThread(const std::string& name, const std::function<void()>& function);
+    /// \brief Writes a message in the log file of a FEM (guarded by its logMutex)
+    static void WriteLog(FEMProxy& FEM, const std::string& message);
 
-    // Factory method using RunConfig.electronics
-    static std::unique_ptr<FEMDAQ> Create(RunConfig& cfg) {
-        auto it = GetRegistry().find(cfg.electronics);
-        if (it != GetRegistry().end()) {
-            return it->second(cfg);
-        }
-        std::cout << cfg.electronics << " not implemented, skipping..." << std::endl;
-        return nullptr;
-    }
+    /// \brief The DAQ of the electronics of the configuration (RunConfig::electronics): FEMDAQARCFEM (ARC,
+    /// FEMINOS), FEMDAQDCC (DCC) or TCM. Throws for another one.
+    static std::unique_ptr<FEMDAQ> Create(RunConfig& cfg);
 
    protected:
     explicit FEMDAQ(RunConfig& rC);
@@ -112,21 +108,10 @@ class FEMDAQ {
     std::string execFile = "";
     /// Event being built, written in the tree TRestRawSignalEvent
     TRestRawDAQSignalEvent sEvent;
-    int nOutOfSync = 0;
+    std::atomic<int> nOutOfSync{0};
 
     PrometheusManager prometheus;
 
     std::condition_variable cv;
     std::mutex cv_m;
-
-    static bool RegisterType(const std::string& electronics, FactoryFunc func) {
-        GetRegistry()[electronics] = func;
-        return true;
-    }
-
-   private:
-    static std::map<std::string, FactoryFunc>& GetRegistry() {
-        static std::map<std::string, FactoryFunc> registry;
-        return registry;
-    }
 };

@@ -1,7 +1,7 @@
 # restDAQ configuration: femclient restDAQ.yaml [-e commands.txt]
 daq:
   class: "TRestRawDAQMetadata"
-  verbose: "info"  # silent, info or debug (also the `verbose` command)
+  verbose: "info"  # silent, error, warning, info or debug (also the `verbose` command)
   electronics: "FEMINOS"  # ARC, FEMINOS or DCC
   fems:
     - id: 0

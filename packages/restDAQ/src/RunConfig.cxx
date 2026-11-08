@@ -2,9 +2,10 @@
 
 #include <readline/readline.h>
 
-#include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include "CommandFetcher.h"
 #include "TRestTools.h"
@@ -26,13 +27,7 @@ RunConfig::RunConfig(const std::string& fN, const std::map<std::string, std::str
     daq = std::make_unique<TRestRawDAQMetadata>(daqSection.first, daqSection.second);
     daq->CheckConfig();
 
-    const auto level = daq->GetVerboseLevel();
-    if (level >= TRestLogManager::REST_Verbose_Level::REST_Debug)
-        verboseLevel = Verbosity::Debug;
-    else if (level >= TRestLogManager::REST_Verbose_Level::REST_Info)
-        verboseLevel = Verbosity::Info;
-    else
-        verboseLevel = Verbosity::Silent;
+    verboseLevel = daq->GetVerboseLevel();
 
     if (isTCM) {
         if (daq->fTCM.empty()) throw std::runtime_error("TCM requested, but no TCM IP in " + fileName);
@@ -76,15 +71,10 @@ RunConfig::RunConfig(const std::string& fN, const std::map<std::string, std::str
 }
 
 void RunConfig::SetVerboseLevel(const std::string& vFlag) {
-    if (vFlag == "debug") {
-        verboseLevel = Verbosity::Debug;
-    } else if (vFlag == "info") {
-        verboseLevel = Verbosity::Info;
-    } else if (vFlag == "silent") {
-        verboseLevel = Verbosity::Silent;
-    } else {
-        std::cout << "Invalid verbose level " << vFlag << " setting to info" << std::endl;
-        verboseLevel = Verbosity::Info;
+    try {
+        verboseLevel = TRestLogManager::GetVerboseLevelFromString(vFlag);
+    } catch (const std::invalid_argument& e) {
+        std::cout << e.what() << ", verbose not changed" << std::endl;
     }
 }
 
@@ -136,36 +126,33 @@ void RunConfig::UpdateInfo() {
         return str;
     };
 
-    // The values typed are written in the run section of the configuration file
-    YAML::Node file = YAML::LoadFile(fileName);
-    YAML::Node runNode = TRestYAMLUtils::GetMetadataClass(file, "TRestRun").second;
-    if (!runNode) throw std::runtime_error("no section of class TRestRun in " + fileName);
+    // The values typed are written in the run section of the configuration file, only them (the rest of
+    // the file, its comments and format, is kept)
+    const std::string section = TRestYAMLUtils::GetMetadataClass(YAML::LoadFile(fileName), "TRestRun").first;
+    if (section.empty()) throw std::runtime_error("no section of class TRestRun in " + fileName);
+    std::vector<std::pair<std::string, std::string>> changes;
 
     std::string input = readField(">>>> Run Tag (" + run->GetRunTag() + "): ");
-    if (!input.empty()) {
+    if (!input.empty() && input != run->GetRunTag()) {
         run->SetRunTag(input);
-        runNode["runTag"] = input;
+        changes.emplace_back(section + ".runTag", input);
     }
 
     input = readField(">>>> Run Type (" + run->GetRunType() + "): ");
-    if (!input.empty()) {
+    if (!input.empty() && input != run->GetRunType()) {
         run->SetRunType(input);
-        runNode["runType"] = input;
+        changes.emplace_back(section + ".runType", input);
     }
 
     for (auto& [field, value] : run->fRunInformation) {
         input = readField(" >>>> " + field + " (" + value + "): ");
-        if (!input.empty()) {
+        if (!input.empty() && input != value) {
             value = input;
-            runNode["runInfo"][field] = value;
+            changes.emplace_back(section + ".runInfo." + field, value);
         }
     }
 
-    std::ofstream fout(fileName);
-    if (fout.is_open()) {
-        fout << file;
-        fout.close();
-    }
+    TRestYAMLUtils::SetValuesInFile(fileName, changes);
 
     std::cout << "--- Run Info updated successfully ---\n" << std::endl;
 }

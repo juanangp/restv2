@@ -1,6 +1,7 @@
 
 #include "DCCPacket.h"
 
+#include <algorithm>
 #include <cstdio>
 
 void DCCPacket::DataPacket_Print(DataPacket* pck, FILE* fp) {
@@ -365,6 +366,7 @@ void DCCPacket::ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignal
 
     while (idx < buffSize) {
         if (event[idx] == 0xFFFF) {
+            if (idx + 3 >= buffSize) break;  // Incomplete timestamp
             // Decode 48 bit timestamp
             uint16_t t1 = event[idx + 1];  // Bits 47-32 (MSB)
             uint16_t t2 = event[idx + 2];  // Bits 31-16
@@ -376,11 +378,18 @@ void DCCPacket::ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignal
             break;
         }
 
+        // Words of the header of a data packet, before the samples
+        constexpr size_t kHeaderWords = 8;
+        if (idx + kHeaderWords > buffSize) break;  // Incomplete packet
+        const size_t pckStart = idx;
         DataPacket* pck = (DCCPacket::DataPacket*)&event[idx];
         const size_t pckSize = ntohs(pck->size) / sizeof(uint16_t);
-        idx += pckSize;
+        // A packet of size 0 would never advance
+        idx += std::max<size_t>(pckSize, 1);
 
-        const unsigned int scnt = ntohs(pck->scnt);
+        // The samples of the packet that are in the event
+        const unsigned int scnt = std::min<size_t>(ntohs(pck->scnt), buffSize - pckStart - kHeaderWords);
+        if (scnt < 2) continue;
         if ((scnt <= 8) && (ntohs(pck->samp[0]) == 0) && (ntohs(pck->samp[1]) == 0)) continue;  // empty data
         if ((scnt <= 12) && ((ntohs(pck->samp[0]) == 0x11ff) || (ntohs(pck->samp[1]) == 0x11ff)))
             continue;  // Data starting at 511 bin

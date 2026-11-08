@@ -9,14 +9,6 @@
 
 std::atomic<bool> FEMDAQARCFEM::stopReceiver(false);
 
-FEMDAQARCFEM::Registrar::Registrar() {
-    FEMDAQ::RegisterType("ARC", [](RunConfig& cfg) { return std::make_unique<FEMDAQARCFEM>(cfg); });
-
-    FEMDAQ::RegisterType("FEMINOS", [](RunConfig& cfg) { return std::make_unique<FEMDAQARCFEM>(cfg); });
-}
-
-FEMDAQARCFEM::Registrar FEMDAQARCFEM::registrar_;
-
 FEMDAQARCFEM::FEMDAQARCFEM(RunConfig& rC) : FEMDAQ(rC) {
     if (runConfig.electronics == "ARC") {
         packetAPI.isMFrame = &ARCPacket::isMFrame;
@@ -36,14 +28,16 @@ FEMDAQARCFEM::FEMDAQARCFEM(RunConfig& rC) : FEMDAQ(rC) {
         throw std::runtime_error("Unknown electronics type in config!");
     }
 
-    std::vector<std::thread> threads;
-
     for (auto& FEM : FEMArray) {
-        receiverThreads.emplace_back(&FEMDAQARCFEM::FEMReceiverThread, this, std::ref(FEM));
+        receiverThreads.emplace_back([this, &FEM]() {
+            RunThread("FEM " + std::to_string(FEM.femID) + " receiver", [&]() { FEMReceiverThread(FEM); });
+        });
     }
 }
 
 FEMDAQARCFEM::~FEMDAQARCFEM() {
+    // The event builder uses the members of this class: stopped before they are destroyed
+    stopDAQ();
     stopReceiver = true;
     for (auto& t : receiverThreads) {
         if (t.joinable()) t.join();
@@ -72,7 +66,7 @@ void FEMDAQARCFEM::SendDAQCmdThread(FEMProxy& FEM) {
                                    [&] { return FEM.daq_credit >= frameThr; });
         }
         while (FEM.daq_credit >= frameThr) {  // send all the pending requests
-            if (runConfig.verboseLevel >= RunConfig::Verbosity::Debug)
+            if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Debug)
                 std::cout << "FEM " << FEM.femID << " Daq frames credits " << FEM.daq_credit << " left "
                           << reqFrames - FEM.daq_credit << std::endl;
             sprintf(daq_cmd, "daq 0x%06x F 0x%02x\n", frameThr, seq);
@@ -100,51 +94,40 @@ void FEMDAQARCFEM::SendCommand(const char* cmd) {
             f.get();
         }
     } catch (const std::runtime_error& e) {
-        stopReceiver = true;
         std::cout << "[CRITICAL] Command failed: " << e.what() << std::endl;
         throw;
     }
 }
 
 void FEMDAQARCFEM::SendCommand(const char* cmd, FEMProxy& FEM, bool wait) {
-    const int e =
-        sendto(FEM.client, cmd, strlen(cmd), 0, (struct sockaddr*)&(FEM.target), sizeof(struct sockaddr));
-    if (e == -1) {
-        std::string error = "sendto failed: " + std::string(strerror(errno));
-        throw std::runtime_error(error);
-    }
+    // The replies are counted from here: the extra frames of a previous reply (several frames, or frames not
+    // asked for, e.g. during the run) do not accumulate and answer the next commands
+    const uint32_t repliesBefore = FEM.cmd_rcv;
+    FEM.Send(cmd);
 
     if (!wait) return;
 
-    if (FEM.logFile != nullptr && runConfig.verboseLevel >= RunConfig::Verbosity::Info) {
-        fprintf(FEM.logFile, ">> FEM %u Cmd sent %s\n", FEM.femID, cmd);
-    }
+    if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info)
+        WriteLog(FEM, ">> FEM " + std::to_string(FEM.femID) + " Cmd sent " + cmd);
 
     FEM.cmd_sent++;
-    waitForCmd(FEM);
+    waitForCmd(FEM, repliesBefore);
 }
 
 void FEMDAQARCFEM::CreditsShow() {
     char configBuffer[128];
-    std::snprintf(configBuffer, sizeof(configBuffer), " credits: reqFrames %u | framesThr %u", kReqFrames,
-                  kFrameThr);
+    std::snprintf(configBuffer, sizeof(configBuffer), " credits: reqFrames %u | framesThr %u",
+                  kReqFrames.load(), kFrameThr.load());
     std::cout << ">> " << configBuffer << std::endl;
 
-    for (auto& FEM : FEMArray) {
-        if (FEM.active && FEM.logFile) {
-            char femBuffer[256];
-            std::snprintf(femBuffer, sizeof(femBuffer), ">> FEM ID %u %s", FEM.femID, configBuffer);
-            std::string msg(femBuffer);
-            std::fprintf(FEM.logFile, "%s\n", msg.c_str());
-            std::fflush(FEM.logFile);
-        }
-    }
+    for (auto& FEM : FEMArray)
+        if (FEM.active) WriteLog(FEM, ">> FEM ID " + std::to_string(FEM.femID) + configBuffer);
 }
 
-void FEMDAQARCFEM::waitForCmd(FEMProxy& FEM) {
+void FEMDAQARCFEM::waitForCmd(FEMProxy& FEM, uint32_t repliesBefore) {
     auto start = std::chrono::steady_clock::now();
 
-    while (FEM.cmd_rcv < FEM.cmd_sent) {
+    while (FEM.cmd_rcv == repliesBefore) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
         auto now = std::chrono::steady_clock::now();
@@ -172,7 +155,7 @@ void FEMDAQARCFEM::FEMReceiverThread(FEMProxy& FEM) {
 
         if (length < 0) {
             if (stopReceiver) break;
-            if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR) {
                 continue;
             } else {
                 std::string error =
@@ -181,10 +164,12 @@ void FEMDAQARCFEM::FEMReceiverThread(FEMProxy& FEM) {
             }
         }
 
+        // At least the first word and a frame word (the frame starts at buf_rcv[1])
+        if (length < 4) continue;
         const size_t size = length / sizeof(uint16_t);
 
         // if (length <= 6){
-        //   if (runConfig.verboseLevel >= RunConfig::Verbosity::Debug)
+        //   if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Debug)
         //     packetAPI.DataPacket_Print(&buf_rcv[1], size - 1, stdout);
         //   continue;
         // }
@@ -204,16 +189,14 @@ void FEMDAQARCFEM::FEMReceiverThread(FEMProxy& FEM) {
                         if (resync) FEM.daq_credit += lost;
                         FEM.framesLost += lost;
                         if (nLostMsgs++ < 100) {
-                            const std::string msg = "[SYNC] " + GetTimeStampFromUnixTime(getCurrentTime()) +
-                                                    " FEM " + std::to_string(FEM.femID) + ": " +
-                                                    std::to_string(lost) + " frame(s) lost (sequence " +
-                                                    std::to_string(seqExpected) + " expected, " +
-                                                    std::to_string(seq) + " received)";
+                            const std::string msg =
+                                "[SYNC] " +
+                                TRestTools::GetTimeStampFromUnixTime(TRestTools::GetCurrentTime()) + " FEM " +
+                                std::to_string(FEM.femID) + ": " + std::to_string(lost) +
+                                " frame(s) lost (sequence " + std::to_string(seqExpected) + " expected, " +
+                                std::to_string(seq) + " received)";
                             std::cout << msg << std::endl;
-                            if (FEM.logFile) {
-                                fprintf(FEM.logFile, "%s\n", msg.c_str());
-                                fflush(FEM.logFile);
-                            }
+                            WriteLog(FEM, msg);
                         }
                     }
                     seqExpected = seq + 1;
@@ -225,7 +208,7 @@ void FEMDAQARCFEM::FEMReceiverThread(FEMProxy& FEM) {
             FEM.tmpBuffer.insert(FEM.tmpBuffer.end(), &buf_rcv[1], &buf_rcv[size - offset]);
             FEM.mutex_mem.unlock();
             FEM.credit_cv.notify_one();
-            if (runConfig.verboseLevel >= RunConfig::Verbosity::Debug) {
+            if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Debug) {
                 PrintMonitoring(&buf_rcv[1], size - 1, FEM);
                 std::cout << "FEM " << FEM.femID << " Packet buffered with size " << (int)size - offset
                           << std::endl;
@@ -238,6 +221,9 @@ void FEMDAQARCFEM::FEMReceiverThread(FEMProxy& FEM) {
 }
 
 void FEMDAQARCFEM::startDAQ(const std::vector<std::string>& flags) {
+    // A previous run not stopped (stopDAQ): stopped now, its threads cannot be replaced while running
+    stopDAQ();
+
     // Reset the receiver state before the builder starts and "daq" is sent
     for (auto& FEM : FEMArray) {
         FEM.mutex_mem.lock();
@@ -249,12 +235,12 @@ void FEMDAQARCFEM::startDAQ(const std::vector<std::string>& flags) {
     stopEventBuilder = false;
     stopRun = false;
     storedEvents = 0;
-    runStartTime = getCurrentTime();
-    eventBuilderThread = std::thread(&FEMDAQARCFEM::EventBuilder, this);
-    UpdateRunThread = std::thread(&FEMDAQ::UpdateThread, this);
+    runStartTime = TRestTools::GetCurrentTime();
+    eventBuilderThread = std::thread([this]() { RunThread("Event builder", [this]() { EventBuilder(); }); });
+    UpdateRunThread = std::thread([this]() { RunThread("Update thread", [this]() { UpdateThread(); }); });
 
-    std::cout << GetTimeStampFromUnixTime(runStartTime) << " Starting data taking " << fileNameRoot << " "
-              << std::endl;
+    std::cout << TRestTools::GetTimeStampFromUnixTime(runStartTime) << " Starting data taking "
+              << fileNameRoot << " " << std::endl;
 
     std::vector<std::future<void>> futures;
 
@@ -270,10 +256,14 @@ void FEMDAQARCFEM::startDAQ(const std::vector<std::string>& flags) {
             f.get();
         }
     } catch (const std::runtime_error& e) {
-        stopReceiver = true;
         std::cout << "[CRITICAL] DAQ command failed: " << e.what() << std::endl;
+        stopDAQ();
         throw;
     }
+
+    // The run ended (nEvents, time or CTRL-C): the event builder writes the data left and stops, so the
+    // files can be closed after it
+    stopDAQ();
 }
 
 void FEMDAQARCFEM::PrintMonitoring(uint16_t* buff, const uint16_t& size, FEMProxy& FEM) {
@@ -283,20 +273,20 @@ void FEMDAQARCFEM::PrintMonitoring(uint16_t* buff, const uint16_t& size, FEMProx
     FILE* mem_fp = open_memstream(&ptr, &size_mem);
     if (!mem_fp) return;
 
-    std::string tmstmp = GetTimeStampFromUnixTime(getCurrentTime());
+    std::string tmstmp = TRestTools::GetTimeStampFromUnixTime(TRestTools::GetCurrentTime());
     if (packetAPI.isMFrame(&buff[0])) {
-        fprintf(mem_fp, "--- FEM %u MONI PACKET | %s ---\n", FEM.femID, tmstmp.c_str());
+        fprintf(mem_fp, "--- FEM %d MONI PACKET | %s ---\n", FEM.femID, tmstmp.c_str());
         packetAPI.DataPacket_Print(buff, size, mem_fp);
         fprintf(mem_fp, "\n");
     } else if (packetAPI.isDataFrame(&buff[0])) {
-        fprintf(mem_fp, "--- FEM %u DATA PACKET | %s ---\n", FEM.femID, tmstmp.c_str());
+        fprintf(mem_fp, "--- FEM %d DATA PACKET | %s ---\n", FEM.femID, tmstmp.c_str());
         packetAPI.DataPacket_Print(buff, size, mem_fp);
         fprintf(mem_fp, "\n");
     } else {
         const short errorCode = buff[1];
-        if (errorCode) fprintf(mem_fp, "-------- FEM %u ERROR--------", FEM.femID);
-        if (runConfig.verboseLevel > RunConfig::Verbosity::Info) {
-            fprintf(mem_fp, "--- FEM %u CONFIG PACKET | %s ---\n", FEM.femID, tmstmp.c_str());
+        if (errorCode) fprintf(mem_fp, "-------- FEM %d ERROR--------", FEM.femID);
+        if (runConfig.verboseLevel > RunConfig::Verbosity::REST_Info) {
+            fprintf(mem_fp, "--- FEM %d CONFIG PACKET | %s ---\n", FEM.femID, tmstmp.c_str());
             packetAPI.DataPacket_Print(buff, size, mem_fp);
         } else {
             packetAPI.ConfigPacket_Print(buff, size, mem_fp);
@@ -307,12 +297,15 @@ void FEMDAQARCFEM::PrintMonitoring(uint16_t* buff, const uint16_t& size, FEMProx
     fclose(mem_fp);
 
     if (ptr) {
-        if (FEM.logFile) {
-            std::fwrite(ptr, 1, size_mem, FEM.logFile);
-            std::fflush(FEM.logFile);
+        {
+            std::lock_guard<std::mutex> lock(FEM.logMutex);
+            if (FEM.logFile) {
+                std::fwrite(ptr, 1, size_mem, FEM.logFile);
+                std::fflush(FEM.logFile);
+            }
         }
 
-        if (runConfig.verboseLevel >= RunConfig::Verbosity::Info) {
+        if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info) {
             std::fwrite(ptr, 1, size_mem, stdout);
         }
 
@@ -349,11 +342,16 @@ void FEMDAQARCFEM::EventBuilder() {
     auto logSync = [&](const std::string& msg) {
         std::cout << msg << std::endl;
         for (auto& FEM : FEMArray)
-            if (FEM.active && FEM.logFile) {
-                fprintf(FEM.logFile, "%s\n", msg.c_str());
-                fflush(FEM.logFile);
-            }
+            if (FEM.active) WriteLog(FEM, msg);
     };
+
+    // A FEM that sends nothing blocks the building of the events: warned every kWaitWarning seconds
+    constexpr double kWaitWarning = 10;
+    double waitingSince = 0;
+    double lastWaitWarning = 0;
+
+    // Signals of an incomplete event of a previous run
+    sEvent.Initialize();
 
     // Initialize FEMs
     for (auto& FEM : FEMArray) {
@@ -396,6 +394,25 @@ void FEMDAQARCFEM::EventBuilder() {
             }
             newEvent &= !FEM.pendingEvent;  // Check if the event is pending
             eventBuffer.clear();
+        }
+
+        // Some FEMs have their event and others not: warn if it lasts (a FEM not sending data)
+        bool someReady = false;
+        for (const auto& FEM : FEMArray) someReady |= FEM.active && !FEM.pendingEvent;
+        if (newEvent || !someReady) {
+            waitingSince = 0;
+        } else {
+            const double now = TRestTools::GetCurrentTime();
+            if (waitingSince == 0) waitingSince = now;
+            if (now - waitingSince >= kWaitWarning && now - lastWaitWarning >= kWaitWarning) {
+                std::string waiting;
+                for (const auto& FEM : FEMArray)
+                    if (FEM.active && FEM.pendingEvent) waiting += " " + std::to_string(FEM.femID);
+                logSync("[SYNC] WARNING waiting " + std::to_string(static_cast<int>(now - waitingSince)) +
+                        " s for the event of FEM(s)" + waiting +
+                        ", the other FEMs have it (no data from them?)");
+                lastWaitWarning = now;
+            }
         }
 
         if (newEvent) {  // Save Event if closed
@@ -454,9 +471,9 @@ void FEMDAQARCFEM::EventBuilder() {
             sEvent.SetTime(eventTime);
 
             if (storedEvents == 0) {
-                if (runConfig.verboseLevel >= RunConfig::Verbosity::Info)
-                    std::cout << "Start time: " << GetTimeStampFromUnixTime(runStartTime)
-                              << " Last ev tS: " << GetTimeStampFromUnixTime(eventTime) << " "
+                if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info)
+                    std::cout << "Start time: " << TRestTools::GetTimeStampFromUnixTime(runStartTime)
+                              << " Last ev tS: " << TRestTools::GetTimeStampFromUnixTime(eventTime) << " "
                               << eventTime - runStartTime << std::endl;
             }
 
@@ -478,7 +495,7 @@ void FEMDAQARCFEM::EventBuilder() {
         if (stopEventBuilder) {
             for (auto& FEM : FEMArray)
                 if (tC % 100 == 0) {
-                    if (runConfig.verboseLevel >= RunConfig::Verbosity::Debug)
+                    if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Debug)
                         std::cout << "FEM " << FEM.femID << " Buffer size " << FEM.buffer.size() << std::endl;
                 }
             tC++;
@@ -487,18 +504,23 @@ void FEMDAQARCFEM::EventBuilder() {
         std::this_thread::sleep_for(std::chrono::microseconds(500));
     }
 
-    if (runConfig.verboseLevel >= RunConfig::Verbosity::Info)
-        std::cout << "End time: " << GetTimeStampFromUnixTime(runEndTime)
-                  << " Last evtS: " << GetTimeStampFromUnixTime(eventTime) << " " << runEndTime - eventTime
-                  << std::endl;
+    if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info)
+        std::cout << "End time: " << TRestTools::GetTimeStampFromUnixTime(runEndTime)
+                  << " Last evtS: " << TRestTools::GetTimeStampFromUnixTime(eventTime) << " "
+                  << runEndTime - eventTime << std::endl;
 
     for (auto& FEM : FEMArray)
         if (!FEM.buffer.empty()) {
-            if (runConfig.verboseLevel >= RunConfig::Verbosity::Info)
+            if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info)
                 std::cout << "FEM " << FEM.femID << " Buffer size left " << FEM.buffer.size() << std::endl;
-            if (runConfig.verboseLevel >= RunConfig::Verbosity::Debug) {
-                if (FEM.logFile) fprintf(FEM.logFile, "------DEBUG BUFFER FRAMES LEFT-------\n");
-                PrintMonitoring(&FEM.buffer[0], FEM.buffer.size(), FEM);
+            if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Debug) {
+                WriteLog(FEM, "------DEBUG BUFFER FRAMES LEFT-------");
+                // A deque is not contiguous: copied, at most the 16-bit size of PrintMonitoring
+                // (plus zeros: the prints may read a few words beyond an incomplete frame)
+                std::vector<uint16_t> left(FEM.buffer.begin(), FEM.buffer.end());
+                const size_t nWords = std::min<size_t>(left.size(), 0xFFF0);
+                left.resize(nWords + 16, 0);
+                PrintMonitoring(left.data(), static_cast<uint16_t>(nWords), FEM);
             }
         }
 
@@ -516,7 +538,8 @@ void FEMDAQARCFEM::EventBuilder() {
         if (FEM.active) summary << " | FEM " << FEM.femID << ": " << FEM.framesLost << " frames lost";
     logSync(summary.str());
 
-    std::cout << "End of event builder " << GetTimeStampFromUnixTime(runEndTime) << " " << storedEvents
-              << " events acquired in " << FormatElapsedTime(runEndTime - runStartTime)
+    std::cout << "End of event builder " << TRestTools::GetTimeStampFromUnixTime(runEndTime) << " "
+              << storedEvents << " events acquired in "
+              << TRestTools::ToTimeStringLong(runEndTime - runStartTime)
               << " Avg rate: " << storedEvents / (runEndTime - runStartTime) << " Hz" << std::endl;
 }

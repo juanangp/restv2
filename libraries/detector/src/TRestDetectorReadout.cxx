@@ -185,6 +185,7 @@ void TRestDetectorReadout::CollectViewItems(const std::set<int>& activeIDs,
         item.color = active ? static_cast<Color_t>(kRed) : vol->GetLineColor();
         item.transparency = active ? 0 : vol->GetTransparency();
         item.name = n->GetName();
+        item.physicalID = physID;
         items.push_back(std::move(item));
     };
 

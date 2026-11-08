@@ -4,7 +4,9 @@
 #include <TKey.h>
 #include <TObjString.h>
 
+#include <cctype>
 #include <cstdlib>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -332,4 +334,127 @@ YAML::Node TRestYAMLUtils::ReadMetadataStore(const std::string& fileName) {
         throw std::runtime_error("TRestYAMLUtils::ReadMetadataStore: cannot open " + fileName);
     }
     return ReadMetadataStore(file.get());
+}
+
+namespace {
+/// Text of a scalar in a YAML file: plain if it reads back the same, otherwise double quoted
+std::string ScalarText(const std::string& value) {
+    try {
+        const YAML::Node node = YAML::Load("key: " + value);
+        if (!value.empty() && node.IsMap() && node.size() == 1 && node["key"].IsScalar() &&
+            node["key"].Tag() == "?" && node["key"].Scalar() == value)
+            return value;
+    } catch (const YAML::Exception&) {
+    }
+    std::string quoted = "\"";
+    for (const char c : value) {
+        if (c == '"' || c == '\\') quoted += '\\';
+        quoted += c;
+    }
+    return quoted + "\"";
+}
+
+/// End (column after it) of the scalar starting at `start` of a line: a quoted one after its closing quote
+/// (npos if it continues in the next line), a plain one before a comment (" #") or the end of the line
+size_t ScalarEnd(const std::string& line, size_t start) {
+    if (start < line.size() && (line[start] == '"' || line[start] == '\'')) {
+        const char quote = line[start];
+        for (size_t i = start + 1; i < line.size(); i++) {
+            if (quote == '"' && line[i] == '\\') {
+                i++;  // Escaped character
+            } else if (line[i] == quote) {
+                if (quote == '\'' && i + 1 < line.size() && line[i + 1] == '\'') {
+                    i++;  // '' inside a single quoted scalar
+                } else {
+                    return i + 1;
+                }
+            }
+        }
+        return std::string::npos;
+    }
+    size_t end = line.find(" #", start);
+    if (end == std::string::npos) end = line.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(line[end - 1]))) end--;
+    return end;
+}
+}  // namespace
+
+void TRestYAMLUtils::SetValuesInFile(const std::string& fileName,
+                                     const std::vector<std::pair<std::string, std::string>>& values) {
+    if (values.empty()) return;
+
+    std::vector<std::string> lines;
+    {
+        std::ifstream in(fileName);
+        if (!in.is_open()) throw std::runtime_error("SetValuesInFile: cannot read " + fileName);
+        std::string line;
+        while (std::getline(in, line)) lines.push_back(line);
+    }
+
+    for (const auto& [path, value] : values) {
+        auto error = [&, &path = path](const std::string& reason) {
+            return std::runtime_error("SetValuesInFile: cannot set '" + path + "' in " + fileName + ": " +
+                                      reason);
+        };
+
+        // Parsed again after each change: the positions of the nodes in the text (lines and columns from 0)
+        std::string text;
+        for (const auto& line : lines) text += line + "\n";
+        const YAML::Node root = YAML::Load(text);
+
+        const auto keys = TRestTools::Split(path, '.');
+        if (keys.empty()) throw error("empty path");
+        YAML::Node parent;
+        parent.reset(root);
+        for (size_t k = 0; k + 1 < keys.size(); k++) {
+            const YAML::Node current = parent;  // Const access: a missing key is not added
+            if (!current.IsMap() || !current[keys[k]]) throw error("no key " + keys[k]);
+            parent.reset(current[keys[k]]);
+        }
+        if (!parent.IsMap() || parent.size() == 0 || parent.Style() == YAML::EmitterStyle::Flow)
+            throw error("its parent is not a block map");
+
+        const std::string& key = keys.back();
+        const std::string scalar = ScalarText(value);
+        bool found = false;
+        for (const auto& element : parent) {
+            if (element.first.Scalar() != key) continue;
+            found = true;
+            const YAML::Node valueNode = element.second;
+            if (!valueNode.IsScalar() && !valueNode.IsNull()) throw error("not a scalar");
+
+            const YAML::Mark keyMark = element.first.Mark();
+            std::string& line = lines.at(keyMark.line);
+            const bool quotedKey = line[keyMark.column] == '"' || line[keyMark.column] == '\'';
+            const size_t keyEnd = quotedKey ? ScalarEnd(line, keyMark.column) : keyMark.column + key.size();
+            const size_t colon = keyEnd == std::string::npos ? std::string::npos : line.find(':', keyEnd);
+            if (colon == std::string::npos) throw error("key not found in its line");
+
+            size_t start = line.find_first_not_of(" \t", colon + 1);
+            if (start == std::string::npos || line[start] == '#') {
+                // No value (null): written after the colon, before the comment
+                const std::string comment = start == std::string::npos ? "" : " " + line.substr(start);
+                line = line.substr(0, colon + 1) + " " + scalar + comment;
+                break;
+            }
+            if (valueNode.Mark().line != keyMark.line) throw error("the value is not in the line of its key");
+            start = valueNode.Mark().column;
+            if (line[start] == '|' || line[start] == '>') throw error("block scalar");
+            const size_t end = ScalarEnd(line, start);
+            if (end == std::string::npos) throw error("value of several lines");
+            line = line.substr(0, start) + scalar + line.substr(end);
+            break;
+        }
+
+        if (!found) {
+            // Added before the first key of the map, with its indentation
+            const YAML::Mark first = parent.begin()->first.Mark();
+            lines.insert(lines.begin() + first.line,
+                         std::string(first.column, ' ') + ScalarText(key) + ": " + scalar);
+        }
+    }
+
+    std::ofstream out(fileName, std::ios::trunc);
+    if (!out.is_open()) throw std::runtime_error("SetValuesInFile: cannot write " + fileName);
+    for (const auto& line : lines) out << line << "\n";
 }

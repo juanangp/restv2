@@ -150,10 +150,10 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             uint64_t ts = *fr;
             fr++;
             sz_rd++;
-            ts |= ((*fr) << 16);
+            ts |= (static_cast<uint64_t>(*fr) << 16);
             fr++;
             sz_rd++;
-            ts |= ((*fr) << 24);
+            ts |= (static_cast<uint64_t>(*fr) << 32);
             fr++;
             sz_rd++;
             fprintf(fp, "Time %" PRId64 "\n", ts);
@@ -178,7 +178,7 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             fr++;
             sz_rd++;
 
-            HistoStat_Print(fr, sz_rd, fp, true);
+            HistoStat_Print(fr, sz_rd, size, fp, true);
 
         } else if ((*fr & PFX_0_BIT_CONTENT_MASK) == PFX_END_OF_FRAME) {
             fprintf(fp, "----- End of Frame -----\n");
@@ -199,14 +199,14 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             fr++;
             sz_rd++;
 
-            HistoStat_Print(fr, sz_rd, fp);
+            HistoStat_Print(fr, sz_rd, size, fp);
 
         } else if (*fr == PFX_PEDESTAL_HSTAT) {
             fprintf(fp, "\nPedestal Histogram Statistics\n");
             fr++;
             sz_rd++;
 
-            HistoStat_Print(fr, sz_rd, fp);
+            HistoStat_Print(fr, sz_rd, size, fp);
 
         } else if (*fr == PFX_PEDESTAL_H_MD) {
             fr++;
@@ -254,7 +254,13 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
     if (sz_rd > size) fprintf(fp, "Format error: read %d words but packet size is %d\n", sz_rd, size);
 }
 
-void HistoStat_Print(uint16_t*& fr, int& sz_rd, FILE* fp, bool useBinCount) {
+void HistoStat_Print(uint16_t*& fr, int& sz_rd, int size, FILE* fp, bool useBinCount) {
+    // 9 values of 2 words
+    if (sz_rd + 18 > size) {
+        fprintf(fp, "Format error: histogram statistics beyond the packet size %d\n", size);
+        sz_rd = size;
+        return;
+    }
     fprintf(fp, "Min Bin    : %d\n", GetUInt32FromBuffer(fr, sz_rd));
     fprintf(fp, "Max Bin    : %d\n", GetUInt32FromBuffer(fr, sz_rd));
     fprintf(fp, "Bin Width  : %d\n", GetUInt32FromBuffer(fr, sz_rd));
@@ -267,7 +273,7 @@ void HistoStat_Print(uint16_t*& fr, int& sz_rd, FILE* fp, bool useBinCount) {
     fprintf(fp, "Entries    : %d\n", GetUInt32FromBuffer(fr, sz_rd));
     // Get all bins
     if (useBinCount)
-        for (int j = 0; j < binCount; j++) {
+        for (uint32_t j = 0; j < binCount && sz_rd + 2 <= size; j++) {
             fprintf(fp, "Bin(%2d) = %9d\n", j, GetUInt32FromBuffer(fr, sz_rd));
         }
 }
@@ -328,7 +334,7 @@ bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<
         } else if ((w & PFX_0_BIT_CONTENT_MASK) == PFX_END_OF_FRAME) {
         } else if (w == PFX_NULL_CONTENT) {
         } else {
-            printf("TryExtractNextEvent WARNING: word : 0x%x (%d) unknown data at %d \n", w, w, pos);
+            printf("TryExtractNextEvent WARNING: word : 0x%x (%d) unknown data at %zu \n", w, w, pos);
         }
         pos += step;
         if (pos < buffSize) it += step;
@@ -433,81 +439,7 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
             // NULL word, skipping
             idx++;
         } else {
-            printf("WARNING: event %d word : 0x%x (%d) unknown data\n", ev_count, w, w);
-            idx++;
-        }
-        // std::cout<<"Buffer size left "<<buffSize-idx<<" words "<<std::endl;
-    }
-}
-
-void GetPedestalEvent(std::deque<uint16_t>& buffer, TRestRawSignalEvent& sEvent) {
-    if (buffer.empty()) return;
-    size_t idx = 0;
-    const size_t buffSize = buffer.size();
-
-    int physChan = 0;
-
-    while (idx < buffSize) {
-        size_t w = buffer[idx];
-        if ((w & PFX_9_BIT_CONTENT_MASK) == PFX_START_OF_DFRAME) {
-            idx++;
-            // std::cout<<"Start of DFRAME Size "<<buffer[idx]<<" bytes"<<std::endl;
-            idx++;
-        } else if ((w & PFX_9_BIT_CONTENT_MASK) == PFX_START_OF_MFRAME) {
-            idx++;
-            // std::cout<<"Start of MFRAME Size "<<buffer[idx]<<" bytes"<<std::endl;
-            idx++;
-        } else if (w == PFX_PEDESTAL_H_MD) {
-            std::vector<short> sData;
-            idx++;
-            w = buffer[idx];
-            uint32_t mean = w;
-            sData.push_back(w);
-            idx++;
-            w = buffer[idx];
-            mean |= (w << 16);
-            sData.push_back(w);
-            idx++;
-            w = buffer[idx];
-            uint32_t std_dev = w;
-            sData.push_back(w);
-            idx++;
-            w = buffer[idx];
-            sData.push_back(w);
-            std_dev |= (w << 16);
-            idx++;
-            sEvent.AddSignal(physChan, sData);
-        } else if ((w & PFX_4_BIT_CONTENT_MASK) == PFX_START_OF_EVENT) {
-            // std::cout<<"START OF EVENT "<<std::endl;
-            idx += 6;
-        } else if ((w & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE ||
-                   (w & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX) {
-            idx++;
-        } else if ((w & PFX_14_BIT_CONTENT_MASK) == PFX_CARD_CHIP_CHAN_HIT_CNT) {
-            idx++;
-        } else if ((w & PFX_14_BIT_CONTENT_MASK) == PFX_CARD_CHIP_CHAN_HISTO) {
-            uint16_t cardID = GET_CARD_IX(w);
-            uint16_t chipID = GET_CHIP_IX(w);
-            uint16_t chID = GET_CHAN_IX(w);
-            physChan = chID + chipID * 72 + cardID * 288;
-            // printf( "Card %02d Chip %01d Channel_Histo_Index %02d\n", r0, r1, r2);
-            idx++;
-        } else if ((w & PFX_12_BIT_CONTENT_MASK) == PFX_CHIP_LAST_CELL_READ) {
-            idx++;
-        } else if ((w & PFX_14_BIT_CONTENT_MASK) == PFX_CARD_CHIP_CHAN_HIT_IX) {
-            idx++;
-        } else if ((w & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE ||
-                   (w & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX) {
-            idx++;
-        } else if ((w & PFX_4_BIT_CONTENT_MASK) == PFX_END_OF_EVENT) {
-            idx += 2;
-            // std::cout<<"END OF EVENT"<<std::endl;
-            return;
-        } else if ((w & PFX_0_BIT_CONTENT_MASK) == PFX_END_OF_FRAME) {
-            // std::cout<<" END OF FRAME "<<std::endl;
-            idx++;
-        } else {
-            printf("WARNING: pedestal event word : 0x%x (%d) unknown data\n", w, w);
+            printf("WARNING: event %u word : 0x%zx (%zu) unknown data\n", ev_count, w, w);
             idx++;
         }
         // std::cout<<"Buffer size left "<<buffSize-idx<<" words "<<std::endl;

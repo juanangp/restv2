@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <iostream>
 #include <stdexcept>
 
@@ -67,16 +68,32 @@ void FEMSocket::Open(const std::string& ip) {
 }
 
 void FEMSocket::Close() {
-    if (client > 0) {
+    if (client >= 0) {
         close(client);
-        client = 0;
+        client = -1;
     }
 }
 
-void FEMSocket::Clear() {
-    // Safety: ensure socket is closed before clearing descriptors
-    this->Close();
-    rem_port = 0;
-    remote_size = 0;
-    target_adr = nullptr;  // Using nullptr for C++ safety
+void FEMSocket::Send(const char* cmd) const {
+    if (sendto(client, cmd, strlen(cmd), 0, (const struct sockaddr*)&target, sizeof(target)) == -1)
+        throw std::runtime_error("sendto failed: " + std::string(strerror(errno)));
+}
+
+int FEMSocket::Receive(void* buffer, size_t size, int timeoutSeconds, const std::atomic<bool>* abort) {
+    const auto start = std::chrono::steady_clock::now();
+    while (true) {
+        const int length = recvfrom(client, buffer, size, 0, (struct sockaddr*)&remote, &remote_size);
+        if (length >= 0) return length;
+        if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) {
+            if (abort && *abort) return -1;
+            throw std::runtime_error("recvfrom failed: " + std::string(strerror(errno)));
+        }
+        if (abort && *abort) return -1;
+        const auto elapsed =
+            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start)
+                .count();
+        if (elapsed >= timeoutSeconds) {
+            throw std::runtime_error("TIMEOUT: No reply after " + std::to_string(elapsed) + " seconds");
+        }
+    }
 }

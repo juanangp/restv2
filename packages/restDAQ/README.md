@@ -11,7 +11,7 @@ Optional package: `cmake -DREST_DAQ=ON ...`. It needs readline (`libreadline-dev
 ### Usage
 
 ```bash
-femclient restDAQ.yaml                  # interactive console (history in ~/.femdaq_history)
+femclient restDAQ.yaml                  # interactive console (history in `$REST_HOME/.rest/femclient_history`, or `~/.rest` without REST_HOME)
 femclient restDAQ.yaml -e commands.txt  # commands of a file
 femclient restDAQ.yaml --tcm            # commands to the TCM
 femclient restDAQ.yaml --read-only      # fopen, fclose and addMetadata do nothing
@@ -24,12 +24,13 @@ The commands are those of `mclient` (sent to the active FEMs) plus:
 * `fclose`: closes the files.
 * `addMetadata`: asks for the runTag, the runType and each `runInfo` key of the TRestRun, and writes them in the
   configuration file.
-* `startDAQ`: acquisition loop, until `nEvents` or `time` of the TRestRawDAQMetadata (or CTRL-C). DCC: flags
-  `internal` (trigger) and `ZS` (zero suppression).
-* `stopDAQ`: stops the event builder.
+* `startDAQ`: acquisition loop, until `nEvents` or `time` of the TRestRawDAQMetadata (or CTRL-C); then the event
+  builder writes the data left and stops, so the files can be closed. DCC: flags `internal` (trigger) and `ZS`
+  (zero suppression).
+* `stopDAQ`: stops the event builder (nothing if `startDAQ` already stopped it; kept for the scripts).
 * `Pedestals [nTriggers=100] [mean=250] [stdDev=5.0]`: pedestal loop (DCC).
 * `credits show`, `credits restore [frameThr reqFrames]`: request credits (ARC/FEMINOS).
-* `fem <id>|*`: active FEMs. `verbose silent|info|debug`. `exec <file>`. `sleep <s>`. `quit`.
+* `fem <id>|*`: active FEMs. `verbose silent|error|warning|info|debug` (levels of restv2). `exec <file>`. `sleep <s>`. `quit`.
 
 ### Configuration
 
@@ -45,7 +46,10 @@ plus, for each FEM, its id, event counter, timestamp (10 ns ticks) and number of
 browser and the macros. The TRestRun and the TRestRawDAQMetadata are stored as metadata.
 
 The files are saved every 1000 events (or 60 s), so they can be followed while they are taken with the event
-display of the raw library: `restRoot` and `REST_Raw_DAQViewer()` (TRestRawDAQViewer).
+display of the connectors library: `restRoot` and `REST_DAQViewer("analysis.yaml", "file.root")` (TRestDAQViewer), with
+the readouts and the pulse parameters of a restv2 configuration (template:
+`libraries/connectors/examples/DAQViewer.yaml`). The signals of each event, a pad per ASIC:
+`REST_Raw_PulsesViewer("file.root")` (TRestRawPulsesViewer, raw library).
 
 ### Monitoring
 

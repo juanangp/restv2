@@ -37,6 +37,9 @@ rest_add_connector(TRestGeant4ToDetectorHitsProcess ${GEANT4_LIB}
                    ${DETECTOR_LIB})
 rest_add_connector(TRestDetectorSignalToRawSignalProcess ${DETECTOR_LIB}
                    ${RAW_LIB})
+# Online event display of raw signal files with the readouts (formerly the
+# EventDisplay of FEMDAQ)
+rest_add_connector(TRestDAQViewer ${RAW_LIB} ${DETECTOR_LIB})
 # Legacy connectors not migrated: TRestRawReadoutAnalysisProcess and
 # TRestRawReadoutMetadataProcess (not needed), TRestTrackToDetectorHitsProcess
 # (undecided), TRestDetectorHitsToTrackFastProcess

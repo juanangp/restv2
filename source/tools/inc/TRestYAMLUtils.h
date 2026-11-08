@@ -63,6 +63,12 @@ YAML::Node Detach(const YAML::Node& node);
 /// \brief Throws if the map node has keys that are not in `allowed` (for the structures read by a class,
 /// e.g. the plots of TRestAnalysisPlot); `context` names the node in the message
 void CheckKeys(const YAML::Node& node, const std::set<std::string>& allowed, const std::string& context);
+/// \brief Sets values of a YAML file in its text, keeping the rest as it is (comments, order, format): each
+/// (path of keys separated by dots, e.g. "run.runInfo.operator"; value). A value is written plain if it reads
+/// back the same, otherwise double quoted. A key that is not there is added at the start of its map. Throws
+/// if a path cannot be set (a parent missing or not a block map, a value that is not a scalar of one line).
+void SetValuesInFile(const std::string& fileName,
+                     const std::vector<std::pair<std::string, std::string>>& values);
 
 /// \brief Metadata stored in a REST file (directory RESTMetadataStore, a YAML TObjString per instance),
 /// read without creating them (no TRestRun is opened): map instance name -> configuration (with `class`).

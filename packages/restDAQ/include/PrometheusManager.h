@@ -35,4 +35,7 @@ class PrometheusManager {
     // prometheus-cpp 1.0, e.g. the Debian package)
     prometheus::Family<prometheus::Gauge>& _infoFamily;
     prometheus::Family<prometheus::Gauge>& _runNameFamily;
+    // The current series of each one, removed when replaced (only the current run is exported)
+    prometheus::Gauge* _infoGauge = nullptr;
+    prometheus::Gauge* _runNameGauge = nullptr;
 };

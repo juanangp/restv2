@@ -11,10 +11,4 @@ class TCM : public FEMDAQ {
         std::cout << "Not implemented for TCM" << std::endl;
     }
     virtual void SendCommand(const char* cmd) override;
-
-   private:
-    struct Registrar {
-        Registrar();
-    };
-    static Registrar registrar_;
 };

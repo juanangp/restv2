@@ -151,7 +151,7 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             int j = 0;
             for (j = 0; j < r0 / 2; j++) {
                 asciiMsg += (char)(*fr & 0xFF);
-                asciiMsg += (char)(*fr & 0xFF00) >> 8;
+                asciiMsg += (char)((*fr >> 8) & 0xFF);
                 fr++;
                 sz_rd++;
             }
@@ -193,10 +193,10 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             uint64_t ts = *fr;
             fr++;
             sz_rd++;
-            ts |= ((*fr) << 16);
+            ts |= (static_cast<uint64_t>(*fr) << 16);
             fr++;
             sz_rd++;
-            ts |= ((*fr) << 24);
+            ts |= (static_cast<uint64_t>(*fr) << 32);
             fr++;
             sz_rd++;
             fprintf(fp, "Time %" PRId64 "\n", ts);
@@ -228,7 +228,7 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             fr++;
             sz_rd++;
 
-            HistoStat_Print(fr, sz_rd, fp, true);
+            HistoStat_Print(fr, sz_rd, size, fp, true);
 
         } else if ((*fr & PFX_0_BIT_CONTENT_MASK) == PFX_END_OF_FRAME) {
             fprintf(fp, "----- End of Frame -----\n");
@@ -249,14 +249,14 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
             fr++;
             sz_rd++;
 
-            HistoStat_Print(fr, sz_rd, fp);
+            HistoStat_Print(fr, sz_rd, size, fp);
 
         } else if (*fr == PFX_PEDESTAL_HSTAT) {
             fprintf(fp, "\nPedestal Histogram Statistics\n");
             fr++;
             sz_rd++;
 
-            HistoStat_Print(fr, sz_rd, fp);
+            HistoStat_Print(fr, sz_rd, size, fp);
 
         } else if (*fr == PFX_PEDESTAL_H_MD) {
             fr++;
@@ -316,7 +316,13 @@ void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
     if (sz_rd > size) fprintf(fp, "Format error: read %d words but packet size is %d\n", sz_rd, size);
 }
 
-void HistoStat_Print(uint16_t*& fr, int& sz_rd, FILE* fp, bool useBinCount) {
+void HistoStat_Print(uint16_t*& fr, int& sz_rd, int size, FILE* fp, bool useBinCount) {
+    // 9 values of 2 words
+    if (sz_rd + 18 > size) {
+        fprintf(fp, "Format error: histogram statistics beyond the packet size %d\n", size);
+        sz_rd = size;
+        return;
+    }
     fprintf(fp, "Min Bin    : %d\n", GetUInt32FromBuffer(fr, sz_rd));
     fprintf(fp, "Max Bin    : %d\n", GetUInt32FromBuffer(fr, sz_rd));
     fprintf(fp, "Bin Width  : %d\n", GetUInt32FromBuffer(fr, sz_rd));
@@ -329,7 +335,7 @@ void HistoStat_Print(uint16_t*& fr, int& sz_rd, FILE* fp, bool useBinCount) {
     fprintf(fp, "Entries    : %d\n", GetUInt32FromBuffer(fr, sz_rd));
     // Get all bins
     if (useBinCount)
-        for (int j = 0; j < binCount; j++) {
+        for (uint32_t j = 0; j < binCount && sz_rd + 2 <= size; j++) {
             fprintf(fp, "Bin(%2d) = %9d\n", j, GetUInt32FromBuffer(fr, sz_rd));
         }
 }
@@ -344,15 +350,6 @@ uint32_t GetUInt32FromBuffer(uint16_t*& fr, int& sz_rd, bool BE) {
 
     fr += 2;
     sz_rd += 2;
-
-    return res;
-}
-
-uint32_t GetUInt32FromBufferBE(uint16_t*& fr, int& sz_rd) {
-    uint32_t res = (static_cast<uint32_t>(fr[0]) << 16) | fr[1];
-
-    fr += 2;
-    sz_rd += 4;
 
     return res;
 }
@@ -398,7 +395,7 @@ bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<
             break;
         } else if ((w & PFX_0_BIT_CONTENT_MASK) == PFX_END_OF_FRAME) {
         } else {
-            printf("TryExtractNextEvent WARNING: word : 0x%x (%d) unknown data at %d \n", w, w, pos);
+            printf("TryExtractNextEvent WARNING: word : 0x%x (%d) unknown data at %zu \n", w, w, pos);
         }
         pos += step;
         if (pos < buffSize) it += step;
@@ -502,8 +499,7 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
             // std::cout<<" END OF FRAME "<<std::endl;
             idx++;
         } else {
-            printf("WARNING: event %d word : 0x%x (%d) unknown data\n", ev_count, event.front(),
-                   event.front());
+            printf("WARNING: event %u word : 0x%zx (%zu) unknown data\n", ev_count, w, w);
             idx++;
         }
         // std::cout<<"Buffer size left "<<buffSize-idx<<" words "<<std::endl;
@@ -512,7 +508,7 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
 
 void ConfigPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
     int sz_rd = 0;
-    uint16_t r0, r1, r2, r3;
+    uint16_t r0;
 
     if ((*fr & PFX_9_BIT_CONTENT_MASK) != PFX_START_OF_CFRAME) return;
     fr += 2;
@@ -527,7 +523,7 @@ void ConfigPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp) {
         int j = 0;
         for (j = 0; j < r0 / 2; j++) {
             asciiMsg += (char)(*fr & 0xFF);
-            asciiMsg += (char)(*fr & 0xFF00) >> 8;
+            asciiMsg += (char)((*fr >> 8) & 0xFF);
             fr++;
             sz_rd++;
         }

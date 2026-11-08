@@ -50,6 +50,8 @@ class TRestDetectorReadout : public TRestMetadata {
         Color_t color = kGray;
         char transparency = 0;
         std::string name;
+        /// Physical ID of the channel of the volume (-1: not a channel)
+        int physicalID = -1;
     };
 
     /// \brief Constructs a detector readout metadata object.

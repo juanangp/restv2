@@ -3,11 +3,16 @@
 #include <Compression.h>
 #include <TFile.h>
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+
+#include "FEMDAQARCFEM.h"
+#include "FEMDAQDCC.h"
+#include "TCM.h"
 
 std::atomic<bool> FEMDAQ::abrt(false);
 std::atomic<bool> FEMDAQ::stopRun(false);
@@ -21,17 +26,16 @@ constexpr const char* kEventTree = "TRestRawSignalEvent";
 FEMDAQ::FEMDAQ(RunConfig& rC) : runConfig(rC) {
     std::cout << "------------ " << rC.electronics << " RUN ------------" << std::endl;
 
+    // Built in place (a deque does not move its elements, FEMProxy cannot be copied nor moved)
     if (runConfig.isTCM) {
-        FEMProxy FEM;
+        auto& FEM = FEMArray.emplace_back();
         FEM.Open(runConfig.daq->fTCM);
         FEM.femID = -1;
-        FEMArray.emplace_back(std::move(FEM));
     } else {
         for (const auto& fem : runConfig.daq->fFEMs) {
-            FEMProxy FEM;
+            auto& FEM = FEMArray.emplace_back();
             FEM.Open(fem.fIP);
             FEM.femID = fem.fId;
-            FEMArray.emplace_back(std::move(FEM));
         }
         if (!runConfig.daq->fPrometheusAddress.empty())
             prometheus.StartServer(runConfig.daq->fPrometheusAddress);
@@ -44,47 +48,11 @@ FEMDAQ::FEMDAQ(RunConfig& rC) : runConfig(rC) {
     }
 }
 
-double FEMDAQ::getCurrentTime() {
-    return std::chrono::duration_cast<std::chrono::microseconds>(
-               std::chrono::system_clock::now().time_since_epoch())
-               .count() /
-           1000000.0;
-}
-
-std::string FEMDAQ::FormatElapsedTime(const double seconds) {
-    double value;
-    const char* unit;
-
-    if (seconds >= 604800) {  // 1 week
-        value = seconds / 604800.0;
-        unit = " weeks";
-    } else if (seconds >= 86400) {  // 1 day
-        value = seconds / 86400.0;
-        unit = " days";
-    } else if (seconds >= 3600) {  // 1 hour
-        value = seconds / 3600.0;
-        unit = " hours";
-    } else if (seconds >= 60) {
-        value = seconds / 60.0;
-        unit = " minutes";
-    } else {
-        value = seconds;
-        unit = " seconds";
-    }
-
-    char timeStr[32];
-    int len = std::snprintf(timeStr, sizeof(timeStr), "%.2f", value);
-
-    return std::string(timeStr, len) + unit;
-}
-
-std::string FEMDAQ::GetTimeStampFromUnixTime(const double tm) {
-    char tmpstm[20];  //"YYYY-MM-DD_HH:MM:SS" + \0
-    std::time_t time = static_cast<std::time_t>(tm);
-
-    std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d_%H:%M:%S", std::localtime(&time));
-
-    return std::string(tmpstm);
+std::unique_ptr<FEMDAQ> FEMDAQ::Create(RunConfig& cfg) {
+    if (cfg.electronics == "ARC" || cfg.electronics == "FEMINOS") return std::make_unique<FEMDAQARCFEM>(cfg);
+    if (cfg.electronics == "DCC") return std::make_unique<FEMDAQDCC>(cfg);
+    if (cfg.electronics == "TCM") return std::make_unique<TCM>(cfg);
+    throw std::runtime_error("electronics \"" + cfg.electronics + "\" not implemented");
 }
 
 void FEMDAQ::setActiveFEM(const std::string& FEMID) {
@@ -179,14 +147,14 @@ void FEMDAQ::OpenFiles(const std::vector<std::string>& flags) {
 void FEMDAQ::OpenRootFile() {
     auto& run = *runConfig.run;
 
-    fileNameRoot = runConfig.GetOutputFileName();
-    std::cout << "New file " << fileNameRoot << " " << std::endl;
-
-    run.SetOutputFileName(fileNameRoot);
+    // The pattern: FormOutputFile resolves it and adds mainDataPath (once)
+    run.SetOutputFileName(runConfig.GetOutputPattern());
     run.SetStartTimeStamp(0);
     run.SetEndTimeStamp(0);
     run.SetEntriesSaved(0);
     run.FormOutputFile();
+    fileNameRoot = run.GetOutputFileName();
+    std::cout << "New file " << fileNameRoot << " " << std::endl;
     run.fOutputFile->SetCompressionAlgorithm(ROOT::RCompressionSetting::EAlgorithm::kZLIB);
     run.fOutputFile->SetCompressionLevel(1);
     run.RegisterEvent<TRestRawDAQSignalEvent>(kEventTree, sEvent);
@@ -202,16 +170,17 @@ void FEMDAQ::OpenRootFile() {
 }
 
 void FEMDAQ::OpenFileLogs() {
-    const std::string tmstmp = GetTimeStampFromUnixTime(getCurrentTime());
+    const std::string tmstmp = TRestTools::GetTimeStampFromUnixTime(TRestTools::GetCurrentTime());
     // The log files are named as the first file of the run, otherwise with the time
     std::string base;
     if (!baseFileName.empty()) {
         base = baseFileName;
         if (base.size() > 5 && base.substr(base.size() - 5) == ".root") base.erase(base.size() - 5);
-    } else if (runConfig.run) {
-        base = runConfig.run->PrefixMainDataPath(tmstmp);
     } else {
-        base = tmstmp;
+        // No spaces in the file name: YYYY-MM-DD_HH:MM:SS
+        std::string time = tmstmp;
+        std::replace(time.begin(), time.end(), ' ', '_');
+        base = runConfig.run ? runConfig.run->PrefixMainDataPath(time) : time;
     }
 
     for (auto& FEM : FEMArray) {
@@ -221,6 +190,7 @@ void FEMDAQ::OpenFileLogs() {
         else
             fileName = base + "_FEM" + std::to_string(FEM.femID) + ".log";
         std::cout << fileName << std::endl;
+        std::lock_guard<std::mutex> lock(FEM.logMutex);
         FEM.logFile = fopen(fileName.c_str(), "a");
         if (!FEM.logFile) throw std::runtime_error("Cannot open the log file " + fileName);
         fprintf(FEM.logFile, "\n--- LOG FILE INITIALIZED AT %s ---\n", tmstmp.c_str());
@@ -240,7 +210,7 @@ void FEMDAQ::DumpExecFileToFEMLog(FEMProxy& FEM) {
         return;
     }
 
-    std::string ts = GetTimeStampFromUnixTime(getCurrentTime());
+    std::string ts = TRestTools::GetTimeStampFromUnixTime(TRestTools::GetCurrentTime());
     fprintf(FEM.logFile, "\n--- [DUMP EXEC FILE: %s] Filename: %s ---\n", ts.c_str(), execFile.c_str());
     fflush(FEM.logFile);
 
@@ -255,6 +225,7 @@ void FEMDAQ::DumpExecFileToFEMLog(FEMProxy& FEM) {
 
 void FEMDAQ::CloseLogFiles() {
     for (auto& FEM : FEMArray) {
+        std::lock_guard<std::mutex> lock(FEM.logMutex);
         if (FEM.logFile != nullptr) {
             fclose(FEM.logFile);
             FEM.logFile = nullptr;
@@ -277,7 +248,8 @@ void FEMDAQ::CloseRootFile() {
 }
 
 void FEMDAQ::CheckFileSize(const double eventTime) {
-    uint64_t fileSize = std::filesystem::file_size(fileNameRoot);
+    // Bytes written so far (the file being written, without asking the filesystem)
+    const uint64_t fileSize = runConfig.run->fOutputFile->GetEND();
 
     if (fileSize >= runConfig.fileSize) {
         WriteRunEndTime(eventTime);
@@ -306,9 +278,36 @@ void FEMDAQ::FillTree(const double eventTime, double& lastTimeSaved) {
     }
 }
 
-void FEMDAQ::stopDAQ() {
-    runEndTime = getCurrentTime();
+FEMDAQ::~FEMDAQ() {
+    // The threads must not outlive the DAQ (e.g. CTRL-C in the console during a run)
+    stopDAQ();
+    // A file still open: its end time if the run did not set it
+    if (HasRootFile() && runConfig.run->GetEndTime() == 0) WriteRunEndTime(TRestTools::GetCurrentTime());
+    CloseFiles();
+}
 
+void FEMDAQ::RunThread(const std::string& name, const std::function<void()>& function) {
+    try {
+        function();
+    } catch (const std::exception& e) {
+        std::cout << "[CRITICAL] " << name << " stopped: " << e.what() << ". Stopping the run" << std::endl;
+        stopRun = true;
+    }
+}
+
+void FEMDAQ::WriteLog(FEMProxy& FEM, const std::string& message) {
+    std::lock_guard<std::mutex> lock(FEM.logMutex);
+    if (!FEM.logFile) return;
+    fprintf(FEM.logFile, "%s\n", message.c_str());
+    fflush(FEM.logFile);
+}
+
+void FEMDAQ::stopDAQ() {
+    if (!eventBuilderThread.joinable() && !UpdateRunThread.joinable()) return;
+
+    runEndTime = TRestTools::GetCurrentTime();
+
+    stopRun = true;
     cv.notify_all();
 
     if (UpdateRunThread.joinable()) UpdateRunThread.join();
@@ -318,7 +317,7 @@ void FEMDAQ::stopDAQ() {
 }
 
 void FEMDAQ::UpdateThread() {
-    double prevRateTime = getCurrentTime();
+    double prevRateTime = TRestTools::GetCurrentTime();
     int prevEvCount = storedEvents.load();
     const int updateTime = runConfig.updateRateTime;
 
@@ -326,10 +325,10 @@ void FEMDAQ::UpdateThread() {
         std::unique_lock<std::mutex> lk(cv_m);
         cv.wait_for(lk, std::chrono::seconds(updateTime), [this] { return abrt || stopRun; });
 
-        double rateTime = getCurrentTime();
+        double rateTime = TRestTools::GetCurrentTime();
         const double elapsed = rateTime - prevRateTime;
         const double runElapsedTime = rateTime - runStartTime;
-        auto tmpstm = GetTimeStampFromUnixTime(rateTime);
+        auto tmpstm = TRestTools::GetTimeStampFromUnixTime(rateTime);
         const int evCount = storedEvents.load();
         const double rate = (evCount - prevEvCount) / elapsed;
 
@@ -337,9 +336,9 @@ void FEMDAQ::UpdateThread() {
         prometheus.setDesyncEvents(nOutOfSync);
         prometheus.setRate(rate);
 
-        if (runConfig.verboseLevel >= RunConfig::Verbosity::Info && (!abrt && !stopRun))
+        if (runConfig.verboseLevel >= RunConfig::Verbosity::REST_Info && (!abrt && !stopRun))
             std::cout << tmpstm << " Total events: " << evCount << " Rate: " << rate << " Hz "
-                      << "Run time " << FormatElapsedTime(runElapsedTime) << std::endl;
+                      << "Run time " << TRestTools::ToTimeStringLong(runElapsedTime) << std::endl;
         prevEvCount = evCount;
         prevRateTime = rateTime;
         if (runConfig.nEvents > 0 && evCount >= runConfig.nEvents) {

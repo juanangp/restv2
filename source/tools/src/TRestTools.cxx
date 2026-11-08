@@ -18,6 +18,7 @@
 #include <atomic>
 #include <cctype>
 #include <charconv>
+#include <chrono>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -94,6 +95,13 @@ std::string TRestTools::GetTimeStampFromUnixTime(const double tm) {
     if (std::strftime(tmpstm, sizeof(tmpstm), "%Y-%m-%d %H:%M:%S", &local) == 0) return "";
 
     return std::string(tmpstm);
+}
+
+double TRestTools::GetCurrentTime() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+               .count() /
+           1.e6;
 }
 
 double TRestTools::StringToTimeStamp(const std::string& date) {
@@ -631,9 +639,12 @@ std::string TRestTools::ToTimeStringLong(double seconds) {
     } else if (absSeconds < 86400) {
         valueToFormat = seconds / 3600.0;
         unit = " hours";
-    } else {
+    } else if (absSeconds < 604800) {
         valueToFormat = seconds / 86400.0;
         unit = " days";
+    } else {
+        valueToFormat = seconds / 604800.0;
+        unit = " weeks";
     }
 
     auto [ptr, ec] =
@@ -656,10 +667,16 @@ std::string TRestTools::CleanExpression(const std::string& expr) {
     return clean;
 }
 
-std::string TRestTools::DownloadFile(const std::string& url) {
+std::string TRestTools::GetRESTUserDirectory() {
     const char* home = std::getenv("REST_HOME");
     if (!home) home = std::getenv("HOME");
-    if (!home) throw std::runtime_error("DownloadFile: neither REST_HOME nor HOME are defined");
+    if (!home) throw std::runtime_error("GetRESTUserDirectory: neither REST_HOME nor HOME are defined");
+    const std::filesystem::path directory = std::filesystem::path(home) / ".rest";
+    std::filesystem::create_directories(directory);
+    return directory.string();
+}
+
+std::string TRestTools::DownloadFile(const std::string& url) {
     // The URL goes into a shell command (between single quotes): only the URL characters (RFC 3986) without
     // ' (nor $, `, \, spaces or control characters) are accepted, with a scheme (http://...) first (not an
     // option of curl)
@@ -678,7 +695,7 @@ std::string TRestTools::DownloadFile(const std::string& url) {
                                      std::string(1, character) + "'): " + url);
         }
     }
-    const std::filesystem::path directory = std::filesystem::path(home) / ".rest" / "download";
+    const std::filesystem::path directory = std::filesystem::path(GetRESTUserDirectory()) / "download";
     std::string name = url.substr(scheme + 3);
     for (char& character : name) {
         if (character == '/' || character == ':' || character == '?' || character == '&') character = '_';

@@ -36,8 +36,14 @@ void PrometheusManager::setEvents(int count) { _eventsGauge.Set(count); }
 
 void PrometheusManager::setDesyncEvents(int count) { _desyncEventsGauge.Set(count); }
 
-void PrometheusManager::setMetadata(const std::string& name) { _infoFamily.Add({{"runName", name}}).Set(1); }
+void PrometheusManager::setMetadata(const std::string& name) {
+    if (_infoGauge) _infoFamily.Remove(_infoGauge);
+    _infoGauge = &_infoFamily.Add({{"runName", name}});
+    _infoGauge->Set(1);
+}
 
 void PrometheusManager::setRunName(const std::string& name) {
-    _runNameFamily.Add({{"filename", name}}).Set(1);
+    if (_runNameGauge) _runNameFamily.Remove(_runNameGauge);
+    _runNameGauge = &_runNameFamily.Add({{"filename", name}});
+    _runNameGauge->Set(1);
 }

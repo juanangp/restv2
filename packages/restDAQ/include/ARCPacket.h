@@ -191,7 +191,8 @@ namespace ARCPacket {
 
 void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp = stdout);
 uint32_t GetUInt32FromBuffer(uint16_t*& fr, int& sz_rd, bool BE = false);
-void HistoStat_Print(uint16_t*& fr, int& sz_rd, FILE* fp, bool useBinCount = false);
+/// size: words of the packet; the statistics and bins beyond it are not read
+void HistoStat_Print(uint16_t*& fr, int& sz_rd, int size, FILE* fp, bool useBinCount = false);
 bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<uint16_t>& out);
 void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEvent, uint64_t& tS,
                          uint32_t& ev_count);

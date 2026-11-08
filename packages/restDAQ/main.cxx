@@ -5,8 +5,8 @@
 ///
 /// The configuration has a TRestRun (run numbers, tags, runInfo, mainDataPath and outputFileName) and a
 /// TRestRawDAQMetadata (electronics, FEMs and limits of the run), see packages/restDAQ/README.md. The
-/// commands are typed in an interactive console (readline, history in ~/.femdaq_history) or read from a
-/// file (--exec). Options:
+/// commands are typed in an interactive console (readline, history in $REST_HOME/.rest/femclient_history) or
+/// read from a file (--exec). Options:
 ///
 /// * **-e, --exec**: file of commands to execute instead of the interactive console.
 /// * **--read-only**: the commands fopen, fclose and addMetadata do nothing (no files written).
@@ -14,6 +14,7 @@
 /// * **--set name=value**: the parameters of the configuration for this execution.
 
 #include <readline/readline.h>
+#include <unistd.h>
 
 #include <csignal>
 #include <iostream>
@@ -27,8 +28,10 @@ namespace {
 const char* kUsage =
     "Usage: femclient <config.yaml> [-e|--exec <commands file>] [--read-only] [--tcm] [--set name=value ...]";
 
-void signalHandler(int sig) {
-    std::cout << "\n[Signal] Caught signal " << sig << ". Shutting down..." << std::endl;
+void signalHandler(int) {
+    // Only async-signal-safe calls (write, atomics) in a signal handler
+    const char message[] = "\n[Signal] Caught signal. Shutting down...\n";
+    [[maybe_unused]] const auto written = write(STDOUT_FILENO, message, sizeof(message) - 1);
     CommandFetcher::requestShutdown();
 }
 }  // namespace

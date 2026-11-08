@@ -1,5 +1,7 @@
 #include "TRestGeant4PhysicsLists.h"
 
+#include <stdexcept>
+
 const std::set<std::string> TRestGeant4PhysicsLists::fValidPhysicsLists = {"G4DecayPhysics",
                                                                            "G4RadioactiveDecayPhysics",
                                                                            "G4RadioactiveDecay",
@@ -73,6 +75,14 @@ TRestGeant4PhysicsLists::TRestGeant4PhysicsLists(const std::string& instanceName
 
 void TRestGeant4PhysicsLists::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4PhysicsLists>(fNode);
+    // A name outside fValidPhysicsLists would be ignored by restG4 (a typo, or a list not supported)
+    for (const auto& physicsList : fPhysicsLists) {
+        if (PhysicsListExists(physicsList.name)) continue;
+        std::string valid;
+        for (const auto& name : fValidPhysicsLists) valid += (valid.empty() ? "" : ", ") + name;
+        throw std::runtime_error("TRestGeant4PhysicsLists '" + GetName() + "': physics list '" +
+                                 physicsList.name + "' of 'physicsList' is not valid. Valid ones: " + valid);
+    }
     UpdateYAMLFromParams<TRestGeant4PhysicsLists>(fNode);
 }
 

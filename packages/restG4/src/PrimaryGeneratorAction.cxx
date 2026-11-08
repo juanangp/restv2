@@ -1,5 +1,6 @@
 #include "PrimaryGeneratorAction.h"
 
+#include <TRestGeant4BiasingVolume.h>
 #include <TRestGeant4Metadata.h>
 #include <TRestGeant4PrimaryGeneratorInfo.h>
 
@@ -90,6 +91,25 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
     outputManager->SetEventTimeStart(start);
 
     const auto* metadata = fSimulationManager->GetRestMetadata();
+
+    // Volume biasing, after the first stage: the event replays a particle stored by the previous stage
+    if (fSimulationManager->GetBiasingStage() > 0) {
+        const auto& particle = fSimulationManager->GetBiasingReplayParticle(event->GetEventID());
+        fParticleGun.SetParticleDefinition(const_cast<G4ParticleDefinition*>(particle.definition));
+        fParticleGun.SetParticleCharge(particle.charge);  // after the definition, which sets its charge
+        fParticleGun.SetParticleEnergy(particle.energy);
+        fParticleGun.SetParticleMomentumDirection(particle.direction);
+        fParticleGun.SetParticlePolarization(particle.polarization);
+        fParticleGun.SetParticlePosition(particle.position);
+        fParticleGun.SetParticleTime(particle.time);
+        fParticleGun.GeneratePrimaryVertex(event);
+
+        const chrono::duration<double> elapsed = chrono::high_resolution_clock::now() - start;
+        outputManager->SetEventTimeWallPrimaryGeneration(elapsed.count());
+        outputManager->UpdatePrimaryData(event);
+        return;
+    }
+
     if (!fGenerator) {
         const auto seed = static_cast<unsigned int>(metadata->GetSeed() + G4Threading::G4GetThreadId() + 1);
         fGenerator = make_unique<Geant4PrimaryGenerator>(metadata->GetGeant4PrimaryGeneratorInfo(), seed);
@@ -107,13 +127,23 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
     if (particles.empty() && metadata->GetGeant4PrimaryGeneratorInfo().IsCRY()) {
         if (!fSimulationManager->GetAbortFlag()) {
             G4cout << "Stopping Run! All the showers of the CRY file were simulated" << G4endl;
+            fSimulationManager->SetGeneratorExhausted();
             fSimulationManager->StopSimulation();
         }
         event->SetEventAborted();
         return;
     }
 
+    // Volume biasing: a primary inside the outermost volume is never stopped by it (a warning at the end)
+    const auto* outermostVolume = fSimulationManager->GetStoppingBiasingVolume();
+
     for (const auto& particle : particles) {
+        if (outermostVolume != nullptr) {
+            const auto& origin = particle.GetOrigin();
+            if (outermostVolume->isInside(origin.X(), origin.Y(), origin.Z())) {
+                fSimulationManager->CountBiasingPrimaryInside();
+            }
+        }
         auto* definition = FindParticle(particle);
         fParticleGun.SetParticleDefinition(definition);
         if (definition->GetParticleType() == "nucleus") {

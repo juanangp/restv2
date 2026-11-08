@@ -69,29 +69,37 @@ class TRestDetectorChargeResponse : public TRestMetadata {
     double GetDriftFieldForTables() const;
 
    public:
-    TRestWithUnits fWValue = 0;
-    double fFanoFactor = 0;
-    TRestWithUnits fDriftField = 0;
-    TRestWithUnits fDriftVelocity = 0;
-    double fLongitudinalDiffusion = 0;
-    double fTransversalDiffusion = 0;
-    double fAttachment = 0;
-    std::string fTransportTable = "";
-    std::vector<std::string> fLoadedTables;
+    TRestWithUnits fWValue = 0;         ///< `wValue`: mean energy per ionisation electron
+    double fFanoFactor = 0;             ///< `fanoFactor`
+    TRestWithUnits fDriftField = 0;     ///< `driftField`: drift field of the detector (V/mm)
+    TRestWithUnits fDriftVelocity = 0;  ///< `driftVelocity`: fixed drift velocity (mm/us), without tables
+    double fLongitudinalDiffusion = 0;  ///< `longDiff`: fixed longitudinal diffusion (sqrt(cm))
+    double fTransversalDiffusion = 0;   ///< `transDiff`: fixed transversal diffusion (sqrt(cm))
+    double fAttachment = 0;             ///< `attachment`: fixed attachment coefficient (1/cm)
+    std::string fTransportTable = "";   ///< `transportTable`: key of the transport table to use
+    std::vector<std::string> fLoadedTables;  ///< `loadedTables`: keys of the tables loaded (output)
 
+    /// \brief Builds an empty charge response.
     TRestDetectorChargeResponse();
+    /// \brief Builds the response from the `charge` node of a medium (LoadConfig); the tables are loaded
+    /// by SetMedium.
     TRestDetectorChargeResponse(const std::string& instanceName, const YAML::Node& node);
     ~TRestDetectorChargeResponse() override;
 
+    /// \brief Returns the class name, "TRestDetectorChargeResponse".
     std::string GetClassName() const override { return "TRestDetectorChargeResponse"; }
+    /// \brief Reads the parameters; throws if one of them is negative.
     void LoadConfig() override;
+    /// \brief Nothing to initialise.
     void Initialize() override {}
 
     /// \brief Sets the medium (name, pressure, temperature) and loads its tables from its medium file,
     /// opened by the medium (nullptr: no tables)
     void SetMedium(const TRestDetectorMedium& medium, TFile* file);
 
+    /// \brief Mean energy to create an ionisation electron (REST energy units).
     inline double GetWValue() const { return fWValue; }
+    /// \brief Fano factor.
     inline double GetFanoFactor() const { return fFanoFactor; }
     /// \brief Drift field in V/mm (0 if not given)
     inline double GetDriftField() const { return fDriftField; }
@@ -104,15 +112,22 @@ class TRestDetectorChargeResponse : public TRestMetadata {
     /// Parameters of a carrier at a field (V/mm) and the pressure of the medium. Without tables, the fixed
     /// ones (only electrons, Townsend 0). Throw if the carrier is not available
     double GetDriftVelocity(double field, const std::string& carrier = "electron") const;
+    /// \brief Longitudinal diffusion (sqrt(cm)) of a carrier at a field (V/mm).
     double GetLongitudinalDiffusion(double field, const std::string& carrier = "electron") const;
+    /// \brief Transversal diffusion (sqrt(cm)) of a carrier at a field (V/mm).
     double GetTransversalDiffusion(double field, const std::string& carrier = "electron") const;
+    /// \brief Townsend coefficient (1/cm) of a carrier at a field (V/mm); 0 without tables.
     double GetTownsend(double field, const std::string& carrier = "electron") const;
+    /// \brief Attachment coefficient (1/cm) of a carrier at a field (V/mm).
     double GetAttachment(double field, const std::string& carrier = "electron") const;
     /// Electron parameters at the drift field (driftField; without transport tables, the fixed ones).
     /// Throw if there are transport tables and no driftField
     double GetDriftVelocity() const;
+    /// \brief Electron longitudinal diffusion (sqrt(cm)) at the drift field.
     double GetLongitudinalDiffusion() const;
+    /// \brief Electron transversal diffusion (sqrt(cm)) at the drift field.
     double GetTransversalDiffusion() const;
+    /// \brief Electron attachment coefficient (1/cm) at the drift field.
     double GetAttachment() const;
 
     /// \brief Gain table of a gap (mm) at the pressure and temperature of the medium, with the key if not
@@ -145,17 +160,26 @@ class TRestDetectorChargeResponse : public TRestMetadata {
 ///        effectiveLightSpeed: 150 mm/ns
 class TRestDetectorLightResponse : public TRestMetadata {
    public:
-    TRestWithUnits fAttenuationLength = 0;    // mm
+    /// `attenuationLength`: attenuation length of the light (0: none)
+    TRestWithUnits fAttenuationLength = 0;  // mm
+    /// `effectiveLightSpeed`: effective speed of the light to the readout (0: no delay)
     TRestWithUnits fEffectiveLightSpeed = 0;  // mm/us
 
+    /// \brief Builds an empty light response.
     TRestDetectorLightResponse();
+    /// \brief Builds the response from the `light` node of a medium (LoadConfig).
     TRestDetectorLightResponse(const std::string& instanceName, const YAML::Node& node);
 
+    /// \brief Returns the class name, "TRestDetectorLightResponse".
     std::string GetClassName() const override { return "TRestDetectorLightResponse"; }
+    /// \brief Reads the parameters; throws if one of them is negative.
     void LoadConfig() override;
+    /// \brief Nothing to initialise.
     void Initialize() override {}
 
+    /// \brief Attenuation length (mm).
     inline double GetAttenuationLength() const { return fAttenuationLength; }
+    /// \brief Effective light speed (mm/us).
     inline double GetEffectiveLightSpeed() const { return fEffectiveLightSpeed; }
 };
 
@@ -198,28 +222,40 @@ class TRestDetectorMedium : public TRestMetadata {
     std::shared_ptr<TRestDetectorLightResponse> fLight;    //!
 
    public:
+    /// Values accepted by `state`
     inline static const std::vector<std::string> kStates = {"gas", "liquid", "solid"};
-    std::string fState = "gas";
-    std::map<std::string, double> fComponents;
-    std::string fMediumFile = "";
-    TRestWithUnits fPressure = 1;
-    double fTemperature = 293.15;
+    std::string fState = "gas";                 ///< `state`: gas, liquid or solid
+    std::map<std::string, double> fComponents;  ///< `components`: name and molar fraction (%) of each one
+    std::string fMediumFile = "";               ///< `mediumFile`: path of the medium file
+    TRestWithUnits fPressure = 1;               ///< `pressure` (bar)
+    double fTemperature = 293.15;               ///< `temperature` (K)
     /// Configuration of the charge response (`charge` key)
     YAML::Node fChargeNode;
     /// Configuration of the light response (`light` key)
     YAML::Node fLightNode;
 
+    /// \brief Builds an empty medium.
     TRestDetectorMedium();
+    /// \brief Builds the medium from an in-memory YAML section (LoadConfig).
     TRestDetectorMedium(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the medium from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorMedium(const std::string& fileName, const std::string& sectionName);
     ~TRestDetectorMedium() override;
 
+    /// \brief Returns the class name, "TRestDetectorMedium".
     std::string GetClassName() const override { return "TRestDetectorMedium"; }
+    /// \brief Reads the parameters (a name is required), reads the definition of the medium from its file
+    /// if it exists (checking the components), checks the pressure of non gases and creates the responses
+    /// with the medium file and conditions.
     void LoadConfig() override;
+    /// \brief Nothing to initialise.
     void Initialize() override {}
 
+    /// \brief Whether the state is gas.
     inline bool IsGas() const { return fState == "gas"; }
+    /// \brief Pressure (bar).
     inline double GetPressure() const { return fPressure; }
+    /// \brief Temperature (K).
     inline double GetTemperature() const { return fTemperature; }
 
     /// \brief Charge response, nullptr if the medium has no `charge`

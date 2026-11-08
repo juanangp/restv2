@@ -108,8 +108,12 @@ int TRestGeant4Track::GetHitVolumeID(size_t hit) const {
 
 std::string TRestGeant4Track::GetHitVolumeName(size_t hit) const {
     const auto* metadata = GetGeant4Metadata();
-    std::string volumeName = metadata->GetGeant4GeometryInfo().GetVolumeFromID(GetHitVolumeID(hit));
-    return volumeName;
+    if (metadata == nullptr) {
+        cout << "WARNING : TRestGeant4Track::GetHitVolumeName: no TRestGeant4Metadata, volume names unknown"
+             << endl;
+        return "";
+    }
+    return metadata->GetGeant4GeometryInfo().GetVolumeFromID(GetHitVolumeID(hit));
 }
 
 double TRestGeant4Track::GetHitKineticEnergy(size_t hit) const {
@@ -143,7 +147,7 @@ int TRestGeant4Track::GetProcessID(const std::string& processName) const {
     const auto* metadata = GetGeant4Metadata();
     if (metadata != nullptr) {
         const auto processID = metadata->GetGeant4PhysicsInfo().GetProcessID(processName);
-        if (processID != 0) return processID;
+        if (processID >= 0) return processID;  // -1: not found (0 is a valid ID, "Init")
     }
 
     cout << "WARNING : The process " << processName << " was not found" << endl;

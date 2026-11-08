@@ -9,6 +9,18 @@ class TRestRawSignalEvent;
 
 /// \class TRestRawSignalRecoverSaturationProcess
 /// \brief Recovers ADC-saturated signals by fitting the AGET pulse shape to the non-saturated bins.
+///
+/// The detailed behaviour and a YAML example are in the class description of the source file. YAML keys:
+/// `minSaturatedBins`, `minSaturationValue`, `processAllSignals`, `nBinsIfNotSaturated`, `baselineRange`,
+/// `baselineOption`, `pointsThreshold`, `signalThreshold`, `pointsOverThreshold`, `fitMargin` and
+/// `nPointsFlat`.
+///
+/// Observables:
+/// - **AddedAmplitude**: sum over the recovered signals of the largest amount added to a bin.
+/// - **AddedIntegral**: sum of the amounts added to all the recovered bins.
+/// - **SignalsSaturated**: signals considered saturated (or processed, with processAllSignals).
+/// - **SignalsRecovered**: signals modified by the fit.
+/// - **SignalsIDsRecovered**: IDs of the recovered signals (vector).
 class TRestRawSignalRecoverSaturationProcess : public TRestEventProcess {
    private:
     struct Observables {
@@ -63,12 +75,19 @@ class TRestRawSignalRecoverSaturationProcess : public TRestEventProcess {
     /// Number of flat points that artificially end a pulse
     int fNPointsFlat = 512;
 
+    /// \brief Default constructor (no configuration).
     TRestRawSignalRecoverSaturationProcess();
+    /// \brief Constructor from the YAML node of the process section.
     TRestRawSignalRecoverSaturationProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from a YAML file and the name of the process section.
     TRestRawSignalRecoverSaturationProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered keys and validates `baselineOption`.
     void LoadConfig() override;
+    /// \brief Registers the observables.
     void InitProcess() override;
+    /// \brief Copies the input event and recovers its saturated signals in place (the event is never
+    /// dropped).
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

@@ -85,7 +85,7 @@ void TRestDetectorReadout::LoadConfig() {
 
 void TRestDetectorReadout::InitializeReadout() {
     ReleaseGeometry();
-    gGeoManager = nullptr;  // el constructor no debe borrar la geometría de otro readout
+    gGeoManager = nullptr;  // the constructor must not delete the geometry of another readout
     fGeoManager = new TGeoManager(fName.c_str(), fName.c_str());
     TGeoManager::SetVerboseLevel(0);
 
@@ -239,7 +239,7 @@ void TRestDetectorReadout::DrawViewItems(std::vector<ViewItem>& items, TGeoManag
         viewGeo = nullptr;
     }
 
-    gGeoManager = nullptr;  // el constructor borraría la geometría global existente
+    gGeoManager = nullptr;  // the constructor would delete the existing global geometry
     viewGeo = new TGeoManager("activeEventView", "Active event view");
 
     TGeoVolume* top = viewGeo->MakeBox("TOP", topMedium, half, half, half);
@@ -393,9 +393,6 @@ int TRestDetectorReadout::GetChannelFromPosition(double x, double y, double z) c
     return (daqIt != fPhysicalToDAQMap.end()) ? daqIt->second : -1;
 }
 
-/// \brief Loads decoding from a text file.
-/// \param decFilename Decoding file path.
-/// \return `true` on successful decoding load.
 std::pair<int, int> TRestDetectorReadout::GetAdjacentChannels(int daqID) const {
     const int physicalID = GetPhysicalID(daqID);
     if (physicalID < 0) return {-1, -1};
@@ -406,6 +403,9 @@ std::pair<int, int> TRestDetectorReadout::GetAdjacentChannels(int daqID) const {
     return {daqOf(physicalID - 1), daqOf(physicalID + 1)};
 }
 
+/// \brief Loads decoding from a text file.
+/// \param decFilename Decoding file path.
+/// \return `true` on successful decoding load.
 bool TRestDetectorReadout::LoadDecoding(const std::string& decFilename) {
     if (decFilename.empty()) {
         Error("TRestDetectorReadout::LoadDecoding", "Cannot open mapping file: %s", decFilename.c_str());
@@ -534,7 +534,7 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
     try {
         WriteMetadata(fOut, resolvedGeometryName, fNode);
     } catch (const std::exception& e) {
-        RESTError << "Error exportando metadatos en TRestDetectorReadout: " << e.what() << RESTendl;
+        RESTError << "TRestDetectorReadout: error exporting the metadata: " << e.what() << RESTendl;
         return false;
     }
     // =========================================================================

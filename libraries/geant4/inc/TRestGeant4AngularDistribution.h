@@ -19,16 +19,26 @@
 /// class, which reads its own fields. `direction` is the fixed direction or the reference of the angle
 /// (as legacy, the reference points to the center for a sphere surface). Angles in rad. See
 /// TRestGeant4PrimaryGenerator for the options.
+///
+///     angular:
+///       type: "isotropic"           # flux, isotropic, formula, TH1D, formula2, TH2D or cosmic
+///       direction: [0, -1, 0]
+///       isotropicConeHalfAngle: 20 deg
 class TRestGeant4AngularDistribution : public TRestMetadata {
    public:
-    std::string fType;
+    std::string fType;  ///< `type`, case insensitive (it selects the derived class in Create)
+    /// `direction`: the fixed direction or the reference of the angle (not normalized, must not be zero)
     std::array<double, 3> fDirection = {0.0, -1.0, 0.0};
 
+    /// \brief Empty distribution.
     TRestGeant4AngularDistribution() = default;
+    /// \brief Keeps the node; the derived classes read their fields from it.
     TRestGeant4AngularDistribution(const std::string& name, const YAML::Node& node)
         : TRestMetadata(name, node) {}
 
     /// \brief The derived class of the `type` of the node, configured from it
+    /// \param name Instance name.
+    /// \param node The `angular` section; throws if `type` is missing or unknown.
     static std::unique_ptr<TRestGeant4AngularDistribution> Create(const std::string& name,
                                                                   const YAML::Node& node);
 
@@ -39,6 +49,9 @@ class TRestGeant4AngularDistribution : public TRestMetadata {
     virtual void LoadDistribution() {}
 
     /// \brief A direction, `axis` being the unit reference (`direction` or toward the center)
+    /// \param random Random generator of the thread.
+    /// \param axis Unit reference direction.
+    /// \return A unit direction.
     virtual ROOT::Math::XYZVector Sample(TRandom& random, const ROOT::Math::XYZVector& axis) = 0;
 
     /// \brief True for the angle of a distribution of energy and angle (formula2, TH2D, cosmic), given
@@ -48,10 +61,11 @@ class TRestGeant4AngularDistribution : public TRestMetadata {
     /// \brief The unit `direction`
     ROOT::Math::XYZVector GetDirection() const;
 
+    /// \brief No-op.
     void Initialize() override {}
 
    protected:
-    /// \brief Checks a non zero `direction`
+    /// \brief Checks a non zero `direction` (throws std::runtime_error otherwise)
     void CheckDirection();
 };
 
@@ -60,13 +74,16 @@ class TRestGeant4AngularDistribution : public TRestMetadata {
 class TRestGeant4AngularDistributionFlux : public TRestGeant4AngularDistribution {
    public:
     TRestGeant4AngularDistributionFlux() = default;
+    /// \brief Configured from the `angular` section.
     TRestGeant4AngularDistributionFlux(const std::string& name, const YAML::Node& node);
+    /// \brief Reads `type` and `direction` (checked non zero) and writes them back.
     void LoadConfig() override;
     std::string GetClassName() const override { return "TRestGeant4AngularDistributionFlux"; }
 
     std::unique_ptr<TRestGeant4AngularDistribution> Clone() const override {
         return std::make_unique<TRestGeant4AngularDistributionFlux>(*this);
     }
+    /// \brief Returns `axis`.
     ROOT::Math::XYZVector Sample(TRandom&, const ROOT::Math::XYZVector& axis) override { return axis; }
 };
 
@@ -75,16 +92,20 @@ class TRestGeant4AngularDistributionFlux : public TRestGeant4AngularDistribution
 /// the cone around `direction`.
 class TRestGeant4AngularDistributionIsotropic : public TRestGeant4AngularDistribution {
    public:
+    /// `isotropicConeHalfAngle` (rad, in [0, pi]); 0: uniform in 4 pi
     TRestWithUnits fIsotropicConeHalfAngle = 0.0;
 
     TRestGeant4AngularDistributionIsotropic() = default;
+    /// \brief Configured from the `angular` section.
     TRestGeant4AngularDistributionIsotropic(const std::string& name, const YAML::Node& node);
+    /// \brief Reads `type`, `direction` and `isotropicConeHalfAngle` and checks them.
     void LoadConfig() override;
     std::string GetClassName() const override { return "TRestGeant4AngularDistributionIsotropic"; }
 
     std::unique_ptr<TRestGeant4AngularDistribution> Clone() const override {
         return std::make_unique<TRestGeant4AngularDistributionIsotropic>(*this);
     }
+    /// \brief Uniform in 4 pi, or in the solid angle of the cone around `axis`.
     ROOT::Math::XYZVector Sample(TRandom& random, const ROOT::Math::XYZVector& axis) override;
 };
 
@@ -93,17 +114,23 @@ class TRestGeant4AngularDistributionIsotropic : public TRestGeant4AngularDistrib
 /// angle) in `range`, sampled with `formulaNPoints`; uniform azimuth.
 class TRestGeant4AngularDistributionFormula : public TRestGeant4AngularDistribution {
    public:
+    /// `formula`: Cos2, Cos3 or Sin2theta (TRestGeant4PrimaryGeneratorTypes::AngularDistributionFormulas)
     std::string fFormula;
-    std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};
-    size_t fFormulaNPoints = 500;
+    std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};  ///< `range` (rad)
+    size_t fFormulaNPoints = 500;  ///< `formulaNPoints`: points of the TF1 used to sample
 
     TRestGeant4AngularDistributionFormula() = default;
+    /// \brief Configured from the `angular` section.
     TRestGeant4AngularDistributionFormula(const std::string& name, const YAML::Node& node);
+    /// \brief Reads `type`, `direction`, `formula`, `range` and `formulaNPoints` and checks them.
     void LoadConfig() override;
     std::string GetClassName() const override { return "TRestGeant4AngularDistributionFormula"; }
 
     std::unique_ptr<TRestGeant4AngularDistribution> Clone() const override;
+    /// \brief Builds the TF1 of the formula in `range` intersected with the formula one (throws if they do
+    /// not overlap).
     void LoadDistribution() override;
+    /// \brief A direction at an angle to `axis` sampled from the formula, with uniform azimuth.
     ROOT::Math::XYZVector Sample(TRandom& random, const ROOT::Math::XYZVector& axis) override;
 
    private:
@@ -115,17 +142,22 @@ class TRestGeant4AngularDistributionFormula : public TRestGeant4AngularDistribut
 /// the bins with the center in `range`; uniform azimuth.
 class TRestGeant4AngularDistributionTH1D : public TRestGeant4AngularDistribution {
    public:
-    std::string fFilename;
-    std::string fNameInFile;
-    std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};
+    std::string fFilename;    ///< `filename`: ROOT file with the histogram
+    std::string fNameInFile;  ///< `nameInFile`: name of the TH1D in the file
+    std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};  ///< `range` (rad)
 
     TRestGeant4AngularDistributionTH1D() = default;
+    /// \brief Configured from the `angular` section.
     TRestGeant4AngularDistributionTH1D(const std::string& name, const YAML::Node& node);
+    /// \brief Reads `type`, `direction`, `filename`, `nameInFile` and `range` and checks them.
     void LoadConfig() override;
     std::string GetClassName() const override { return "TRestGeant4AngularDistributionTH1D"; }
 
     std::unique_ptr<TRestGeant4AngularDistribution> Clone() const override;
+    /// \brief Reads the histogram from the file and empties the bins with the center out of `range`
+    /// (throws if it is not a TH1D or it is empty in `range`).
     void LoadDistribution() override;
+    /// \brief A direction at an angle to `axis` sampled from the histogram, with uniform azimuth.
     ROOT::Math::XYZVector Sample(TRandom& random, const ROOT::Math::XYZVector& axis) override;
 
    private:
@@ -138,22 +170,25 @@ class TRestGeant4AngularDistributionTH1D : public TRestGeant4AngularDistribution
 /// `filename`, `nameInFile`, `range` and `formulaNPoints`; the angle is to `direction`.
 class TRestGeant4AngularDistributionJoint : public TRestGeant4AngularDistribution {
    public:
-    std::string fFormula;
-    std::string fFilename;
-    std::string fNameInFile;
-    std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};
-    size_t fFormulaNPoints = 500;
+    std::string fFormula;     ///< `formula` (formula2): CosmicMuons
+    std::string fFilename;    ///< `filename` (TH2D, cosmic)
+    std::string fNameInFile;  ///< `nameInFile` (TH2D: histogram; cosmic: particle key)
+    std::pair<TRestWithUnits, TRestWithUnits> fRange = {0.0, TMath::Pi()};  ///< `range` of the angle (rad)
+    size_t fFormulaNPoints = 500;  ///< `formulaNPoints` of the angle axis (formula2)
 
     TRestGeant4AngularDistributionJoint() = default;
+    /// \brief Configured from the `angular` section.
     TRestGeant4AngularDistributionJoint(const std::string& name, const YAML::Node& node);
+    /// \brief Reads `type`, `direction` and the joint fields and checks them.
     void LoadConfig() override;
     std::string GetClassName() const override { return "TRestGeant4AngularDistributionJoint"; }
 
     std::unique_ptr<TRestGeant4AngularDistribution> Clone() const override {
         return std::make_unique<TRestGeant4AngularDistributionJoint>(*this);
     }
-    /// \brief Not used, TRestGeant4ParticleSource samples energy and angle together
+    /// \brief Not used, TRestGeant4ParticleSource samples energy and angle together (it throws)
     ROOT::Math::XYZVector Sample(TRandom& random, const ROOT::Math::XYZVector& axis) override;
+    /// \brief Returns true.
     bool IsJoint() const override { return true; }
 };
 

@@ -16,9 +16,25 @@ class TRestManager;
 /// \brief Pipeline of dataset processes (TRestDataSetProcess): opens a dataset, each process obtains its
 /// parameters and adds its columns, in order, and the processed dataset is written once. See the class
 /// documentation in TRestDataSetProcessManager.cxx.
+///
+/// \code{.yaml}
+/// manager:
+///   class: TRestManager
+///   dataSetProcessing:
+///     class: TRestDataSetProcessManager
+///     inputFileName: "Dataset_Background.root"        # restManager --i
+///     inputFormat: "Dataset_[runTag].root"            # optional, [tag] values for outputFileName
+///     outputFileName: "D_[runRange]_[runTag]_Calibrated.root"   # restManager --o
+///     calib:
+///       class: TRestDataSetCalibration
+///       referenceFileName: "Dataset_Calibration.root"
+///       ...
+/// \endcode
 class TRestDataSetProcessManager : public TRestMetadata {
    private:
+    /// The dataset processes, in declaration order
     std::vector<std::unique_ptr<TRestDataSetProcess>> fProcesses;
+    /// Manager with the TRestCut used by the processes (not owned)
     TRestManager* fManager = nullptr;
 
     /// \brief Processes a dataset and writes the output (Run); `inputFile` is its file, empty for a dataset
@@ -35,15 +51,22 @@ class TRestDataSetProcessManager : public TRestMetadata {
     /// the [tag] of outputFileName
     std::string fInputFormat = "";
 
-    TRestDataSetProcessManager();
+    TRestDataSetProcessManager();  ///< Default constructor.
+    /// \brief Constructs from a YAML node and creates the processes (LoadConfig).
     TRestDataSetProcessManager(const std::string& instanceName, const YAML::Node& node);
 
+    /// \brief Returns "TRestDataSetProcessManager".
     std::string GetClassName() const override { return "TRestDataSetProcessManager"; }
+    /// \brief Reads the fields and creates the processes (maps with `class`); throws if one is not a
+    /// TRestDataSetProcess.
     void LoadConfig() override;
+    /// \brief Nothing to initialize.
     void Initialize() override {}
 
+    /// \brief Sets the manager with the TRestCut used by the processes.
     void SetManager(TRestManager* manager) { fManager = manager; }
 
+    /// \brief The dataset processes, in order.
     const std::vector<std::unique_ptr<TRestDataSetProcess>>& GetProcesses() const { return fProcesses; }
 
     /// \brief Processes the input dataset and writes the output: the dataset (all its columns and the new

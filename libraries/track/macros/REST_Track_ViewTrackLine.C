@@ -26,7 +26,8 @@
 #include "TRestRawSignalEvent.h"
 #include "TRestRun.h"
 
-/// Event viewer (for TRestBrowser) of the files analysed with TRestTrackLineAnalysisProcess, for the
+/// \class TrackLineViewer
+/// \brief Event viewer (for TRestBrowser) of the files analysed with TRestTrackLineAnalysisProcess, for the
 /// event type selected in the browser:
 /// - TRestTrackEvent and TRestDetectorHitsEvent: the event (its DrawEvent with the plot option) with a
 ///   dashed black line from the origin (open circle) to the end (star) over every view where they are
@@ -65,8 +66,12 @@ class TrackLineViewer : public TRestEventViewer {
     bool DrawSignals();
 
    public:
+    /// \param prefix Name of the TRestTrackLineAnalysisProcess whose observables are drawn, empty: the first
+    /// process of the file with them.
     explicit TrackLineViewer(const std::string& prefix = "") : fPrefix(prefix) {}
 
+    /// \brief Draws the current event (see the class description).
+    /// \param option DrawEvent option of the event; empty for the defaults of this viewer.
     void Plot(const char* option) override;
 };
 
@@ -329,7 +334,7 @@ void TrackLineViewer::Plot(const char* option) {
     fCanvas->Update();
 }
 
-/// Browses the events of a file analysed with TRestTrackLineAnalysisProcess (TRestBrowser: entry,
+/// \brief Browses the events of a file analysed with TRestTrackLineAnalysisProcess (TRestBrowser: entry,
 /// event ID, event type, selection with observables, previous/next event) with TrackLineViewer: the
 /// track and hits events with the origin and end over them, the raw and detector signal events split
 /// in X and Y strips (readout of the file). The event type is chosen in the browser, at start the last
@@ -339,9 +344,18 @@ void TrackLineViewer::Plot(const char* option) {
 /// The plot option is the DrawEvent option of the event (for signals, any option draws them without
 /// splitting).
 ///
-///    restRoot
-///    [0] REST_Track_ViewTrackLine("R01234_LINEAR.root")
-///    [1] REST_Track_ViewTrackLine("R01234_LINEAR.root", "trackLineAnalysis")
+/// \param fileName REST file analysed with TRestTrackLineAnalysisProcess (e.g. the output of
+/// libraries/track/examples/TrackLinearization.yaml).
+/// \param prefix Name of the TRestTrackLineAnalysisProcess instance whose observables are drawn; empty: the
+/// first process of the file with them.
+/// \return Always 0 (the browser window stays open).
+///
+/// Usage in restRoot:
+/// \code
+/// restRoot
+/// [0] REST_Track_ViewTrackLine("R01234_LINEAR.root")
+/// [1] REST_Track_ViewTrackLine("R01234_LINEAR.root", "trackLineAnalysis")
+/// \endcode
 ///
 /// e.g. selection "trackLineAnalysis_Energy > 100000 && trackLineAnalysis_TrackBalance > 0.95" to go only
 /// through those events (branches processName_observable).

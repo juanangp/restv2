@@ -2,6 +2,8 @@
 
 #include <TGeoManager.h>
 
+#include <stdexcept>
+
 #include "TRestConstants.h"
 #include "TRestTools.h"
 
@@ -81,6 +83,11 @@ static const bool TRestGeant4Metadata_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4Metadata>("fullChainStopIsotopes",
                                            &TRestGeant4Metadata::fFullChainStopIsotopesRegistry);
     reg.RegisterField<TRestGeant4Metadata>("biasingVolumes", &TRestGeant4Metadata::fBiasingVolumes);
+    // Results of the biasing stages, written by restG4
+    reg.RegisterField<TRestGeant4Metadata>("biasingTotalFactor", &TRestGeant4Metadata::fBiasingTotalFactor);
+    reg.RegisterField<TRestGeant4Metadata>("biasingStageEvents", &TRestGeant4Metadata::fBiasingStageEvents);
+    reg.RegisterField<TRestGeant4Metadata>("biasingStageParticles",
+                                           &TRestGeant4Metadata::fBiasingStageParticles);
     // Parsed by TRestGeant4PrimaryGeneratorInfo, which keeps a handle to the section
     reg.RegisterNestedField<TRestGeant4Metadata>("generator",
                                                  &TRestGeant4Metadata::fGeant4PrimaryGeneratorInfo);
@@ -101,6 +108,10 @@ TRestGeant4ActiveVolumeMetadata::TRestGeant4ActiveVolumeMetadata(const std::stri
 
 void TRestGeant4ActiveVolumeMetadata::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4ActiveVolumeMetadata>(fNode);
+    if (fChance < 0 || fChance > 1) {
+        throw std::runtime_error("TRestGeant4ActiveVolumeMetadata: 'chance' of the active volume '" +
+                                 fVolumeName + "' must be between 0 and 1");
+    }
     UpdateYAMLFromParams<TRestGeant4ActiveVolumeMetadata>(fNode);
 }
 
@@ -132,6 +143,9 @@ void TRestGeant4Metadata::Clear() {
     fChance.clear();
     fMaxStepSize.clear();
     fBiasingVolumes.clear();
+    fBiasingTotalFactor = 1.0;
+    fBiasingStageEvents.clear();
+    fBiasingStageParticles.clear();
     fSensitiveVolumes.clear();
     fFullChainStopIsotopes.clear();
     fFullChainStopIsotopesRegistry.clear();
@@ -173,19 +187,11 @@ void TRestGeant4Metadata::LoadConfig() {
     SyncActiveVolumesFromMetadata();
 }
 
-/// \brief Copy constructor implementing full internal state replication.
-TRestGeant4Metadata::TRestGeant4Metadata(const TRestGeant4Metadata& metadata) : TRestMetadata(metadata) {
-    this->Merge(metadata);
-}
+/// \brief Plain copy of every member (Merge adds the event counts instead).
+TRestGeant4Metadata::TRestGeant4Metadata(const TRestGeant4Metadata& metadata) = default;
 
-/// \brief Assignment operator.
-TRestGeant4Metadata& TRestGeant4Metadata::operator=(const TRestGeant4Metadata& metadata) {
-    if (this != &metadata) {
-        TRestMetadata::operator=(metadata);
-        this->Merge(metadata);
-    }
-    return *this;
-}
+/// \brief Plain assignment of every member (Merge adds the event counts instead).
+TRestGeant4Metadata& TRestGeant4Metadata::operator=(const TRestGeant4Metadata& metadata) = default;
 
 /// \brief Synchronizes runtime active-volume caches from registry-managed entries.
 void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
@@ -240,6 +246,17 @@ void TRestGeant4Metadata::SyncActiveVolumesFromMetadata() {
     fRemoveUnwantedTracksVolumesToKeep.clear();
     fRemoveUnwantedTracksVolumesToKeep.insert(fActiveVolumes.begin(), fActiveVolumes.end());
     fRemoveUnwantedTracksVolumesToKeep.insert(fSensitiveVolumes.begin(), fSensitiveVolumes.end());
+    // activateAllVolumes (legacy semantics): every physical volume of the geometry is also active, with
+    // chance 1 and no step limit; the listed ones keep their values. The Geant4 names (the volume ID map)
+    // when known (restG4), the TGeo ones otherwise. They are not kept by removeUnwantedTracks, as legacy
+    if (fActivateAllVolumes) {
+        std::vector<std::string> allVolumes;
+        for (const auto& [id, name] : geometryInfo.fVolumeNameMap) allVolumes.push_back(name);
+        if (allVolumes.empty()) allVolumes = geometryInfo.GetAllPhysicalVolumes();
+        for (const auto& name : allVolumes) {
+            if (!IsActiveVolume(name)) SetActiveVolume(name, 1.0, 0.0);
+        }
+    }
     // Kill volumes resolved as the active ones (expressions of physical or logical names), the ones without
     // match are kept as written (restG4 DetectorConstruction stops if they are not in the geometry)
     fKillVolumes.clear();
@@ -280,6 +297,20 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fChance = other.fChance;
     fMaxStepSize = other.fMaxStepSize;
     fBiasingVolumes = other.fBiasingVolumes;
+    fBiasingTotalFactor = other.fBiasingTotalFactor;
+    // The counts of the stages add up, as the events, when the stages are the same
+    if (fBiasingStageEvents.size() == other.fBiasingStageEvents.size() &&
+        fBiasingStageParticles.size() == other.fBiasingStageParticles.size()) {
+        for (size_t i = 0; i < fBiasingStageEvents.size(); i++) {
+            fBiasingStageEvents[i] += other.fBiasingStageEvents[i];
+        }
+        for (size_t i = 0; i < fBiasingStageParticles.size(); i++) {
+            fBiasingStageParticles[i] += other.fBiasingStageParticles[i];
+        }
+    } else {
+        fBiasingStageEvents = other.fBiasingStageEvents;
+        fBiasingStageParticles = other.fBiasingStageParticles;
+    }
     fMaxTargetStepSize = other.fMaxTargetStepSize;
     fSubEventTimeDelay = other.fSubEventTimeDelay;
     fFullChain = other.fFullChain;
@@ -306,6 +337,54 @@ void TRestGeant4Metadata::Merge(const TRestGeant4Metadata& other) {
     fRegisterEmptyTracks = other.fRegisterEmptyTracks;
     fMagneticField = other.fMagneticField;
     fActiveVolumesSet = other.fActiveVolumesSet;
+}
+
+void TRestGeant4Metadata::CheckBiasingVolumes() const {
+    for (size_t i = 1; i < fBiasingVolumes.size(); i++) {
+        if (!fBiasingVolumes[i - 1].Contains(fBiasingVolumes[i])) {
+            throw std::runtime_error(
+                "TRestGeant4Metadata: the biasing volume " + std::to_string(i) +
+                " is not inside the biasing volume " + std::to_string(i - 1) +
+                ": 'biasingVolumes' must be nested, from the outermost to the innermost");
+        }
+    }
+}
+
+void TRestGeant4Metadata::InitializeBiasingStages() {
+    fBiasingTotalFactor = 1.0;
+    for (const auto& volume : fBiasingVolumes) fBiasingTotalFactor *= volume.GetBiasingFactor();
+    fBiasingStageEvents.clear();
+    fBiasingStageParticles.clear();
+    if (fBiasingVolumes.empty()) return;
+    fBiasingStageEvents.assign(fBiasingVolumes.size() + 1, 0);
+    fBiasingStageParticles.assign(fBiasingVolumes.size(), 0);
+}
+
+void TRestGeant4Metadata::SetBiasingStageEvents(size_t stage, int64_t events) {
+    if (stage < fBiasingStageEvents.size()) fBiasingStageEvents[stage] = events;
+}
+
+void TRestGeant4Metadata::SetBiasingStageParticles(size_t stage, int64_t particles) {
+    if (stage < fBiasingStageParticles.size()) fBiasingStageParticles[stage] = particles;
+}
+
+double TRestGeant4Metadata::GetBiasingCompletedFraction() const {
+    const size_t nVolumes = fBiasingVolumes.size();
+    if (nVolumes == 0 || fBiasingStageEvents.size() != nVolumes + 1 ||
+        fBiasingStageParticles.size() != nVolumes) {
+        return 1.0;
+    }
+    double fraction = 1.0;
+    for (size_t stage = 1; stage <= nVolumes; stage++) {
+        const double planned =
+            double(fBiasingStageParticles[stage - 1]) * fBiasingVolumes[stage - 1].GetBiasingFactor();
+        if (planned > 0) fraction *= double(fBiasingStageEvents[stage]) / planned;
+    }
+    return fraction;
+}
+
+double TRestGeant4Metadata::GetEquivalentNumberOfEvents() const {
+    return double(fNEvents) * fBiasingTotalFactor * GetBiasingCompletedFraction();
 }
 
 /// \brief Parses the local Major configuration value from the semantic version string.

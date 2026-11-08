@@ -13,7 +13,7 @@ const bool kRegistered = []() {
 }();
 }  // namespace
 
-/// \brief Default constructor for FEMDAQ-to-signal conversion.
+/// \brief Default constructor (no configuration).
 TRestRawZeroSupressionToRawProcess::TRestRawZeroSupressionToRawProcess() : TRestEventProcess() {
     fName = "TRestRawZeroSupressionToRawProcess";
 }
@@ -46,10 +46,10 @@ void TRestRawZeroSupressionToRawProcess::LoadConfig() {
     UpdateYAMLFromParams<TRestRawZeroSupressionToRawProcess>(fNode);
 }
 
-/// \brief Opens input trees, imports run timing metadata, and prepares branch bindings.
+/// \brief Nothing to initialize.
 void TRestRawZeroSupressionToRawProcess::InitProcess() {}
 
-/// \brief Converts one tree entry into a TRestRawSignalEvent and fills per-channel samples.
+/// \brief Copies the input event and removes the offset of its zero-suppressed signals.
 bool TRestRawZeroSupressionToRawProcess::ProcessEvent(const TRestEvent& input, TRestEvent& output) {
     output.CopyFrom(&input);
 

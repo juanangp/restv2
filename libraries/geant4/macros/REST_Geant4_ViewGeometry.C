@@ -12,10 +12,14 @@
 #include "TRestGDMLParser.h"
 #include "TRestTools.h"
 
-/// Draws the geometry of a restG4 file (the TGeoManager "Geometry", as simulated) or of a GDML file (its
-/// entities resolved, the parameters with their default values; see restG4 --update-gdml): with OpenGL by
-/// default, with option "eve" in TEve (volumes of density <= 0.01 g/cm3 transparent, <= 0.001 g/cm3
+/// \brief Draws the geometry of a restG4 file (the TGeoManager "Geometry", as simulated) or of a GDML file
+/// (its entities resolved, the parameters with their default values; see restG4 --update-gdml): with OpenGL
+/// by default, with option "eve" in TEve (volumes of density <= 0.01 g/cm3 transparent, <= 0.001 g/cm3
 /// hidden, as vacuum).
+///
+/// \param fileName A ROOT file with the `Geometry` TGeoManager or a .gdml file.
+/// \param option Empty (OpenGL) or "eve".
+/// \return 0 on success, 1 for an unsupported file, a missing geometry or an unknown option.
 ///
 ///    restRoot
 ///    REST_Geant4_ViewGeometry("Run1_NLDBD_Test.root")

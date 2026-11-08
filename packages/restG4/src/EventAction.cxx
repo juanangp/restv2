@@ -38,9 +38,9 @@ void EventAction::BeginOfEventAction(const G4Event* event) {
             (numberOfEventsToBePercent > 0 && (eventID + 1) % numberOfEventsToBePercent == 0)) {
             fSimulationManager->SyncStatsFromChild();
             G4cout << double(fSimulationManager->GetNumberOfProcessedEvents()) /
-                          double(restG4Metadata->GetNumberOfEvents()) * 100
+                          double(fSimulationManager->GetNumberOfEventsInRun()) * 100
                    << "% - " << fSimulationManager->GetNumberOfProcessedEvents()
-                   << " Events processed out of " << restG4Metadata->GetNumberOfEvents()
+                   << " Events processed out of " << fSimulationManager->GetNumberOfEventsInRun()
                    << " requested events ("
                    << fSimulationManager->GetNumberOfProcessedEvents() / fSimulationManager->GetElapsedTime()
                    << " per second). " << fSimulationManager->GetNumberOfStoredEvents() << " events stored ("

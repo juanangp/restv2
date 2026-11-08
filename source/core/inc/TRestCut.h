@@ -30,11 +30,13 @@ class TTree;
 ///
 /// Example:
 ///
-///    fiducial:
-///      class: "TRestCut"
-///      conditions:
-///        originX: "trackLineAnalysis_OriginX > 20 && trackLineAnalysis_OriginX < 225"
-///        originY: "trackLineAnalysis_OriginY > 20 && trackLineAnalysis_OriginY < 225"
+/// \code{.yaml}
+/// fiducial:
+///   class: "TRestCut"
+///   conditions:
+///     originX: "trackLineAnalysis_OriginX > 20 && trackLineAnalysis_OriginX < 225"
+///     originY: "trackLineAnalysis_OriginY > 20 && trackLineAnalysis_OriginY < 225"
+/// \endcode
 ///
 /// Differences with legacy: one key `conditions` (name: expression) instead of the `cut` elements with
 /// `value` or `variable` and `condition` (the observables are found in the expression), C++ operators
@@ -46,20 +48,26 @@ class TRestCut : public TRestMetadata {
     /// Expression with the observables replaced by parameters [i]
     std::unique_ptr<TFormula> fFormula;  //!
     /// Leaf of each parameter of the formula
-    std::vector<TLeaf*> fLeaves;          //!
+    std::vector<TLeaf*> fLeaves;  //!
+    /// Current values of the parameters, passed to the formula
     mutable std::vector<double> fValues;  //!
 
    public:
     /// Conditions, name: expression of the analysis tree branches. All of them must be fulfilled
     std::map<std::string, std::string> fConditions;
 
-    TRestCut();
+    TRestCut();  ///< Default constructor (no conditions).
+    /// \brief Constructs from a YAML node (LoadConfig).
     TRestCut(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructs from a section of a YAML file (LoadConfig).
     TRestCut(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Returns "TRestCut".
     std::string GetClassName() const override { return "TRestCut"; }
 
+    /// \brief Reads `conditions`; throws for an empty condition.
     void LoadConfig() override;
+    /// \brief Nothing to initialize (see Compile).
     void Initialize() override {}
 
     /// \brief All the conditions together, "(c1) && (c2) && ...", e.g. for TTree::Draw or
@@ -71,7 +79,8 @@ class TRestCut : public TRestMetadata {
     /// this tree. Throws if an observable is not a scalar or the expression is not valid.
     void Compile(TTree* tree);
 
-    /// \brief True if the current values of the branches fulfill all the conditions. Compile first.
+    /// \brief True if the current values of the branches fulfill all the conditions (true without
+    /// conditions). Compile first, otherwise it throws.
     bool Evaluate() const;
 };
 

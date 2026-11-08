@@ -22,7 +22,14 @@ class TTree;
 /// name), and adds to `runInfo` the detector, driftField (V/cm/bar), meshVoltage (V) and pressure (bar),
 /// unless the configuration already gives them. Otherwise, or if the `run` tree has no `timestamp`, the
 /// start time is the one of the first event.
-/// The end time is always the one of the last event.
+/// The end time is always the one of the last event. No observables.
+///
+/// Example (see libraries/raw/examples/FeminosRootToRaw.yaml):
+/// \code
+/// feminosRootToSignal:
+///   class: "TRestRawFeminosRootToSignalProcess"
+///   useFeminosDaqRunInfo: true
+/// \endcode
 class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
    private:
     long long fInputTreeEntry = 0;
@@ -43,12 +50,18 @@ class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
     bool ReadRunInfo(TTree* runTree);
 
    public:
+    /// Take the run number, tag, description, start time and runInfo from the `run` tree (YAML
+    /// `useFeminosDaqRunInfo`)
     bool fUseFeminosDaqRunInfo = true;
 
+    /// \brief Default constructor (no configuration).
     TRestRawFeminosRootToSignalProcess();
+    /// \brief Constructor from the YAML node of the process section.
     TRestRawFeminosRootToSignalProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from a YAML file and the name of the process section.
     TRestRawFeminosRootToSignalProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads `useFeminosDaqRunInfo`.
     void LoadConfig() override;
     /// \brief Opens the input file, reads the run information and connects the event branches.
     void InitProcess() override;
@@ -57,7 +70,9 @@ class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
     /// \brief Sets the run times and closes the input file.
     void EndProcess() override;
 
+    /// \brief Number of entries of the `events` tree (-1 before InitProcess).
     long long GetInputEventCount() const override { return fInputTree ? fInputTree->GetEntries() : -1; }
+    /// \brief True once all the entries of the `events` tree have been read.
     bool InputFinished() const override { return fInputTree && fInputTreeEntry >= fInputTree->GetEntries(); }
 
     std::string GetInputEvent() const override { return "None"; }

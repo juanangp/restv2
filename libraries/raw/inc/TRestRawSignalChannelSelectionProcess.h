@@ -22,7 +22,7 @@ class TRestRawSignalEvent;
 ///   noise of the remaining ones.
 /// - Dead channels: remove them to evaluate their impact on the detector response.
 ///
-/// The event is dropped (not processed further) when no signal remains.
+/// The event is dropped (not processed further) when no signal remains. No observables.
 ///
 /// Example (the veto without channel 300):
 /// \code
@@ -46,12 +46,18 @@ class TRestRawSignalChannelSelectionProcess : public TRestEventProcess {
     /// Inclusive [min, max] signal ID ranges to keep (all if no keep field is given).
     std::vector<std::pair<int, int>> fKeepChannelRange;
 
+    /// \brief Default constructor (keeps all the signals).
     TRestRawSignalChannelSelectionProcess();
+    /// \brief Constructor from the YAML node of the process section.
     TRestRawSignalChannelSelectionProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from a YAML file and the name of the process section.
     TRestRawSignalChannelSelectionProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the keep/remove keys and drops inverted ranges with a warning.
     virtual void LoadConfig() override;
     void InitProcess() override {}
+    /// \brief Copies the input event and removes the signals for which IsRemoved is true; returns false
+    /// (event dropped) when no signal remains.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

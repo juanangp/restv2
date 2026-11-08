@@ -132,7 +132,12 @@ void TRestGeant4EnergyDistributionFormula::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4EnergyDistributionFormula>(fNode);
     CheckRange(fRange, GetClassName());
     // An unknown formula name throws
-    StringToEnergyDistributionFormulas(fFormula);
+    if (StringToEnergyDistributionFormulas(fFormula) == EnergyDistributionFormulas::COSMIC_GAMMAS) {
+        throw runtime_error(
+            GetClassName() +
+            ": the formula 'CosmicGammas' is not implemented (as in legacy REST), use "
+            "CosmicNeutrons, FissionNeutronsU238, EnvironmentalGammas or EnvironmentalNeutrons");
+    }
     UpdateYAMLFromParams<TRestGeant4EnergyDistributionFormula>(fNode);
 }
 

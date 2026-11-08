@@ -125,8 +125,10 @@ void TRestDataSetProcessManager::LoadConfig() {
         auto meta = CreateChildMetadata(key, value);
         if (!meta) continue;
         if (auto* process = dynamic_cast<TRestDataSetProcess*>(meta.get())) {
+            // The vector grows first, so that the ownership is only transferred once nothing can throw
+            fProcesses.emplace_back();
             meta.release();
-            fProcesses.emplace_back(process);
+            fProcesses.back().reset(process);
         } else {
             throw std::runtime_error("TRestDataSetProcessManager '" + fName + "': '" + key + "' (" +
                                      meta->GetClassName() + ") is not a dataset process");

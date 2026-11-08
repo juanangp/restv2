@@ -16,6 +16,7 @@
 /// in the projection the hits define. FindClusters instead takes the coordinates to use.
 namespace TRestHitsAnalysis {
 
+/// Position of a hit or node
 using XYZVector = ROOT::Math::XYZVector;
 
 /// \brief Groups the points in clusters: two points closer than `distance` belong to the same cluster,
@@ -41,9 +42,9 @@ std::vector<size_t> GetShortestPath(const std::vector<XYZVector>& points, bool c
 
 /// \brief A point with energy, e.g. a node of a reduced track.
 struct Node {
-    XYZVector position;
-    double energy = 0;
-    XYZVector sigma;  ///< Energy weighted spread (standard deviation) of its points in each coordinate
+    XYZVector position;  ///< Energy weighted mean position of its points
+    double energy = 0;   ///< Sum of the energies of its points
+    XYZVector sigma;     ///< Energy weighted spread (standard deviation) of its points in each coordinate
 };
 
 /// \brief Reduces the points to nodes with k-means, starting from the given nodes (`centroids`), as legacy

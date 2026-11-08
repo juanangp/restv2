@@ -13,6 +13,12 @@
 /// \class TRestDataSetLogOddsObservable
 /// \brief An observable of a TRestDataSetLogOdds: the range and bins of its probability density function
 /// (PDF).
+///
+/// An element of `observables` of TRestDataSetLogOdds. Keys: `observable`, `range` (required), `nBins` and
+/// the result `pdf` (written by the process), e.g.
+///
+///     observables:
+///       - {observable: "trackAnalysis_MaxTrack_XYZ_SigmaZ2", range: [0, 20], nBins: 100}
 class TRestDataSetLogOddsObservable : public TRestMetadata {
    public:
     /// Observable (column of the dataset)
@@ -25,14 +31,17 @@ class TRestDataSetLogOddsObservable : public TRestMetadata {
     std::vector<double> fPDF = {};
 
     TRestDataSetLogOddsObservable();
+    /// \brief Observable read from its YAML node (LoadConfig)
     TRestDataSetLogOddsObservable(const std::string& name, const YAML::Node& node);
+    /// \brief Reads the fields; throws without observable, with an empty range, nBins not positive or a pdf
+    /// that has not nBins values
     void LoadConfig() override;
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestDataSetLogOddsObservable"; }
 
-    /// \brief Probability of the bin of a value, 0 outside the range
+    /// \brief Probability of the bin of a value, 0 outside the range [min, max) or without PDF
     double GetProbability(double value) const;
-    /// \brief The PDF as a histogram
+    /// \brief The PDF as a histogram named `name` (not attached to any directory)
     std::unique_ptr<TH1D> GetHistogram(const std::string& name) const;
 };
 
@@ -50,9 +59,11 @@ class TRestDataSetLogOdds : public TRestDataSetProcess {
     std::vector<TRestDataSetLogOddsObservable> fObservables;
 
     TRestDataSetLogOdds();
+    /// \brief Process read from its YAML section (LoadConfig)
     TRestDataSetLogOdds(const std::string& instanceName, const YAML::Node& node);
 
     std::string GetClassName() const override { return "TRestDataSetLogOdds"; }
+    /// \brief Reads the fields; throws without observables
     void LoadConfig() override;
 
     /// \brief Adds the columns GetColumn(observable) = log(1 - p) - log(p), with p the probability of the
@@ -62,8 +73,9 @@ class TRestDataSetLogOdds : public TRestDataSetProcess {
     /// \brief Writes the PDF of each observable as a histogram, pdf_<observable>
     void WriteObjects(TDirectory* directory) const override;
 
-    /// \brief Names of the columns: <name>_<observable> and <name>_total
+    /// \brief Name of the column of an observable, <name>_<observable>
     std::string GetColumn(const std::string& observable) const { return fName + "_" + observable; }
+    /// \brief Name of the column of the sum, <name>_total
     std::string GetTotalColumn() const { return fName + "_total"; }
 };
 

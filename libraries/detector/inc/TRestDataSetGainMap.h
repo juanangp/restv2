@@ -55,10 +55,12 @@ class TRestDataSetGainMap : public TRestDataSetProcess {
     std::string fCalibratedObservable = "Energy";
     /// Observables of the position, in X and Y, of the segmentation (in the frame of the readout)
     std::string fSpatialObservableX = "";
+    /// Observable of the position in Y of the segmentation
     std::string fSpatialObservableY = "";
     /// Secondary observables of the position (optional): an event of a segment of the fit must also have
     /// them in the segment
     std::string fSpatialObservableXSecondary = "";
+    /// Secondary observable of the position in Y (optional)
     std::string fSpatialObservableYSecondary = "";
     /// Readout (instance of the TRestDetectorReadoutManager of the reference dataset) whose extent is
     /// segmented; empty: the data readout of the manager
@@ -73,6 +75,7 @@ class TRestDataSetGainMap : public TRestDataSetProcess {
     std::pair<int, int> fSegments = {1, 1};
     /// Edges of the segments in X and Y: given, or from segments and the extent of the readout (results)
     std::vector<double> fSplitX = {};
+    /// Edges of the segments in Y
     std::vector<double> fSplitY = {};
     /// Add the point (0, 0) to the linear fits
     bool fZeroPoint = false;
@@ -87,16 +90,24 @@ class TRestDataSetGainMap : public TRestDataSetProcess {
     bool fPeakSearch = false;
     /// Results: calibration of each segment [x][y], energy = slope * observable + intercept
     std::vector<std::vector<double>> fSlope = {};
+    /// Results: intercept of the calibration of each segment [x][y]
     std::vector<std::vector<double>> fIntercept = {};
     /// Results: calibration of the whole readout
     double fFullSlope = 0;
+    /// Results: intercept of the calibration of the whole readout
     double fFullIntercept = 0;
 
+    /// \brief Builds an empty gain map.
     TRestDataSetGainMap();
+    /// \brief Builds the gain map from its YAML section (LoadConfig).
     TRestDataSetGainMap(const std::string& instanceName, const YAML::Node& node);
 
+    /// \brief Returns the class name, "TRestDataSetGainMap".
     std::string GetClassName() const override { return "TRestDataSetGainMap"; }
+    /// \brief Reads and checks the parameters: throws without observable, spatial observables or peaks, or
+    /// with invalid nBins, window, splitX, splitY or segments (given edges set the number of segments).
     void LoadConfig() override;
+    /// \brief Prints the parameters, the slope of each segment and the calibration of the whole readout.
     void PrintMetadata() const override;
 
     /// \brief Adds the columns GetEnergyColumn() (calibrated with the segment of the event) and
@@ -108,14 +119,18 @@ class TRestDataSetGainMap : public TRestDataSetProcess {
     /// \brief Names of the columns: <name>_<calibratedObservable> (calibration of the segment) and
     /// <name>_<calibratedObservable>NoSegmentation (of the whole readout)
     std::string GetEnergyColumn() const { return fName + "_" + fCalibratedObservable; }
+    /// \brief Name of the column calibrated with the whole readout.
     std::string GetEnergyNoSegmentationColumn() const { return GetEnergyColumn() + "NoSegmentation"; }
 
+    /// \brief Number of segments in X (from the edges splitX).
     int GetNumberOfSegmentsX() const { return static_cast<int>(fSplitX.size()) - 1; }
+    /// \brief Number of segments in Y (from the edges splitY).
     int GetNumberOfSegmentsY() const { return static_cast<int>(fSplitY.size()) - 1; }
     /// \brief Indices [x][y] of the segment of a position (the first or last segment outside the edges)
     std::pair<int, int> GetSegment(double x, double y) const;
     /// \brief Calibration of the segment of a position: energy = slope * observable + intercept
     double GetSlope(double x, double y) const;
+    /// \brief Intercept of the calibration of the segment of a position.
     double GetIntercept(double x, double y) const;
 
     /// \brief Fits again a peak (index in peaks) of a segment in a range of the observable and updates its
@@ -144,8 +159,11 @@ class TRestDataSetGainMap : public TRestDataSetProcess {
     /// \brief Spectra and linear fits of a segment [x][y] and of the whole readout (nullptr before the
     /// parameters are obtained)
     TH1D* GetSegmentSpectrum(int x, int y) const;
+    /// \brief Spectrum of the whole readout (nullptr before the parameters are obtained).
     TH1D* GetFullSpectrum() const { return fFullSpectrum.get(); }
+    /// \brief Linear fit of a segment [x][y] (nullptr before the parameters are obtained).
     TGraph* GetSegmentLinearFit(int x, int y) const;
+    /// \brief Linear fit of the whole readout (nullptr before the parameters are obtained).
     TGraph* GetFullLinearFit() const { return fFullLinearFit.get(); }
 };
 

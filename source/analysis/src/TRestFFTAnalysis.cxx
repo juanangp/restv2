@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <mutex>
+#include <stdexcept>
 
 #include "TRestLogManager.h"
 
@@ -142,7 +143,7 @@ Spectrum GaussianSecondOrderResponse(int nfft, double f1, double f2, double Ao, 
     Spectrum s(std::max(nfft, 0));
     const double a = std::sqrt(Ao);
     for (int i = 0; i <= nfft / 2; i++) {
-        const double w = 2. * i / 3;  // factor del código original
+        const double w = 2. * i / 3;  // scale factor of the legacy code
         std::complex<double> value =
             std::complex<double>(f1, 0) / std::complex<double>(f1 * f2 - w * w, f1 * w);
         value *= a * std::exp(-sigma * w * w);
@@ -154,7 +155,7 @@ Spectrum GaussianSecondOrderResponse(int nfft, double f1, double f2, double Ao, 
 Spectrum SecondOrderAnalyticalResponse(int nfft, double f1, double f2, double to) {
     Spectrum s(std::max(nfft, 0));
     for (int i = 0; i <= nfft / 2; i++) {
-        const double w = 2.59 * i;  // factor del código original
+        const double w = 2.59 * i;  // scale factor of the legacy code
         std::complex<double> value =
             std::complex<double>(f1, 0) / std::complex<double>(f1 * w, f1 * f2 - w * w);
         value *= std::exp(std::complex<double>(0, -w * to));
@@ -168,6 +169,10 @@ Spectrum SecondOrderAnalyticalResponse(int nfft, double f1, double f2, double to
 // ---------------------------------------------------------------------------
 
 void ButterWorthFilter(Spectrum& s, int cutOff, int order) {
+    if (cutOff == 0) {
+        throw std::invalid_argument(
+            "TRestFFTAnalysis::ButterWorthFilter: cutOff must be nonzero (the gain divides by it)");
+    }
     const int n = (int)s.size();
     for (int i = std::max(0, cutOff + 1); i <= n / 2; i++) {
         const double gain = 1.0 / std::sqrt(1.0 + std::pow((double)i / cutOff, 2.0 * order));
@@ -181,20 +186,19 @@ void KillFrequencies(Spectrum& s, int cutOff) {
 }
 
 void ApplyLowPassFilter(Spectrum& s, int cutFrequency) {
-    const int n = (int)s.size();
-    const int lo = std::max(0, cutFrequency);
-    const int hi = std::min(n, n - cutFrequency);
-    for (int i = lo; i < hi; i++) s[i] = 0.0;
+    // Zeroes the bins from cutFrequency to the Nyquist bin and their mirrors, so the spectrum keeps its
+    // Hermitian symmetry (same as KillFrequencies)
+    KillFrequencies(s, cutFrequency);
 }
 
 void RemoveBaseline(Spectrum& s) {
-    if (s.size() < 2) return;
-    s[0] = std::abs(s[1]);
+    if (s.empty()) return;
+    s[0] = 0.0;
 }
 
 void RenormalizeNode(Spectrum& s, int n, double factor) {
     if (n < 0 || n >= (int)s.size()) return;
-    SetHermitian(s, n, s[n] / factor);
+    SetHermitian(s, n, s[n] * factor);
 }
 
 // ---------------------------------------------------------------------------

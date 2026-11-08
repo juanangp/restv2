@@ -51,12 +51,21 @@ class TRestTrackLineAnalysisProcess : public TRestEventProcess {
     /// Origin and end with several projections: "default" (ends of each one) or "3D" (nodes paired)
     std::string fLineAnaMethod = "default";
 
+    /// \brief Default constructor, with the default parameters.
     TRestTrackLineAnalysisProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestTrackLineAnalysisProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestTrackLineAnalysisProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section and normalizes lineAnaMethod and the
+    /// projection names.
     void LoadConfig() override;
+    /// \brief Registers the observables (TrackBalance_P, Length_P, Angle_P, Asymmetry_P and Residual_P for
+    /// each projection P).
     void InitProcess() override;
+    /// \brief Computes origin, end and direction of the main track; the output event holds its tracks.
+    /// \return False if there is no track (with projections, no track in any of them).
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

@@ -14,9 +14,9 @@
 ///
 /// Parameters: minSaturatedBins (3), minSaturationValue (4095), processAllSignals (false),
 /// nBinsIfNotSaturated (20), baselineRange ([5,55]), baselineOption (""), pointsThreshold (2),
-/// signalThreshold (5), pointsOverThreshold (5), fitMargin (20), nPointsFlat (512).
+/// signalThreshold (5), pointsOverThreshold (5), fitMargin (10), nPointsFlat (512).
 ///
-/// Observables: AddedAmplitude, AddedIntegral, SignalsSaturated, SignalsRecovered.
+/// Observables: AddedAmplitude, AddedIntegral, SignalsSaturated, SignalsRecovered, SignalsIDsRecovered.
 ///
 /// Example:
 ///

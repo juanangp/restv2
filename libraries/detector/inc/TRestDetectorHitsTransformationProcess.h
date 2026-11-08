@@ -11,6 +11,9 @@
 /// their positions, in this order (replaces the legacy TRestDetectorHitsNormalizationProcess,
 /// TRestDetectorHitsSpecularProcess, TRestDetectorHitsRotationProcess and
 /// TRestDetectorHitsTranslationProcess).
+///
+/// The parameters (YAML keys), the observables and an example are described in the class documentation
+/// (TRestDetectorHitsTransformationProcess.cxx).
 class TRestDetectorHitsTransformationProcess : public TRestEventProcess {
    public:
     /// Factor applied to the energy of all the hits
@@ -31,18 +34,29 @@ class TRestDetectorHitsTransformationProcess : public TRestEventProcess {
     /// Translation vector
     std::array<TRestWithUnits, 3> fTranslation = {0.0, 0.0, 0.0};
 
+    /// \brief Default constructor (no configuration).
     TRestDetectorHitsTransformationProcess();
+    /// \brief Builds the process from an in-memory YAML section (LoadConfig).
     TRestDetectorHitsTransformationProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the process from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorHitsTransformationProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the parameters from the YAML node.
     void LoadConfig() override;
+    /// \brief Checks that rotationAxis is not null when there is a rotation.
     void InitProcess() override;
+    /// \brief Applies the energy factor, mirror, rotation and translation to the hits.
+    /// \return Always true.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Nothing to do at the end of the processing.
     void EndProcess() override {}
 
+    /// \brief Input event type, "TRestDetectorHitsEvent".
     std::string GetInputEvent() const override { return "TRestDetectorHitsEvent"; }
+    /// \brief Output event type, "TRestDetectorHitsEvent".
     std::string GetOutputEvent() const override { return "TRestDetectorHitsEvent"; }
 
+    /// \brief Returns the class name, "TRestDetectorHitsTransformationProcess".
     std::string GetClassName() const override { return "TRestDetectorHitsTransformationProcess"; }
 };
 

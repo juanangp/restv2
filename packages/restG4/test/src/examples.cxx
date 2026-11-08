@@ -353,6 +353,35 @@ TEST(restG4Examples, Pb210Shield) {
     EXPECT_NEAR(simulation.run.GetEntries(), expected, 4 * std::sqrt(expected));
 }
 
+// --- 09.Pb210_Shield: volume biasing of gammas from a wall, two nested virtual volumes ---
+TEST(restG4Examples, Biasing) {
+    constexpr int events = 2000;
+    ASSERT_TRUE(
+        RestG4("09.Pb210_Shield", "Biasing.yaml", "-n " + std::to_string(events) + " -o Biasing.root"));
+    Simulation simulation(Path("09.Pb210_Shield", "Biasing.root"));
+    ASSERT_NE(simulation.metadata, nullptr);
+    const auto& metadata = *simulation.metadata;
+    EXPECT_EQ(metadata.GetNumberOfEvents(), events);
+    EXPECT_DOUBLE_EQ(metadata.GetBiasingTotalFactor(), 100);
+    ASSERT_EQ(metadata.GetNumberOfBiasingStages(), 3u);
+    EXPECT_EQ(metadata.GetBiasingStageEvents(0), events);
+    // Each particle stored is simulated biasingFactor (10) times by the next stage
+    EXPECT_GT(metadata.GetBiasingStageParticles(0), 0);
+    EXPECT_EQ(metadata.GetBiasingStageEvents(1), 10 * metadata.GetBiasingStageParticles(0));
+    EXPECT_GT(metadata.GetBiasingStageParticles(1), 0);
+    EXPECT_EQ(metadata.GetBiasingStageEvents(2), 10 * metadata.GetBiasingStageParticles(1));
+    EXPECT_DOUBLE_EQ(metadata.GetBiasingCompletedFraction(), 1);
+    EXPECT_DOUBLE_EQ(metadata.GetEquivalentNumberOfEvents(), 100.0 * events);
+    // The primaries of the output events start on the surface of the innermost volume (box of 12 cm side)
+    EXPECT_GT(simulation.run.GetEntries(), 0);
+    simulation.ForEachEvent([](const TRestGeant4Event& event) {
+        const auto position = event.GetPrimaryPosition();
+        const double extent =
+            std::max({std::abs(position.X()), std::abs(position.Y()), std::abs(position.Z())});
+        EXPECT_NEAR(extent, 60, 1e-3);
+    });
+}
+
 // --- 10.Geometries: geantinos through the assemblies of the IAXO geometry, straight at the speed of light
 // ---
 TEST(restG4Examples, Geometries) {

@@ -14,7 +14,7 @@ static const bool TRestEventProcess_FieldsRegistered = []() {
     return true;
 }();
 
-/// \brief Constructs a generic readout metadata object with default name.
+/// \brief Constructs a process with default name.
 TRestEventProcess::TRestEventProcess() : TRestMetadata() { fName = "TRestEventProcess"; }
 
 TRestEventProcess::TRestEventProcess(const std::string& instanceName, const YAML::Node& node)
@@ -27,7 +27,7 @@ TRestEventProcess::TRestEventProcess(const std::string& fileName, const std::str
     LoadConfig();
 }
 
-/// \brief Initializes geometry and decoding from YAML.
+/// \brief Reads the common fields (observables, cuts) from the YAML node.
 void TRestEventProcess::LoadConfig() {
     UpdateParamsFromYAML<TRestEventProcess>(fNode);
     // Sync resolved parameters to the node

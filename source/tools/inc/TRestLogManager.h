@@ -14,11 +14,19 @@
 #include <unordered_map>
 
 // ---------------- TRestProgressBar ----------------
+/// \class TRestProgressBar
+/// \brief Console progress bar with the count, the estimated time left (ETA, minutes) and the percentage,
+/// redrawn in place on std::cout, e.g. `120 Events, 1.5 min ETA, 12.0%[===>      ]`. Not thread safe: it
+/// is updated by one thread (the global instance RESTProgress is used by the executables).
 class TRestProgressBar {
    public:
+    /// \brief Bar not started: Update and Finish do nothing until Reset
     TRestProgressBar() : total(0), current(0), width(60), started(false) {}
 
-    /// \param unit What is counted, written before the ETA (e.g. "Events", "Files")
+    /// \brief Starts the bar (count 0, ETA clock started) and draws it
+    /// \param totalEvents Count at 100%; with 0 or less the bar is not drawn
+    /// \param barWidth Number of characters of the bar
+    /// \param countUnit What is counted, written before the ETA (e.g. "Events", "Files")
     void Reset(int totalEvents, int barWidth = 30, const std::string& countUnit = "Events") {
         total = totalEvents;
         width = barWidth;
@@ -29,6 +37,8 @@ class TRestProgressBar {
         Update(0);
     }
 
+    /// \brief Redraws the bar with the current count (clamped to the total); the ETA assumes a constant
+    /// rate since Reset
     void Update(int currentEvent) {
         if (!started || total <= 0) return;
         current = currentEvent;
@@ -65,6 +75,7 @@ class TRestProgressBar {
         std::cout.flush();
     }
 
+    /// \brief Draws the bar at 100%, ends the line and stops the bar
     void Finish() {
         if (!started) return;
         Update(total);
@@ -81,18 +92,25 @@ class TRestProgressBar {
     std::chrono::steady_clock::time_point startTime;
 };
 
+/// Global progress bar of the executables (restManager, restG4...)
 inline TRestProgressBar RESTProgress;
 
+/// \class TRestLogManager
+/// \brief Singleton writing the messages of REST (RESTError, RESTWarning, RESTInfo... macros) to the console,
+/// with colors, and to an optional log file, from any thread. It holds the verbose levels and the global
+/// settings of the suppression of repeated messages.
 class TRestLogManager {
    public:
+    /// Verbose levels: a message is written if its level is not above the verbose of its context
     enum class REST_Verbose_Level {
-        REST_Error = 0,  //!< show minimum information of the software, as well as error messages
-        REST_Silent = 1,
+        REST_Error = 0,    //!< show minimum information of the software, as well as error messages
+        REST_Silent = 1,   //!< no message has this level: in practice the same output as REST_Error
         REST_Warning = 2,  //!< +show some essential information, as well as warnings
         REST_Info = 3,     //!< +show most of the information for each steps
         REST_Debug = 4     //!< +show the defined debug messages
     };
 
+    /// Verbose level of each name of the configuration (`verbose: info`)
     static inline std::unordered_map<std::string, REST_Verbose_Level> verboseMap{
         {"silent", REST_Verbose_Level::REST_Silent},
         {"error", REST_Verbose_Level::REST_Error},
@@ -100,6 +118,7 @@ class TRestLogManager {
         {"info", REST_Verbose_Level::REST_Info},
         {"debug", REST_Verbose_Level::REST_Debug}};
 
+    /// Name of each verbose level (inverse of verboseMap)
     static inline std::map<REST_Verbose_Level, std::string> inverseVerboseMap = [] {
         std::map<REST_Verbose_Level, std::string> inv;
         for (const auto& [str, lvl] : verboseMap) {
@@ -108,6 +127,7 @@ class TRestLogManager {
         return inv;
     }();
 
+    /// \brief Name of a verbose level (silent, error, warning, info or debug), throws if unknown
     static inline std::string GetStringFromVerbose(REST_Verbose_Level vLevel) {
         auto it = inverseVerboseMap.find(vLevel);
         if (it != inverseVerboseMap.end()) return it->second;
@@ -121,11 +141,13 @@ class TRestLogManager {
         throw std::invalid_argument("unknown verbose '" + vStr + "' (silent, error, warning, info or debug)");
     }
 
+    /// \brief The single instance (created on first use)
     static TRestLogManager& instance() {
         static TRestLogManager mgr;
         return mgr;
     }
 
+    /// \brief Also writes the messages to a file (appended), closing the previous one if any
     void SetLogFile(const std::string& filename) {
         std::lock_guard<std::mutex> lock(fMutex);
         if (logFile.is_open()) logFile.close();
@@ -145,6 +167,7 @@ class TRestLogManager {
     /// 0: no suppression. The messages of a metadata (or context) with verbose debug are never suppressed.
     /// Atomic: set by the main thread, read by any.
     static inline std::atomic<int> maxRepeated{10};
+    /// \brief Sets maxRepeated
     static inline void setMaxRepeated(int n) { maxRepeated = n; }
 
     /// \brief Length in seconds of the time windows of the similar messages of a call site (Write): they are
@@ -152,11 +175,13 @@ class TRestLogManager {
     /// the start of the program (the first maxRepeated written).
     /// Atomic: set by the main thread, read by any.
     static inline std::atomic<double> repeatedInterval{10};
+    /// \brief Sets repeatedInterval
     static inline void setRepeatedInterval(double seconds) { repeatedInterval = seconds; }
 
     /// \brief Verbose level of the messages written outside a metadata, and of the metadata without
     /// `verbose`. Atomic: set by the main thread, read by any.
     static inline std::atomic<REST_Verbose_Level> globalVerboseLevel{REST_Verbose_Level::REST_Info};
+    /// \brief Sets globalVerboseLevel
     static inline void setGlobalVerboseLevel(REST_Verbose_Level lvl) { globalVerboseLevel = lvl; }
 
    private:
@@ -176,6 +201,8 @@ class TRestLogManager {
 };
 
 // ---------------- Logger ----------------
+/// \class TRestLogger
+/// \brief ANSI escape codes of the console colors of the messages
 class TRestLogger {
    public:
     static constexpr std::string_view COLOR_RESET = "\033[0m";
@@ -192,6 +219,7 @@ class TRestLogger {
 // ---------------- Log context ----------------
 /// \brief Who writes a message: its verbose level and name (in the log file)
 struct TRestLogContext {
+    /// Verbose level: the messages above it are not written
     TRestLogManager::REST_Verbose_Level level;
     /// e.g. the name of the metadata instance, nullptr outside a metadata
     const std::string* name = nullptr;
@@ -211,9 +239,12 @@ inline TRestLogContext GetLogContext() {
 /// \brief Sets the context of the messages written outside a metadata in this thread while it lives
 class TRestLogScope {
    public:
+    /// \brief Makes a copy of `context` the current one of the thread (the previous one restored on
+    /// destruction)
     explicit TRestLogScope(const TRestLogContext& context) : fContext(context), fPrevious(currentLogContext) {
         currentLogContext = &fContext;
     }
+    /// \brief Restores the previous context of the thread
     ~TRestLogScope() { currentLogContext = fPrevious; }
 
     TRestLogScope(const TRestLogScope&) = delete;
@@ -234,6 +265,8 @@ class TRestLogLine {
    public:
     using Level = TRestLogManager::REST_Verbose_Level;
 
+    /// \brief Message of `level` in `context`; `file` and `line` are the call site for the suppression of
+    /// repeated messages (file nullptr: never suppressed, also when the context verbose is debug)
     TRestLogLine(Level level, const std::string_view& color, const char* prefix,
                  const TRestLogContext& context, const char* file, int line)
         : fColor(color),
@@ -246,6 +279,7 @@ class TRestLogLine {
     TRestLogLine(const TRestLogLine&) = delete;
     TRestLogLine& operator=(const TRestLogLine&) = delete;
 
+    /// \brief Writes the message (TRestLogManager::Write) if its level is enabled and it is not empty
     ~TRestLogLine() {
         if (!fEnabled) return;
         const std::string message = fStream.str();
@@ -255,6 +289,7 @@ class TRestLogLine {
         }
     }
 
+    /// \brief Appends a value to the message (nothing if its level is not enabled)
     template <typename T>
     TRestLogLine& operator<<(const T& value) {
         if (fEnabled) fStream << value;
@@ -278,6 +313,7 @@ class TRestLogLine {
     std::ostringstream fStream;
 };
 
+/// \brief End of line of a message (a new line; the message is written when the statement ends)
 inline std::ostream& RESTendl(std::ostream& os) {
     os.put('\n');
     return os;
@@ -290,11 +326,17 @@ inline std::ostream& RESTendl(std::ostream& os) {
     TRestLogLine(TRestLogManager::REST_Verbose_Level::LEVEL, TRestLogger::COLOR, PREFIX, GetLogContext(), \
                  FILE, __LINE__)
 
+/// Error message (red), written at any verbose level; never suppressed
 #define RESTError REST_LOG_LINE(REST_Error, COLOR_RED, " ERROR ", nullptr)
+/// Warning message (yellow), verbose warning or above; repeated ones are suppressed
 #define RESTWarning REST_LOG_LINE(REST_Warning, COLOR_YELLOW, " WARNING ", __FILE__)
+/// Metadata description (green), verbose warning or above
 #define RESTMetadata REST_LOG_LINE(REST_Warning, COLOR_GREEN, " METADATA ", nullptr)
+/// Log message (blue), verbose warning or above
 #define RESTLog REST_LOG_LINE(REST_Warning, COLOR_BLUE, " LOG ", nullptr)
+/// Information message (blue), verbose info or above; repeated ones are suppressed
 #define RESTInfo REST_LOG_LINE(REST_Info, COLOR_BLUE, " INFO ", __FILE__)
+/// Debug message, verbose debug only
 #define RESTDebug REST_LOG_LINE(REST_Debug, COLOR_RESET, " DEBUG ", nullptr)
 
 #endif

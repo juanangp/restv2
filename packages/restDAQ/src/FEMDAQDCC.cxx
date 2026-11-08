@@ -162,6 +162,7 @@ void FEMDAQDCC::EventBuilder() {
     double lastTimeSaved = runStartTime;
     uint32_t ev_count = 0;
     uint64_t ts = 0x0;
+    double eventTime = 0;  // Time of the last event built
 
     if (HasRootFile()) WriteRunStartTime(runStartTime);
 
@@ -199,7 +200,7 @@ void FEMDAQDCC::EventBuilder() {
             eventBuffer.clear();
             sEvent.AddFEM(FEM.femID, ev_count, ts, sEvent.GetNumberOfSignals());
             sEvent.SetID(static_cast<int>(ev_count));
-            const double eventTime = (double)ts * 1.E-8 + runStartTime;
+            eventTime = (double)ts * 1.E-8 + runStartTime;
             sEvent.SetTime(eventTime);
 
             // Do not fill empty events
@@ -250,6 +251,9 @@ void FEMDAQDCC::EventBuilder() {
     }
 
     if (HasRootFile()) {
+        // The run ends at the stop of the DAQ or at the last event, if later (as in FEMDAQARCFEM)
+        if (eventTime > runEndTime) runEndTime = eventTime;
+
         WriteRunEndTime(runEndTime);
     }
 }

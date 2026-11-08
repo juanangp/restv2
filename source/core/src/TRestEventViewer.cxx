@@ -76,4 +76,9 @@ void TRestEventViewer::Plot(const char* option) {
     }
 }
 
-void TRestEventViewer::DeleteCurrentEvent() { delete fEvent; }
+void TRestEventViewer::DeleteCurrentEvent() {
+    // The event is not owned (usually the event of the TRestRun of the browser): it is only forgotten, as
+    // the pad drawn by it (owned by the event)
+    fEvent = nullptr;
+    fPad = nullptr;
+}

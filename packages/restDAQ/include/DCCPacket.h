@@ -9,6 +9,13 @@
 
 #include "TRestRawSignalEvent.h"
 
+/// \file DCCPacket.h
+/// \brief Decoding of the packets of the DCC electronics (AFTER/AGET FECs read by a DCC).
+
+/// \name DCC packet format
+/// Macros to decode (GET_*) and build (PUT_*) the fields of the headers of the packets (response type,
+/// DCC header, read-back arguments, event count, sample flags) and sizes.
+///@{
 #define MAX_ETH_PACKET_DATA_SIZE 4096
 
 // Response Packet Header Decode Macros
@@ -76,9 +83,13 @@
 #define PHISTO_SIZE 512
 #define ASIC_MAX_CHAN_INDEX 78
 
+///@}
+
+/// \brief Packets of the DCC and their decoding. All the fields are in network byte order (ntohs)
 namespace DCCPacket {
 
 // New structure of DataPacket. Aliased to DataPacketV2
+/// \brief Data packet of a FEM: ADC samples of a channel, or pedestal histograms (by the type of hdr)
 typedef struct {
     unsigned short size;    // size in bytes including the size of the size field itself
     unsigned short dcchdr;  // specific header added by the DCC
@@ -93,6 +104,7 @@ typedef struct {
 } DataPacket;
 
 // End of Event Packet
+/// \brief End of event packet of the DCC: bytes received and sent per FEM
 typedef struct {
     unsigned short size;    // size in bytes including the size of the size field itself
     unsigned short dcchdr;  // specific header added by the DCC
@@ -104,6 +116,7 @@ typedef struct {
     unsigned int tot_byte_snd;
 } EndOfEventPacket;
 
+/// \brief Histogram packet of the DCC
 typedef struct {
     unsigned short size;               // size in bytes including the size of the size field itself
     unsigned short dcchdr;             // specific header added by the DCC
@@ -121,12 +134,14 @@ typedef struct {
     unsigned short samp[BHISTO_SIZE];  // data storage area
 } HistogramPacket;
 
+/// \brief Pedestal mean and standard deviation of a channel
 typedef struct {
     unsigned short mean;   // mean of channel pedestal
     unsigned short stdev;  // standard deviation of channel pedestal
 } channel_stat;
 
 // Histogram data packet for pedestals
+/// \brief Summary of the pedestals of the channels of an ASIC
 typedef struct {
     unsigned short size;                         // size in bytes including the size of the size field itself
     unsigned short dcchdr;                       // specific header added by the DCC
@@ -137,6 +152,7 @@ typedef struct {
 } PedestalHistoSummaryPacket;
 
 // Histogram data packet for pedestals
+/// \brief Statistics of the pedestal histogram of a channel
 typedef struct {
     unsigned short size;     // size in bytes including the size of the size field itself
     unsigned short dcchdr;   // specific header added by the DCC
@@ -156,6 +172,7 @@ typedef struct {
 } PedestalHistoMathPacket;
 
 // New structure of DataPacket. Aliased to DataPacketV2
+/// \brief Bins of the pedestal histogram of a channel
 typedef struct {
     unsigned short size;               // size in bytes including the size of the size field itself
     unsigned short dcchdr;             // specific header added by the DCC
@@ -169,19 +186,42 @@ typedef struct {
     unsigned short samp[PHISTO_SIZE];  // data storage area
 } PedestalHistoBinPacket;
 
+/// \brief Prints a packet according to its type (DCC data, pedestal histogram statistics, bins or
+/// summary, ADC data)
 void DataPacket_Print(DataPacket* pck, FILE* fp = stdout);
+/// \brief Prints a DCC data packet (end of event)
 void DCC_Data_Print(EndOfEventPacket* pck, FILE* fp = stdout);
+/// \brief Prints a DCC histogram packet
 void DCC_Histogram_Print(HistogramPacket* pck, FILE* fp = stdout);
+/// \brief Prints an end of event packet
 void EndOfEvent_PrintPacket(EndOfEventPacket* eop, FILE* fp = stdout);
+/// \brief Prints the statistics of a pedestal histogram
 void Pedestal_PrintHistoMathPacket(PedestalHistoMathPacket* phm, FILE* fp = stdout);
+/// \brief Prints the bins of a pedestal histogram
 void Pedestal_PrintHistoBinPacket(PedestalHistoBinPacket* pck, FILE* fp = stdout);
+/// \brief Prints the pedestal summary of an ASIC
 void Pedestal_PrintHistoSummaryPacket(PedestalHistoSummaryPacket* pck, FILE* fp = stdout);
+/// \brief Prints a packet of ADC data (headers and samples)
 void FemAdcDataPrint(DataPacket* pck, FILE* fp = stdout);
+/// \brief FEC, ASIC and channel of the read-back arguments of a packet
+/// \return the physical channel, fec * 288 + asic * 72 + signal channel (the channels 0-2, 15, 28, 53
+/// and 66, without signal, are skipped), or a negative value for a channel without signal
 int Arg12ToFecAsicChannel(unsigned short arg1, unsigned short arg2, unsigned short& fec, unsigned short& asic,
                           unsigned short& channel);
+/// \brief As Arg12ToFecAsicChannel, with the channel given
 int Arg12ToFecAsic(unsigned short arg1, unsigned short arg2, unsigned short& fec, unsigned short& asic,
                    unsigned short channel);
+/// \brief Looks for the end-of-event mark (0xFFFF and the 3 words of the timestamp, added by
+/// FEMDAQDCC) in the buffer of data packets, from idx
+/// \param buffer data packets of the DCC; the words of the event are removed if it is complete
+/// \param idx position from which to search; the position reached if incomplete, 0 if complete
+/// \param out the words of the event, if complete
+/// \return whether a complete event was extracted
 bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<uint16_t>& out);
+/// \brief Adds a signal of 512 samples per data packet to sEvent (ID from Arg12ToFecAsicChannel; empty
+/// packets and channels without signal are skipped)
+/// \param tS timestamp of the end-of-event mark (48 bits, ticks of 10 ns)
+/// \param ev_count event counter of the packets (14 bits)
 void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEvent, uint64_t& tS,
                          uint32_t& ev_count);
 }  // namespace DCCPacket

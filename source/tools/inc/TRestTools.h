@@ -10,19 +10,30 @@ class TDirectory;
 class TFile;
 class TGeoManager;
 
-/// Generic functions: strings, files, ROOT files and geometries. The YAML functions are in TRestYAMLUtils.
+/// \brief Generic functions: strings, files, ROOT files and geometries. The YAML functions are in
+/// TRestYAMLUtils.
 namespace TRestTools {
 
+/// \brief Regular files of a directory whose name matches a pattern, e.g. "data/Run_*.root": `*` is the
+/// only wildcard (PatternToRegex), the match ignores case and only the directory of the pattern (the current
+/// one if it has none) is searched, not its subdirectories. Empty (with a warning) for an empty pattern.
 std::vector<std::string> GetFilesMatchingPattern(const std::string& filePattern);
+/// \brief Local date and time of a Unix time, "YYYY-MM-DD HH:MM:SS"; empty if it cannot be converted
 std::string GetTimeStampFromUnixTime(const double tm);
 /// \brief Current Unix time in seconds (with microseconds)
 double GetCurrentTime();
 /// \brief Unix time of a local date, "YYYY/MM/DD", "YYYY-MM-DD" and optionally " HH:MM" or " HH:MM:SS" (as
 /// legacy REST_StringHelper::StringToTimeStamp). Throws if it is not a valid date.
 double StringToTimeStamp(const std::string& date);
+/// \brief Absolute, lexically normalised path of a file (the current directory for an empty name); empty
+/// on a filesystem error. The file does not need to exist.
 std::string GetFullPath(const std::string& filename);
+/// \brief Whether a file or directory exists
 bool fileExists(const std::string& filename);
+/// \brief Whether the file exists and starts with the ROOT magic bytes ("root")
 bool isRootFile(const std::string& filename);
+/// \brief Whether the file is a REST run file: a ROOT file with an AnalysisTree and a RESTMetadataStore
+/// holding the YAML of a TRestRun (the reason is logged, RESTWarning/RESTError, when it is not)
 bool isValidTRestRun(const std::string& filename);
 /// \brief Whether the file is a dataset (TRestDataSet: AnalysisTree and RESTDataSetInfo)
 bool isDataSet(const std::string& filename);
@@ -64,21 +75,42 @@ std::string DownloadFile(const std::string& url);
 /// \brief Directory of the files of REST of the user (history, settings, downloads...): $REST_HOME/.rest, or
 /// $HOME/.rest without REST_HOME; created if it does not exist. Throws if neither is defined.
 std::string GetRESTUserDirectory();
+/// \brief Path of a file: `filename` itself if it exists, otherwise the first `<path>/<filename>` found in
+/// the paths or in their subdirectories (up to 5 levels deep); empty if it is not found
 std::string SearchFileInPath(const std::vector<std::string>& paths, const std::string& filename);
+/// \brief (directory, file name) of a path, e.g. ("/data", "run.root") for "/data/run.root"
 std::pair<std::string, std::string> SeparatePathAndName(const std::string& fullname);
+/// \brief True for "true", "on" or "1" (ignoring case), false for anything else
 bool StringToBool(std::string booleanString);
 /// \brief Duration with its unit, e.g. "2.50 hours" (seconds, minutes, hours, days or weeks)
 std::string ToTimeStringLong(double seconds);
+/// \brief Tokens of a string separated by `delim` (empty tokens kept, no trailing empty token)
 std::vector<std::string> Split(const std::string& s, char delim);
+/// \brief Number of non-overlapping occurrences of `substring` in `in` (0 if either is empty)
 int CountString(const std::string& in, const std::string& substring);
+/// \brief Whether the whole string (trimmed) is a floating point number (std::strtod), e.g. "1.5e3"
 bool isANumber(const std::string& str);
+/// \brief Integer value of a string: hexadecimal if it contains "0x", otherwise a number truncated to an
+/// integer (e.g. "12.7" gives 12); 0 for an empty string or (with an error message) one that is not a
+/// number
 int StringToInteger(const std::string& in);
+/// \brief Next automatic run number: the one stored in <GetRESTUserDirectory()>/runNumber ($REST_HOME/.rest,
+/// or $HOME/.rest without REST_HOME; 0 the first time), which is incremented for the next call. The file is
+/// locked, so concurrent processes get different numbers. Throws if neither REST_HOME nor HOME is defined
+/// or the file cannot be written.
 int GetRunNumberAuto();
+/// \brief Random positive seed (std::random_device seeding a per-thread std::mt19937_64)
 long GetRandomSeed();
+/// \brief The expression without whitespace (spaces, tabs, new lines)
 std::string CleanExpression(const std::string& expr);
 
+/// \brief Regular expression of a file name pattern: `*` becomes `.*` and every other punctuation
+/// character is escaped (so `?` is not a wildcard)
 std::string PatternToRegex(const std::string& pattern);
+/// \brief The string without whitespace and the characters not valid in file names (/ \\ : * ? " < > |)
 std::string CleanString(const std::string& str);
+/// \brief Replaces in place every occurrence of `from` by `to` (the replacements are not scanned again);
+/// nothing if `from` is empty
 void ReplaceAll(std::string& str, const std::string& from, const std::string& to);
 /// \brief The string in lower case (ASCII)
 std::string ToLower(std::string str);

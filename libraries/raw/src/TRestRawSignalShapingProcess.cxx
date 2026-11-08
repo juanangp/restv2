@@ -81,9 +81,8 @@ bool TRestRawSignalShapingProcess::ProcessEvent(const TRestEvent& input, TRestEv
         throw std::runtime_error("TRestRawSignalShapingProcess: input/output is not a TRestRawSignalEvent");
     }
 
+    // An event without signals passes (empty), as in the other signal processes
     const int nSignals = inEvent->GetNumberOfSignals();
-    if (nSignals <= 0) return false;
-
     outEvent->CopyFrom(&input);
 
     constexpr long kMin = std::numeric_limits<short>::min();

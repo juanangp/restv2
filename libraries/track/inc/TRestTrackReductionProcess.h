@@ -43,13 +43,22 @@ class TRestTrackReductionProcess : public TRestEventProcess {
     /// Maximum k-means iterations
     int fMaxIterations = 100;
 
+    /// \brief Default constructor, with the default parameters.
     TRestTrackReductionProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestTrackReductionProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestTrackReductionProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section.
     void LoadConfig() override;
+    /// \brief Resets the counters and checks the parameters (startingDistance > 0 and distanceStepFactor > 1
+    /// or throws; maxNodes and maxIterations at least 1).
     void InitProcess() override;
+    /// \brief Writes to the output event one reduced track per input track.
+    /// \return Always true.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Warns of the number of tracks that could not be reduced.
     void EndProcess() override;
 
     std::string GetInputEvent() const override { return "TRestTrackEvent"; }

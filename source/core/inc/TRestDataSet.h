@@ -20,7 +20,23 @@ class TRestCut;
 /// \brief Selection of the analysis trees of several runs (or of several datasets, merged) in a single
 /// tree, with the description of each run (TRestRunInfo): every entry has the index of its run (`runIndex`),
 /// so the information of the runs is never lost or summarized. See the class documentation in
-/// TRestDataSet.cxx.
+/// TRestDataSet.cxx for the details of every parameter and of the dataset file.
+///
+/// Configuration keys (`inputFileName` opens an existing dataset instead of generating one):
+///
+/// \code{.yaml}
+/// dataSet:
+///   class: TRestDataSet
+///   filePattern: "R*_LINEAR.root"
+///   observables: ["trackLineAnalysis_*"]
+///   runConditions:
+///     mesh: "runInfo.meshVoltage > 300 V"
+///     dates: 'startTime > date("2022/04/28") && endTime < date("2022/11/25 13:20")'
+///   cuts: ["fiducial"]
+///   columns:
+///     energyPerVolt: "trackLineAnalysis_Energy / runInfo.meshVoltage"
+///   outputFileName: "D_[runStart]_[runEnd]_[runTag|Mixed].root"
+/// \endcode
 class TRestDataSet : public TRestMetadata {
    public:
     /// A run of the dataset
@@ -39,6 +55,7 @@ class TRestDataSet : public TRestMetadata {
     };
 
    private:
+    /// The runs of the dataset, in the order of runIndex
     std::vector<Run> fRuns;
     /// The different processings of the runs (Run::processing): each one the configuration of the
     /// TRestEventProcessManager of the run files, instance -> configuration (without eventsToProcess,
@@ -65,13 +82,16 @@ class TRestDataSet : public TRestMetadata {
     std::string fMetadataFile;
     /// The metadata of fMetadataFile as objects, created the first time they are asked for
     mutable TRestMetadataStore fMetadataStore;  //!
+    /// Whether fMetadataStore was already created
     mutable bool fMetadataStoreLoaded = false;  //!
     /// \brief Creates the metadata of fMetadataFile (but its TRestRun and TRestDataSet), with their objects
     void LoadMetadataStore() const;
     /// Whether the data frame is a dataset file opened (Open), not generated: Write keeps its configuration
     /// and the metadata of the file
     bool fOpened = false;
-    std::unique_ptr<ROOT::RDataFrame> fFrame;           //!
+    /// Base data frame (on the input files or the dataset file opened)
+    std::unique_ptr<ROOT::RDataFrame> fFrame;  //!
+    /// Data frame of the dataset: fFrame with the selection, cuts and columns
     ROOT::RDF::RNode fDataFrame = ROOT::RDataFrame(0);  //!
 
     /// \brief The expression with the run parameters (identifiers that are paths of the TRestRunInfo of the
@@ -112,15 +132,20 @@ class TRestDataSet : public TRestMetadata {
     /// File the dataset is written to (Write; REST_GenerateDataSet if it is not given to the macro)
     std::string fOutputFileName = "";
 
-    TRestDataSet();
+    TRestDataSet();  ///< Default constructor (empty dataset).
     /// \brief A dataset file, opened as it is (as TRestRun(inputFileName)); throws if it is not a dataset
     explicit TRestDataSet(const std::string& fileName);
+    /// \brief Constructs from a YAML node (LoadConfig; nothing is generated until Generate).
     TRestDataSet(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructs from a section of a YAML file (LoadConfig).
     TRestDataSet(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Returns "TRestDataSet".
     std::string GetClassName() const override { return "TRestDataSet"; }
 
+    /// \brief Reads the fields and, with an inputFileName, opens that dataset file.
     void LoadConfig() override;
+    /// \brief Nothing to initialize.
     void Initialize() override {}
     /// \brief Configuration of the dataset: the one of this instance or, for a dataset file opened without
     /// configuration (TRestDataSet(fileName)), the one stored in the file
@@ -185,6 +210,7 @@ class TRestDataSet : public TRestMetadata {
     bool HasDataFrame() const { return fFrame != nullptr; }
     /// \brief Data frame of the dataset (generated or opened), with the column runIndex
     ROOT::RDF::RNode GetDataFrame() const { return fDataFrame; }
+    /// \brief The runs of the dataset, in the order of runIndex
     const std::vector<Run>& GetRuns() const { return fRuns; }
     /// \brief The different processings of the runs (the same processes, the parameters can differ): the
     /// TRestEventProcessManager of the run files, instance -> configuration
@@ -192,6 +218,7 @@ class TRestDataSet : public TRestMetadata {
     /// \brief The processing of a run (its runIndex), instance -> configuration of its
     /// TRestEventProcessManager
     YAML::Node GetProcessing(size_t runIndex) const;
+    /// \brief Columns written by Write
     const std::vector<std::string>& GetColumns() const { return fColumns; }
 
     /// \brief Parameter of the TRestRunInfo of each run as written (e.g. "runTag", "runInfo.meshVoltage"),
@@ -199,8 +226,9 @@ class TRestDataSet : public TRestMetadata {
     std::vector<std::optional<std::string>> GetRunParameter(const std::string& name) const;
     /// \brief Sum of endTime - startTime of the runs, in seconds
     double GetTotalTime() const;
-    /// \brief Earliest startTime and latest endTime of the runs
+    /// \brief Earliest startTime of the runs
     double GetStartTime() const;
+    /// \brief Latest endTime of the runs
     double GetEndTime() const;
 
     /// \brief Runs of a dataset file (RESTDataSetInfo), nullopt if it is not a dataset

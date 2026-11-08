@@ -56,8 +56,18 @@ bool TRestHits::areXYZ() const {
     return true;
 }
 
+void TRestHits::CheckIsLastView(const char* method) const {
+    if (fData && fStartIdx + fNHits != (int)fData->x.size()) {
+        throw std::logic_error(std::string("TRestHits::") + method + ": the view [" +
+                               std::to_string(fStartIdx) + ", " + std::to_string(fStartIdx + fNHits) +
+                               ") is not the last view of its storage (" + std::to_string(fData->x.size()) +
+                               " hits): adding or removing hits would break this and the following views");
+    }
+}
+
 void TRestHits::AddHit(ROOT::Math::XYZVector position, double energy, double time, REST_HitType type) {
     if (!fData) return;
+    CheckIsLastView("AddHit");
     fData->x.push_back((float)position.X());
     fData->y.push_back((float)position.Y());
     fData->z.push_back((float)position.Z());
@@ -126,6 +136,7 @@ double TRestHits::GetTotalEnergy() const {
 double TRestHits::GetMeanHitEnergy() const { return fNHits > 0 ? GetTotalEnergy() / fNHits : 0; }
 
 void TRestHits::MergeHits(int n, int m) {
+    CheckIsLastView("MergeHits");  // before modifying hit n (RemoveHit checks it again)
     int idxN = GetGlobalIdx(n);
     int idxM = GetGlobalIdx(m);
 
@@ -155,6 +166,7 @@ void TRestHits::SwapHits(int i, int j) {
 }
 
 void TRestHits::RemoveHit(int n) {
+    CheckIsLastView("RemoveHit");
     int idx = GetGlobalIdx(n);
     fData->x.erase(fData->x.begin() + idx);
     fData->y.erase(fData->y.begin() + idx);
@@ -178,7 +190,7 @@ void TRestHits::Sort(std::function<bool(int, int)> compareCondition) {
     if (!fData || fNHits < 2) return;
 
     auto order = TRestHitsUtils::BuildSortOrder(fNHits, compareCondition,
-                                                [this](int a, int b) { return GetEnergy(a) < GetEnergy(b); });
+                                                [this](int a, int b) { return GetEnergy(a) > GetEnergy(b); });
 
     TRestHitsUtils::ApplyPermutation(order, fStartIdx, fData->x, fData->y, fData->z, fData->time,
                                      fData->energy, fData->type);

@@ -1,0 +1,50 @@
+# Doxygen configuration of REST, configured by CMake (target `doc`): cmake --build <build> --target doc
+# HTML output in <build>/doc/html (open index.html).
+
+PROJECT_NAME           = "REST"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_BRIEF          = "Rare Event Searches Toolkit"
+OUTPUT_DIRECTORY       = "@CMAKE_BINARY_DIR@/doc"
+STRIP_FROM_PATH        = "@CMAKE_SOURCE_DIR@"
+
+# Sources: the framework, the libraries and the packages, with their README.md as pages
+INPUT                  = "@CMAKE_SOURCE_DIR@/doc/mainpage.md" \
+                         "@CMAKE_SOURCE_DIR@/source" \
+                         "@CMAKE_SOURCE_DIR@/libraries" \
+                         "@CMAKE_SOURCE_DIR@/packages"
+USE_MDFILE_AS_MAINPAGE = "@CMAKE_SOURCE_DIR@/doc/mainpage.md"
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.cxx *.C *.md
+# The macros (.C) are C++
+EXTENSION_MAPPING      = C=C++
+EXCLUDE_PATTERNS       = */examples/* */test/* */tests/* *.backup
+MARKDOWN_SUPPORT       = YES
+
+# What is extracted: the documented and undocumented API, not the private members
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = NO
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+
+# ROOT macros of the dictionaries are not part of the API
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = "ClassDef(name,id)=" \
+                         "ClassDefOverride(name,id)=" \
+                         "ClassImp(name)="
+
+# Output: HTML only
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HAVE_DOT               = @REST_DOXYGEN_HAVE_DOT@
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+
+# Messages: only the warnings of the documented code
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO

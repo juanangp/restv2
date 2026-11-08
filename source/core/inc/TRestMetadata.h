@@ -26,6 +26,25 @@ class TRestMetadataFieldRegistry;
 ///
 /// Instances are configured from YAML nodes or files and define a common
 /// lifecycle interface (`LoadConfig`, `Initialize`, `PrintMetadata`).
+///
+/// Every derived class registers its configurable members once (usually in a static initializer of its
+/// .cxx) with TRestMetadataFieldRegistry::RegisterField, and itself in MetadataClassRegistry so it can
+/// be created from the `class` key of a YAML section:
+///
+/// \code
+/// static bool registered = [] {
+///     auto& reg = TRestMetadataFieldRegistry::Instance();
+///     reg.RegisterField<TRestCut>("conditions", &TRestCut::fConditions);
+///     MetadataClassRegistry::Instance().Register("TRestCut", ...creator...);
+///     return true;
+/// }();
+/// \endcode
+///
+/// Only registered keys may appear in the configuration: besides them, every section accepts `class`,
+/// `name` and `verbose` (`silent`, `error`, `warning`, `info`, `debug`), and any other key throws
+/// (CheckConfig). The configuration (with the values actually used) is stored in the output ROOT file
+/// as a YAML string in the `RESTMetadataStore` directory (WriteMetadata), and read back with
+/// ReadMetadata / TRestMetadataStore.
 class TRestMetadata {
    protected:
     /// Metadata instance name.
@@ -99,7 +118,7 @@ class TRestMetadata {
     void SetSectionName(const std::string& s) { fSectionName = s; }
 
     /// \brief Get the associated YAML node.
-    /// \param node YAML node.
+    /// \return YAML node (shares its data with the stored one).
     YAML::Node GetYAMLNode() { return fNode; }
 
     /// \brief Sets the associated YAML node, and the verbose level of its `verbose`.
@@ -121,8 +140,20 @@ class TRestMetadata {
     /// \brief Prints metadata summary.
     virtual void PrintMetadata() const;
 
+    /// \brief Writes a configuration node as a YAML string (TObjString) named instanceName in the
+    /// `RESTMetadataStore` directory of the file, overwriting a previous one. Nothing for an empty node.
+    /// \param file Output file, must be valid and writable (throws otherwise).
+    /// \param instanceName Key of the object in the store.
+    /// \param configNode Configuration to store.
     static void WriteMetadata(TFile* file, const std::string& instanceName, const YAML::Node& configNode);
+    /// \brief Updates the node with the current values of the registered fields and writes it to the
+    /// file under the name of this instance.
+    /// \param file Output file.
     virtual void WriteMetadata(TFile* file);
+    /// \brief Reads a configuration written by WriteMetadata.
+    /// \param file Input file.
+    /// \param instanceName Key of the object in `RESTMetadataStore`.
+    /// \return The YAML node, or a null node if the file, the store or the key is missing.
     static YAML::Node ReadMetadata(TFile* file, const std::string& instanceName);
 
     /// \brief Loads the objects of this metadata stored in the file it is read from (e.g. readouts,
@@ -133,8 +164,10 @@ class TRestMetadata {
     /// \brief Sets the run this metadata belongs to. Overridable to finish loading what depends on the
     /// run (e.g. readouts stored in the run input file, see TRestDetectorReadoutManager).
     virtual void SetRunInfo(TRestRun* run) { fRunInfo = run; }
+    /// \brief Run this metadata belongs to (see SetRunInfo), nullptr if none.
     TRestRun* GetRunInfo() const { return fRunInfo; }
 
+    /// \brief Verbose level of the messages of this instance.
     inline TRestLogManager::REST_Verbose_Level GetVerboseLevel() const { return fVerboseLevel; }
 
     /// \brief Throws if the configuration node has keys that are not registered fields of this instance
@@ -146,15 +179,23 @@ class TRestMetadata {
     /// reads the generator section of TRestGeant4PrimaryGeneratorInfo), valid for CheckConfig
     virtual std::set<std::string> GetSharedNodeKeys() const { return {}; }
 
+    /// \brief Reads the registered fields of this instance from the node
+    /// (TRestMetadataFieldRegistry::ApplyFields). Usually called from LoadConfig with fNode.
+    /// \param processedNode Configuration node.
     template <typename ClassName, typename TNode>
     void UpdateParamsFromYAML(const TNode& processedNode);
 
+    /// \brief Writes the current values of the registered fields of this instance into the node
+    /// (TRestMetadataFieldRegistry::ApplyFieldsToYAML).
+    /// \param nodeToUpdate Node to update.
     template <typename ClassName, typename TNode>
     void UpdateYAMLFromParams(TNode& nodeToUpdate);
 };
 
 /// \class MetadataClassRegistry
 /// \brief Runtime factory registry for TRestMetadata-derived classes.
+///
+/// Singleton mapping a class name (the `class` key of a YAML section) to a creator function.
 class MetadataClassRegistry {
    public:
     /// Function type used to create metadata instances.
@@ -167,26 +208,27 @@ class MetadataClassRegistry {
         return inst;
     }
 
-    MetadataClassRegistry(const MetadataClassRegistry&) = delete;
+    MetadataClassRegistry(const MetadataClassRegistry&) = delete;  ///< Non-copyable singleton.
     MetadataClassRegistry& operator=(const MetadataClassRegistry&) = delete;
 
-    /// \brief Registers a metadata creator for a type key.
+    /// \brief Registers a metadata creator for a type key (an existing key is kept).
     /// \param type Type name key.
     /// \param creator Creator functor.
     void Register(const std::string& type, Creator creator) { creators.emplace(type, std::move(creator)); }
 
-    /// \brief Creates a metadata object by type.
+    /// \brief Creates a metadata object by type explicitly specified.
     /// \param type Type key.
     /// \param instanceName Metadata instance name.
     /// \param params YAML node with parameters.
-    /// \return Newly created metadata instance.
-    /// \brief Creates a metadata object by type explicitly specified.
     /// \param check Throw if params has keys that are not fields of the class (TRestMetadata::CheckConfig);
     /// false for metadata read from a file, written by REST.
+    /// \return Newly created metadata instance.
+    /// \throws std::runtime_error if the type is not registered or (check) the node has unknown keys.
     std::unique_ptr<TRestMetadata> Create(const std::string& type, const std::string& instanceName,
                                           const YAML::Node& params, bool check = true) const;
 
-    /// \brief Overload: Creates a metadata object extracting the type from params["class"].
+    /// \brief Overload: Creates a metadata object extracting the type from params["class"] (checking the
+    /// keys); throws if `class` is missing or not a scalar.
     std::unique_ptr<TRestMetadata> Create(const std::string& instanceName, const YAML::Node& params) const {
         if (!params["class"] || !params["class"].IsScalar()) {
             throw std::runtime_error("MetadataClassRegistry: 'class' key missing or invalid in YAML params " +
@@ -214,19 +256,21 @@ class MetadataClassRegistry {
 /// configuration that are not registered.
 class TRestMetadataFieldRegistry {
    public:
+    /// Registered field: its YAML key and how it is read, written and to which instances it applies.
     struct FieldActions {
-        std::string yamlKey;
-        std::function<void(TRestMetadata*, const YAML::Node&)> readFunc;
-        std::function<void(TRestMetadata*, YAML::Node&)> writeFunc;
-        std::function<bool(const TRestMetadata*)> appliesTo;
+        std::string yamlKey;                                              ///< Key in the YAML section.
+        std::function<void(TRestMetadata*, const YAML::Node&)> readFunc;  ///< Reads the member from a node.
+        std::function<void(TRestMetadata*, YAML::Node&)> writeFunc;       ///< Writes the member to a node.
+        std::function<bool(const TRestMetadata*)> appliesTo;  ///< True for instances of the class.
     };
 
+    /// \brief Returns the singleton registry instance.
     static TRestMetadataFieldRegistry& Instance() {
         static TRestMetadataFieldRegistry inst;
         return inst;
     }
 
-    TRestMetadataFieldRegistry(const TRestMetadataFieldRegistry&) = delete;
+    TRestMetadataFieldRegistry(const TRestMetadataFieldRegistry&) = delete;  ///< Non-copyable singleton.
     TRestMetadataFieldRegistry& operator=(const TRestMetadataFieldRegistry&) = delete;
 
     /// \brief A metadata member configured from its own section: SetYAMLNode(node[yamlKey]) and LoadConfig
@@ -349,6 +393,7 @@ class TRestMetadataFieldRegistry {
     /// \brief Reads the registered fields of the instance from params; throws if a value cannot be read
     void ApplyFields(TRestMetadata* instance, const YAML::Node& params);
 
+    /// \brief Writes the current values of the registered fields of the instance into params.
     void ApplyFieldsToYAML(TRestMetadata* instance, YAML::Node& params);
 
     /// \brief Keys of the registered fields of the instance (its class and its base classes)

@@ -241,7 +241,9 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
                 auto [pipeKey, pipeNode] =
                     TRestYAMLUtils::GetMetadataClass(threadManagerNode, "TRestEventProcessManager");
                 if (!runNode || runNode.IsNull() || !pipeNode || pipeNode.IsNull()) {
-                    throw std::runtime_error("TRestManager::RunMultithreaded - run/pipeline no encontrados");
+                    throw std::runtime_error(
+                        "TRestManager::RunMultithreaded - TRestRun or TRestEventProcessManager section not "
+                        "found");
                 }
 
                 TRestYAMLUtils::OverrideParam(runNode, "outputFileName", threadOutputs[t]);
@@ -254,7 +256,8 @@ void TRestManager::RunMultithreaded(unsigned int nThreads) {
                     threadManager.GetMetadataClass("TRestEventProcessManager"));
                 if (!threadRun || !threadPipeline) {
                     throw std::runtime_error(
-                        "TRestManager::RunMultithreaded - cannot get retreive TRestEventProcessManager");
+                        "TRestManager::RunMultithreaded - cannot retrieve the TRestRun or the "
+                        "TRestEventProcessManager of the thread");
                 }
 
                 threadPipeline->SetEntryRange(ranges[t].first, ranges[t].second);

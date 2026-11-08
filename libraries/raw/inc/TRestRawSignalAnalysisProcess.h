@@ -16,6 +16,56 @@ class TRestRawSignalEvent;
 /// Events without good signals get 0 in MinPeakAmplitude, MinEventValue and MinPeakTime, and ratios
 /// with a null denominator (RateOfChangeAvg, IntegralBalance) are set to 0.
 ///
+/// For each signal, the baseline and its sigma are computed in `baselineRange` (with `baselineOption`)
+/// and subtracted. The points over threshold are searched in `integralRange`: pulses of at least
+/// `pointsOverThreshold` consecutive points above `pointsThreshold` sigmas whose standard deviation is
+/// above `signalThreshold` sigmas (a flat top longer than `nPointsFlat` ends the pulse). The peak amplitude
+/// and time come from those points with `maxOption`.
+///
+/// Example:
+/// \code
+/// rawAna:
+///   class: "TRestRawSignalAnalysisProcess"
+///   baselineRange: [5, 55]
+///   baselineOption: "robust"       # "", robust or outliers
+///   integralRange: [10, 500]
+///   pointsThreshold: 2
+///   signalThreshold: 5
+///   pointsOverThreshold: 5
+///   nPointsFlat: 512
+///   maxOption: "tripleMaxAverage"  # onlyMax, tripleMax, tripleMaxAverage, gaussFit, landauFit, agetFit
+///   observables: ["all"]
+/// \endcode
+///
+/// Observables, one entry per signal (vectors):
+/// - **SignalsID**: signal ID.
+/// - **Baseline**, **BaselineSigma**: baseline and its sigma.
+/// - **AmpSgnMaxMethod**: peak amplitude (maxOption) over the baseline.
+/// - **AmpSgnIntMethod**: sum of the points over threshold.
+/// - **PeakTime**: bin of the peak.
+/// - **RiseTime**, **RiseSlope**: rise time (bins) and slope of the points over threshold.
+/// - **Width**: full width at half maximum of the baseline-subtracted signal, in bins.
+/// - **PointsOverThr**: number of points over threshold.
+/// - **Saturated**: ADC saturation flat top (TRestRawSignal::IsADCSaturation).
+///
+/// Observables of the event:
+/// - **NSignals**, **NGoodSignals**: signals and good signals.
+/// - **TimeBinLength**: number of points of the first signal.
+/// - **BaselineAvg**, **BaselineSigmaAvg**: averages over all the signals.
+/// - **FullIntegralSum**: integral in integralRange of the good signals; **ThresholdIntegralSum**: sum of
+///   their AmpSgnIntMethod.
+/// - **MaxIntegral** (= **PeakAmplitudeIntegral**): sum of the peak amplitudes of the good signals.
+/// - **MaxPeakAmplitude**, **MinPeakAmplitude**: largest and smallest peak amplitude of the good signals.
+/// - **MinEventValue**: minimum of the points over threshold of the good signals.
+/// - **MaxPeakTime**, **MinPeakTime**, **MaxPeakTimeDelay** (max - min), **AveragePeakTime**.
+/// - **RiseSlopeAvg**, **RiseTimeAvg**, **AmplitudeAvg**, **IntegralAvg**, **WidthAvg**,
+///   **PointsOverThrAvg**: averages over the good signals.
+/// - **SlopeIntegral**: sum over the good signals of their points over threshold up to the first decrease.
+/// - **RateOfChangeAvg**: RiseSlopeAvg / SlopeIntegral.
+/// - **IntegralBalance**: (FullIntegralSum - ThresholdIntegralSum) / (FullIntegralSum +
+///   ThresholdIntegralSum).
+/// - **AmplitudeIntegralRatio**: ThresholdIntegralSum / MaxIntegral; **AmplitudeRatio**: MaxIntegral /
+///   MaxPeakAmplitude.
 class TRestRawSignalAnalysisProcess : public TRestEventProcess {
    private:
     struct SignalObservables {
@@ -88,6 +138,7 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     /// Option for calculation of baseline parameters: "" (standard deviation), "robust" or "outliers"
     std::string fBaselineOption = "";
 
+    /// Method to find the peak amplitude and time (TRestPulseShapeAnalysis::kMaxOptions)
     std::string fMaxOption = "tripleMaxAverage";
 
     /// The number of sigmas over baseline fluctuations to identify a point over threshold
@@ -96,22 +147,26 @@ class TRestRawSignalAnalysisProcess : public TRestEventProcess {
     /// A parameter to define a minimum signal fluctuation. Measured in sigmas.
     double fSignalThreshold = 5;
 
-    /// The minimum number of points over threshold to identify a signal as such
+    /// The minimum number of consecutive points over threshold to identify a pulse
     int fPointsOverThreshold = 5;
 
+    /// Number of flat points over threshold that artificially end a pulse
     int fNPointsFlat = 512;
 
+    /// \brief Default constructor (no configuration).
     TRestRawSignalAnalysisProcess();
+    /// \brief Constructor from the YAML node of the process section.
     TRestRawSignalAnalysisProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from a YAML file and the name of the process section.
     TRestRawSignalAnalysisProcess(const std::string& fileName, const std::string& sectionName);
 
     /// \brief Reads analysis parameters (ranges, thresholds and options) from YAML.
     virtual void LoadConfig() override;
-    /// \brief Initializes per-run state and declares produced observables.
+    /// \brief Registers the observables.
     void InitProcess() override;
     /// \brief Analyzes one input event and fills signal/event-level observables.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
-    /// \brief Finalizes process-level counters and summary observables.
+    /// \brief Nothing to finalize.
     void EndProcess() override;
 
     std::string GetInputEvent() const override { return "TRestRawSignalEvent"; }

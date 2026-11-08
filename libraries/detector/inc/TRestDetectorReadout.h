@@ -25,7 +25,29 @@ class TGeoShape;
 /// The class stores a geometry representation based on ROOT `TGeoManager` and a
 /// mapping between geometry physical identifiers and DAQ channel identifiers.
 /// Derived classes must implement `BuildGeometry` to define a concrete readout
-/// technology.
+/// technology (TRestMicromegasReadout, TRestGDMLReadout).
+///
+/// Life cycle: a readout is built once from its YAML (BuildGeometry, which reads the decoding file) and
+/// exported to a ROOT file (Export, e.g. with the macros REST_Detector_GenerateMicromegasReadout and
+/// REST_Detector_GenerateGDMLReadout); the pipelines load it from that file with a
+/// TRestDetectorReadoutManager (Import, with the decoding stored under a name).
+///
+/// Common parameters (those of the technology are in its `readoutParameters`):
+/// - decodingFile: text file with one `daqChannel physicalID` row per channel (as legacy; `#` starts a
+///   comment, a negative physical ID marks an unconnected DAQ channel).
+/// - volumeToPhysicalIDMap: geometry path of each channel volume and its physical ID; written by the
+///   readouts that identify the channels by path (TRestGDMLReadout), not an input.
+///
+///    readout:
+///      class: "TRestMicromegasReadout"
+///      name: "IAXO_D1_Readout"
+///      decodingFile: "iaxo_d1_iaxolab.dec"
+///      readoutParameters:
+///        nChannels: 120
+///        pitch: 0.5
+///
+/// The channels are identified by their physical ID (the geometry) and by their DAQ ID (the signals); the
+/// public methods take DAQ IDs. Positions are in mm in the global frame of the readout geometry.
 class TRestDetectorReadout : public TRestMetadata {
    protected:
     /// ROOT geometry manager used for geometry navigation and position lookup.
@@ -41,15 +63,18 @@ class TRestDetectorReadout : public TRestMetadata {
    public:
     /// \brief Default decoding file name used when none is provided by configuration.
     std::string fDecodingFile = "default_decoding.dec";
+    /// Geometry path of each channel volume and its physical ID (`volumeToPhysicalIDMap`). Empty: the
+    /// physical ID is the UniqueID of the geometry node (TRestMicromegasReadout)
     std::map<std::string, int> fPathToPhysicalIDMap;
 
+    /// \brief One volume to draw in a view of the readout (GetViewItems, DrawViewItems).
     struct ViewItem {
-        TGeoShape* shape = nullptr;
-        TGeoMedium* medium = nullptr;
-        std::unique_ptr<TGeoHMatrix> matrix;
-        Color_t color = kGray;
-        char transparency = 0;
-        std::string name;
+        TGeoShape* shape = nullptr;           ///< Shape of the volume (owned by the readout geometry)
+        TGeoMedium* medium = nullptr;         ///< Medium of the volume
+        std::unique_ptr<TGeoHMatrix> matrix;  ///< Global transformation of the volume
+        Color_t color = kGray;                ///< Line colour (kRed for active channels)
+        char transparency = 0;                ///< Transparency (0 for active channels)
+        std::string name;                     ///< Name of the geometry node
         /// Physical ID of the channel of the volume (-1: not a channel)
         int physicalID = -1;
     };
@@ -73,26 +98,32 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \return The literal class name.
     std::string GetClassName() const override { return "TRestDetectorReadout"; }
 
-    /// \brief Loads the current YAML node into the internal geometry model.
+    /// \brief Reads the common parameters (decodingFile, volumeToPhysicalIDMap) from the YAML node. The
+    /// decoding file is only read by BuildGeometry: a readout imported from a ROOT file takes the decoding
+    /// stored there.
     void LoadConfig() override;
 
     /// \brief Metadata initialization hook.
     void Initialize() override {}
 
-    /// \brief Builds the technology-specific readout geometry.
-    /// \param readoutNode YAML node with geometry parameters.
+    /// \brief Builds the technology-specific readout geometry from the parameters of the YAML and loads the
+    /// decoding file (decodingFile). Throws if the decoding or the geometry cannot be loaded.
     virtual void BuildGeometry() = 0;
 
-    /// \brief Finalizes geometry/readout internals after loading configuration.
+    /// \brief Replaces the geometry by a new empty TGeoManager named as the readout, with an assembly
+    /// READOUT_TOP as top volume (called by the BuildGeometry of the derived classes that build their
+    /// volumes).
     void InitializeReadout();
 
     /// \brief Opens a graphical window to visualize the readout geometry.
     /// \param option Drawing option passed to ROOT (e.g., "ogl" for OpenGL, "" for default X11/Web).
     void ViewReadoutGeometry(const std::string& option = "ogl") const;
-    /// \brief Visualizes the geometry highlighting the provided active DAQ channels.
+    /// \brief Visualizes the geometry highlighting the provided active DAQ channels (in red).
+    /// \param activeChannels DAQ IDs of the channels to highlight.
     void ViewActiveEvent(const std::vector<int>& activeChannels) const;
 
-    /// \brief Loads a decoding file mapping physical IDs to DAQ channels.
+    /// \brief Loads a decoding file mapping physical IDs to DAQ channels (rows `daqChannel physicalID`,
+    /// see the class description), replacing the current decoding.
     /// \param decFilename Path to decoding file.
     /// \return `true` if the decoding is loaded successfully.
     bool LoadDecoding(const std::string& decFilename);
@@ -221,8 +252,12 @@ class TRestDetectorReadout : public TRestMetadata {
     /// consecutive physical IDs are not always neighbours override it.
     virtual std::pair<int, int> GetAdjacentChannels(int daqID) const;
 
+    /// \brief Appends the volumes of the channels of the readout to items, those of activeChannels (DAQ
+    /// IDs) highlighted. Used to draw several readouts together (TRestDetectorReadoutManager).
     void GetViewItems(std::vector<ViewItem>& items, const std::vector<int>& activeChannels = {}) const;
 
+    /// \brief Draws the items in a new geometry (stored in viewGeo, replacing the previous view) with
+    /// the ROOT drawing option (e.g. "ogl").
     static void DrawViewItems(std::vector<ViewItem>& items, TGeoManager*& viewGeo,
                               const std::string& option = "ogl");
 
@@ -240,6 +275,8 @@ class TRestDetectorReadout : public TRestMetadata {
     /// shapes and may still be displayed, so both are then left to ROOT. Resets both pointers.
     void ReleaseGeometry();
 
+    /// \brief Appends to items the channel volumes of the geometry (by path with fPathToPhysicalIDMap,
+    /// otherwise by node UniqueID), those of activeIDs (physical IDs) highlighted.
     virtual void CollectViewItems(const std::set<int>& activeIDs, std::vector<ViewItem>& items) const;
 };
 

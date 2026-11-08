@@ -16,7 +16,9 @@
 
 class TF1;
 
-/// This namespace define generic functions to calculate different signal parameters
+/// \brief Generic functions to calculate signal parameters (baseline, maxima, integrals, rise time, peaks,
+/// shaping and noise) on signals given as std::vector (one value per bin) or TGraph (time, value), so they
+/// can be used with any signal container (raw, DAQ or detector signals).
 namespace TRestPulseShapeAnalysis {
 
 /// Options of CalculateBaselineAndSigma ("": mean and standard deviation, robust: median and IQR, outliers:
@@ -61,24 +63,33 @@ template <typename T>
 bool GetBaselineSigma(const std::vector<T>& signal, int startBin, int endBin, double& baseLine,
                       double& baseLineSigma, std::string option = "");
 
+/// \brief Baseline and sigma (GetBaselineSigma with `option`) and the signal with the baseline subtracted;
+/// empty if they cannot be computed
 template <typename T>
 std::vector<float> CalculateBaselineAndSigma(const std::vector<T>& signal, int startBin, int endBin,
                                              double& baseLine, double& baseLineSigma,
                                              std::string option = "");
 
+/// \brief Baseline as the mean and sigma as the standard deviation of the bins [startBin, endBin), and
+/// the signal with the baseline subtracted
 template <typename T>
 std::vector<float> CalculateBaselineAndSigmaSD(const std::vector<T>& signal, int startBin, int endBin,
                                                double& baseLine, double& baseLineSigma);
 
+/// \brief Baseline as the median and sigma as IQR / 1.349 (robust to outliers) of the bins [startBin,
+/// endBin), and the signal with the baseline subtracted
 template <typename T>
 std::vector<float> CalculateBaselineAndSigmaIQR(const std::vector<T>& signal, int startBin, int endBin,
                                                 double& baseLine, double& baseLineSigma);
 
+/// \brief Baseline as the median and sigma as the standard deviation of the values of the bins [startBin,
+/// endBin) between the first and third quartiles, and the signal with the baseline subtracted
 template <typename T>
 std::vector<float> CalculateBaselineAndSigmaExcludeOutliers(const std::vector<T>& signal, int startBin,
                                                             int endBin, double& baseLine,
                                                             double& baseLineSigma);
 
+/// \brief Mean of the bins [startBin, endBin) inside the signal, 0 if there are none
 template <typename T>
 double GetAverage(const std::vector<T>& signal, int startBin, int endBin);
 
@@ -91,13 +102,27 @@ std::vector<double> GetMovingAverage(const std::vector<T>& values, int halfWindo
 template <typename T>
 std::vector<float> GetSignalSmoothed(const std::vector<T>& signal, int averagingPoints = 3);
 
+/// \brief GetSignalSmoothed after replacing the outliers (more than 3 sigma from the baseline) by the
+/// baseline; baseLine and baseLineSigma are computed with CalculateBaselineAndSigmaIQR in the bins
+/// [5, size - 5)
 template <typename T>
 std::vector<float> GetSignalSmoothed_ExcludeOutliers(const std::vector<T>& signal, int averagingPoints,
                                                      double& baseLine, double& baseLineSigma);
 
+/// \brief Differences of consecutive bins, signal[i + 1] - signal[i] (one element less than the signal)
 template <typename T>
 std::vector<float> GetDerivative(const std::vector<T>& signal);
 
+/// \brief Points (bin, value) of the pulses over threshold of a baseline subtracted signal.
+/// \param range Bins [first, second) searched; first < 0 becomes 0 and second <= 0 or beyond the signal
+/// becomes its size (the range is updated)
+/// \param thrPar (pointThreshold, signalThreshold) in units of baseLineSigma: a pulse is a group of
+/// consecutive points over pointThreshold * baseLineSigma, kept if its standard deviation is over
+/// signalThreshold * baseLineSigma
+/// \param nPointsOver Minimum number of points of a pulse
+/// \param nPointsFlat A pulse ends after this number of consecutive points whose difference with the
+/// previous one is below the threshold (flat tails over threshold, e.g. overshoots)
+/// \param baseLineSigma Baseline fluctuation computed beforehand
 template <typename T>
 std::vector<std::pair<int, float>> GetPointsOverThreshold(const std::vector<T>& signal,
                                                           std::pair<int, int>& range,
@@ -105,6 +130,7 @@ std::vector<std::pair<int, float>> GetPointsOverThreshold(const std::vector<T>& 
                                                           int nPointsOver, int nPointsFlat,
                                                           double baseLineSigma);
 
+/// \brief Bin of the maximum in [startBin, endBin) (endBin <= 0: up to the end; the first one on ties)
 template <typename T>
 int GetMaxBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
     if (endBin <= 0 || endBin > (int)signal.size()) endBin = signal.size();
@@ -114,6 +140,7 @@ int GetMaxBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
                          std::max_element(signal.begin() + startBin, signal.begin() + endBin));
 }
 
+/// \brief Bin of the minimum in [startBin, endBin) (endBin <= 0: up to the end; the first one on ties)
 template <typename T>
 int GetMinBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
     if (endBin <= 0 || endBin > (int)signal.size()) endBin = signal.size();
@@ -123,9 +150,12 @@ int GetMinBin(const std::vector<T>& signal, int startBin = 0, int endBin = 0) {
                          std::min_element(signal.begin() + startBin, signal.begin() + endBin));
 }
 
+/// \brief Sum of the bins [startBin, endBin) inside the signal
 template <typename T>
 double GetIntegral(const std::vector<T>& signal, int startBin, int endBin);
 
+/// \brief Width in bins of the highest peak: distance between the first bins at each side of the maximum
+/// that are not above half of it (or the edges); 0 for an empty signal
 template <typename T>
 double GetMaxPeakWidth(const std::vector<T>& signal);
 
@@ -144,37 +174,68 @@ std::vector<std::pair<double, double>> GetPeaks(const std::vector<std::pair<doub
                                                 int maxGreaterEqual = 3, bool refineMaximum = true,
                                                 int amplitudeHalfWindow = 1);
 
+/// \brief Sum of the values of the first rise of a pulse (e.g. GetPointsOverThreshold), from the first
+/// point until the values decrease
 template <typename T>
 double GetSlopeIntegral(const std::vector<std::pair<T, float>>& signal);
+/// \brief Slope of the rise of a pulse (e.g. GetPointsOverThreshold): (maximum - first value) / (time of
+/// the maximum - first time); 0 with less than 2 points or if the first point is the maximum
 template <typename T>
 double GetRiseSlope(const std::vector<std::pair<T, float>>& signal);
+/// \brief Rise time of a pulse (e.g. GetPointsOverThreshold): time of the maximum - first time; 0 with less
+/// than 2 points
 template <typename T>
 double GetRiseTime(const std::vector<std::pair<T, float>>& signal);
 
-template <typename T>
-double GetRiseTime(const std::vector<std::pair<T, float>>& signal);
-
+/// \brief Graph of (x, y) points with a title (empty graph without points)
 template <typename T, typename U>
 TGraph GetGraphPair(const std::vector<std::pair<T, U>>& points, const std::string& title = "");
 
+/// \brief Graph of a signal, (bin, value), with a title (empty graph for an empty signal)
 template <typename T>
 TGraph GetGraph(const std::vector<T>& signal, const std::string& title = "");
 
+/// \brief Fills `noise` (its size kept) with gaussian noise of sigma `amplitude` (gRandom)
 template <typename T>
 void GetWhiteNoise(std::vector<T>& noise, double amplitude);
 
+/// \brief Fills `noise` (its size kept) with a sine of `period` bins (not necessarily an integer) and `phase`
+/// whose amplitude is modulated by a slower random sine (period 4 to 8 times longer), at most maxAmplitude
+/// (gRandom); zeros if period or maxAmplitude are not positive
 template <typename T>
-void GetSinNoise(std::vector<T>& noise, double maxAmplitude, int period, double phase = 0);
+void GetSinNoise(std::vector<T>& noise, double maxAmplitude, double period, double phase = 0);
 
+/// \brief Points grouped in time windows [k * intWindow, (k + 1) * intWindow) (any integer k): (center of
+/// the window, mean value of its points), in increasing time. Throws std::invalid_argument if intWindow is
+/// not positive.
 std::vector<std::pair<double, double>> GetIntWindow(TGraph& signal, double intWindow);
+/// \brief (time, value) of the maximum point and of its two neighbours (the maximum repeated at the
+/// edges); the three (-1, -1) for an empty graph
 std::array<std::pair<double, double>, 3> GetTripleMax(TGraph& signal);
+/// \brief (time, value) of the minimum point; (-1, -1) for an empty graph
 std::pair<double, double> GetMin(TGraph& signal);
+/// \brief (time, amplitude) of the maximum with an option of kMaxOptions: onlyMax (GetMaxAmplitude,
+/// also for an unknown option), tripleMax (GetTripleMaxIntegral), tripleMaxAverage (GetTripleMaxAverage),
+/// gaussFit (GetMaxGauss), landauFit (GetMaxLandau) or agetFit (GetMaxAget); (-1, -1) for an empty graph or
+/// a failed fit
 std::pair<double, double> GetMax(TGraph& signal, std::string option);
+/// \brief (time, value) of the maximum point; (-1, -1) for an empty graph
 std::pair<double, double> GetMaxAmplitude(TGraph& signal);
+/// \brief Triple max (GetTripleMax): (value weighted mean time, mean value) of the three points; (0, 0) if
+/// their values add up to 0, (-1, -1) for an empty graph
 std::pair<double, double> GetTripleMaxAverage(TGraph& signal);
+/// \brief Triple max (GetTripleMax): (value weighted mean time, sum of the values) of the three points;
+/// (0, 0) if their values add up to 0, (-1, -1) for an empty graph
 std::pair<double, double> GetTripleMaxIntegral(TGraph& signal);
+/// \brief Gaussian fit in [0.9, 1.2] times the time of the maximum point: (mean, amplitude); (-1, -1) for
+/// an empty graph or a failed fit
 std::pair<double, double> GetMaxGauss(TGraph& signal);
+/// \brief Landau fit in [0.9, 1.2] times the time of the maximum point: (most probable value, amplitude);
+/// (-1, -1) for an empty graph or a failed fit
 std::pair<double, double> GetMaxLandau(TGraph& signal);
+/// \brief AGET response fit (FitAget, with sine, baseline fixed to 0) to the points in [0.75, 1.35] times
+/// the time of the maximum point: (time of the maximum, amplitude); (-1, -1) for an empty graph or a failed
+/// fit
 std::pair<double, double> GetMaxAget(TGraph& signal);
 
 /// \brief Fits the AGET response to all the points of the graph (to fit a different range or to exclude

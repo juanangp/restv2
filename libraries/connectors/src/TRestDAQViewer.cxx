@@ -736,6 +736,7 @@ void TRestDAQViewer::ReloadConfig() {
 
 void TRestDAQViewer::ReloadRun() {
     if (fBaseFileName == "") return;
+    // Offset 0: the first subrun (000) of the current run, histograms reset
     CheckNewFile(0);
 }
 
@@ -785,8 +786,9 @@ void TRestDAQViewer::CheckNewFile(int offset) {
     while ((entry = gSystem->GetDirEntry(dir))) {
         TString fileName = entry;
 
-        // TPRegexp::Match returns the number of matches found
-        if (reSub.Match(fileName) > 0) {
+        // TPRegexp::Match returns the number of matches found. With offset 0 (ReloadRun) the current run is
+        // reloaded from its first subrun, the next subrun is not looked for
+        if (offset != 0 && reSub.Match(fileName) > 0) {
             foundNextSubrun = dirName + "/" + fileName;
             break;  // Subrun takes priority
         }

@@ -386,8 +386,6 @@ template std::vector<float> TRestPulseShapeAnalysis::GetDerivative(const std::ve
 /// we find an overshoot, being the baseline not returning to zero (or its
 /// original value) at the signal tail.
 ///
-/// \param baseLine value of the signal baseline calculated beforehand
-///
 /// \param baseLineSigma value of the baseline fluctuation calculated beforehand
 ///
 
@@ -927,7 +925,7 @@ template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<float>& noise, 
 template void TRestPulseShapeAnalysis::GetWhiteNoise(std::vector<double>& noise, double amplitude);
 
 template <typename T>
-void TRestPulseShapeAnalysis::GetSinNoise(std::vector<T>& noise, double maxAmplitude, int period,
+void TRestPulseShapeAnalysis::GetSinNoise(std::vector<T>& noise, double maxAmplitude, double period,
                                           double phase) {
     const size_t size = noise.size();
     if (size == 0 || period <= 0 || maxAmplitude <= 0.0) {
@@ -954,12 +952,12 @@ void TRestPulseShapeAnalysis::GetSinNoise(std::vector<T>& noise, double maxAmpli
     }
 }
 
-template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<short>& noise, double maxAmplitude, int period,
-                                                   double phase);
-template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<float>& noise, double maxAmplitude, int period,
-                                                   double phase);
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<short>& noise, double maxAmplitude,
+                                                   double period, double phase);
+template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<float>& noise, double maxAmplitude,
+                                                   double period, double phase);
 template void TRestPulseShapeAnalysis::GetSinNoise(std::vector<double>& noise, double maxAmplitude,
-                                                   int period, double phase);
+                                                   double period, double phase);
 
 double TRestPulseShapeAnalysis::ShapingFunction(const std::string& type, double u) {
     if (type == "gaus") return std::exp(-0.5 * u * u);

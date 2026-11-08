@@ -14,6 +14,9 @@ class TRestDetectorReadout;
 /// \brief Converts the energy deposits of a TRestDetectorHitsEvent into ionization electrons and drifts
 /// them to the readout through a TRestDetectorMedium at its drift field (replaces the legacy
 /// TRestDetectorElectronDiffusionProcess and TRestDetectorGarfieldDriftProcess).
+///
+/// The parameters (YAML keys), the observables and an example are described in the class documentation
+/// (TRestDetectorHitsDriftProcess.cxx).
 class TRestDetectorHitsDriftProcess : public TRestEventProcess {
    private:
     const TRestDetectorReadout* fReadout = nullptr;
@@ -45,21 +48,36 @@ class TRestDetectorHitsDriftProcess : public TRestEventProcess {
     /// Written with the transport used, from the medium at its drift field (not inputs): longitudinal and
     /// transversal diffusion (sqrt(cm)) and attachment (1/cm)
     double fLongitudinalDiffusion = 0;
+    /// Transversal diffusion used (sqrt(cm)), written by InitProcess (not an input)
     double fTransversalDiffusion = 0;
+    /// Attachment used (1/cm), written by InitProcess (not an input)
     double fAttachment = 0;
 
+    /// \brief Default constructor (no configuration).
     TRestDetectorHitsDriftProcess();
+    /// \brief Builds the process from an in-memory YAML section (LoadConfig).
     TRestDetectorHitsDriftProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the process from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorHitsDriftProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the parameters from the YAML node.
     void LoadConfig() override;
+    /// \brief Gets the readout and the charge response of the medium (wValue > 0 needed, and fanoFactor > 0
+    /// with fano fluctuations) and writes the transport used to the metadata. Throws if one of them is
+    /// missing.
     void InitProcess() override;
+    /// \brief Converts the hits into drifted electrons (see the class description).
+    /// \return false if no electron survives.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Nothing to do at the end of the processing.
     void EndProcess() override {}
 
+    /// \brief Input event type, "TRestDetectorHitsEvent".
     std::string GetInputEvent() const override { return "TRestDetectorHitsEvent"; }
+    /// \brief Output event type, "TRestDetectorHitsEvent".
     std::string GetOutputEvent() const override { return "TRestDetectorHitsEvent"; }
 
+    /// \brief Returns the class name, "TRestDetectorHitsDriftProcess".
     std::string GetClassName() const override { return "TRestDetectorHitsDriftProcess"; }
 };
 

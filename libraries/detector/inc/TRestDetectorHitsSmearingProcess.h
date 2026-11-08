@@ -11,6 +11,9 @@ class TRestDetectorChargeResponse;
 /// \class TRestDetectorHitsSmearingProcess
 /// \brief Applies the energy resolution of the detector to a TRestDetectorHitsEvent: the energy of all
 /// the hits is multiplied by one gaussian gain per event.
+///
+/// The parameters (YAML keys), the observables and an example are described in the class documentation
+/// (TRestDetectorHitsSmearingProcess.cxx).
 class TRestDetectorHitsSmearingProcess : public TRestEventProcess {
    private:
     const TRestDetectorChargeResponse* fCharge = nullptr;
@@ -33,18 +36,29 @@ class TRestDetectorHitsSmearingProcess : public TRestEventProcess {
     /// with TRestDetectorHitsEvent::EventSeed (seed, event and subevent IDs): independent of the threads.
     unsigned long fSeed = 0;
 
+    /// \brief Default constructor (no configuration).
     TRestDetectorHitsSmearingProcess();
+    /// \brief Builds the process from an in-memory YAML section (LoadConfig).
     TRestDetectorHitsSmearingProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the process from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorHitsSmearingProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the parameters from the YAML node.
     void LoadConfig() override;
+    /// \brief Checks the parameters and, with subtractFano, gets the charge response of the medium.
     void InitProcess() override;
+    /// \brief Multiplies the energy of all the hits by one gaussian gain (see the class description).
+    /// \return false if the event has no hits.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Warns of the number of events not smeared (resolution below the Fano contribution).
     void EndProcess() override;
 
+    /// \brief Input event type, "TRestDetectorHitsEvent".
     std::string GetInputEvent() const override { return "TRestDetectorHitsEvent"; }
+    /// \brief Output event type, "TRestDetectorHitsEvent".
     std::string GetOutputEvent() const override { return "TRestDetectorHitsEvent"; }
 
+    /// \brief Returns the class name, "TRestDetectorHitsSmearingProcess".
     std::string GetClassName() const override { return "TRestDetectorHitsSmearingProcess"; }
 };
 

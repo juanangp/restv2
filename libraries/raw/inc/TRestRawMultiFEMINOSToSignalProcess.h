@@ -22,7 +22,13 @@ class TRestRawSignalEvent;
 ///
 /// No parameters: an event inside a built event (Start/End of Built Event, written by the DAQ also for a
 /// single card) ends at its End of Built Event, so with several cards it holds the frames of all of them;
-/// an event outside a built event ends at the End of Event of the card.
+/// an event outside a built event ends at the End of Event of the card. No observables.
+///
+/// Example (see libraries/raw/examples/MultiFEMINOSToRaw.yaml):
+/// \code
+/// multiFeminosToSignal:
+///   class: "TRestRawMultiFEMINOSToSignalProcess"
+/// \endcode
 class TRestRawMultiFEMINOSToSignalProcess : public TRestEventProcess {
    private:
     FILE* fInputBinFile = nullptr;
@@ -55,11 +61,16 @@ class TRestRawMultiFEMINOSToSignalProcess : public TRestEventProcess {
     bool ReadFrame(const unsigned short* data, size_t nWords);
 
    public:
+    /// \brief Default constructor (no configuration).
     TRestRawMultiFEMINOSToSignalProcess();
+    /// \brief Constructor from the YAML node of the process section.
     TRestRawMultiFEMINOSToSignalProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from a YAML file and the name of the process section.
     TRestRawMultiFEMINOSToSignalProcess(const std::string& fileName, const std::string& sectionName);
+    /// \brief Closes the input file if it is still open.
     ~TRestRawMultiFEMINOSToSignalProcess() override;
 
+    /// \brief Reads the common process keys (the process has no own parameters).
     void LoadConfig() override;
     /// \brief Opens the .aqs file and reads its header (start time of the run).
     void InitProcess() override;
@@ -68,7 +79,9 @@ class TRestRawMultiFEMINOSToSignalProcess : public TRestEventProcess {
     /// \brief Closes the input file.
     void EndProcess() override;
 
+    /// \brief True once the end of the file has been reached.
     bool InputFinished() const override { return fFinished; }
+    /// \brief Fraction of the bytes of the file already read (progress, the number of events is unknown).
     double GetInputFraction() const override {
         return fFileSize > 0 ? static_cast<double>(fBytesRead) / fFileSize : 0;
     }

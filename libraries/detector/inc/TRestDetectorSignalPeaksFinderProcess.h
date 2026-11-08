@@ -8,7 +8,8 @@
 
 /// \class TRestDetectorSignalPeaksFinderProcess
 /// \brief Finds all the peaks of the signals of a TRestDetectorSignalEvent and groups them in time
-/// coincidence windows. The event is not modified.
+/// coincidence windows. The event is not modified. See the class documentation in
+/// TRestDetectorSignalPeaksFinderProcess.cxx (observables and example).
 class TRestDetectorSignalPeaksFinderProcess : public TRestEventProcess {
    private:
     struct PeaksObservables {
@@ -57,20 +58,32 @@ class TRestDetectorSignalPeaksFinderProcess : public TRestEventProcess {
     int fAmplitudeHalfWindow = 1;
 
     /// A coincidence window starts at the earliest peak not yet in a window and contains all the peaks up to
+    /// window after it
     TRestWithUnits fWindow = 1;  // us
 
+    /// \brief Default constructor (no configuration).
     TRestDetectorSignalPeaksFinderProcess();
+    /// \brief Builds the process from an in-memory YAML section (LoadConfig).
     TRestDetectorSignalPeaksFinderProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the process from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorSignalPeaksFinderProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the parameters from the YAML node.
     void LoadConfig() override;
+    /// \brief Checks the parameters and registers the observables.
     void InitProcess() override;
+    /// \brief Finds the peaks of the signals and fills the observables; the event is copied unchanged.
+    /// \return Always true.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Nothing to do at the end of the processing.
     void EndProcess() override {}
 
+    /// \brief Input event type, "TRestDetectorSignalEvent".
     std::string GetInputEvent() const override { return "TRestDetectorSignalEvent"; }
+    /// \brief Output event type, "TRestDetectorSignalEvent".
     std::string GetOutputEvent() const override { return "TRestDetectorSignalEvent"; }
 
+    /// \brief Returns the class name, "TRestDetectorSignalPeaksFinderProcess".
     std::string GetClassName() const override { return "TRestDetectorSignalPeaksFinderProcess"; }
 };
 

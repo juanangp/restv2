@@ -26,6 +26,31 @@ class TRestDataSet;
 /// a dataset; a TRestDataSet section generates a dataset (with the TRestCut of the manager), processed in
 /// memory by the dataset pipeline if there is one (then written only if it has an outputFileName). The plots
 /// without inputFileName draw the last output.
+///
+/// It is the top section of the configuration given to restManager (`restManager --c config.yaml`), which
+/// calls Run, SaveMetadata and RunPlots. Every map with `class` inside it is created as a metadata (with
+/// the `verbose` of the manager unless it has its own); after creation, all of them receive the TRestRun
+/// (SetRunInfo), and the processes can reach them through FindMetadata / GetMetadataOfType.
+///
+/// \code{.yaml}
+/// manager:
+///   class: TRestManager
+///   name: manager
+///   verbose: info
+///   run:
+///     class: TRestRun
+///     inputFileName: input.root
+///     outputFileName: output.root
+///   fiducial:
+///     class: TRestCut
+///     conditions: {energy: "ana_Energy > 1000"}
+///   pipeline:
+///     class: TRestEventProcessManager
+///     ...processes...
+///   plots:
+///     class: TRestAnalysisPlot
+///     ...
+/// \endcode
 class TRestManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;
@@ -36,12 +61,20 @@ class TRestManager : public TRestMetadata {
     static std::atomic<bool> fStopRequested;
 
    public:
+    /// \brief Constructs from a YAML node and creates its metadata (LoadConfig).
     TRestManager(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructs from a section of a YAML file and creates its metadata (LoadConfig).
     TRestManager(const std::string& fileName, const std::string& sectionName);
-    ~TRestManager() override = default;
+    ~TRestManager() override = default;  ///< Destructor.
 
+    /// \brief Returns "TRestManager".
     std::string GetClassName() const override { return "TRestManager"; }
 
+    /// \brief Runs the manager: with a TRestDataSet and/or TRestDataSetProcessManager, generates and/or
+    /// processes the dataset; otherwise runs the event pipeline on the TRestRun (with nThreads > 1 the
+    /// entries are split among threads, each one with its own copy of the manager, and the outputs are
+    /// merged). With only plots nothing is done here. Throws for inconsistent combinations (e.g. a dataset
+    /// with a TRestRun, a pipeline without TRestRun, a missing input file).
     void Run();
 
     /// \brief Draws every TRestAnalysisPlot of the manager, in declaration order, with its inputFileName (a
@@ -49,10 +82,15 @@ class TRestManager : public TRestMetadata {
     /// pipeline (closed first, call after SaveMetadata). Each plot writes in its own outputFileName.
     void RunPlots();
 
+    /// \brief Creates the metadata of the section (maps with `class`) and gives them the TRestRun.
     void LoadConfig() override;
+    /// \brief Nothing to initialize.
     void Initialize() override {}
+    /// \brief Writes to the output file of the run the metadata of the input file, the last saved event
+    /// type and the metadata of the manager. Nothing without an open output file.
     void SaveMetadata();
 
+    /// \brief The first metadata of the manager of a class (GetClassName), nullptr if none.
     TRestMetadata* GetMetadataClass(const std::string& className) const {
         for (const auto& meta : fMetaObjects) {
             if (meta && meta->GetClassName() == className) return meta.get();
@@ -90,10 +128,13 @@ class TRestManager : public TRestMetadata {
         throw std::runtime_error(user + ": " + field + " '" + name + "' not found");
     }
 
+    /// \brief Asks the running event loops to stop at their next entry (e.g. from a signal handler).
     static void RequestStop() { fStopRequested.store(true, std::memory_order_relaxed); }
 
+    /// \brief Whether a stop was requested.
     static bool StopRequested() { return fStopRequested.load(std::memory_order_relaxed); }
 
+    /// \brief Clears the stop request.
     static void ResetStopRequest() { fStopRequested.store(false, std::memory_order_relaxed); }
 
    private:

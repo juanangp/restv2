@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "TRestLogManager.h"
 #include "TRestMetadata.h"
 #include "TRestSystemOfUnits.h"
 #include "TRestTools.h"
@@ -154,7 +155,7 @@ void MergeSimulationTrees(const std::vector<RunFile>& runFiles, const std::vecto
 
 }  // namespace REST_MergeRuns_Detail
 
-/// Merges the subruns of a run in a single run file: the files of filePattern (TRestTools::
+/// \brief Merges the subruns of a run in a single run file: the files of filePattern (TRestTools::
 /// GetFilesMatchingPattern) must have the same runNumber, consecutive subRunNumber (also files already
 /// merged, by their mergedSubRuns), the same event trees and analysis tree (branches and types) and the
 /// same processing (all their metadata but the TRestRun equal). The trees are merged as the threads of
@@ -171,6 +172,10 @@ void MergeSimulationTrees(const std::vector<RunFile>& runFiles, const std::vecto
 /// file), and a seed repeated is an error (the same events). The files are merged in the order of the
 /// pattern and the eventID of each one is shifted by the events simulated in the previous ones, so all the
 /// events have different IDs (as REST_Geant4_MergeRestG4Files of legacy).
+///
+/// \param filePattern Pattern of the input run files (at least two files must match).
+/// \param outputFile Merged output file (must not be one of the inputs); it is recreated.
+/// \return 0 on success, 1 on error (the reason is printed).
 ///
 ///    restRoot
 ///    REST_MergeRuns("R01234_*_ANA.root", "R01234_ANA.root")
@@ -327,7 +332,7 @@ int REST_MergeRuns(const std::string& filePattern, const std::string& outputFile
                       << std::endl;
         }
     } catch (const std::exception& error) {
-        std::cerr << "REST_MergeRuns: " << error.what() << std::endl;
+        RESTError << "REST_MergeRuns: " << error.what() << RESTendl;
         return 1;
     }
     return 0;

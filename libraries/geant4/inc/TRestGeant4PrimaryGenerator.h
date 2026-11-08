@@ -21,6 +21,11 @@
 /// TRestGeant4PrimaryGenerator.cxx.
 class TRestGeant4PrimaryGenerator {
    public:
+    /// \brief Generator of a thread: copies (Clone) the spatial generator and the sources and loads their
+    /// distributions. Throws std::runtime_error without spatial generator or with an invalid
+    /// spatialDensityFunction.
+    /// \param info The `generator` section of the metadata (kept by reference, it must outlive this object).
+    /// \param seed Seed of the TRandom3 of this generator.
     TRestGeant4PrimaryGenerator(const TRestGeant4PrimaryGeneratorInfo& info, unsigned int seed);
     virtual ~TRestGeant4PrimaryGenerator() = default;
 
@@ -28,11 +33,13 @@ class TRestGeant4PrimaryGenerator {
     /// Empty for the cry generator when all the showers of the file were simulated
     std::vector<TRestGeant4ParticleState> Generate();
 
-    inline TRandom& GetRandom() { return fRandom; }
+    inline TRandom& GetRandom() { return fRandom; }  ///< The random generator of this generator
+    /// \brief The `generator` section it samples
     inline const TRestGeant4PrimaryGeneratorInfo& GetInfo() const { return *fInfo; }
 
    protected:
-    /// \brief A uniform position in the GDML volume (or on its surface), in world coordinates
+    /// \brief A uniform position in the GDML volume (or on its surface), in world coordinates. This
+    /// implementation throws: restG4 overrides it with the Geant4 geometry
     virtual ROOT::Math::XYZVector SampleGdmlPosition();
 
    private:

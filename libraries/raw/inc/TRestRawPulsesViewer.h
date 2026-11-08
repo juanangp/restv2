@@ -22,7 +22,12 @@ class TTree;
 ///
 /// It reads the tree TRestRawSignalEvent of a REST file; a file being written is followed (TTree::Refresh
 /// at the last event). Buttons: open a file, previous and next event, jump to an entry, save the canvas
-/// (PDF). Launched with the macro REST_Raw_PulsesViewer(fileName) of restRoot.
+/// (PDF), quit. Quit, or closing the window, terminates the ROOT application. Launched with the macro
+/// REST_Raw_PulsesViewer(fileName) of restRoot:
+/// \code
+/// restRoot
+/// [0] REST_Raw_PulsesViewer("RawSignals.root")
+/// \endcode
 class TRestRawPulsesViewer : public TGMainFrame {
    private:
     TRootEmbeddedCanvas* fCanvas;
@@ -50,17 +55,24 @@ class TRestRawPulsesViewer : public TGMainFrame {
     void DeleteGraphs();
 
    public:
+    /// \brief Creates and maps the window (canvas, buttons and entry box), without a file.
     TRestRawPulsesViewer();
+    /// \brief Closes the file and deletes the graphs.
     virtual ~TRestRawPulsesViewer();
 
     /// \brief Opens a REST file with the tree TRestRawSignalEvent and draws its first entry
     void LoadFile(const char* path);
+    /// \brief File dialog to choose a .root file, then LoadFile
     void OpenFile();
+    /// \brief Draws the next entry (refreshing the tree at the last one, for a file being written)
     void Next();
+    /// \brief Draws the previous entry
     void Prev();
     /// \brief Entry typed in the text box
     void JumpToEvent();
+    /// \brief Saves the canvas as Event_<entry>.pdf in the current directory
     void SavePDF();
+    /// \brief Terminates the ROOT application
     void DoExit();
     /// \brief Draws the current entry, a pad per ASIC
     void DrawEvent();

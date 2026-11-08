@@ -15,10 +15,15 @@
 
 #include "TRestLogManager.h"
 
+/// \brief System of units of REST: the values are stored in the REST units keV, us, mm, kg, V, T, bar and
+/// rad, and the configuration gives them with units ("300 V", "1 kV/cm", "5.9 keV"), converted with
+/// ParseUnit and ParseValueWithUnits (TRestWithUnits for the configuration fields).
 namespace REST_Units {
 
+/// Physical quantity of a unit
 enum Physical_Unit { Energy, Time, Length, Mass, Voltage, MagneticField, Pressure, Angle, NOT_A_UNIT = -1 };
 
+/// Units known: symbol -> (quantity, factor to the REST unit of the quantity), e.g. "cm" -> (Length, 10)
 inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = {
     // ================== Energy (base = keV) ==================
     {"meV", {Energy, 1e-6}},
@@ -84,6 +89,9 @@ inline std::map<std::string, std::pair<Physical_Unit, double>> REST_Units_Map = 
 /// std::invalid_argument if a unit is unknown or the expression is not valid.
 double ParseUnit(const std::string& UnitsExpr);
 
+/// \brief A value in REST units written in the SI unit of the quantity (eV, s, m, g, V, T, bar, rad) with
+/// an SI prefix (n, u, m, k, M, G, T) and 2 decimals, e.g. FormatAs(5.9, Energy) = "5.90 keV"; "0" for 0
+/// and the plain number for NOT_A_UNIT.
 template <typename T>
 inline std::string FormatAs(T value, Physical_Unit quantity) {
     double val = static_cast<double>(value);
@@ -157,6 +165,7 @@ inline std::string FormatAs(T value, Physical_Unit quantity) {
     return ss.str();
 }
 
+/// \brief A vector in REST units as "(x, y, z)", each component with FormatAs
 inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit quantity) {
     std::ostringstream ss;
     ss << "(" << FormatAs(vector.X(), quantity) << ", " << FormatAs(vector.Y(), quantity) << ", "
@@ -164,7 +173,9 @@ inline std::string FormatAs(const ROOT::Math::XYZVector& vector, Physical_Unit q
     return ss.str();
 }
 
-/// Sets the TGeoManager default units (mm, MeV, ns). Safe to call multiple times.
+/// \brief Sets the TGeoManager default units to the Geant4 ones (TGeoManager::kG4Units: mm, MeV, ns) and
+/// locks them; also done when the library is loaded. Safe to call multiple times (done once).
+/// \return true
 bool SetGeoManagerDefaultUnits();
 
 /// \brief Value of a number with optional units (e.g. "300 V", "1 kV/cm", "10eV", "-3.5e2 keV") in REST
@@ -178,14 +189,22 @@ std::optional<double> ParseValueWithUnits(const std::string& text);
 // ============================================================================
 // TRestWithUnits Wrapper (Acts transparently as a double in C++)
 // ============================================================================
+/// \brief A number read from the configuration with optional units, e.g. `energy: "5.9 keV"` or
+/// `voltage: 300`, stored in REST units (REST_Units::ParseValueWithUnits); it converts to and from double.
+/// The YAML written back (UpdateYAMLFromParams) is the plain number in REST units. Reading a text that is
+/// not a number with valid units throws (YAML::TypedBadConversion).
 struct TRestWithUnits {
-    double value = 0.0;
+    double value = 0.0;  ///< Value in REST units
 
     TRestWithUnits() = default;
+    /// \brief A value already in REST units
     TRestWithUnits(double v) : value(v) {}
 
+    /// \brief The value, usable as a double
     operator double&() { return value; }
+    /// \brief The value, usable as a double
     operator const double&() const { return value; }
+    /// \brief Sets the value (in REST units)
     TRestWithUnits& operator=(double v) {
         value = v;
         return *this;
@@ -196,14 +215,19 @@ struct TRestWithUnits {
 // yaml-cpp Specialization for TRestWithUnits
 // ============================================================================
 namespace YAML {
+/// \brief yaml-cpp conversion of TRestWithUnits: decode parses the units and replaces the node by the plain
+/// number in REST units; encode writes the plain number
 template <>
 struct convert<TRestWithUnits> {
+    /// \brief Node with the value in REST units
     static Node encode(const TRestWithUnits& rhs) {
         Node node;
         node = rhs.value;  // Writes back as a clean plain double to the .root file
         return node;
     }
 
+    /// \brief Value of a scalar with optional units; false (yaml-cpp throws) if it is not a number with
+    /// valid units
     static bool decode(const Node& node, TRestWithUnits& rhs) {
         if (!node || !node.IsScalar()) return false;
 

@@ -14,18 +14,27 @@
 #include "TRestRun.h"
 #include "TRestTools.h"
 
-/// Response matrix of a detector simulation: for each file of `filePattern` (an analysis of a restG4
+/// \brief Response matrix of a detector simulation: for each file of `filePattern` (an analysis of a restG4
 /// simulation, e.g. with TRestGeant4AnalysisProcess), the TH2D of varY (e.g. the energy detected) versus
 /// varX (e.g. the primary energy) of the analysis tree entries that fulfill `cut` (an RDataFrame
 /// expression, none if empty), with the binning `range` "(nBinsX, xLow, xHigh, nBinsY, yLow, yHigh)",
-/// normalized to the bin size of both axes and to the events simulated (nEvents of the
-/// TRestGeant4Metadata): the probability density of detecting y for a primary x. It is written as a binary
-/// table of floats, one row per X bin with the Y bins (legacy TRestTools::ExportBinaryTable), in
-/// <runTag>.N<nBinsY>f, and the overall efficiency (entries in the histogram / events simulated) is printed.
+/// normalized to the bin size of both axes and to the events simulated (the equivalent number of events of
+/// the TRestGeant4Metadata, nEvents without biasing volumes): the probability density of detecting y for a
+/// primary x. It is written as a binary table of floats, one row per X bin with the Y bins (legacy
+/// TRestTools::ExportBinaryTable), in <runTag>.N<nBinsY>f, and the overall efficiency (entries in the
+/// histogram / events simulated) is printed.
 ///
 /// Legacy cut "g4Ana_boundingSize < 10 && g4Ana_containsProcessPhot > 0": in restv2 the photoelectric
 /// events are those with energy in a selection with `processes: ["phot"]` of TRestGeant4AnalysisProcess,
 /// e.g. "g4Ana_boundingSize < 10 && g4Ana_phot_Energy > 0".
+///
+/// \param filePattern Files to process (glob pattern), each one with a TRestGeant4Metadata and an
+/// AnalysisTree.
+/// \param varX Observable of the X axis (e.g. the primary energy).
+/// \param varY Observable of the Y axis (e.g. the detected energy).
+/// \param range Binning "(nBinsX, xLow, xHigh, nBinsY, yLow, yHigh)".
+/// \param cut RDataFrame filter expression applied to the entries (none if empty).
+/// \return 0 on success, 1 on a wrong range, no matching file or a file without simulated events.
 ///
 ///    restRoot
 ///    REST_Geant4_GenerateResponseMatrix("G4Analysis_*.root")
@@ -58,7 +67,8 @@ int REST_Geant4_GenerateResponseMatrix(const std::string& filePattern,
                       << " has no TRestGeant4Metadata with events" << std::endl;
             return 1;
         }
-        const double events = metadata.front()->GetNumberOfEvents();
+        // With biasing volumes, the primaries the output represents
+        const double events = metadata.front()->GetEquivalentNumberOfEvents();
 
         ROOT::RDataFrame dataFrame("AnalysisTree", fileName);
         ROOT::RDF::RNode frame = dataFrame;

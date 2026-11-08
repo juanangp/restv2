@@ -31,7 +31,10 @@ TRestGeant4QuenchingInfo::TRestGeant4QuenchingInfo(const std::string& name, cons
 
 void TRestGeant4QuenchingInfo::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4QuenchingInfo>(fNode);
-    fModel = TRestTools::NormalizeOption("model", fModel, {"auto", "lindhard", "birks"});
+    if (fModel.empty())
+        throw std::invalid_argument("TRestGeant4QuenchingProcess: the volume '" + fVolume +
+                                    "' has no model (lindhard or birks)");
+    fModel = TRestTools::NormalizeOption("model", fModel, {"lindhard", "birks"});
     UpdateYAMLFromParams<TRestGeant4QuenchingInfo>(fNode);
 }
 
@@ -40,6 +43,7 @@ static const bool TRestGeant4QuenchingProcess_FieldsRegistered = []() {
     reg.RegisterField<TRestGeant4QuenchingProcess>("applyToHitEnergies",
                                                    &TRestGeant4QuenchingProcess::fApplyToHitEnergies);
     reg.RegisterField<TRestGeant4QuenchingProcess>("volume", &TRestGeant4QuenchingProcess::fUserVolumes);
+    reg.RegisterField<TRestGeant4QuenchingProcess>("model", &TRestGeant4QuenchingProcess::fModel);
     reg.RegisterField<TRestGeant4QuenchingProcess>("birksConstant",
                                                    &TRestGeant4QuenchingProcess::fBirksConstant);
     reg.RegisterField<TRestGeant4QuenchingProcess>("birksFallbackStepLength",
@@ -61,30 +65,6 @@ const bool kRegistered = []() {
 }  // namespace
 
 namespace {
-/*string NormalizeQuenchingModel(const string& model) {
-    const auto normalized = ToLower(model);
-    if (normalized == "auto" || normalized == "lindhard" || normalized == "birks") {
-        return normalized;
-    }
-
-    RESTWarning << "TRestGeant4QuenchingProcess: Unknown quenching model '" << model
-                << "'. Falling back to auto." << RESTendl;
-    return "auto";
-}*/
-
-string InferQuenchingModel(const string& requestedModel, const string& userVolumeExpression,
-                           const string& volumeName) {
-    if (requestedModel != "auto") {
-        return requestedModel;
-    }
-
-    const auto haystack = ToLower(userVolumeExpression + " " + volumeName);
-    if (haystack.find("scintillator") != string::npos || haystack.find("veto") != string::npos) {
-        return "birks";
-    }
-    return "lindhard";
-}
-
 double Clamp01(double value) {
     if (value < 0) {
         return 0;
@@ -173,6 +153,7 @@ void TRestGeant4QuenchingProcess::LoadConfig() {
     }
 
     UpdateParamsFromYAML<TRestGeant4QuenchingProcess>(fNode);
+    if (!fModel.empty()) fModel = TRestTools::NormalizeOption("model", fModel, {"lindhard", "birks"});
 
     for (auto& userVolume : fUserVolumes) {
         if (userVolume.fBirksConstant == 0) userVolume.fBirksConstant = fBirksConstant;
@@ -216,10 +197,32 @@ void TRestGeant4QuenchingProcess::InitProcess() {
         for (const auto& volumeNameString : volumeNames) {
             RESTDebug << "Volume: " << volumeNameString << RESTendl;
             fVolumes.insert(volumeNameString);
-            fVolumeModels[volumeNameString] =
-                InferQuenchingModel(userVolume.fModel, userVolume.fVolume, volumeNameString);
+            fVolumeModels[volumeNameString] = userVolume.fModel;
             fVolumeBirksConstants[volumeNameString] = userVolume.fBirksConstant;
             fVolumeBirksFallbackStepLengths[volumeNameString] = userVolume.fBirksFallbackStepLength;
+        }
+    }
+
+    // `model`: all the other volumes of the geometry, with the Birks parameters of the process
+    if (!fModel.empty()) {
+        for (const auto& volumeName : geometryInfo.GetAllPhysicalVolumes()) {
+            if (fVolumes.count(volumeName)) continue;
+            fVolumes.insert(volumeName);
+            fVolumeModels[volumeName] = fModel;
+            fVolumeBirksConstants[volumeName] = fBirksConstant;
+            fVolumeBirksFallbackStepLengths[volumeName] = fBirksFallbackStepLength;
+        }
+    }
+
+    // The Lindhard factor needs the target nucleus of the hits: without it nothing would be quenched
+    if (!fGeant4Metadata->GetStoreHadronicTargetInfo()) {
+        for (const auto& [volume, model] : fVolumeModels) {
+            if (model != "lindhard") continue;
+            throw std::runtime_error(
+                "TRestGeant4QuenchingProcess: the volume '" + volume +
+                "' uses the lindhard model, which needs the hadronic target "
+                "nucleus of the hits, but the simulation was made without storeHadronicTargetInfo: true in "
+                "the TRestGeant4Metadata. Simulate with it, or use the birks model for this volume");
         }
     }
 
@@ -300,6 +303,8 @@ bool TRestGeant4QuenchingProcess::ProcessEvent(const TRestEvent& input, TRestEve
                     }
 
                 } else if (model == "lindhard") {
+                    // storeHadronicTargetInfo is checked in InitProcess, the event may still lack the
+                    // information (e.g. written before it was stored)
                     if (track.GetHadronicOk()) {
                         const int isotopeA = track.GetHitHadronicTargetIsotopeA(hitIndex);
 

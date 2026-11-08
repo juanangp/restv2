@@ -31,6 +31,8 @@
 #include <TRestTools.h>
 #include <TTreeFormula.h>
 
+#include <stdexcept>
+
 using namespace std;
 using namespace TRestTools;
 
@@ -41,6 +43,7 @@ TRestBrowser::TRestBrowser() {
         OpenFile(gDirectory->GetFile()->GetName());
         cout << "Loaded File : " << fInputFileName << endl;
     } else {
+        // Plain ROOT browser: the control panels are added by OpenFile (Initialize) when a file is opened
         fBrowser = new TBrowser("Browser", nullptr, "REST Browser");
         fRestRun = new TRestRun();
     }
@@ -52,7 +55,12 @@ TRestBrowser::TRestBrowser(const string& viewerName, double geomScale) {
 }
 
 TRestBrowser::TRestBrowser(TRestEventViewer* viewer, double geomScale) {
-    Initialize("I");
+    try {
+        Initialize("I");
+    } catch (...) {
+        delete viewer;  // owned by the browser
+        throw;
+    }
     if (viewer == nullptr) viewer = new TRestEventViewer();
     SetViewer(viewer, geomScale);
 }
@@ -60,20 +68,27 @@ TRestBrowser::TRestBrowser(TRestEventViewer* viewer, double geomScale) {
 TRestBrowser::~TRestBrowser() {
     if (frmMain != nullptr) frmMain->Cleanup();
     // delete frmMain;
+    // The viewer (created by the browser or given to it) and the run (created by the browser) are owned;
+    // the viewer is deleted first, as its event belongs to the run
+    delete fEventViewer;
+    fEventViewer = nullptr;
+    delete fRestRun;
+    fRestRun = nullptr;
 }
 
 void TRestBrowser::Initialize(const string& opt) {
     pureAnalysis = kFALSE;
 
-    fRestRun = new TRestRun();
-
-    fBrowser = new TBrowser("Browser", 0, "REST Browser", opt.c_str());
+    // A plain ROOT browser already created (default constructor without file) gets the control panels
+    if (fBrowser == nullptr) fBrowser = new TBrowser("Browser", 0, "REST Browser", opt.c_str());
     TGMainFrame* fr = fBrowser->GetBrowserImp()->GetMainFrame();
     if (fr == nullptr) {
-        RESTWarning << "No x11 interface is available. Cannot call the browser window!" << RESTendl;
-        exit(1);
+        throw std::runtime_error(
+            "TRestBrowser::Initialize: no X11 interface is available, cannot open the browser window");
     }
     fr->DontCallClose();
+
+    if (fRestRun == nullptr) fRestRun = new TRestRun();
 
     fBrowser->StartEmbedding(0, -1);
     frmMain = new TGMainFrame(gClient->GetRoot(), 300);
@@ -103,6 +118,8 @@ void TRestBrowser::Initialize(const string& opt) {
 void TRestBrowser::SetViewer(TRestEventViewer* eV, double geomScale) {
     if (fEventViewer != nullptr) {
         cout << "Event viewer has already been set!" << endl;
+        // The given viewer is owned by the browser: deleted if it is not the current one
+        if (eV != fEventViewer) delete eV;
         return;
     }
     if (eV != nullptr) {
@@ -118,7 +135,12 @@ void TRestBrowser::SetViewer(const std::string& viewerName, double geomScale) {
     if (CountString((string)viewerName, "Viewer") > 0) {
         TClass* cl = TClass::GetClass(viewerName.c_str());
         if (!cl) {
-            throw std::runtime_error("Error: La clase '" + viewerName + "' no está registrada en ROOT.");
+            throw std::runtime_error("TRestBrowser::SetViewer: the class '" + viewerName +
+                                     "' is not registered in ROOT (is its library loaded?)");
+        }
+        if (!cl->InheritsFrom("TRestEventViewer")) {
+            throw std::invalid_argument("TRestBrowser::SetViewer: the class '" + viewerName +
+                                        "' is not a TRestEventViewer");
         }
 
         std::unique_ptr<TRestEventViewer> viewer(static_cast<TRestEventViewer*>(cl->New()));
@@ -132,8 +154,8 @@ void TRestBrowser::SetViewer(const std::string& viewerName, double geomScale) {
             RESTWarning << "Using default event viewer" << RESTendl;
         }
     } else {
-        cout << "illegal viewer : " << viewerName << endl;
-        exit(0);
+        throw std::invalid_argument("TRestBrowser::SetViewer: illegal viewer '" + viewerName +
+                                    "' (its class name must contain \"Viewer\")");
     }
 }
 
@@ -345,6 +367,8 @@ bool TRestBrowser::LoadEventId(int eventID, int subEventID) {
 
 bool TRestBrowser::OpenFile(const std::string& filename) {
     if (filename.find("http") != std::string::npos || TRestTools::fileExists(filename)) {
+        // Browser created without file (default constructor): the control panels are created now
+        if (frmMain == nullptr) Initialize();
         // A file already open: a new run (deleting the events of the previous one), the viewer without
         // event and the event types of the new file
         if (fRestRun->GetInputFile() != nullptr) {

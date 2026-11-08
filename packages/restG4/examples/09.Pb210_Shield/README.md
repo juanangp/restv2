@@ -18,3 +18,13 @@ restG4 Pb210.yaml
 ```
 
 See also the test of this example in `packages/restG4/test/src/examples.cxx` (ctest, BUILD_TESTING).
+
+#### Volume biasing
+
+`Biasing.yaml` simulates 1 MeV gammas from a wall above the lead box with two nested virtual biasing volumes (a
+sphere and a box around the lead box, factor 10 each): only the events of the last stage are written, each one
+with weight 1/100 (see the volume biasing section of the restG4 README).
+
+```
+restG4 Biasing.yaml
+```

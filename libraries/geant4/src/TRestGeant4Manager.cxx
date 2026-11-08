@@ -72,10 +72,14 @@ void TRestGeant4Manager::SaveMetadata() {
         throw std::runtime_error("TRestGeant4Manager::Run - no TRestRun configured under manager section.");
     }
 
-    fG4Metadata->SyncMetadataMapsFromRuntime();
+    // The run section itself (start and end time stamps, run number...): TRestRun::AddMetadata writes the
+    // metadata in the output file of the run, and the run is not written by TRestRun::CloseFiles
     fRunInfo->AddMetadata(fRunInfo);
     if (fG4PhysicsLists) fRunInfo->AddMetadata(fG4PhysicsLists);
-    if (fG4Metadata) fRunInfo->AddMetadata(fG4Metadata);
+    if (fG4Metadata) {
+        fG4Metadata->SyncMetadataMapsFromRuntime();
+        fRunInfo->AddMetadata(fG4Metadata);
+    }
 }
 
 /// \brief Prints manager-level metadata and its effective YAML configuration.

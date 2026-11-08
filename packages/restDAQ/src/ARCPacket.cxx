@@ -390,6 +390,9 @@ bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<
         } else if ((w & PFX_0_BIT_CONTENT_MASK) == PFX_EXTD_CARD_CHIP_CHAN_HIT_IX) {
             step = 2;
         } else if ((w & PFX_6_BIT_CONTENT_MASK) == PFX_END_OF_EVENT_ARC) {
+            // The 4 words of the trailer must have been received too: otherwise pos stays at
+            // the end of event word and it is checked again in the next call
+            if (pos + 4 > buffSize) break;
             pos += 4;
             endOfEvent = true;
             break;
@@ -437,6 +440,10 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
             idx += 6;
         } else if ((w & PFX_8_BIT_CONTENT_MASK) == PFX_START_OF_EVENT_ARC) {
             // std::cout<<"START OF EVENT "<<std::endl;
+            if (idx + 5 >= buffSize) {  // Timestamp and event count (5 words) not complete
+                printf("WARNING: truncated start of event, the rest of the event is not parsed\n");
+                return;
+            }
             idx++;
             tS = (uint64_t)event[idx];
             idx++;
@@ -460,6 +467,10 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
         } else if ((w & PFX_11_BIT_CONTENT_MASK) == PFX_CHIP_LAST_CELL_READ_ARC) {
             idx++;
         } else if ((w & PFX_0_BIT_CONTENT_MASK) == PFX_EXTD_CARD_CHIP_CHAN_HIT_IX) {
+            if (idx + 1 >= buffSize) {  // Card, chip and channel word not present
+                printf("WARNING: truncated channel header, the rest of the event is not parsed\n");
+                return;
+            }
             idx++;
             uint16_t cardID = GET_CARD_IX(event[idx]);
             uint16_t chipID = GET_CHIP_IX(event[idx]);
@@ -470,8 +481,8 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
             idx++;
             int timeBin = 0;
             std::fill(sData.begin(), sData.end(), 0);
-            while ((event[idx] & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE ||
-                   (event[idx] & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX) {
+            while (idx < buffSize && ((event[idx] & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE ||
+                                      (event[idx] & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX)) {
                 if ((event[idx] & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX) {
                     timeBin = GET_TIME_BIN(event[idx]);
                 } else if ((event[idx] & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE) {
@@ -482,7 +493,6 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
                     break;
                 }
                 idx++;
-                if (idx >= buffSize) break;
             }
 
             sEvent.AddSignal(physChannel, sData);

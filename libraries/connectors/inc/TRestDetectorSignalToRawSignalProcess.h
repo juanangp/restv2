@@ -27,11 +27,13 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
     bool GetTriggerTime(const TRestDetectorSignalEvent& event, double& time) const;
 
    public:
+    /// Valid values of mode
     inline static const std::vector<std::string> kModes = {"integrate", "sample"};
+    /// Valid values of triggerMode
     inline static const std::vector<std::string> kTriggerModes = {"firstDeposit", "integralThreshold",
                                                                   "fixed", "observable"};
 
-    /// Width of the samples (sampling of the electronics)
+    /// Width of the samples (sampling of the electronics), mandatory (> 0)
     TRestWithUnits fSampling = 0;  // us
     /// Number of samples of each raw signal
     int fNPoints = 512;
@@ -54,20 +56,31 @@ class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
     TRestWithUnits fTriggerFixedStartTime = 0;  // us
     /// ADC value = offset + gain * charge
     double fGain = 1;
+    /// ADC value of a charge 0 (see fGain)
     double fOffset = 0;
     /// Linear calibration instead of gain and offset: the energies calibrationEnergy go to the fractions
-    /// calibrationRange of the ADC range (0: minimum, 1: maximum of a short)
+    /// calibrationRange of the ADC range (0: minimum, 1: maximum of a short). [0, 0]: not used
     std::pair<TRestWithUnits, TRestWithUnits> fCalibrationEnergy = {0, 0};
+    /// Fractions of the ADC range of the two calibrationEnergy values (see fCalibrationEnergy)
     std::pair<double, double> fCalibrationRange = {0, 0};
     /// Saturation of the ADC: the samples are clipped to [-32768, maxValue]
     int fMaxValue = 32767;
 
+    /// \brief Default constructor, with the default parameters.
     TRestDetectorSignalToRawSignalProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestDetectorSignalToRawSignalProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestDetectorSignalToRawSignalProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section and normalizes mode and triggerMode.
     void LoadConfig() override;
+    /// \brief Checks the parameters (throws if they are not valid), computes the ADC gain and offset (from
+    /// the calibration if given), binds the trigger observable (triggerMode observable) and registers
+    /// TriggerTime and NSaturatedSignals.
     void InitProcess() override;
+    /// \brief Digitizes every signal of the event in the acquisition window of its trigger.
+    /// \return False if the event has no signals or no trigger.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

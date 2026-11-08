@@ -1,0 +1,74 @@
+# Volume biasing: 1 MeV gammas from a 40 x 40 cm2 wall 30 cm above the lead box of this example, with two nested
+# virtual biasing volumes (not part of the geometry), from the outermost to the innermost:
+#   - stage 0: the 100000 gammas of the generator are simulated; the particles entering the sphere (25 cm radius)
+#     are stopped and stored (between 1 keV and 2 MeV)
+#   - stage 1: each stored particle is simulated 10 times from the sphere surface; the particles entering the
+#     box (12 cm side, around the lead box) are stopped and stored
+#   - stage 2: each stored particle is simulated 10 times from the box surface, normally; only these events are
+#     written (with energy in the xenon in energyRangeStored)
+# Each output event has the weight 1 / 100 (biasingTotalFactor), and the output represents 100000 x 100 gammas of
+# the wall (TRestGeant4Metadata::GetEquivalentNumberOfEvents):
+#   restG4 Biasing.yaml
+
+g4Manager:
+  class: "TRestGeant4Manager"
+
+  run:
+    class: "TRestRun"
+    experimentName: "Shielding"
+    runType: "simulation"
+    runNumber: 1
+    runTag: "GammaBiasing"
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName].root"
+    runDescription: ""
+    runUser: "${ENV:USER}"
+
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    gdmlFilename: "geometry/setup.gdml"
+    seed: 17021981
+    nEvents: 100000
+    energyRangeStored: [0, 1 MeV]
+
+    activeVolumes:
+      - name: "detector"
+        maxStep: 1 mm
+        sensitive: true
+
+    biasingVolumes:
+      - type: "virtualSphere"
+        position: [0, 0, 0]
+        size: 25 cm
+        biasingFactor: 10
+        energyRange: [1 keV, 2 MeV]
+      - type: "virtualBox"
+        position: [0, 0, 0]
+        size: 12 cm
+        biasingFactor: 10
+        energyRange: [1 keV, 2 MeV]
+
+    generator:
+      type: "surface"
+      shape: "wall"
+      position: [0, 0, 30 cm]
+      size: [40 cm, 40 cm, 0]
+      source:
+        particle: "gamma"
+        energy:
+          type: "mono"
+          energy: 1 MeV
+        angular:
+          type: "formula"
+          formula: "Cos2"
+          direction: [0, 0, -1]
+
+  physicsG4:
+    class: "TRestGeant4PhysicsLists"
+    cutForGamma: 0.01 mm
+    cutForElectron: 1 mm
+    cutForPositron: 1 mm
+    minEnergyRangeProductionCuts: 1 keV
+    maxEnergyRangeProductionCuts: 1 GeV
+
+    physicsList:
+      - name: "G4EmStandardPhysics_option4"

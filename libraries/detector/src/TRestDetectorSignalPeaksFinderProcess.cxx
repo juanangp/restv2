@@ -14,8 +14,8 @@
 ///   the peak amplitudes): one entry per window.
 /// - NPeaks, NPeaksSignals (signals with at least one peak), NWindows, PeaksAmplitudeSum.
 ///
-/// Parameters: threshold (100), distance (0.4 us), halfWindow (5), maxGreaterEqual (3), refineMaximum (true),
-/// amplitudeHalfWindow (1), window (0.2 us).
+/// Parameters: threshold (100), distance (2 us), halfWindow (5), maxGreaterEqual (3), refineMaximum (true),
+/// amplitudeHalfWindow (1), window (1 us).
 ///
 /// Example:
 ///

@@ -26,6 +26,13 @@ class TRestDetectorReadout;
 /// - `channelIds`: DAQ IDs of the dead channels.
 /// - `readout`: readout (TRestDetectorReadoutManager) that gives the adjacent channels; empty: the data
 ///   readout.
+///
+/// No observables. Channels that are not in the readout are skipped with a warning.
+///
+///    signalRecovery:
+///      class: "TRestDetectorSignalRecoveryProcess"
+///      channelIds: [4490, 4489]
+///      readout: "IAXO_D1_Readout"
 class TRestDetectorSignalRecoveryProcess : public TRestEventProcess {
    private:
     /// A group of consecutive dead channels between two alive channels
@@ -45,18 +52,28 @@ class TRestDetectorSignalRecoveryProcess : public TRestEventProcess {
     /// Name of the readout giving the adjacent channels (empty: the data readout of the manager)
     std::string fReadoutName = "";
 
+    /// \brief Default constructor (no configuration).
     TRestDetectorSignalRecoveryProcess();
+    /// \brief Builds the process from an in-memory YAML section (LoadConfig).
     TRestDetectorSignalRecoveryProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the process from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorSignalRecoveryProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the parameters from the YAML node.
     void LoadConfig() override;
     /// \brief Gets the readout and builds the groups of consecutive dead channels with their neighbours.
     void InitProcess() override;
+    /// \brief Replaces the signals of the dead channels by the ones recovered from their neighbours.
+    /// \return Always true.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Nothing to do at the end of the processing.
     void EndProcess() override {}
 
+    /// \brief Input event type, "TRestDetectorSignalEvent".
     std::string GetInputEvent() const override { return "TRestDetectorSignalEvent"; }
+    /// \brief Output event type, "TRestDetectorSignalEvent".
     std::string GetOutputEvent() const override { return "TRestDetectorSignalEvent"; }
+    /// \brief Returns the class name, "TRestDetectorSignalRecoveryProcess".
     std::string GetClassName() const override { return "TRestDetectorSignalRecoveryProcess"; }
 };
 

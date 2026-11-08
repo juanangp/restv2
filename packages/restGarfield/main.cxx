@@ -1,6 +1,10 @@
-/// restGarfield: computes with Garfield++ the tables of a TRestDetectorTransportManager configuration
+/// \file main.cxx
+/// \brief restGarfield: computes with Garfield++ the tables of a TRestDetectorTransportManager configuration
 ///
-///    restGarfield config.yaml
+///    restGarfield config.yaml [--set name=value ...]
+///
+/// `--set` sets a parameter of the section `parameters` of the configuration for this execution
+/// (repeatable; the file is not changed). Any other argument is an error.
 ///
 ///    transportManager:
 ///      class: "TRestDetectorTransportManager"
@@ -30,6 +34,9 @@
 #include "TRestYAMLUtils.h"
 #include "TransportSimulation.h"
 
+/// \brief Reads the TRestDetectorTransportManager section of the configuration (argv[1]) and computes its
+/// transport tables (RunTransportSimulation) and then its gain tables (RunGainSimulation).
+/// \return 0 on success, 1 on a usage error or an exception (the reason is printed).
 int main(int argc, char* argv[]) {
     if (argc < 2 || std::string(argv[1]).rfind("--", 0) == 0) {
         std::cerr << "Usage: restGarfield <config.yaml> [--set name=value ...]" << std::endl;

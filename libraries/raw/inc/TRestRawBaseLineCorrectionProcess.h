@@ -11,6 +11,7 @@
 /// pulse does not bias it (legacy TRestRawSignal::GetBaseLineCorrected). The corrected signals are
 /// centred at 0 and follow slow baseline drifts. All the signals are corrected: to correct only some
 /// channels (e.g. the veto), select them first with TRestRawSignalChannelSelectionProcess.
+/// The subtraction is truncated to short like the legacy process. No observables.
 ///
 /// Example:
 /// \code
@@ -20,15 +21,20 @@
 /// \endcode
 class TRestRawBaseLineCorrectionProcess : public TRestEventProcess {
    public:
-    /// Number of bins of the moving average used as baseline
+    /// Number of bins of the moving average used as baseline (YAML `smoothingWindow`, at least 1)
     int fSmoothingWindow = 75;
 
+    /// \brief Default constructor (no configuration).
     TRestRawBaseLineCorrectionProcess();
+    /// \brief Constructor from the YAML node of the process section.
     TRestRawBaseLineCorrectionProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from a YAML file and the name of the process section.
     TRestRawBaseLineCorrectionProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads `smoothingWindow`; throws if it is smaller than 1.
     virtual void LoadConfig() override;
     void InitProcess() override {}
+    /// \brief Copies the input event and subtracts from each signal its moving-average baseline.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

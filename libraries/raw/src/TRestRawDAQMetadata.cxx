@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <stdexcept>
 
 #include "TRestLogManager.h"
@@ -65,16 +66,44 @@ uint64_t TRestRawDAQMetadata::ParseSizeToBytes(const std::string& size) {
     for (const char c : size) {
         if (!std::isspace(static_cast<unsigned char>(c))) text += std::tolower(static_cast<unsigned char>(c));
     }
+    // Number: digits with an optional decimal part (e.g. "1.5GB"), parsed here (independent of the locale)
     size_t pos = 0;
-    while (pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos]))) pos++;
-    if (pos == 0) throw std::runtime_error("TRestRawDAQMetadata: no number in the size \"" + size + "\"");
+    size_t nDigits = 0;
+    bool point = false;
+    long double value = 0;
+    long double scale = 1;
+    while (pos < text.size()) {
+        const unsigned char c = text[pos];
+        if (std::isdigit(c)) {
+            nDigits++;
+            if (point) {
+                scale /= 10;
+                value += (c - '0') * scale;
+            } else {
+                value = value * 10 + (c - '0');
+            }
+        } else if (c == '.' && !point) {
+            point = true;
+        } else {
+            break;
+        }
+        pos++;
+    }
+    if (nDigits == 0) throw std::runtime_error("TRestRawDAQMetadata: no number in the size \"" + size + "\"");
 
-    const uint64_t value = std::stoull(text.substr(0, pos));
     const std::string unit = text.substr(pos);
-    if (unit.empty() || unit == "b") return value;
-    if (unit == "kb" || unit == "k") return value * 1024ull;
-    if (unit == "mb" || unit == "m") return value * 1024ull * 1024ull;
-    if (unit == "gb" || unit == "g") return value * 1024ull * 1024ull * 1024ull;
+    long double factor = 0;
+    if (unit.empty() || unit == "b") {
+        factor = 1;
+    } else if (unit == "kb" || unit == "k") {
+        factor = 1024.;
+    } else if (unit == "mb" || unit == "m") {
+        factor = 1024. * 1024.;
+    } else if (unit == "gb" || unit == "g") {
+        factor = 1024. * 1024. * 1024.;
+    }
+    // Rounded to bytes
+    if (factor > 0) return static_cast<uint64_t>(std::llround(value * factor));
     throw std::runtime_error("TRestRawDAQMetadata: unknown unit \"" + unit + "\" in the size \"" + size +
                              "\" (B, kB, MB or GB)");
 }

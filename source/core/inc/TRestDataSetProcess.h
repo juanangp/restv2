@@ -49,6 +49,15 @@ class TRestManager;
 /// The objects of a process (spectra, fits, PDFs) are in the folder RESTDataSetStore/<class>/<name> of the
 /// dataset (e.g. RESTDataSetStore/TRestDataSetCalibration/calib), its configuration with the results in
 /// RESTMetadataStore as any metadata.
+///
+/// \code{.yaml}
+/// calib:
+///   class: TRestDataSetCalibration   # a derived class, with its own keys
+///   referenceFileName: "Dataset_Calibration_*.root"
+///   referenceSelection: closest
+///   cuts: ["energy"]
+///   # referenceUsed and parametersFileName are results, written by REST
+/// \endcode
 class TRestDataSetProcess : public TRestMetadata {
    public:
     /// Folder of the objects of the dataset processes in a dataset file
@@ -75,13 +84,16 @@ class TRestDataSetProcess : public TRestMetadata {
     /// a hidden column (not written)
     std::string AsDouble(ROOT::RDF::RNode& frame, const std::string& column) const;
 
-    /// \brief Defines (or redefines, if it exists: a dataset processed again) a column
+    /// \brief Defines (or redefines, if it exists: a dataset processed again) a column with a C++ function
+    /// of the given columns
+    /// \return The new data frame node
     template <class F>
     static ROOT::RDF::RNode DefineColumn(ROOT::RDF::RNode frame, const std::string& name, F function,
                                          const std::vector<std::string>& columns) {
         if (frame.HasColumn(name)) return frame.Redefine(name, function, columns);
         return frame.Define(name, function, columns);
     }
+    /// \brief Defines (or redefines) a column from a string expression (JIT compiled by ROOT)
     static ROOT::RDF::RNode DefineColumn(ROOT::RDF::RNode frame, const std::string& name,
                                          const std::string& expression) {
         if (frame.HasColumn(name)) return frame.Redefine(name, expression);
@@ -108,10 +120,12 @@ class TRestDataSetProcess : public TRestMetadata {
     /// Result: dataset where the parameters were computed (see the class documentation)
     std::string fParametersFileName = "";
 
-    TRestDataSetProcess() = default;
+    TRestDataSetProcess() = default;  ///< Default constructor.
+    /// \brief Constructs from a YAML node; the derived class reads its fields (LoadConfig).
     TRestDataSetProcess(const std::string& instanceName, const YAML::Node& node)
         : TRestMetadata(instanceName, node) {}
 
+    /// \brief Nothing to initialize (see ObtainParameters).
     void Initialize() override {}
 
     /// \brief Obtains the parameters: those stored in the reference if it was processed by this process,

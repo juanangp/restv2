@@ -285,6 +285,26 @@ if(REST_DAQ)
   add_subdirectory(packages/restDAQ)
 endif()
 
+# Documentation (Doxygen, optional): target `doc`, HTML in <build>/doc/html
+find_package(Doxygen QUIET OPTIONAL_COMPONENTS dot)
+if(DOXYGEN_FOUND)
+  if(DOXYGEN_DOT_FOUND)
+    set(REST_DOXYGEN_HAVE_DOT YES)
+  else()
+    set(REST_DOXYGEN_HAVE_DOT NO)
+  endif()
+  configure_file(${CMAKE_SOURCE_DIR}/doc/Doxyfile.in
+                 ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
+  add_custom_target(
+    doc
+    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Doxygen documentation in ${CMAKE_BINARY_DIR}/doc/html"
+    VERBATIM)
+else()
+  message(STATUS "Doxygen not found: no target doc")
+endif()
+
 add_subdirectory(source/bin)
 
 # Create thisREST.sh

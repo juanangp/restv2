@@ -232,7 +232,10 @@ void TRestGeant4Event::InsertStep(const G4Step* step) {
     // A kill volume does not need to be active: the track is killed, its hits are not stored
     const bool kill = metadata->IsKillVolume(volumeName);
 
-    if (!metadata->IsActiveVolume(volumeName) && !isInitialStep) {
+    // An active volume whose hits are not stored in this event (its chance) is as a non active one
+    const bool stored = metadata->IsActiveVolume(volumeName) &&
+                        SimulationManager::GetOutputManager()->IsVolumeStoredInEvent(volumeName);
+    if (!stored && !isInitialStep) {
         if (kill) const_cast<G4Track*>(track)->SetTrackStatus(fStopAndKill);
         return;
     }
@@ -399,6 +402,41 @@ void OutputManager::RemoveUnwantedTracks() {
     cout << "Event " << fEvent->GetID() << " tracks to keep " << trackIDsToKeep.size() << "/"
          << fEvent->GetNumberOfTracks() << endl;
 
+    RemoveTracks(trackIDsToKeep);
+
+    // A track whose parent was removed hangs from the primary generator
+    for (std::size_t k = 0; k < eventData.trackIDs.size(); ++k) {
+        const int parentID = eventData.parentIDs[k];
+
+        if (parentID > 0 &&
+            fEvent->GetTrackIDToTrackIndex().find(parentID) == fEvent->GetTrackIDToTrackIndex().end()) {
+            eventData.parentIDs[k] = 0;
+        }
+    }
+}
+
+void OutputManager::RemoveEmptyTracks() {
+    const auto* metadata = fSimulationManager->GetRestMetadata();
+    const auto& geometryInfo = metadata->GetGeant4GeometryInfo();
+
+    std::set<int> trackIDsToKeep;
+    for (const auto& track : fEvent->GetTracks()) {
+        // The hits after the initial one are only stored in the volumes stored in this event
+        bool empty = track.GetNumberOfHits() <= 1;
+        if (empty && track.GetNumberOfHits() == 1) {
+            const auto volume = geometryInfo.GetVolumeFromID(track.GetHitVolumeID(0));
+            empty = !metadata->IsActiveVolume(volume) || !IsVolumeStoredInEvent(volume);
+        }
+        if (!empty) trackIDsToKeep.insert(track.GetTrackID());
+    }
+    if (trackIDsToKeep.size() == fEvent->GetNumberOfTracks()) return;
+
+    RemoveTracks(trackIDsToKeep);
+}
+
+void OutputManager::RemoveTracks(const std::set<int>& trackIDsToKeep) {
+    auto& eventData = fEvent->fEventData;
+
     std::size_t i = 0;
 
     while (i < eventData.trackIDs.size()) {
@@ -453,14 +491,5 @@ void OutputManager::RemoveUnwantedTracks() {
 
     for (std::size_t k = 0; k < eventData.trackIDs.size(); ++k) {
         fEvent->GetTrackIDToTrackIndex()[eventData.trackIDs[k]] = static_cast<int>(k);
-    }
-
-    for (std::size_t k = 0; k < eventData.trackIDs.size(); ++k) {
-        const int parentID = eventData.parentIDs[k];
-
-        if (parentID > 0 &&
-            fEvent->GetTrackIDToTrackIndex().find(parentID) == fEvent->GetTrackIDToTrackIndex().end()) {
-            eventData.parentIDs[k] = 0;
-        }
     }
 }

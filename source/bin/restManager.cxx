@@ -1,18 +1,39 @@
-/// restManager.cxx - CLI entry point for TRestManager (YAML-based config).
+/// \file restManager.cxx
+/// \brief restManager: command line entry point of TRestManager (YAML-based configuration).
 ///
-/// Usage: restManager --c|--config <config.yaml> [--i|--input <input.root>]
-///                     [--o|--output <output.root>] [--v|--verbose <level>]
-///                     [--e|--events <n>] [--r|--reference <process>=<dataset>]
-///                     [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]
+/// Usage:
 ///
-/// --set sets a parameter of the section `parameters` of the configuration for this execution (repeatable;
-/// the file is not changed), e.g. --set meshVoltage=300V
-/// --maxRepeated sets the similar messages (warning and info) from the same line of the code that, arriving
-/// within a time window of --repeatedInterval seconds, make the next ones be suppressed for ever (default 10,
-/// 0: no suppression; interval default 10 s, 0: a single window for the whole execution); with verbose debug
-/// none is suppressed
-/// --r sets the referenceFileName of a process of the TRestDataSetProcessManager (repeatable), e.g.
-/// --r calib=D_00120_00122_Calibration.root
+///    restManager --c|--config <config.yaml> [--i|--input <input.root>]
+///                [--o|--output <output.root>] [--v|--verbose <level>]
+///                [--e|--events <n>] [--j|--threads <n>] [--r|--reference <process>=<dataset>]
+///                [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]
+///
+/// Reads the TRestManager section of the configuration, applies the command line overrides, runs it
+/// (TRestManager::Run), saves its metadata and draws its plots (TRestManager::RunPlots).
+///
+/// Options (each one takes a value; an unknown option prints the usage and exits with 1):
+/// - `--c`, `--config`: YAML configuration file with a TRestManager section (required).
+/// - `--i`, `--input`: input file. It sets the inputFileName of the TRestRun; with a TRestDataSet
+///   (dataset generation) its filePattern; with a TRestDataSetProcessManager and no TRestDataSet its
+///   inputFileName; with no run nor dataset, the inputFileName of every TRestAnalysisPlot.
+/// - `--o`, `--output`: output file. It sets the outputFileName of the TRestRun, of the
+///   TRestDataSetProcessManager if any, otherwise of the TRestDataSet.
+/// - `--v`, `--verbose`: global verbose level (TRestLogManager::GetVerboseLevelFromString).
+/// - `--e`, `--events`: eventsToProcess of the TRestEventProcessManager.
+/// - `--j`, `--threads`: nThreads of the TRestEventProcessManager (ROOT thread safety is enabled with more
+///   than one thread).
+/// - `--set`: sets a parameter of the section `parameters` of the configuration for this execution
+///   (repeatable; the file is not changed), e.g. `--set meshVoltage=300V`. A parameter not used by the
+///   configuration (or the geometries it reads) is an error.
+/// - `--maxRepeated`: number of similar messages (warning and info) from the same line of the code that,
+///   arriving within a time window of `--repeatedInterval` seconds, make the next ones be suppressed for
+///   ever (default 10, 0: no suppression); with verbose debug none is suppressed.
+/// - `--repeatedInterval`: time window in seconds of `--maxRepeated` (default 10 s, 0: a single window for
+///   the whole execution).
+/// - `--r`, `--reference`: sets the referenceFileName of a process of the TRestDataSetProcessManager
+///   (repeatable), e.g. `--r calib=D_00120_00122_Calibration.root`.
+///
+/// SIGINT, SIGTERM, SIGHUP and SIGQUIT request a clean stop (TRestManager::RequestStop).
 
 #include <TROOT.h>
 
@@ -29,6 +50,9 @@
 #include "TRestSystemOfUnits.h"
 #include "TRestYAMLUtils.h"
 
+/// \brief Waits (in its own thread) for one of the signals of waitSet, blocked in the other threads, and
+/// requests the stop of the TRestManager (TRestManager::RequestStop) when it arrives.
+/// \param waitSet Signals to wait for.
 void SignalWaiterThread(sigset_t waitSet) {
     int signum = 0;
     sigwait(&waitSet, &signum);
@@ -36,6 +60,9 @@ void SignalWaiterThread(sigset_t waitSet) {
     TRestManager::RequestStop();
 }
 
+/// \brief Parses the command line options (see the file documentation), applies them to the TRestManager
+/// section of the configuration and runs it.
+/// \return 0 on success, 1 on a usage or configuration error or an exception.
 int main(int argc, char** argv) {
     REST_Units::SetGeoManagerDefaultUnits();
 
@@ -123,7 +150,7 @@ int main(int argc, char** argv) {
             std::cerr << "Usage: " << argv[0]
                       << " --c|--config <config.yaml> [--i|--input <input.root>]"
                          " [--o|--output <output.root>] [--v|--verbose <level>]"
-                         " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
+                         " [--e|--events <n>] [--j|--threads <n>] [--r|--reference <process>=<dataset>]"
                          " [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]\n";
             return 1;
         }
@@ -133,7 +160,7 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0]
                   << " --c|--config <config.yaml> [--i|--input <input.root>]"
                      " [--o|--output <output.root>] [--v|--verbose <level>]"
-                     " [--e|--events <n>] [--r|--reference <process>=<dataset>]"
+                     " [--e|--events <n>] [--j|--threads <n>] [--r|--reference <process>=<dataset>]"
                      " [--set <name>=<value>] [--maxRepeated <n>] [--repeatedInterval <s>]\n";
         return 1;
     }

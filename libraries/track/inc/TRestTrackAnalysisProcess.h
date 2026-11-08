@@ -105,12 +105,19 @@ class TRestTrackAnalysisProcess : public TRestEventProcess {
     /// Accepted range of the number of tracks per projection
     std::pair<int, int> fNTracksCut = {1, 10};
 
+    /// \brief Default constructor, with the default parameters.
     TRestTrackAnalysisProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestTrackAnalysisProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestTrackAnalysisProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section and normalizes the projection names.
     void LoadConfig() override;
+    /// \brief Registers the observables (those of each projection and pair of projections included).
     void InitProcess() override;
+    /// \brief Computes the observables of the tracks; the event is not modified.
+    /// \return False if cutsEnabled and the number of tracks is out of nTracksCut.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

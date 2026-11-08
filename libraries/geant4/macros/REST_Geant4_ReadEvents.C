@@ -7,11 +7,20 @@
 #include "TRestGeant4Event.h"
 #include "TRestRun.h"
 
-/// Prints (PrintG4Event) the events of a restG4 file between the entries `first` and `last` (included; -1:
-/// the last entry) with energy in the sensitive volumes in [energyMin, energyMax] keV (any energy if
+/// \brief Prints (PrintG4Event) the events of a restG4 file between the entries `first` and `last` (included;
+/// -1: the last entry) with energy in the sensitive volumes in [energyMin, energyMax] keV (any energy if
 /// energyMax < energyMin), and the number of them: legacy REST_Geant4_ReadNEvents (without range),
 /// REST_Geant4_ReadNEvents_inROI and, with all the entries, the events in a region of interest of
 /// REST_Geant4_GetROIEvents. maxTracks and maxHits limit what is printed of each event (-1: all).
+///
+/// \param fileName restG4 file with TRestGeant4Event.
+/// \param first First entry.
+/// \param last Last entry, included (-1: the last entry of the file; 0 by default, only the first entry).
+/// \param energyMin Minimum energy in the sensitive volumes (keV).
+/// \param energyMax Maximum energy in the sensitive volumes (keV); any energy if energyMax < energyMin.
+/// \param maxTracks Maximum number of tracks printed per event (-1: all).
+/// \param maxHits Maximum number of hits printed per track (-1: all).
+/// \return 0 on success, 1 if the file has no TRestGeant4Event.
 ///
 ///    restRoot
 ///    REST_Geant4_ReadEvents("Run1_NLDBD_Test.root", 0, 10)

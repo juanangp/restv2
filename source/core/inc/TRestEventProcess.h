@@ -14,6 +14,25 @@ class TRestRun;
 /// A process consumes an input event and writes into an output event object.
 /// Returning `false` from `ProcessEvent` indicates that the event is rejected. The event is also rejected
 /// after the process if it does not pass the TRestCut of `cuts` (names of TRestCut in the manager).
+///
+/// Common configuration keys of every process (besides those of the derived class):
+///
+/// \code{.yaml}
+/// pipeline:
+///   class: TRestEventProcessManager
+///   myProcess:
+///     class: TRestSomeProcess
+///     verbose: info
+///     observables: ["all"]         # names offered by the process, "all" or "none" (default)
+///     cuts: ["fiducial"]           # TRestCut of the manager applied after the process
+/// \endcode
+///
+/// The observables are written in the analysis tree as `<processName>_<observable>`. A name in
+/// `observables` that the process does not offer throws at initialization.
+///
+/// A derived process implements GetInputEvent / GetOutputEvent (event class names; "None" as input for a
+/// generator creating the events, empty for processes of any event type taking the event of the
+/// previous one), InitProcess (registering its observables with RegisterObservable) and ProcessEvent.
 class TRestEventProcess : public TRestMetadata {
    private:
     /// The TRestCut of fCutNames, resolved in InitCuts
@@ -27,16 +46,23 @@ class TRestEventProcess : public TRestMetadata {
     void CheckObservables() const;
 
    public:
+    /// Observables to register in the analysis tree (`observables`): names, "all" or "none".
     std::vector<std::string> fObservables = {"none"};
     /// Names of the TRestCut (in the manager) applied to the event after the process
     std::vector<std::string> fCutNames = {};
 
+    /// \brief Default constructor.
     TRestEventProcess();
+    /// \brief Constructs from a YAML node and reads the common fields (LoadConfig).
     TRestEventProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructs from a section of a YAML file and reads the common fields (LoadConfig).
     TRestEventProcess(const std::string& fileName, const std::string& sectionName);
-    ~TRestEventProcess() override = default;
+    ~TRestEventProcess() override = default;  ///< Destructor.
 
+    /// \brief Class name of the input event; "None" for a generator, empty to take the output event of
+    /// the previous process (processes of any event type).
     virtual std::string GetInputEvent() const = 0;
+    /// \brief Class name of the output event (the same as the input for processes of any event type).
     virtual std::string GetOutputEvent() const = 0;
 
     /// Pointer to the owning manager, giving access to sibling metadata
@@ -44,7 +70,8 @@ class TRestEventProcess : public TRestMetadata {
     /// May be nullptr if the process runs outside a TRestManager context.
     TRestManager* fManager = nullptr;
 
-    /// \brief Initializes process resources before event loop.
+    /// \brief Initializes process resources before event loop; registers the observables
+    /// (RegisterObservable). fRunInfo and fManager are set when it is called.
     virtual void InitProcess() = 0;
 
     /// \brief Processes one event.
@@ -57,7 +84,7 @@ class TRestEventProcess : public TRestMetadata {
     virtual void EndProcess() {}
 
     /// \brief Returns expected input event count when known.
-    /// \return Number of input events or `-1` if unknown.
+    /// \return Number of input events (entries of the run by default) or `-1` if unknown.
     virtual long long GetInputEventCount() const;
 
     /// \brief For a process that reads its events from an external file (e.g. a DAQ binary file) whose
@@ -69,7 +96,8 @@ class TRestEventProcess : public TRestMetadata {
     /// of events is unknown; -1 if the process does not read an external file.
     virtual double GetInputFraction() const { return -1; }
 
-    /// \brief No-op configuration loader for process instances.
+    /// \brief Reads the common fields (`observables`, `cuts`) from the node; derived classes call it
+    /// and then read their own fields.
     virtual void LoadConfig() override;
 
     /// \brief Initializes this process by delegating to `InitProcess`, then checks the names of
@@ -94,8 +122,11 @@ class TRestEventProcess : public TRestMetadata {
     /// \brief Registers a variable as analysis observable if enabled in the configuration.
     /// The `observables` list of the configuration uses `name`; the branch of the analysis tree is
     /// `processName_name` (as legacy), so the observables of different processes never collide.
+    /// Every call offers the observable (CheckObservables); a name offered twice throws.
     /// The `Run` parameter defers the TRestRun lookup to the point of instantiation,
     /// where TRestRun.h must be included.
+    /// \param name Observable name (without the process prefix).
+    /// \param variable Variable bound to the branch; must live while the output is written.
     template <typename T, typename Run = TRestRun>
     void RegisterObservable(const std::string& name, T& variable) {
         if (!ShouldRegisterObservable(name)) return;

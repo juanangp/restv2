@@ -1,7 +1,8 @@
-/// restCRY: generates cosmic-ray showers with CRY from the TRestGeant4CRYShowers section of a configuration
-/// and writes them to its outputFileName (overwritten), read by the cry generator of restG4
+/// \file restCRY.cxx
+/// \brief restCRY: generates cosmic-ray showers with CRY from the TRestGeant4CRYShowers section of a
+/// configuration and writes them to its outputFileName (overwritten), read by the cry generator of restG4
 ///
-///    restCRY config.yaml
+///    restCRY config.yaml [--set name=value ...]   (the options and the file in any order)
 ///
 ///    cryShowers:
 ///      class: "TRestGeant4CRYShowers"
@@ -69,25 +70,37 @@ std::string ParticleName(CRYParticle& particle) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    if (argc < 2 || std::string(argv[1]).rfind("--", 0) == 0) {
-        std::cerr << "Usage: restCRY <config.yaml> [--set name=value ...]" << std::endl;
-        return 1;
-    }
-
+    constexpr const char* usage = "usage: restCRY <config.yaml> [--set name=value ...]";
     try {
-        // --set: the parameters of the configuration for this execution (the file is not changed)
+        // The configuration file and --set (the parameters of the configuration for this execution, the
+        // file is not changed), in any order
+        std::string configFile;
         std::map<std::string, std::string> parameters;
-        for (int i = 2; i < argc; i++) {
-            if (std::string(argv[i]) != "--set" || i + 1 >= argc) {
-                throw std::runtime_error("unknown argument '" + std::string(argv[i]) +
-                                         "', usage: restCRY <config.yaml> [--set name=value ...]");
+        for (int i = 1; i < argc; i++) {
+            const std::string argument = argv[i];
+            if (argument == "--set") {
+                if (i + 1 >= argc)
+                    throw std::runtime_error("--set requires one argument (name=value), " +
+                                             std::string(usage));
+                TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
+            } else if (argument.rfind("-", 0) == 0) {
+                throw std::runtime_error("unknown option '" + argument + "', " + usage);
+            } else if (!configFile.empty()) {
+                throw std::runtime_error("configuration file given twice ('" + configFile + "' and '" +
+                                         argument + "'), " + usage);
+            } else {
+                configFile = argument;
             }
-            TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
         }
-        const YAML::Node config = TRestYAMLUtils::OpenConfigFile(argv[1], parameters);
+        if (configFile.empty()) {
+            std::cerr << "Usage: restCRY <config.yaml> [--set name=value ...]" << std::endl;
+            return 1;
+        }
+
+        const YAML::Node config = TRestYAMLUtils::OpenConfigFile(configFile, parameters);
         const auto section = TRestYAMLUtils::GetMetadataClass(config, "TRestGeant4CRYShowers");
         if (!section.second) {
-            throw std::runtime_error("no section of class TRestGeant4CRYShowers in " + std::string(argv[1]));
+            throw std::runtime_error("no section of class TRestGeant4CRYShowers in " + configFile);
         }
         TRestGeant4CRYShowers showers(section.first, section.second);
         TRestYAMLUtils::CheckParametersUsed();

@@ -20,12 +20,20 @@ class TRestGeant4ToDetectorHitsProcess : public TRestEventProcess {
     /// transferred. The hits of the sensitive volumes are transferred if it is empty.
     std::vector<std::string> fVolumes = {};
 
+    /// \brief Default constructor, with the default parameters.
     TRestGeant4ToDetectorHitsProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestGeant4ToDetectorHitsProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestGeant4ToDetectorHitsProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section.
     void LoadConfig() override;
+    /// \brief Finds the IDs of the selected volumes in the TRestGeant4Metadata of the run (throws if there is
+    /// none or no volume matches).
     void InitProcess() override;
+    /// \brief Transfers the hits with positive energy of the selected volumes as XYZ hits.
+    /// \return False if no hit is transferred.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

@@ -30,13 +30,22 @@ class TRestTrackPathMinimizationProcess : public TRestEventProcess {
     /// longer than branchFactor times the median step of the track
     double fBranchFactor = 3;
 
+    /// \brief Default constructor, with the default parameters.
     TRestTrackPathMinimizationProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestTrackPathMinimizationProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestTrackPathMinimizationProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section.
     void LoadConfig() override;
+    /// \brief Checks the parameters (maxExactNodes clipped to [0, 16], branchFactor > 1 or throws) and
+    /// registers the observable Branches.
     void InitProcess() override;
+    /// \brief Writes to the output event one ordered track per input track and computes Branches.
+    /// \return Always true.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Warns of the number of tracks that could not be ordered.
     void EndProcess() override;
 
     std::string GetInputEvent() const override { return "TRestTrackEvent"; }

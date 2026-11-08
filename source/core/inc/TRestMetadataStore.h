@@ -25,17 +25,22 @@ class TRestMetadataStore {
     std::vector<std::unique_ptr<TRestMetadata>> fMetadata;
 
    public:
-    TRestMetadataStore();
-    ~TRestMetadataStore();
-    TRestMetadataStore(TRestMetadataStore&&) noexcept;
-    TRestMetadataStore& operator=(TRestMetadataStore&&) noexcept;
+    TRestMetadataStore();                                          ///< Empty store.
+    ~TRestMetadataStore();                                         ///< Destroys the owned metadata.
+    TRestMetadataStore(TRestMetadataStore&&) noexcept;             ///< Move constructor.
+    TRestMetadataStore& operator=(TRestMetadataStore&&) noexcept;  ///< Move assignment.
 
     /// \brief Creates the metadata of a file (replacing the previous ones), except those of `skipClasses`
+    /// \param file Input file (nothing is loaded if null or zombie).
     /// \param run Run set to each metadata (SetRunInfo) before LoadFromFile, nullptr for none (dataset)
+    /// \param skipClasses Class names that are not created (e.g. TRestRun, rebuilt by itself).
     void Load(TFile* file, TRestRun* run = nullptr, const std::set<std::string>& skipClasses = {});
+    /// \brief Removes all the metadata.
     void Clear();
 
+    /// \brief All the metadata, in the order of the file.
     const std::vector<std::unique_ptr<TRestMetadata>>& GetAll() const { return fMetadata; }
+    /// \brief True if no metadata is loaded.
     bool IsEmpty() const { return fMetadata.empty(); }
     /// \brief The metadata of an instance name, nullptr if none
     TRestMetadata* Get(const std::string& instanceName) const;

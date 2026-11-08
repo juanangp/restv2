@@ -21,19 +21,27 @@ TRestGeant4EventViewer::~TRestGeant4EventViewer() {
 }
 
 void TRestGeant4EventViewer::Initialize() {
-    fG4Event = new TRestGeant4Event();
-    fEvent = fG4Event;
-
+    // The event is not owned: it is the one given to AddEvent
+    fG4Event = nullptr;
     fHitConnectors.clear();
-    fHitConnectors.push_back(nullptr);
 }
 
 void TRestGeant4EventViewer::DeleteCurrentEvent() {
     TRestEveEventViewer::DeleteCurrentEvent();
+    fG4Event = nullptr;
     fG4Metadata = nullptr;
 
     fHitConnectors.clear();
-    fHitConnectors.push_back(nullptr);
+}
+
+TEveLine* TRestGeant4EventViewer::GetHitConnector(int trkID) const {
+    const auto it = fHitConnectors.find(trkID);
+    if (it == fHitConnectors.end()) {
+        RESTWarning << "TRestGeant4EventViewer: no line for the track ID " << trkID
+                    << " (AddTrack or AddParentTrack)" << RESTendl;
+        return nullptr;
+    }
+    return it->second;
 }
 
 struct TrackVisualConfiguration {
@@ -124,25 +132,25 @@ struct HitsVisualConfiguration {
     Size_t fMarkerSize = 1.0;
 };
 
-HitsVisualConfiguration GetHitsVisualConfiguration(const std::string& processNameOrType) {
+HitsVisualConfiguration GetHitsVisualConfiguration(const std::string& processName,
+                                                   const std::string& processType) {
     auto config = HitsVisualConfiguration();
 
-    if (processNameOrType == "Electromagnetic") {
+    // By process type (Geant4 type name), then by process name
+    if (processType == "Electromagnetic") {
         config.fColor = kRed;
-    } else if (processNameOrType == "Init") {
-        config.fColor = kWhite;
     }
 
-    if (processNameOrType == "Transportation") {
+    if (processName == "Transportation") {
         config.fColor = kWhite;
-    } else if (processNameOrType == "Init") {
+    } else if (processName == "Init") {
         config.fColor = kWhite;
-    } else if (processNameOrType == "hadElastic") {
+    } else if (processName == "hadElastic") {
         config.fColor = kOrange;
-    } else if (processNameOrType == "neutronInelastic") {
+    } else if (processName == "neutronInelastic") {
         config.fColor = kGreen;
         config.fMarkerStyle = 4;
-    } else if (processNameOrType == "nCapture") {
+    } else if (processName == "nCapture") {
         config.fColor = kBlue;
         config.fMarkerStyle = 2;
         config.fMarkerSize = 4.0;
@@ -160,6 +168,7 @@ void TRestGeant4EventViewer::AddEvent(TRestEvent* event) {
     }
 
     fG4Event = static_cast<TRestGeant4Event*>(event);
+    fEvent = fG4Event;
     fG4Metadata = fG4Event->GetGeant4Metadata();
 
     if (fG4Metadata == nullptr) {
@@ -223,7 +232,7 @@ void TRestGeant4EventViewer::AddEvent(TRestEvent* event) {
 
                 auto hitPoints = hitsPoints.at(processName);
 
-                auto hitsVisualConfig = GetHitsVisualConfiguration(processName);
+                auto hitsVisualConfig = GetHitsVisualConfiguration(processName, processType);
 
                 hitPoints->SetMarkerColor(hitsVisualConfig.fColor);
                 hitPoints->SetMarkerStyle(hitsVisualConfig.fMarkerStyle);
@@ -271,6 +280,9 @@ void TRestGeant4EventViewer::AddText(const std::string& text, XYZVector at) {
 }
 
 void TRestGeant4EventViewer::AddMarker(int trkID, XYZVector at, const std::string& name) {
+    auto* line = GetHitConnector(trkID);
+    if (line == nullptr) return;
+
     TEvePointSet* marker = new TEvePointSet(1);
 
     marker->SetName(name.c_str());
@@ -281,55 +293,64 @@ void TRestGeant4EventViewer::AddMarker(int trkID, XYZVector at, const std::strin
 
     marker->SetMarkerSize(0.4);
 
-    fHitConnectors[trkID]->AddElement(marker);
+    line->AddElement(marker);
 }
 
 void TRestGeant4EventViewer::NextTrackVertex(int trkID, XYZVector to) {
-    fHitConnectors[trkID]->SetNextPoint(to.X() * fGeomScale, to.Y() * fGeomScale, to.Z() * fGeomScale);
+    auto* line = GetHitConnector(trkID);
+    if (line == nullptr) return;
+    line->SetNextPoint(to.X() * fGeomScale, to.Y() * fGeomScale, to.Z() * fGeomScale);
 }
 
 void TRestGeant4EventViewer::AddTrack(int trkID, int parentID, XYZVector from, const std::string& name) {
     TEveLine* evLine = new TEveLine();
 
     evLine->SetName(name.c_str());
-    fHitConnectors.push_back(evLine);
+    if (fHitConnectors.count(trkID) > 0) {
+        RESTWarning << "TRestGeant4EventViewer::AddTrack: track ID " << trkID << " added twice" << RESTendl;
+    }
+    fHitConnectors[trkID] = evLine;
 
-    fHitConnectors[trkID]->SetMainColor(kWhite);
-    fHitConnectors[trkID]->SetLineWidth(4);
+    evLine->SetMainColor(kWhite);
+    evLine->SetLineWidth(4);
 
-    if (name.find("gamma") != std::string::npos) fHitConnectors[trkID]->SetMainColor(kGreen);
+    if (name.find("gamma") != std::string::npos) evLine->SetMainColor(kGreen);
 
-    if (name.find("e-") != std::string::npos) fHitConnectors[trkID]->SetMainColor(kRed);
+    if (name.find("e-") != std::string::npos) evLine->SetMainColor(kRed);
 
-    if (name.find("mu-") != std::string::npos) fHitConnectors[trkID]->SetMainColor(kGray);
+    if (name.find("mu-") != std::string::npos) evLine->SetMainColor(kGray);
 
-    if (name.find("alpha") != std::string::npos) fHitConnectors[trkID]->SetMainColor(kYellow);
+    if (name.find("alpha") != std::string::npos) evLine->SetMainColor(kYellow);
 
-    if (name.find("neutron") != std::string::npos) fHitConnectors[trkID]->SetMainColor(kBlue);
+    if (name.find("neutron") != std::string::npos) evLine->SetMainColor(kBlue);
 
-    fHitConnectors[trkID]->SetNextPoint(from.X() * fGeomScale, from.Y() * fGeomScale, from.Z() * fGeomScale);
+    evLine->SetNextPoint(from.X() * fGeomScale, from.Y() * fGeomScale, from.Z() * fGeomScale);
 
-    if ((int)fHitConnectors.size() > parentID)
-        fHitConnectors[parentID]->AddElement(fHitConnectors[trkID]);
-    else {
+    // A primary (parent ID 0) or a track whose parent has no line is drawn at the top level
+    const auto parent = fHitConnectors.find(parentID);
+    if (parentID != 0 && parent != fHitConnectors.end() && parent->second != nullptr) {
+        parent->second->AddElement(evLine);
+        return;
+    }
+    if (parentID != 0) {
         RESTWarning << "Parent ID: " << parentID << " of track " << trkID << " was not found!" << RESTendl;
 
-        RESTWarning << "This might be solved by enabling "
-                       "TRestGeant4Metadata::fRegisterEmptyTracks"
+        RESTWarning << "This might be solved by enabling registerEmptyTracks in the TRestGeant4Metadata"
                     << RESTendl;
     }
+    gEve->AddElement(evLine);
 }
 
 void TRestGeant4EventViewer::AddParentTrack(int trkID, XYZVector from, const std::string& name) {
     TEveLine* evLine = new TEveLine();
 
     evLine->SetName(name.c_str());
-    fHitConnectors.push_back(evLine);
+    fHitConnectors[trkID] = evLine;
 
-    fHitConnectors[trkID]->SetMainColor(kWhite);
-    fHitConnectors[trkID]->SetLineWidth(4);
+    evLine->SetMainColor(kWhite);
+    evLine->SetLineWidth(4);
 
-    fHitConnectors[trkID]->SetNextPoint(from.X() * fGeomScale, from.Y() * fGeomScale, from.Z() * fGeomScale);
+    evLine->SetNextPoint(from.X() * fGeomScale, from.Y() * fGeomScale, from.Z() * fGeomScale);
 
-    gEve->AddElement(fHitConnectors[trkID]);
+    gEve->AddElement(evLine);
 }

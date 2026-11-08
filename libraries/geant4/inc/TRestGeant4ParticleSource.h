@@ -20,11 +20,23 @@
 /// its `energy` and `angular` distributions, or a Decay0 file (`use`) which gives the particles. When
 /// energy and angular have the type formula2, TH2D or cosmic, they are sampled together here. See
 /// TRestGeant4PrimaryGenerator for the options.
+///
+///     source:
+///       particle: "Pb210"         # Geant4 particle or ion name
+///       excitedLevel: 0 keV
+///       charge: 0
+///       energy:                   # TRestGeant4EnergyDistribution
+///         type: "mono"
+///         energy: 1 keV
+///       angular:                  # TRestGeant4AngularDistribution
+///         type: "isotropic"
+///
+/// or a Decay0 file, `source: {use: "Xe136bb0n.dat"}`, without particle, energy and angular.
 class TRestGeant4ParticleSource : public TRestMetadata {
    public:
-    std::string fParticleName;
-    TRestWithUnits fExcitedLevel = 0.0;
-    int fCharge = 0;
+    std::string fParticleName;           ///< `particle`: Geant4 particle or ion name
+    TRestWithUnits fExcitedLevel = 0.0;  ///< `excitedLevel`: excitation energy of an ion (keV)
+    int fCharge = 0;                     ///< `charge`: charge of an ion (e)
     /// Decay0 file, instead of the particle, energy and angular
     std::string fUse;
     /// `energy` and `angular` sections, of the distribution class of their `type`
@@ -33,11 +45,17 @@ class TRestGeant4ParticleSource : public TRestMetadata {
 
     /// Only movable: a copy (with its own distributions) is made with Clone
     TRestGeant4ParticleSource() = default;
+    /// \brief Source configured from a `source` entry.
     TRestGeant4ParticleSource(const std::string& name, const YAML::Node& node);
     TRestGeant4ParticleSource(TRestGeant4ParticleSource&&) = default;
     TRestGeant4ParticleSource& operator=(TRestGeant4ParticleSource&&) = default;
+    /// \brief Reads the fields and the `energy` and `angular` sections and checks them: a Decay0 source has
+    /// only `use`; otherwise `particle`, `energy` and `angular` are needed, and a joint type must be in
+    /// both sections. Throws std::runtime_error if not valid.
     void LoadConfig() override;
+    /// \brief No-op.
     void Initialize() override {}
+    /// \brief Returns "TRestGeant4ParticleSource".
     std::string GetClassName() const override { return "TRestGeant4ParticleSource"; }
 
     /// \brief A copy with its own distributions not loaded yet (LoadDistributions), e.g. for a thread: built
@@ -49,11 +67,18 @@ class TRestGeant4ParticleSource : public TRestMetadata {
 
     /// \brief The particles of an event, starting at `origin`. The angle reference is `direction` or, if
     /// `inward`, toward `center`
+    /// \param random Random generator of the thread.
+    /// \param origin Position of the particles (mm).
+    /// \param center Center of the spatial generator (mm), used if `inward`.
+    /// \param inward True if the reference direction points to `center`.
+    /// \return One particle, or those of a random event of the Decay0 file.
     std::vector<TRestGeant4ParticleState> Generate(TRandom& random, const ROOT::Math::XYZVector& origin,
                                                    const ROOT::Math::XYZVector& center, bool inward);
 
-    inline bool IsDecay0() const { return !fUse.empty(); }
+    inline bool IsDecay0() const { return !fUse.empty(); }  ///< True for a Decay0 source (`use`)
+    /// \brief The energy distribution (nullptr for a Decay0 source)
     inline const TRestGeant4EnergyDistribution* GetEnergyDistribution() const { return fEnergy.get(); }
+    /// \brief The angular distribution (nullptr for a Decay0 source)
     inline const TRestGeant4AngularDistribution* GetAngularDistribution() const { return fAngular.get(); }
 
    private:

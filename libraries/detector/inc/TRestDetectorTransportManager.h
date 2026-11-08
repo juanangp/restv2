@@ -63,19 +63,27 @@ class TRestDetectorTransportTable : public TRestMetadata {
                        bool logValues) const;
 
    public:
+    /// Directory of the tables in the medium file
     inline static const std::string kTablesDir = "tables";
 
     // Configuration of the tables (fPressure, below, is the pressure of the tables)
+    /// `temperatures` (K) of the tables; empty: that of the medium
     std::vector<double> fTemperatures;
+    /// `fieldRange`: range of the electric field (V/mm)
     std::pair<TRestWithUnits, TRestWithUnits> fFieldRange = {1, 100};  // 10-1000 V/cm
+    /// `fieldNodes`: number of points of the field grid
     int fFieldNodes = 20;
+    /// `logField`: logarithmic (true) or linear field grid
     bool fLogField = true;
+    /// `nCollisions`: number of collisions of Magboltz (Garfield++ GenerateGasTable), gases only
     int fCollisions = 10;
+    /// `maxElectronEnergy`: Magboltz maximum electron energy, gases only
     TRestWithUnits fMaxElectronEnergy = 0.4;  // 400 eV
     /// Penning transfer in the Townsend coefficient (gases)
     bool fUsePenning = false;
     /// Penning transfer probability, (0, 1]
     double fPenningRate = 0;
+    /// `overwrite`: compute again the tables that already exist in the medium file
     bool fOverwrite = false;
 
     /// Transport parameters of a charge carrier versus fFields
@@ -86,11 +94,15 @@ class TRestDetectorTransportTable : public TRestMetadata {
         std::vector<double> fTownsend;               // impact ionisation, 1/cm
         std::vector<double> fAttachment;             // attachment or trapping, 1/cm
     };
+    /// Carriers a table can have
     inline static const std::set<std::string> kCarriers = {"electron", "hole", "ion"};
 
     // Table of one condition (filled by restGarfield or Read)
+    /// Name of the medium of the table
     std::string fMedium = "";
+    /// `pressure` of the tables (configuration) and of one table
     TRestWithUnits fPressure = 1;  // bar
+    /// Temperature of one table
     double fTemperature = 293.15;  // K
     /// Gas: the table can be scaled to other pressures
     bool fPressureScaling = true;
@@ -101,11 +113,17 @@ class TRestDetectorTransportTable : public TRestMetadata {
     /// Carriers of the table (electron, hole, ion)
     std::map<std::string, Carrier> fCarriers;
 
+    /// \brief Builds an empty table.
     TRestDetectorTransportTable();
+    /// \brief Builds a table configuration from a `transport` node (LoadConfig).
     TRestDetectorTransportTable(const std::string& instanceName, const YAML::Node& node);
 
+    /// \brief Returns the class name, "TRestDetectorTransportTable".
     std::string GetClassName() const override { return "TRestDetectorTransportTable"; }
+    /// \brief Reads the configuration; throws if a value is out of range (e.g. fieldRange not 0 < min <
+    /// max).
     void LoadConfig() override;
+    /// \brief Nothing to initialise.
     void Initialize() override {}
 
     /// \brief Temperatures (K) of the configuration, those of the medium if empty
@@ -118,22 +136,31 @@ class TRestDetectorTransportTable : public TRestMetadata {
 
     /// \brief Key of the table, e.g. 1bar_293.15K_E10-1000Vcm, with the suffix _Penning<rate> if penning > 0
     std::string GetKey() const;
+    /// \brief Key of a table from its condition: pressure (bar), temperature (K), field range (V/mm) and
+    /// Penning rate (0: none).
     static std::string GetKey(double pressure, double temperature, double minField, double maxField,
                               double penning = 0);
 
     /// \brief Range of electric field (V/mm) of the table at a pressure (bar)
     std::pair<double, double> GetFieldRange(double pressure) const;
 
+    /// \brief Whether the table has the carrier (electron, hole or ion).
     inline bool HasCarrier(const std::string& carrier) const { return fCarriers.count(carrier) > 0; }
     /// \brief Parameters of a carrier. Throws if the table does not have it
     const Carrier& GetCarrier(const std::string& carrier) const;
 
+    /// \brief Drift velocity (mm/us) of a carrier at a field (V/mm) and pressure (bar), interpolated and
+    /// scaled as in the class description. Throws if the table does not have the carrier.
     double GetDriftVelocity(double field, double pressure, const std::string& carrier = "electron") const;
+    /// \brief Longitudinal diffusion coefficient (sqrt(cm)) at a field (V/mm) and pressure (bar).
     double GetLongitudinalDiffusion(double field, double pressure,
                                     const std::string& carrier = "electron") const;
+    /// \brief Transversal diffusion coefficient (sqrt(cm)) at a field (V/mm) and pressure (bar).
     double GetTransversalDiffusion(double field, double pressure,
                                    const std::string& carrier = "electron") const;
+    /// \brief Townsend (impact ionisation) coefficient (1/cm) at a field (V/mm) and pressure (bar).
     double GetTownsend(double field, double pressure, const std::string& carrier = "electron") const;
+    /// \brief Attachment (or trapping) coefficient (1/cm) at a field (V/mm) and pressure (bar).
     double GetAttachment(double field, double pressure, const std::string& carrier = "electron") const;
 
     /// \brief Entries of the transport tables of a medium (`tables` of its metadata), empty if none
@@ -183,26 +210,35 @@ class TRestDetectorTransportTable : public TRestMetadata {
 /// of the range of the table is an error.
 class TRestDetectorGainTable : public TRestMetadata {
    public:
+    /// Directory of the tables in the medium file
     inline static const std::string kTablesDir = "amplification";
 
     // Configuration of the tables
+    /// `gap`: amplification gap (mm)
     TRestWithUnits fGap = 0;
+    /// `pressures` of the tables (bar); empty: that of the medium
     std::vector<TRestWithUnits> fPressures;
+    /// `temperatures` of the tables (K); empty: that of the medium
     std::vector<double> fTemperatures;
     /// Reduced field E/p (V/mm/bar): range and number of equally spaced nodes
     std::pair<TRestWithUnits, TRestWithUnits> fReducedFieldRange = {0, 0};
+    /// `fieldNodes`: number of nodes of the reduced field grid
     int fFieldNodes = 5;
     /// Avalanches (one primary electron each) per field node
     int fAvalanches = 1000;
+    /// `usePenning`: Penning transfer (gases), as TRestDetectorTransportTable
     bool fUsePenning = false;
+    /// `penningRate`: Penning transfer probability, (0, 1]
     double fPenningRate = 0;
+    /// `overwrite`: compute again the tables that already exist in the medium file
     bool fOverwrite = false;
 
     // Table of one condition (filled by restGarfield or Read)
+    /// Name of the medium of the table
     std::string fMedium = "";
-    double fPressure = 1;          // bar
-    double fTemperature = 293.15;  // K
-    double fTableGap = 0;          // mm
+    double fPressure = 1;          ///< Pressure of one table (bar)
+    double fTemperature = 293.15;  ///< Temperature of one table (K)
+    double fTableGap = 0;          ///< Gap of one table (mm)
     /// Penning transfer probability, 0 without Penning
     double fPenning = 0;
     /// Amplification field in V/mm, increasing
@@ -212,11 +248,17 @@ class TRestDetectorGainTable : public TRestMetadata {
     /// Polya parameter at each field
     std::vector<double> fTheta;
 
+    /// \brief Builds an empty table.
     TRestDetectorGainTable();
+    /// \brief Builds a table configuration from a `gain` node (LoadConfig).
     TRestDetectorGainTable(const std::string& instanceName, const YAML::Node& node);
 
+    /// \brief Returns the class name, "TRestDetectorGainTable".
     std::string GetClassName() const override { return "TRestDetectorGainTable"; }
+    /// \brief Reads the configuration; throws if a value is out of range (gap <= 0, reducedFieldRange not
+    /// 0 < min < max, avalanches < 2...).
     void LoadConfig() override;
+    /// \brief Nothing to initialise.
     void Initialize() override {}
 
     /// \brief Pressures (bar) of the configuration, those of the medium if empty
@@ -231,6 +273,7 @@ class TRestDetectorGainTable : public TRestMetadata {
     /// with the suffix _Penning<rate> if penning > 0
     static std::string GetKey(double pressure, double temperature, double gap, double minField,
                               double maxField, double penning = 0);
+    /// \brief Key of this table (its condition, gap, field range and Penning rate).
     std::string GetKey() const;
 
     /// \brief Range of amplification field (V/mm) of the table
@@ -244,6 +287,7 @@ class TRestDetectorGainTable : public TRestMetadata {
 
     /// \brief Entries of the gain tables of a medium (`amplifications` of its metadata), empty if none
     static YAML::Node GetTables(TFile* file, const std::string& medium);
+    /// \brief Whether a medium file has a gain table
     static bool HasTable(TFile* file, const std::string& medium, const std::string& key);
     /// \brief Reads a table of a medium file. Throws if it does not exist
     static TRestDetectorGainTable Read(TFile* file, const std::string& medium, const std::string& key);
@@ -277,21 +321,31 @@ class TRestDetectorTransportManager : public TRestMetadata {
    public:
     /// Configuration of the medium and of the tables (`medium`, `transport` and `gain` keys)
     YAML::Node fMediumNode;
+    /// `transport`: a transport table configuration or a list of them
     YAML::Node fTransportNode;
+    /// `gain`: a gain table configuration or a list of them
     YAML::Node fGainNode;
 
-    std::unique_ptr<TRestDetectorMedium> fMedium;                          //!
+    /// Medium created from fMediumNode
+    std::unique_ptr<TRestDetectorMedium> fMedium;  //!
+    /// Transport table configurations created from fTransportNode
     std::vector<std::unique_ptr<TRestDetectorTransportTable>> fTransport;  //!
-    std::vector<std::unique_ptr<TRestDetectorGainTable>> fGain;            //!
+    /// Gain table configurations created from fGainNode
+    std::vector<std::unique_ptr<TRestDetectorGainTable>> fGain;  //!
 
+    /// \brief Builds the manager from an in-memory YAML section (LoadConfig).
     TRestDetectorTransportManager(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Builds the manager from the section sectionName of a YAML file (LoadConfig).
     TRestDetectorTransportManager(const std::string& fileName, const std::string& sectionName);
     ~TRestDetectorTransportManager() override;
 
+    /// \brief Returns the class name, "TRestDetectorTransportManager".
     std::string GetClassName() const override { return "TRestDetectorTransportManager"; }
     /// \brief Creates the medium and the table configurations. Throws without medium
     void LoadConfig() override;
+    /// \brief Nothing to initialise.
     void Initialize() override {}
+    /// \brief Prints the medium and the configuration of each table.
     void PrintMetadata() const override;
 };
 

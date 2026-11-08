@@ -71,12 +71,20 @@ class TRestRawToDetectorSignalProcess : public TRestEventProcess {
     /// the manager contains a single readout (the data readout)
     std::string fReadoutName = "";
 
+    /// \brief Default constructor, with the default parameters.
     TRestRawToDetectorSignalProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestRawToDetectorSignalProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestRawToDetectorSignalProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section and normalizes baselineOption.
     void LoadConfig() override;
+    /// \brief Registers the observables and, if the manager has a TRestDetectorReadoutManager, selects the
+    /// readout and registers SignalsPhysicalID (requesting it without readouts throws).
     void InitProcess() override;
+    /// \brief Transfers the points of each raw signal (see the class description).
+    /// \return False if no signal has points.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

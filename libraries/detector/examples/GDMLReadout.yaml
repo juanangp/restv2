@@ -4,12 +4,15 @@
 #   (the volume of the same assembly copy, so it follows the rotation of each layer); the PMT is not in the
 #   geometry, its photocathode would be at the end of the light guide. GetReadoutPosition and
 #   GetDistanceToReadout (TRestDetectorLightAttenuationProcess) use it.
+# Run from the repository root: the decoding and GDML file paths are relative to the working directory:
+#   REST_Detector_GenerateGDMLReadout("libraries/detector/examples/GDMLReadout.yaml",
+#                                     "libraries/detector/examples/veto_readout_output.root")
 readout:
   class: "TRestGDMLReadout"
   name: "Veto_Readout"
-  decodingFile: "veto.dec"
+  decodingFile: "libraries/detector/examples/veto.dec"
   readoutParameters:
-    gdmlFileName: "/home/juanan/restv2/packages/restG4/examples/13.IAXO/geometry/setup.gdml"
+    gdmlFileName: "packages/restG4/examples/13.IAXO/geometry/setup.gdml"
     readoutInfo:
       - volume: .*scintillatorVolume-*
         readoutVolume: scintillatorLightGuideVolume

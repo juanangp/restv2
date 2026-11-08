@@ -1,5 +1,6 @@
-/// femclient (package restDAQ): data taking of AFTER/AGET electronics (ARC, FEMINOS, DCC and TCM), as in
-/// FEMDAQ, based on the `mclient` program of Denis Calvet.
+/// \file main.cxx
+/// \brief femclient (package restDAQ): data taking of AFTER/AGET electronics (ARC, FEMINOS, DCC and TCM), as
+/// in FEMDAQ, based on the `mclient` program of Denis Calvet.
 ///
 ///    femclient config.yaml [-e|--exec commands.txt] [--read-only] [--tcm] [--set name=value ...]
 ///
@@ -8,10 +9,16 @@
 /// commands are typed in an interactive console (readline, history in $REST_HOME/.rest/femclient_history) or
 /// read from a file (--exec). Options:
 ///
+/// * **-c, --config-file**: the configuration file (same as the positional argument).
 /// * **-e, --exec**: file of commands to execute instead of the interactive console.
 /// * **--read-only**: the commands fopen, fclose and addMetadata do nothing (no files written).
 /// * **--tcm**: the commands go to the TCM (`TCM` of the TRestRawDAQMetadata).
-/// * **--set name=value**: the parameters of the configuration for this execution.
+/// * **--set name=value**: the parameters of the configuration for this execution (repeatable).
+/// * **-h, --help**: usage.
+///
+/// CTRL-C (SIGINT) or SIGTERM aborts the run in progress and ends the interactive console (the files are
+/// closed at exit). An error in a command is written and the session continues; an error in the
+/// configuration ends femclient. The exit code is 1 only for a wrong command line.
 
 #include <readline/readline.h>
 #include <unistd.h>

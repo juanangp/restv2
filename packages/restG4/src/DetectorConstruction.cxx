@@ -316,7 +316,8 @@ void DetectorConstruction::ConstructSDandField() {
 
     set<G4LogicalVolume*> logicalVolumesSelected;
     for (const auto& userSensitiveVolume : metadata.GetSensitiveVolumes()) {
-        // Each sensitive detector declaration in the RML should correspond to at least one logical volume
+        // Each sensitive detector declaration in the configuration should correspond to at least one logical
+        // volume
         G4LogicalVolume* logicalVolume;
         // Check if user selected a Geant4 physical volume by name
         G4VPhysicalVolume* physicalVolume =

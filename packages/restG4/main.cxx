@@ -1,3 +1,28 @@
+/// \file main.cxx
+/// \brief restG4: Geant4 simulation with a REST configuration (YAML), output as a REST run file with
+/// TRestGeant4Event events.
+///
+///    restG4 config.yaml [options]
+///
+/// The configuration has a section of class TRestGeant4Manager with a TRestRun, a TRestGeant4Metadata and a
+/// TRestGeant4PhysicsLists (see packages/restG4/README.md and the examples). Options (Application.cxx,
+/// CommandLineOptions::ProcessCommandLineOptions), which override the values of the configuration:
+///
+/// * **-h, --help**: usage.
+/// * **-c, --config** file: configuration file (same as the positional argument).
+/// * **-o, --output** file: output file.
+/// * **-n, --events** N: number of events to simulate (1E5 notation accepted).
+/// * **-e, --entries** N: stop when N events have been stored (1E5 notation accepted).
+/// * **--time** 1h20m30s: time limit of the simulation.
+/// * **-g, --geometry** file: GDML geometry file.
+/// * **-s, --seed** N: random seed (positive).
+/// * **-t, -j, --threads** N: number of worker threads (multithreading), 0 (default) serial.
+/// * **--runNumber** N: run number.
+/// * **--set** name=value: a parameter of the `parameters` section, for this execution (repeatable).
+/// * **--update-gdml**: writes the parameters in the constants and entities of the GDML files and exits.
+/// * **-i, --interactive**: not implemented (exits with an error).
+///
+/// The exit code is 1 on an error.
 
 #include <TRestSystemOfUnits.h>
 

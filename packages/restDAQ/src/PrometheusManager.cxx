@@ -36,9 +36,9 @@ void PrometheusManager::setEvents(int count) { _eventsGauge.Set(count); }
 
 void PrometheusManager::setDesyncEvents(int count) { _desyncEventsGauge.Set(count); }
 
-void PrometheusManager::setMetadata(const std::string& name) {
+void PrometheusManager::setMetadata(const std::string& metadata) {
     if (_infoGauge) _infoFamily.Remove(_infoGauge);
-    _infoGauge = &_infoFamily.Add({{"runName", name}});
+    _infoGauge = &_infoFamily.Add({{"metadata", metadata}});
     _infoGauge->Set(1);
 }
 

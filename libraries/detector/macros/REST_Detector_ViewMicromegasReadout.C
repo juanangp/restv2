@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "TFile.h"
 #include "TSystem.h"
@@ -9,11 +10,31 @@
 
 using namespace TRestTools;
 
+/// \brief Imports a readout (any TRestDetectorReadout, e.g. a TRestMicromegasReadout) from a ROOT file
+/// written by REST_Detector_GenerateMicromegasReadout, prints it, tests the position lookup
+/// (GetChannelFromPosition at (0.5, 0.5, 110) mm and GetPositionFromChannel of some DAQ channels) and
+/// draws the geometry with those channels highlighted (ViewActiveEvent). Throws if the readout metadata is
+/// not in the file; prints an error and returns if the file cannot be opened or the readout or its decoding
+/// cannot be imported. The input file is closed after the import.
+/// \param instanceName Name of the readout in the file.
+/// \param decodingName Name of the decoding stored with the readout.
+/// \param inputFile ROOT file with the readout.
+///
+/// Usage in restRoot (from the examples directory):
+///
+///    restRoot
+///    [0] REST_Detector_ViewMicromegasReadout("IAXO_D1_Readout", "nominal_decoding",
+///    "iaxo_readout_output.root")
 void REST_Detector_ViewMicromegasReadout(const std::string& instanceName = "IAXO_D1_Readout",
                                          const std::string& decodingName = "nominal_decoding",
                                          const std::string inputFile = "iaxo_readout_output.root") {
-    TFile* fIn = TFile::Open(inputFile.c_str(), "READ");
-    auto configNode = TRestMetadata::ReadMetadata(fIn, instanceName);
+    // Closed after the import: the readout keeps its own copy of the geometry, which is what is drawn
+    std::unique_ptr<TFile> fIn(TFile::Open(inputFile.c_str(), "READ"));
+    if (!fIn || fIn->IsZombie()) {
+        std::cerr << "[-] Cannot open the input file " << inputFile << std::endl;
+        return;
+    }
+    auto configNode = TRestMetadata::ReadMetadata(fIn.get(), instanceName);
 
     if (!configNode["class"]) {
         throw std::runtime_error("Class node not found in metadata");
@@ -34,7 +55,12 @@ void REST_Detector_ViewMicromegasReadout(const std::string& instanceName = "IAXO
         throw std::runtime_error("Cannot cast to TRestDetectorReadout.");
     }
 
-    readout->Import(fIn, instanceName, decodingName);
+    if (!readout->Import(fIn.get(), instanceName, decodingName)) {
+        std::cerr << "[-] Cannot import the readout '" << instanceName << "' with the decoding '"
+                  << decodingName << "' from " << inputFile << std::endl;
+        return;
+    }
+    fIn->Close();
     readout->PrintMetadata();
 
     double testX = 0.5;

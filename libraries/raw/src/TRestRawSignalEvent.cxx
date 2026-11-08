@@ -111,7 +111,7 @@ TPad* TRestRawSignalEvent::DrawEvent(const std::string& option) const {
     }
 
     if (optStr.find("printids") != std::string::npos) {
-        std::cout << "SignalIDs a pintar:";
+        std::cout << "Signal IDs to draw:";
         for (const auto& id : signalIDs) std::cout << " " << id;
         std::cout << std::endl;
     }

@@ -94,12 +94,11 @@ void TRestMicromegasReadout::LoadConfig() {
     UpdateYAMLFromParams<TRestMicromegasReadout>(fNode);
 }
 
-/// \brief Builds a rectangular pixel plane for a Micromegas readout.
-/// \param readoutNode YAML node containing `geometry_parameters`.
+/// \brief Builds the strip plane of a Micromegas readout from `readoutParameters`.
 ///
-/// The method creates one reusable pixel volume and instantiates nodes arranged
-/// in a regular `rows x cols` lattice. Every node receives a monotonically
-/// increasing physical identifier stored as `TGeoNode::UniqueID`.
+/// Each strip is an assembly of nChannels pixels (one volume per strip); every pixel node stores the
+/// physical ID of its strip as `TGeoNode::UniqueID` (Y strips 0 to nChannels - 1, X strips nChannels to
+/// 2 nChannels - 1).
 void TRestMicromegasReadout::BuildGeometry() {
     if (!fNode || fNode.IsNull()) {
         throw std::runtime_error(

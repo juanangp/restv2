@@ -29,8 +29,9 @@ enum class Model { Gaussian, CrystalBall };
 /// Background under a peak
 enum class Background { None, Constant, Linear };
 
-/// Names of the models and of the backgrounds, for TRestTools::NormalizeOption
+/// Names of the models, for TRestTools::NormalizeOption
 inline const std::vector<std::string> kModels = {"gaussian", "crystalBall"};
+/// Names of the backgrounds, for TRestTools::NormalizeOption
 inline const std::vector<std::string> kBackgrounds = {"none", "constant", "linear"};
 
 /// \brief Model of a name: "gaussian" or "crystalBall"; throws for any other
@@ -40,12 +41,13 @@ Background BackgroundFromString(const std::string& name);
 
 /// Result of a peak fit
 struct Peak {
-    double mean = std::numeric_limits<double>::quiet_NaN();
-    double sigma = std::numeric_limits<double>::quiet_NaN();
-    double meanError = std::numeric_limits<double>::quiet_NaN();
-    double sigmaError = std::numeric_limits<double>::quiet_NaN();
-    /// Counts of the peak and of the background in the fit range
+    double mean = std::numeric_limits<double>::quiet_NaN();        ///< Mean of the peak (gaussian core)
+    double sigma = std::numeric_limits<double>::quiet_NaN();       ///< Sigma of the peak (gaussian core)
+    double meanError = std::numeric_limits<double>::quiet_NaN();   ///< Error of the mean
+    double sigmaError = std::numeric_limits<double>::quiet_NaN();  ///< Error of the sigma
+    /// Counts of the peak in the fit range
     double signal = 0;
+    /// Counts of the background in the fit range (0 without background)
     double background = 0;
     /// Whether the fit converged
     bool valid = false;
@@ -59,8 +61,9 @@ struct Peak {
     double GetRelativeFWHM() const { return 2.35482 * sigma / mean * 100; }
 };
 
-/// \brief Fits a peak of a histogram in [start, end] (the bins inside it). The fit is kept in the
-/// histogram as the TF1 `name` (a previous one is replaced).
+/// \brief Fits a peak of a histogram in [start, end] (the bins with their center inside). The fit is kept
+/// in the histogram as the TF1 `name` (a previous one is replaced). The peak is not fitted (valid false,
+/// mean NaN) with less than 3 bins or no counts in the range.
 Peak FitPeak(TH1& histogram, double start, double end, const std::string& name, Model model = Model::Gaussian,
              Background background = Background::None);
 

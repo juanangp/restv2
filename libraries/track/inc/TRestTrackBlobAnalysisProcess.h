@@ -35,18 +35,27 @@ class TRestTrackBlobAnalysisProcess : public TRestEventProcess {
     /// e.g. [XZ, YZ] for strip readouts; empty: the most energetic track, whatever its type
     std::vector<std::string> fProjections = {};
 
-    /// Fraction of the nodes at each end of the track where the blob is searched (most energetic node)
+    /// Fraction of the nodes at each end of the track where the blob is searched (most energetic node), in
+    /// (0, 0.5]
     double fHitsToCheckFraction = 0.2;
 
     /// Radii of the spheres around the blobs, one entry of the Q observables per radius
     std::vector<TRestWithUnits> fRadii = {};
 
+    /// \brief Default constructor, with the default parameters.
     TRestTrackBlobAnalysisProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestTrackBlobAnalysisProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestTrackBlobAnalysisProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section and normalizes the projection names.
     void LoadConfig() override;
+    /// \brief Checks the parameters (hitsToCheckFraction in (0, 0.5], radii > 0; throws otherwise) and
+    /// registers the observables, with the suffix _P for each projection P.
     void InitProcess() override;
+    /// \brief Computes the blob observables of the main track(s); the event is not modified.
+    /// \return Always true.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     void EndProcess() override {}
 

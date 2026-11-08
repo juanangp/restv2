@@ -56,10 +56,10 @@ void TRestMetadata::WriteMetadata(TFile* file) {
 void TRestMetadata::WriteMetadata(TFile* file, const std::string& instanceName,
                                   const YAML::Node& configNode) {
     if (!file || file->IsZombie()) {
-        throw std::runtime_error("TRestMetadata::WriteRESTMetadata: El archivo ROOT no es válido.");
+        throw std::runtime_error("TRestMetadata::WriteMetadata: the ROOT file is not valid (null or zombie)");
     }
     if (!file->IsWritable()) {
-        throw std::runtime_error("TRestMetadata::WriteRESTMetadata: El archivo ROOT es de solo lectura.");
+        throw std::runtime_error("TRestMetadata::WriteMetadata: the ROOT file is read-only");
     }
     if (!configNode || configNode.IsNull()) return;
 

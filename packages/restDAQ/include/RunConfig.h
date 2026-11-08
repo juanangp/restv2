@@ -9,6 +9,10 @@
 #include "TRestRawDAQMetadata.h"
 #include "TRestRun.h"
 
+/// \file RunConfig.h
+/// \brief Configuration of restDAQ (femclient).
+
+/// \class RunConfig
 /// \brief Configuration of restDAQ: the TRestRun (run numbers, tags, runInfo, output files) and the
 /// TRestRawDAQMetadata (electronics, FEMs, limits of the run) of a YAML file, plus the options of the
 /// command line.
@@ -22,18 +26,18 @@ class RunConfig {
     RunConfig(const std::string& fileName, const std::map<std::string, std::string>& parameters,
               bool isTCM = false);
 
-    std::unique_ptr<TRestRun> run;
-    std::unique_ptr<TRestRawDAQMetadata> daq;
+    std::unique_ptr<TRestRun> run;             ///< Run and output files (not read with isTCM)
+    std::unique_ptr<TRestRawDAQMetadata> daq;  ///< Electronics, FEMs and limits of the run
 
     /// ARC, FEMINOS, DCC, or TCM with isTCM
     std::string electronics = "";
-    bool readOnly = false;
-    bool isTCM = false;
+    bool readOnly = false;  ///< --read-only: fopen, fclose and addMetadata do nothing
+    bool isTCM = false;     ///< --tcm: the commands go to the TCM
 
-    int nEvents = 0;
-    double maxTimeSeconds = 0;
-    uint64_t fileSize = 1024ull * 1024ull * 1024ull;
-    int updateRateTime = 5;
+    int nEvents = 0;                                  ///< Events of a run (nEvents), 0: no limit
+    double maxTimeSeconds = 0;                        ///< Duration of a run in s (time), 0: no limit
+    uint64_t fileSize = 1024ull * 1024ull * 1024ull;  ///< Maximum size of a file in bytes (maxFileSize)
+    int updateRateTime = 5;                           ///< Period of the update thread in s (updateRate)
 
     /// `verbose` of the TRestRawDAQMetadata; read by all the threads, changed by the `verbose` command
     std::atomic<Verbosity> verboseLevel{Verbosity::REST_Info};
@@ -56,6 +60,7 @@ class RunConfig {
 
     /// \brief Configuration of the run and the DAQ, as stored in the files
     std::string Dump() const;
+    /// \brief Name of the configuration file
     std::string GetFileName() const { return fileName; }
 
    private:

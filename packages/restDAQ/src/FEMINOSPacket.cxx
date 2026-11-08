@@ -328,6 +328,9 @@ bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<
         } else if ((w & PFX_12_BIT_CONTENT_MASK) == PFX_CHIP_LAST_CELL_READ) {
         } else if ((w & PFX_14_BIT_CONTENT_MASK) == PFX_CARD_CHIP_CHAN_HIT_IX) {
         } else if ((w & PFX_4_BIT_CONTENT_MASK) == PFX_END_OF_EVENT) {
+            // The 2 words of the trailer must have been received too: otherwise pos stays at
+            // the end of event word and it is checked again in the next call
+            if (pos + 2 > buffSize) break;
             pos += 2;
             endOfEvent = true;
             break;
@@ -376,6 +379,10 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
             idx += 5;
         } else if ((w & PFX_4_BIT_CONTENT_MASK) == PFX_START_OF_EVENT) {
             // std::cout<<"START OF EVENT "<<std::endl;
+            if (idx + 5 >= buffSize) {  // Timestamp and event count (5 words) not complete
+                printf("WARNING: truncated start of event, the rest of the event is not parsed\n");
+                return;
+            }
             idx++;
             tS = (uint64_t)event[idx];
             idx++;
@@ -411,8 +418,8 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
             idx++;
             int timeBin = 0;
             std::fill(sData.begin(), sData.end(), 0);
-            while ((event[idx] & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE ||
-                   (event[idx] & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX) {
+            while (idx < buffSize && ((event[idx] & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE ||
+                                      (event[idx] & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX)) {
                 if ((event[idx] & PFX_9_BIT_CONTENT_MASK) == PFX_TIME_BIN_IX) {
                     timeBin = GET_TIME_BIN(event[idx]);
                 } else if ((event[idx] & PFX_12_BIT_CONTENT_MASK) == PFX_ADC_SAMPLE) {
@@ -423,7 +430,6 @@ void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEve
                     break;
                 }
                 idx++;
-                if (idx >= buffSize) break;
             }
 
             sEvent.AddSignal(physChannel, sData);

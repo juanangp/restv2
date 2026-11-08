@@ -15,12 +15,19 @@
 #include "TRestGeant4Track.h"
 #include "TRestRun.h"
 
-/// Particles and isotopes produced in a restG4 simulation (legacy REST_Geant4_ListIsotopes,
+/// \brief Particles and isotopes produced in a restG4 simulation (legacy REST_Geant4_ListIsotopes,
 /// REST_Geant4_FindIsotopes and REST_Geant4_FindGammasEmitted): the number of tracks of each particle but
 /// e-, e+ and gamma (isotopes, alphas, neutrons...), in decreasing order, with the volumes where they are
 /// created (GetInitialVolume), written also to `outputFile` if given ("name count" per line, as legacy);
 /// and the spectrum of the initial kinetic energy (keV) of the gammas, drawn, in [gammaMin, gammaMax] (the
 /// whole range if gammaMax <= gammaMin) with `bins` bins.
+///
+/// \param fileName restG4 file with TRestGeant4Event (with tracks).
+/// \param outputFile Text file for the particle counts (not written if empty).
+/// \param gammaMin Minimum of the gamma spectrum (keV).
+/// \param gammaMax Maximum of the gamma spectrum (keV); the whole range if gammaMax <= gammaMin.
+/// \param bins Number of bins of the gamma spectrum.
+/// \return 0 on success, 1 if the file has no TRestGeant4Event.
 ///
 ///    restRoot
 ///    REST_Geant4_ListIsotopes("Run1_Pb210_Shielding.root", "isotopes.txt", 0, 100)

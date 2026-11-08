@@ -13,12 +13,17 @@ class TRestGeant4GeometryInfo;
 /// \class TRestGeant4SelectionInfo
 /// \brief Selection of the energy deposits of a TRestGeant4Event: volumes (regular expressions), particles
 /// and processes (Geant4 names). An empty list selects any.
+///
+/// An entry of the `selections` list of TRestGeant4AnalysisProcess (keys `name`, `volumes`, `particles`,
+/// `processes`, `splitByParticle`, `entering`, `perVolume`, `interactions` and `trackEdepVolumes`); the
+/// observables it gives are described in TRestGeant4AnalysisProcess.
 class TRestGeant4SelectionInfo : public TRestMetadata {
    public:
-    std::string fSelectionName = "";
+    std::string fSelectionName = "";  ///< `name`: prefix of the observables, <name>_*
+    /// `volumes`: regular expressions of physical (or logical) volume names; empty: the sensitive volumes
     std::vector<std::string> fVolumes = {};
-    std::vector<std::string> fParticles = {};
-    std::vector<std::string> fProcesses = {};
+    std::vector<std::string> fParticles = {};  ///< `particles`: Geant4 particle names; empty: any
+    std::vector<std::string> fProcesses = {};  ///< `processes`: Geant4 process names; empty: any
     /// Particles with their own energy observable, <name>_<particle>_Energy
     std::vector<std::string> fSplitByParticle = {};
     /// If true, the <name>_Entry* observables of the particle entering the volumes are added
@@ -35,10 +40,15 @@ class TRestGeant4SelectionInfo : public TRestMetadata {
     /// deposited in them by the track of each interaction and all its descendants; empty: all the volumes
     std::vector<std::string> fTrackEdepVolumes = {};
 
+    /// \brief Empty selection (all its lists empty).
     TRestGeant4SelectionInfo();
+    /// \brief Selection configured from an entry of `selections`.
     TRestGeant4SelectionInfo(const std::string& name, const YAML::Node& node);
+    /// \brief Reads the registered fields from the YAML node and writes them back.
     void LoadConfig() override;
+    /// \brief No-op.
     void Initialize() override {}
+    /// \brief Returns "TRestGeant4SelectionInfo".
     std::string GetClassName() const override { return "TRestGeant4SelectionInfo"; }
 };
 
@@ -47,6 +57,13 @@ class TRestGeant4SelectionInfo : public TRestMetadata {
 /// ones and, for each
 /// selection, energy (also per particle), mean position, first hit time, tracks and the particle entering
 /// its volumes.
+///
+/// The input event is passed unchanged to the output. Configuration keys: `selections` (a list of
+/// TRestGeant4SelectionInfo) and the common process keys (e.g. `observables`). The registered observables
+/// (totalEdep, sensitiveVolumeEnergy, nTracks, boundingSize, energyPrimary, x/y/zOriginPrimary,
+/// x/y/zDirectionPrimary, thetaPrimary, phiPrimary, eventPrimaryParticleName, subEventPrimaryParticleName
+/// and the <name>_* ones of each selection), the YAML example and the differences with legacy are
+/// documented in TRestGeant4AnalysisProcess.cxx (detailed description below).
 class TRestGeant4AnalysisProcess : public TRestEventProcess {
    private:
     struct GlobalObservables {
@@ -123,18 +140,31 @@ class TRestGeant4AnalysisProcess : public TRestEventProcess {
     /// sensitive entry of activeVolumes, named as it and with entering
     std::vector<TRestGeant4SelectionInfo> fSelections;
 
+    /// \brief Process without configuration.
     TRestGeant4AnalysisProcess();
+    /// \brief Process configured from a YAML node (the pipeline section).
     TRestGeant4AnalysisProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Process configured from the section `sectionName` of a YAML file.
     TRestGeant4AnalysisProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the common process keys and `selections`.
     void LoadConfig() override;
+    /// \brief Resolves the selections with the TRestGeant4Metadata of the run (volume, particle and process
+    /// IDs; the default ones from the sensitive `activeVolumes`) and registers the observables. Throws for
+    /// a volume list without match, an unknown particle or process, or a missing metadata.
     void InitProcess() override;
+    /// \brief Copies the input event to the output and computes the observables of the event.
+    /// \return Always true (the event is not rejected).
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief No-op.
     void EndProcess() override {}
 
+    /// \brief Returns "TRestGeant4Event".
     std::string GetInputEvent() const override { return "TRestGeant4Event"; }
+    /// \brief Returns "TRestGeant4Event" (the input, unchanged).
     std::string GetOutputEvent() const override { return "TRestGeant4Event"; }
 
+    /// \brief Returns "TRestGeant4AnalysisProcess".
     std::string GetClassName() const override { return "TRestGeant4AnalysisProcess"; }
 };
 

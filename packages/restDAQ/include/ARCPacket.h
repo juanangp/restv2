@@ -8,6 +8,18 @@
 
 #include "TRestRawSignalEvent.h"
 
+/// \file ARCPacket.h
+/// \brief Decoding of the frames of the ARC electronics (AGET/AFTER).
+///
+/// The frames are sequences of 16-bit words; each word starts with a prefix that gives its type (start of
+/// frame, start/end of event, channel index, time bin, ADC sample, ASCII message...) and the content in
+/// the remaining bits.
+
+/// \name ARC frame format
+/// Prefix codes and masks of the words (PFX_*, grouped by the number of bits of content), macros to
+/// extract (GET_*) or build (PUT_*) the fields of a word, and the print flags of the frames (FRAME_PRINT_*).
+///@{
+
 #define PFX_14_BIT_CONTENT_MASK 0xC000    // Mask to select 2 MSB's of prefix
 #define PFX_CARD_CHIP_CHAN_HIT_IX 0xC000  // Index of Card, Chip and Channel Hit
 #define PFX_CARD_CHIP_CHAN_HISTO 0x4000   // Pedestal Histogram for given Card and Chip
@@ -184,20 +196,47 @@
 #define FRAME_PRINT_EBBND 0x00002000
 #define FRAME_PRINT_LISTS_FOR_ARC 0x00004000
 
+///@}
+
+/// \brief Decoding of the ARC frames and events (functions used through FEMDAQARCFEM::PacketAPI)
 namespace ARCPacket {
 
 // enum class packetReply { ERROR = -1, RETRY = 0, OK = 1 };
 // enum class packetType { ASCII = 0, BINARY = 1 };
 
+/// \brief Prints a frame (data, monitoring or configuration), word by word
+/// \param fr first word of the frame (start of frame)
+/// \param size words of the frame
+/// \param fp output stream
 void DataPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp = stdout);
+/// \brief Reads a 32-bit value from two words and advances fr and sz_rd by 2
+/// \param BE whether the first word is the most significant one (otherwise the least significant one)
 uint32_t GetUInt32FromBuffer(uint16_t*& fr, int& sz_rd, bool BE = false);
-/// size: words of the packet; the statistics and bins beyond it are not read
+/// \brief Prints the statistics of a histogram (and its bins with useBinCount), advancing fr and sz_rd
+/// \param size words of the packet; the statistics and bins beyond it are not read
 void HistoStat_Print(uint16_t*& fr, int& sz_rd, int size, FILE* fp, bool useBinCount = false);
+/// \brief Looks for the end of the next event in the buffer, from idx
+/// \param buffer words received from a FEM; the words of the event are removed if it is complete
+/// \param idx position from which to search; the position reached if the event is incomplete (the
+/// end of event word if its trailer has not been received yet), 0 if complete
+/// \param out the words of the event (from the start of the buffer to the end of event trailer), if
+/// complete
+/// \return whether a complete event (including its trailer) was extracted
 bool TryExtractNextEvent(std::deque<uint16_t>& buffer, size_t& idx, std::vector<uint16_t>& out);
+/// \brief Adds the signals of an event to sEvent: one signal of 512 samples per channel, with ID
+/// channel + 72 * chip + 288 * card
+/// \param event words of the event (TryExtractNextEvent); a truncated event is parsed up to the last
+/// complete word, never reading beyond its end
+/// \param tS timestamp of the start of event (48 bits, ticks of 10 ns), unchanged if no start of event
+/// \param ev_count event counter of the start of event (32 bits), unchanged if no start of event
 void ParseEventFromWords(std::vector<uint16_t>& event, TRestRawSignalEvent& sEvent, uint64_t& tS,
                          uint32_t& ev_count);
+/// \brief Prints the ASCII message of a configuration frame (the reply to a command); nothing for other
+/// frames
 void ConfigPacket_Print(uint16_t* fr, const uint16_t& size, FILE* fp = stdout);
+/// \brief Whether the word is the start of a data frame
 bool isDataFrame(uint16_t* fr);
+/// \brief Whether the word is the start of a monitoring frame
 bool isMFrame(uint16_t* fr);
 
 }  // namespace ARCPacket

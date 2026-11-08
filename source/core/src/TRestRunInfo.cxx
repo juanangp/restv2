@@ -9,6 +9,11 @@
 
 using namespace TRestTools;
 
+// Project version (PROJECT_VERSION), defined by source/core/CMakeLists.txt
+#ifndef REST_VERSION
+#define REST_VERSION "unknown"
+#endif
+
 static const bool TRestRunInfo_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
 
@@ -76,7 +81,7 @@ std::string TRestRunInfo::ResolveFilePattern(const std::string& pattern) const {
             snprintf(number, sizeof(number), "%03d", fSubRunNumber);
             return number;
         }
-        if (name == "version") return "2.0.0";
+        if (name == "version") return REST_VERSION;
         const YAML::Node node = TRestYAMLUtils::GetNodeAtPath(parameters, name);
         if (!node || !node.IsScalar()) {
             throw std::runtime_error("TRestRunInfo: [" + name + "] in \"" + pattern +

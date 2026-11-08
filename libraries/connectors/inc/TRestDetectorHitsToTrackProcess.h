@@ -27,13 +27,22 @@ class TRestDetectorHitsToTrackProcess : public TRestEventProcess {
     /// Maximum distance in X, Y and Z of an isolated low energy hit to the hit of the track it is attached to
     std::array<TRestWithUnits, 3> fAttachDistance = {3.0, 3.0, 10.0};
 
+    /// \brief Default constructor, with the default parameters.
     TRestDetectorHitsToTrackProcess();
+    /// \brief Constructor from the YAML section `node` of the instance `instanceName` (calls LoadConfig).
     TRestDetectorHitsToTrackProcess(const std::string& instanceName, const YAML::Node& node);
+    /// \brief Constructor from the section `sectionName` of the YAML file `fileName` (calls LoadConfig).
     TRestDetectorHitsToTrackProcess(const std::string& fileName, const std::string& sectionName);
 
+    /// \brief Reads the registered fields from the YAML section.
     void LoadConfig() override;
+    /// \brief Resets the counters and checks attachDistance (not negative, or throws).
     void InitProcess() override;
+    /// \brief Groups the hits of the input TRestDetectorHitsEvent into the tracks of the output
+    /// TRestTrackEvent.
+    /// \return False if the event has no tracks.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
+    /// \brief Reports the number of isolated low energy hits attached and not attached (with attachEnergy).
     void EndProcess() override;
 
     std::string GetInputEvent() const override { return "TRestDetectorHitsEvent"; }

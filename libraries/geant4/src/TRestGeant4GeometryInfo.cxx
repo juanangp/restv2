@@ -8,6 +8,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <stdexcept>
 
 #include "TRestGDMLParser.h"
 #include "TRestTools.h"
@@ -63,9 +64,8 @@ void TRestGeant4GeometryInfo::LoadGeometryFromGdml(const std::string& gdmlFilena
     // The GDML with its entities and the parameters of the configuration resolved, as restG4 reads it
     fGeoManager = TRestGDMLParser::Import(gdmlFilename);
     if (!fGeoManager) {
-        cout << "TRestGeant4GeometryInfo::LoadGeometryFromGdml - ERROR: Failed to load GDML: " << gdmlFilename
-             << endl;
-        exit(1);
+        throw runtime_error("TRestGeant4GeometryInfo::LoadGeometryFromGdml: failed to load the GDML '" +
+                            gdmlFilename + "'");
     }
 
     // Check if the root geometry structure utilizes assembly constructs
@@ -256,7 +256,13 @@ void TRestGeant4GeometryInfo::Print() const {
     cout << " - Top Geometry Assembly: " << (fIsAssembly ? "YES" : "NO") << endl;
     cout << " - Path Separator Token: '" << fPathSeparator << "'" << endl;
     cout << " - Total Registered Logical Volumes: " << fGeoManager->GetListOfVolumes()->GetEntries() << endl;
-    cout << " - Total Registered Physical Nodes:   " << fGeoManager->GetListOfNodes()->GetEntries() << endl;
+    // All the physical nodes of the tree (GetListOfNodes is only the current navigation branch)
+    size_t nNodes = 0;
+    VisitPhysicalNodes(fGeoManager, fPathSeparator, [&](TGeoNode*, const string&, const TGeoHMatrix&) {
+        nNodes++;
+        return false;
+    });
+    cout << " - Total Registered Physical Nodes:   " << nNodes << endl;
 }
 
 bool TRestGeant4GeometryInfo::IsValidLogicalVolume(const std::string& volume) const {

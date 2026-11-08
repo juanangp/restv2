@@ -101,18 +101,18 @@ void TRestTrackEvent::RemoveTrack(int n) {
     RebuildTrackViews();
 }
 
-int TRestTrackEvent::GetNumberOfTracks(const std::string& option) const {
-    if (option == "") return (int)fTrackHits.size();
+bool TRestTrackEvent::MatchesOption(int n, const std::string& option) const {
+    if (option == "X") return isXZ(n);
+    if (option == "Y") return isYZ(n);
+    if (option == "" || option == "XYZ") return isXYZ(n);
+    return false;
+}
 
+int TRestTrackEvent::GetNumberOfTracks(const std::string& option) const {
+    if (option.empty()) return GetNumberOfTracks();  // All the tracks
     int nT = 0;
-    for (int n = 0; n < (int)fTrackHits.size(); n++) {
-        if (option == "X" && isXZ(n))
-            nT++;
-        else if (option == "Y" && isYZ(n))
-            nT++;
-        else if (option == "XYZ" && isXYZ(n))
-            nT++;
-    }
+    for (int n = 0; n < (int)fTrackHits.size(); n++)
+        if (MatchesOption(n, option)) nT++;
     return nT;
 }
 
@@ -134,42 +134,19 @@ TRestTrack TRestTrackEvent::GetTrackById(int id) const {
     return TRestTrack(const_cast<TRestTrackEvent*>(this), idx);
 }
 
-TRestTrack TRestTrackEvent::GetMaxEnergyTrackInX() {
-    int track = -1;
-    double maxEnergy = 0;
-    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
-        if (!isXZ(tck)) continue;
-        if (GetTrackEnergy(tck) > maxEnergy) {
-            maxEnergy = GetTrackEnergy(tck);
-            track = tck;
-        }
-    }
-    return track == -1 ? TRestTrack() : TRestTrack(this, track);
-}
+TRestTrack TRestTrackEvent::GetMaxEnergyTrackInX() { return GetMaxEnergyTrack("X"); }
 
-TRestTrack TRestTrackEvent::GetMaxEnergyTrackInY() {
-    int track = -1;
-    double maxEnergy = 0;
-    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
-        if (!isYZ(tck)) continue;
-        if (GetTrackEnergy(tck) > maxEnergy) {
-            maxEnergy = GetTrackEnergy(tck);
-            track = tck;
-        }
-    }
-    return track == -1 ? TRestTrack() : TRestTrack(this, track);
-}
+TRestTrack TRestTrackEvent::GetMaxEnergyTrackInY() { return GetMaxEnergyTrack("Y"); }
 
 TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const std::string& option) {
-    if (option == "X") return GetMaxEnergyTrackInX();
-    if (option == "Y") return GetMaxEnergyTrackInY();
-
+    // The first candidate is taken whatever its energy (also <= 0)
     int track = -1;
     double maxEnergy = 0;
     for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
-        if (!isXYZ(tck)) continue;
-        if (GetTrackEnergy(tck) > maxEnergy) {
-            maxEnergy = GetTrackEnergy(tck);
+        if (!MatchesOption(tck, option)) continue;
+        const double en = GetTrackEnergy(tck);
+        if (track == -1 || en > maxEnergy) {
+            maxEnergy = en;
             track = tck;
         }
     }
@@ -178,26 +155,16 @@ TRestTrack TRestTrackEvent::GetMaxEnergyTrack(const std::string& option) {
 
 TRestTrack TRestTrackEvent::GetSecondMaxEnergyTrack(const std::string& option) {
     TRestTrack first = GetMaxEnergyTrack(option);
-    if (first.GetEvent() == nullptr) return TRestTrack();  // Reemplazo de !first
+    if (first.GetEvent() == nullptr) return TRestTrack();  // No first track, so no second one
 
-    int firstTck = (int)first.GetIndex();
-    int id = GetTrackID(firstTck);
+    const int id = GetTrackID((int)first.GetIndex());
 
     int track = -1;
     double maxEnergy = 0;
     for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
-        if (GetTrackID(tck) == id) continue;
-
-        double en = GetTrackEnergy(tck);
-        bool matches = false;
-        if (option == "X" && (isXZ(tck) || isXYZ(tck)))
-            matches = true;
-        else if (option == "Y" && (isYZ(tck) || isXYZ(tck)))
-            matches = true;
-        else if (option != "X" && option != "Y" && isXYZ(tck))
-            matches = true;
-
-        if (matches && en > maxEnergy) {
+        if (GetTrackID(tck) == id || !MatchesOption(tck, option)) continue;
+        const double en = GetTrackEnergy(tck);
+        if (track == -1 || en > maxEnergy) {
             maxEnergy = en;
             track = tck;
         }
@@ -215,18 +182,17 @@ double TRestTrackEvent::GetMaxEnergyTrackLength(const std::string& option) {
     return t.GetEvent() != nullptr ? t.GetLength() : 0;
 }
 
-double TRestTrackEvent::GetEnergy(const std::string& option) {
+double TRestTrackEvent::GetEnergy() const {
     double en = 0;
-    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) {
-        if (option == "")
-            en += GetTrackEnergy(tck);
-        else if (option == "X" && (isXZ(tck) || isXYZ(tck)))
-            en += GetTrackEnergy(tck);
-        else if (option == "Y" && (isYZ(tck) || isXYZ(tck)))
-            en += GetTrackEnergy(tck);
-        else if (option == "XYZ" && isXYZ(tck))
-            en += GetTrackEnergy(tck);
-    }
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++) en += GetTrackEnergy(tck);
+    return en;
+}
+
+double TRestTrackEvent::GetEnergy(const std::string& option) const {
+    if (option.empty()) return GetEnergy();  // All the tracks
+    double en = 0;
+    for (int tck = 0; tck < (int)fTrackHits.size(); tck++)
+        if (MatchesOption(tck, option)) en += GetTrackEnergy(tck);
     return en;
 }
 
@@ -242,7 +208,6 @@ int TRestTrackEvent::GetTotalHits() const {
     return totHits;
 }
 
-// .cxx
 void TRestTrackEvent::SwapTrackHits(int n, int i, int j) {
     const int start = GetTrackStartIndex(n);
     const int gi = start + i, gj = start + j;
@@ -369,8 +334,9 @@ double TRestTrackEvent::GetMaxTrackRelativeZ() {
 }
 
 ///////////////////////////////////////////////
-/// \brief Retrieves the origin and end of the track based on the most
-/// energetic hit, combining the XZ and YZ projections.
+/// \brief Retrieves the origin and end of the track combining the most energetic
+/// XZ and YZ tracks, each one from TRestTrack::GetBoundaries (end on the half
+/// with more energy, TRestHitsAnalysis::GetTrackEnds).
 ///
 void TRestTrackEvent::GetMaxTrackBoundaries(XYZVector& orig, XYZVector& end) {
     TRestTrack tckX = GetMaxEnergyTrackInX();
@@ -434,8 +400,8 @@ void TRestTrackEvent::PrintOnlyTracks() const {
 void TRestTrackEvent::PrintTrackEvent(bool fullInfo) const {
     TRestEvent::PrintEvent();
 
-    std::cout << "Number of tracks : "
-              << GetNumberOfTracks("XYZ") + GetNumberOfTracks("X") + GetNumberOfTracks("Y") << std::endl;
+    std::cout << "Number of tracks : " << GetNumberOfTracks() << std::endl;
+    std::cout << "Number of tracks XYZ " << GetNumberOfTracks("XYZ") << std::endl;
     std::cout << "Number of tracks XZ " << GetNumberOfTracks("X") << std::endl;
     std::cout << "Number of tracks YZ " << GetNumberOfTracks("Y") << std::endl;
     std::cout << "+++++++++++++++++++++++++++++++++++" << std::endl;

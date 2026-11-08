@@ -321,7 +321,6 @@ void TRestRun::SetEvent(const std::string& treeName) {
 }
 
 bool TRestRun::GetEntry(long long entry) {
-    if (fInputEventTrees.empty()) return false;
     bool success = false;
     for (auto& [treeName, tree] : fInputEventTrees) {
         if (tree) {
@@ -331,8 +330,13 @@ bool TRestRun::GetEntry(long long entry) {
         }
     }
     // The observables of the input file: copied to the output analysis tree, and read by the processes and
-    // macros (GetObservable)
-    if (success && fAnalysisTree) fAnalysisTree->GetEntry(entry);
+    // macros (GetObservable). A file without event trees (only the analysis tree) is read entry by entry
+    // from the analysis tree alone
+    if (fInputEventTrees.empty()) {
+        success = fAnalysisTree && fAnalysisTree->GetEntry(entry) > 0;
+    } else if (success && fAnalysisTree) {
+        fAnalysisTree->GetEntry(entry);
+    }
     for (auto& [treeName, eventObj] : fInputEvents) {
         if (eventObj) {
             eventObj->RefreshViews();
@@ -350,7 +354,7 @@ long long TRestRun::GetEntryWithID(int eventID, int subEventID, const std::strin
     TTreeReader reader(fAnalysisTree);
 
     if (!fAnalysisTree->GetBranch("eventID") || !fAnalysisTree->GetBranch("subEventID")) {
-        RESTError << "Branches 'eventID' o 'subEventID' not found in AnalysisTree." << RESTendl;
+        RESTError << "Branches 'eventID' or 'subEventID' not found in AnalysisTree." << RESTendl;
         return -1;
     }
 

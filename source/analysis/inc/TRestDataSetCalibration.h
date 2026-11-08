@@ -15,6 +15,14 @@
 /// \class TRestDataSetCalibrationPeak
 /// \brief A peak of a calibration (TRestDataSetCalibration, TRestDataSetGainMap): its energy and
 /// the range of the observable where it is fitted.
+///
+/// An element of `peaks` of TRestDataSetCalibration. Keys: `energy` and `range` (configuration), and the
+/// results `position`, `fwhm`, `fitRange`, `fitStatus` and `fitParameters` (written by the calibration),
+/// e.g.
+///
+///     peaks:
+///       - {energy: "5.9 keV", range: [4000, 6500]}
+///       - {energy: "8.0 keV"}
 class TRestDataSetCalibrationPeak : public TRestMetadata {
    public:
     /// Energy of the peak (keV by default, e.g. "5.9 keV")
@@ -36,11 +44,14 @@ class TRestDataSetCalibrationPeak : public TRestMetadata {
     YAML::Node fFitParameters;
 
     TRestDataSetCalibrationPeak();
+    /// \brief Peak read from its YAML node (LoadConfig)
     TRestDataSetCalibrationPeak(const std::string& name, const YAML::Node& node);
+    /// \brief Reads the fields of the node; throws if the energy is not positive
     void LoadConfig() override;
     void Initialize() override {}
     std::string GetClassName() const override { return "TRestDataSetCalibrationPeak"; }
 
+    /// \brief Whether a fit range is given (first value lower than the second)
     bool HasRange() const { return fRange.first < fRange.second; }
 };
 
@@ -86,13 +97,17 @@ class TRestDataSetCalibration : public TRestDataSetProcess {
     bool fPeakSearch = false;
     /// Results: energy = slope * observable + intercept (keV)
     double fSlope = 0;
+    /// Result: intercept of the calibration line (keV)
     double fIntercept = 0;
 
     TRestDataSetCalibration();
+    /// \brief Calibration read from its YAML section (LoadConfig)
     TRestDataSetCalibration(const std::string& instanceName, const YAML::Node& node);
     ~TRestDataSetCalibration() override;
 
     std::string GetClassName() const override { return "TRestDataSetCalibration"; }
+    /// \brief Reads the fields; throws without observable, calibratedObservable or peaks, with nBins not
+    /// positive or window not in (0, 1), or with an unknown peakModel or background (normalised otherwise)
     void LoadConfig() override;
 
     /// \brief Adds the column GetEnergyColumn() = slope * observable + intercept (keV)

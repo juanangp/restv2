@@ -13,6 +13,10 @@ target_include_directories(
 
 target_link_libraries(RestCore PUBLIC RestTools ${ROOT_TARGET_LIBRARIES})
 
+# Version of the project, e.g. the [version] of the file patterns
+# (TRestRunInfo::ResolveFilePattern)
+target_compile_definitions(RestCore PRIVATE REST_VERSION="${PROJECT_VERSION}")
+
 rest_attach_dictionary(
   RestCore HEADERS ${CORE_HEADERS} INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/inc
   ${CMAKE_SOURCE_DIR}/source/tools/inc)

@@ -43,13 +43,16 @@ using namespace std;
 namespace CommandLineOptions {
 
 void ShowUsage() {
-    cout << "Usage example: restG4 example.rml" << endl
-         << "there are other convenient optional parameters that override the ones in the rml file:" << endl
+    cout << "Usage example: restG4 example.yaml" << endl
+         << "there are other convenient optional parameters that override the ones in the configuration file:"
+         << endl
          << "\t--help (-h) | show usage (this text)" << endl
-         << "\t--config (-c) example.rml | specify RML file (same as calling restG4 example.rml)" << endl
+         << "\t--config (-c) example.yaml | specify the YAML configuration file (same as calling restG4 "
+            "example.yaml)"
+         << endl
          << "\t--output (-o) output.root | specify output file" << endl
-         << "\t--events (-n) nEvents | specify number of events to be processed (overrides nEvents on rml "
-            "file)"
+         << "\t--events (-n) nEvents | specify number of events to be processed (overrides nEvents of the "
+            "configuration file)"
          << endl
          << "\t--entries (-e) | specify the requested number of entries. The simulation will stop after "
             "reaching this number of saved events. Final number may be larger"
@@ -75,7 +78,7 @@ void ShowUsage() {
 
 void PrintOptions(const Options& options) {
     cout << "Command line parameters configuration:" << endl
-         << "\t- RML file: " << options.rmlFile << endl
+         << "\t- Configuration file: " << options.configFile << endl
          << (!options.outputFile.empty() ? "\t- Output file: " + options.outputFile + "\n" : "")
          << (!options.geometryFile.empty() ? "\t- Geometry file: " + options.geometryFile + "\n" : "")
          << (options.interactive ? "\t- Interactive: True\n" : "")  //
@@ -158,7 +161,7 @@ Options ProcessCommandLineOptions(int argc, char* const argv[]) {
             exit(0);
         } else if ((arg == "-c") || (arg == "--config")) {
             if (i + 1 < argc) {  // Make sure we aren't at the end of argv!
-                options.rmlFile =
+                options.configFile =
                     argv[++i];  // Increment 'i' so we don't get the argument as the next argv[i].
             } else {
                 cerr << "--config option requires one argument" << endl;
@@ -281,19 +284,19 @@ Options ProcessCommandLineOptions(int argc, char* const argv[]) {
                 ShowUsage();
                 exit(1);
             }
-            if (!options.rmlFile.empty()) {
-                // more than one rml specified
-                cerr << "Attempting to set configuration RML file to '" << argument
-                     << "' but it is already defined as '" << options.rmlFile
+            if (!options.configFile.empty()) {
+                // more than one configuration file specified
+                cerr << "Attempting to set configuration file to '" << argument
+                     << "' but it is already defined as '" << options.configFile
                      << "'. It can only be specified once" << endl;
                 exit(1);
             }
-            options.rmlFile = argv[i];  // invoked as restG4 <rmlFile>, restG4 -j 4 <rmlFile>, etc.
+            options.configFile = argv[i];  // invoked as restG4 <configFile>, restG4 -j 4 <configFile>, etc.
         }
     }
 
-    if (options.rmlFile.empty()) {
-        cerr << "Input RML file not specified" << endl;
+    if (options.configFile.empty()) {
+        cerr << "Input configuration file not specified" << endl;
         exit(1);
     }
 
@@ -311,25 +314,25 @@ void Application::Run(const CommandLineOptions::Options& options) {
 
     CommandLineOptions::PrintOptions(options);
 
-    // Separating relative path and pure RML filename
-    std::string inputConfigFile = options.rmlFile.c_str();
+    // Separating relative path and pure configuration filename
+    std::string inputConfigFile = options.configFile;
 
     if (!TRestTools::fileExists(inputConfigFile)) {
-        cerr << "Input RML file " << filesystem::weakly_canonical(inputConfigFile)
+        cerr << "Input configuration file " << filesystem::weakly_canonical(inputConfigFile)
              << " not found, please check file name!" << endl;
         exit(1);
     }
 
-    const auto [inputRmlPath, inputRmlClean] = TRestTools::SeparatePathAndName(inputConfigFile);
+    const auto [inputConfigPath, inputConfigClean] = TRestTools::SeparatePathAndName(inputConfigFile);
 
-    if (!filesystem::path(inputRmlPath).empty()) {
-        filesystem::current_path(inputRmlPath);
+    if (!filesystem::path(inputConfigPath).empty()) {
+        filesystem::current_path(inputConfigPath);
     }
 
-    auto fConfig = TRestYAMLUtils::OpenConfigFile(inputRmlClean, options.parameters);
+    auto fConfig = TRestYAMLUtils::OpenConfigFile(inputConfigClean, options.parameters);
     auto findNode = TRestYAMLUtils::GetMetadataClass(fConfig, "TRestGeant4Manager");
     if (!findNode.second.IsDefined()) {
-        std::cout << "Error: TRestGeant4Manager not found in input file " << inputRmlClean << std::endl;
+        std::cout << "Error: TRestGeant4Manager not found in input file " << inputConfigClean << std::endl;
         exit(1);
     }
     std::cout << "G4Manager found " << std::endl;
@@ -355,6 +358,21 @@ void Application::Run(const CommandLineOptions::Options& options) {
     if (options.nEvents != 0) {
         metadata->SetNumberOfEvents(options.nEvents);
     }
+    if (metadata->GetNumberOfBiasingVolumes() > 0) {
+        // The stages need the events of the generator, and nested volumes
+        if (metadata->GetNumberOfEvents() <= 0 || metadata->GetNumberOfEvents() > maxPrimariesAllowed) {
+            cerr << "ERROR: 'biasingVolumes' needs 'nEvents' (or --events) between 1 and "
+                 << maxPrimariesAllowed << endl;
+            exit(1);
+        }
+        try {
+            metadata->CheckBiasingVolumes();
+        } catch (const std::exception& error) {
+            cerr << "ERROR: " << error.what() << endl;
+            exit(1);
+        }
+    }
+    metadata->InitializeBiasingStages();
     if (metadata->GetNumberOfEvents() == 0) {
         metadata->SetNumberOfEvents(maxPrimariesAllowed);
     }
@@ -527,7 +545,11 @@ void Application::Run(const CommandLineOptions::Options& options) {
     {
         UI->ApplyCommand("/tracking/verbose 0");
         UI->ApplyCommand("/run/initialize");
-        UI->ApplyCommand("/run/beamOn " + to_string(nEvents));
+        if (metadata->GetNumberOfBiasingVolumes() == 0) {
+            UI->ApplyCommand("/run/beamOn " + to_string(nEvents));
+        } else {
+            RunBiasingStages(nEvents);
+        }
     } else  // define visualization and UI terminal for interactive mode
     {
 #ifdef G4UI_USE
@@ -559,8 +581,6 @@ void Application::Run(const CommandLineOptions::Options& options) {
 
     metadata->SetSimulationWallTime(fSimulationManager.GetElapsedTime());
 
-    metadata->SetSimulationWallTime(fSimulationManager.GetElapsedTime());
-
     // run->AddMetadata(fSimulationManager.GetRestMetadata());
     // run->AddMetadata(fSimulationManager.GetRestPhysicsLists());
     // run->PrintMetadata();
@@ -577,6 +597,19 @@ void Application::Run(const CommandLineOptions::Options& options) {
     // Do some checks (not without output: /dev/null)
     if (!run->HasNullOutput()) ValidateOutputFile(filename);
 
+    if (metadata->GetNumberOfBiasingVolumes() > 0) {
+        cout << "\n\t- Biasing: total factor " << metadata->GetBiasingTotalFactor()
+             << " (weight of each event " << metadata->GetBiasingEventWeight() << "), events per stage:";
+        for (size_t stage = 0; stage < metadata->GetNumberOfBiasingStages(); stage++) {
+            cout << " " << metadata->GetBiasingStageEvents(stage);
+        }
+        cout << ", particles stored per volume:";
+        for (size_t volume = 0; volume < metadata->GetNumberOfBiasingVolumes(); volume++) {
+            cout << " " << metadata->GetBiasingStageParticles(volume);
+        }
+        cout << ", equivalent number of events " << metadata->GetEquivalentNumberOfEvents() << endl;
+    }
+
     cout << "\n\t- Total simulation time is "
          << TRestTools::ToTimeStringLong(fSimulationManager.GetElapsedTime()) << ", " << nEventsAtEnd
          << " processed events (" << double(nEventsAtEnd) / fSimulationManager.GetElapsedTime()
@@ -586,6 +619,56 @@ void Application::Run(const CommandLineOptions::Options& options) {
     if (run->HasNullOutput()) {
         RESTError << "restG4: no outputFileName in the TRestRun (nor --output), nothing has been saved"
                   << RESTendl;
+    }
+}
+
+void Application::RunBiasingStages(int64_t nEvents) {
+    auto* metadata = fSimulationManager.GetRestMetadata();
+    const size_t nVolumes = metadata->GetNumberOfBiasingVolumes();
+    G4UImanager* UI = G4UImanager::GetUIpointer();
+
+    int64_t eventsInStage = nEvents;
+    for (size_t stage = 0; stage <= nVolumes; stage++) {
+        cout << "Biasing stage " << stage << " of " << nVolumes << ": " << eventsInStage << " events"
+             << (stage == 0 ? " of the generator" : " replaying the particles stored") << endl;
+        UI->ApplyCommand("/run/beamOn " + to_string(eventsInStage));
+
+        if (stage == 0 && fSimulationManager.GetBiasingPrimariesInside() > 0) {
+            cout << "WARNING: " << fSimulationManager.GetBiasingPrimariesInside()
+                 << " primaries started inside the biasing volume 0 (never stopped by it): the generator "
+                    "should be outside the outermost biasing volume"
+                 << endl;
+        }
+        if (stage == nVolumes) break;
+
+        if (fSimulationManager.GetAbortFlag()) {
+            // The end of the showers of the cry file is the end of the primaries, not an abort
+            if (stage == 0 && fSimulationManager.IsGeneratorExhausted()) {
+                fSimulationManager.ResetAbortFlag();
+            } else {
+                cerr << "ERROR: the simulation was stopped (time limit or CTRL-C) in the biasing stage "
+                     << stage << " of " << nVolumes << ", before the last one: the output has no events"
+                     << endl;
+                return;
+            }
+        }
+
+        const int64_t factor = static_cast<int64_t>(metadata->GetBiasingVolume(stage).GetBiasingFactor());
+        const int64_t particles =
+            static_cast<int64_t>(fSimulationManager.GetNumberOfStoredBiasingParticles());
+        if (particles == 0) {
+            cerr << "ERROR: no particle entered the biasing volume " << stage
+                 << " in its energy range in the biasing stage " << stage
+                 << ": the next stages are not simulated and the output has no events" << endl;
+            return;
+        }
+        if (particles > numeric_limits<int>::max() / factor) {
+            cerr << "ERROR: the biasing stage " << stage + 1 << " would simulate " << particles << " x "
+                 << factor << " events, above the Geant4 limit (" << numeric_limits<int>::max()
+                 << "): reduce nEvents or the biasingFactor of the volume " << stage << endl;
+            return;
+        }
+        eventsInStage = fSimulationManager.StartNextBiasingStage();
     }
 }
 

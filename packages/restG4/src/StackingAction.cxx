@@ -28,6 +28,11 @@ StackingAction::StackingAction(SimulationManager* simulationManager) : fSimulati
 G4ClassificationOfNewTrack StackingAction::ClassifyNewTrack(const G4Track* track) {
     const bool isFullChain = fSimulationManager->GetRestMetadata()->isFullChainActivated();
     const G4ClassificationOfNewTrack decayClassification = isFullChain ? fWaiting : fKill;
+    // Volume biasing: a secondary created after the crossing point of a biasing volume, replayed by the
+    // next stage
+    if (SimulationManager::GetOutputManager()->TakeBiasingKilledSecondary(track)) {
+        return fKill;
+    }
     if (track->GetParentID() <= 0) {
         // always process the first track regardless
         return fUrgent;

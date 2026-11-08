@@ -411,7 +411,7 @@ bool TRestTrackAnalysisProcess::ProcessEvent(const TRestEvent& input, TRestEvent
             if (outOfRange(nTracks)) return false;
         }
     }
-    fTotalEnergy = event->GetEnergy("");
+    fTotalEnergy = event->GetEnergy();
     fTracks.clear();
     for (auto& projection : fProjectionObs) {
         projection.nTracks = 0;

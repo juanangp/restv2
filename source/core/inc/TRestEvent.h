@@ -21,15 +21,17 @@ class TPad;
 
 /// \struct TRestEventInfo
 /// \brief POD structure with generic event identity and timestamp fields.
+///
+/// Each field is written as its own branch of the event tree (see TRestEvent::CreateBranches).
 struct TRestEventInfo {
-    int runOrigin = 0;
-    int subRunOrigin = 0;
-    int eventID = 0;
-    int subEventID = 0;
-    long long timeSeconds = 0;
-    int timeNanoSeconds = 0;
-    bool ok = true;
-    std::string subEventTag = "";
+    int runOrigin = 0;             ///< Run number the event comes from.
+    int subRunOrigin = 0;          ///< Subrun number the event comes from.
+    int eventID = 0;               ///< Event identifier.
+    int subEventID = 0;            ///< Subevent identifier (several subevents may share an eventID).
+    long long timeSeconds = 0;     ///< Whole seconds of the event timestamp (unix time).
+    int timeNanoSeconds = 0;       ///< Nanoseconds of the timestamp, in [0, 1e9).
+    bool ok = true;                ///< Validity flag (false if a process marked the event as bad).
+    std::string subEventTag = "";  ///< Free label of the subevent.
 };
 
 /// \class TRestEvent
@@ -37,12 +39,20 @@ struct TRestEventInfo {
 ///
 /// Derived events are persisted in ROOT trees and share common event metadata
 /// (run IDs, timestamps, status, and subevent tag).
+///
+/// A derived event must implement GetClassName, Initialize (calling TRestEvent::Initialize) and
+/// DrawEvent, and usually extends CreateBranches / SetBranchAddresses with its own branches (calling
+/// the base versions first). Event types are created by name through EventRegistry, where each event
+/// class registers itself.
 class TRestEvent {
    protected:
     /// Logical event class/instance name.
     std::string fName = "";
+    /// Pointer to fInfo.subEventTag, used as branch address of the string branch.
     std::string* fPtrSubEventTag = nullptr;
+    /// Run the event belongs to (not owned), see SetRestRun.
     TRestRun* fRestRun = nullptr;
+    /// Pad created by DrawEvent (owned, deleted in the destructor).
     mutable TPad* fPad = nullptr;
     /// Format version of the input tree (TRestRun), for SetBranchAddresses
     int fInputFormatVersion = 0;
@@ -61,7 +71,11 @@ class TRestEvent {
     /// reset fInfo: overrides must call TRestEvent::Initialize().
     virtual void Initialize() = 0;
 
+    /// \brief Sets run and subrun origin from the run numbers of the given run.
+    /// \param run Run providing the run and subrun numbers (must not be null).
     virtual void InitializeReferences(TRestRun* run);
+    /// \brief Stores the run the event belongs to (not owned).
+    /// \param run Run pointer.
     void SetRestRun(TRestRun* run);
     /// \brief Run the event was read from (SetRestRun), nullptr if none.
     TRestRun* GetRestRun() const { return fRestRun; }
@@ -73,10 +87,13 @@ class TRestEvent {
     /// \brief One DrawEvent option written as name(rootOption)[value], e.g. hist(Cont1,col)[3]; the
     /// parts in brackets are optional (empty rootOption, value 0).
     struct DrawOption {
-        std::string name;
-        std::string rootOption;
-        double value = 0;
+        std::string name;        ///< Option name (before the parentheses or brackets).
+        std::string rootOption;  ///< ROOT draw option given in parentheses.
+        double value = 0;        ///< Numeric value given in brackets.
     };
+    /// \brief Splits a draw option of the form name(rootOption)[value] into its parts.
+    /// \param option Option string, e.g. "hist(Cont1,col)[3]".
+    /// \return Parsed option (missing parts empty or 0).
     static DrawOption ParseDrawOption(const std::string& option) {
         const size_t open = option.find('('), close = option.find(')');
         const size_t openValue = option.find('['), closeValue = option.find(']');
@@ -235,7 +252,6 @@ class TRestEvent {
         BindBranch(tree, "subEventTag", &fPtrSubEventTag);
     }
 
-    /// \brief Refreshes cached views after ROOT read operations.
     /// \brief Version of the branch layout of the event class, stored in the UserInfo of its tree
     /// (TParameter<int> "formatVersion", written by TRestRun::RegisterEvent) to read files written with
     /// older layouts. Increase it in the class when its branches change, and convert the older ones in
@@ -249,8 +265,11 @@ class TRestEvent {
     /// \brief Format version of the input tree (0 without version), set by TRestRun before
     /// SetBranchAddresses
     int GetInputFormatVersion() const { return fInputFormatVersion; }
+    /// \brief Sets the format version of the input tree (called by TRestRun before SetBranchAddresses).
+    /// \param version Format version read from the tree UserInfo.
     void SetInputFormatVersion(int version) { fInputFormatVersion = version; }
 
+    /// Name of the TParameter<int> holding the format version in the tree UserInfo.
     static constexpr const char* kFormatVersionKey = "formatVersion";
 
     /// \brief SetBranchAddress of a branch that must be in the tree, for SetBranchAddresses. ROOT only prints
@@ -284,6 +303,7 @@ class TRestEvent {
         return version ? version->GetVal() : 0;
     }
 
+    /// \brief Refreshes cached views after ROOT read operations (no-op by default).
     virtual void RefreshViews() const {}
 
     /// \brief Copies generic event content from another event.
@@ -293,13 +313,15 @@ class TRestEvent {
         this->fPtrSubEventTag = &this->fInfo.subEventTag;
     }
 
+    /// \brief Moves the content of another event into this one; the base class copies the event info.
+    /// \param other Source event pointer (ignored if null).
     virtual void MoveFrom(TRestEvent* other) {
         if (!other) return;
         this->SetEventInfo(other);
         this->fPtrSubEventTag = &this->fInfo.subEventTag;
     }
 
-    /// \brief Prints event summary.
+    /// \brief Prints event summary (IDs, timestamp, tag and status).
     virtual void PrintEvent() const;
 
     /// \brief Default constructor.
@@ -319,6 +341,9 @@ inline void TRestEvent::Initialize() { fInfo = TRestEventInfo(); }
 
 /// \class EventRegistry
 /// \brief Runtime factory registry for TRestEvent-derived classes.
+///
+/// Singleton mapping an event type name (e.g. "TRestRawSignalEvent") to a creator function, used by
+/// TRestRun and the processes to instantiate events from their names.
 class EventRegistry {
    public:
     /// Function type used to instantiate events.
@@ -331,10 +356,10 @@ class EventRegistry {
         return inst;
     }
 
-    EventRegistry(const EventRegistry&) = delete;
+    EventRegistry(const EventRegistry&) = delete;  ///< Non-copyable singleton.
     EventRegistry& operator=(const EventRegistry&) = delete;
 
-    /// \brief Registers an event creator by type key.
+    /// \brief Registers an event creator by type key (an existing key is kept).
     /// \param type Event type key.
     /// \param creator Event creator function.
     void Register(const std::string& type, Creator creator) { creators.emplace(type, std::move(creator)); }
@@ -342,7 +367,8 @@ class EventRegistry {
     /// \brief Creates an event instance by type.
     /// \param type Event type key.
     /// \param instanceName Optional instance name override.
-    /// \return Newly created event.
+    /// \return Newly created event, named instanceName or the type if empty.
+    /// \throws std::runtime_error if the type is not registered.
     std::unique_ptr<TRestEvent> Create(const std::string& type, const std::string& instanceName = "") const {
         auto it = creators.find(type);
         if (it == creators.end()) throw std::runtime_error("EventRegistry: unknown type '" + type + "'");

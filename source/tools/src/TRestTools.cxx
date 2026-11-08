@@ -168,20 +168,20 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
 
     std::unique_ptr<TFile> file(TFile::Open(filename.c_str(), "READ"));
     if (!file || file->IsZombie()) {
-        std::cout << filename << " is zombie or invalid" << std::endl;
+        RESTError << "isValidTRestRun: " << filename << " is zombie or invalid" << RESTendl;
         return false;
     }
 
     TObject* analysisTree = file->Get("AnalysisTree");
     if (!analysisTree) {
-        std::cout << filename << " analysisTree not found" << std::endl;
+        RESTWarning << "isValidTRestRun: " << filename << ": AnalysisTree not found" << RESTendl;
         file->Close();
         return false;
     }
 
     TDirectory* metadataDir = file->GetDirectory("RESTMetadataStore");
     if (!metadataDir) {
-        std::cout << filename << " no TRestMetadata" << std::endl;
+        RESTWarning << "isValidTRestRun: " << filename << ": no RESTMetadataStore directory" << RESTendl;
         file->Close();
         return false;
     }
@@ -215,7 +215,9 @@ bool TRestTools::isValidTRestRun(const std::string& filename) {
             }
         }
     }
-    if (!hasRestRunMetadata) std::cout << filename << " no valid TRestRun metadata" << std::endl;
+    if (!hasRestRunMetadata) {
+        RESTWarning << "isValidTRestRun: " << filename << ": no valid TRestRun metadata" << RESTendl;
+    }
 
     file->Close();
     return hasRestRunMetadata;
@@ -374,19 +376,14 @@ void TRestTools::DeleteGeometry(TGeoManager* geometry) {
 }
 
 int TRestTools::GetRunNumberAuto() {
-    const char* restHomeEnv = std::getenv("REST_HOME");
-    if (!restHomeEnv) {
-        throw std::runtime_error(
-            "TRestTools::GetRunNumberAuto: REST_HOME environment variable is not defined.");
-    }
-
-    std::filesystem::path runFilePath = std::filesystem::path(restHomeEnv) / ".rest" / "runNumber";
-
+    // Same directory as the history, settings and downloads: $REST_HOME/.rest, or $HOME/.rest
+    std::filesystem::path runFilePath;
     try {
-        std::filesystem::create_directories(runFilePath.parent_path());
-    } catch (const std::filesystem::filesystem_error& e) {
-        throw std::runtime_error("TRestTools::GetRunNumberAuto: Could not create or access directory: " +
-                                 runFilePath.parent_path().string() + " (" + e.what() + ")");
+        runFilePath = std::filesystem::path(GetRESTUserDirectory()) / "runNumber";
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string("TRestTools::GetRunNumberAuto: could not access the REST user "
+                                             "directory (") +
+                                 e.what() + ")");
     }
 
     int fd = ::open(runFilePath.c_str(), O_RDWR | O_CREAT, 0666);
@@ -529,7 +526,6 @@ std::string TRestTools::PatternToRegex(const std::string& pattern) {
     return regex_pattern;
 }
 
-// Helper function to remove spaces and special characters from a string
 std::string TRestTools::ReplaceDelimited(const std::string& text, char open, char close,
                                          const TextReplacement& replacement) {
     std::string result;
@@ -573,6 +569,7 @@ std::string TRestTools::Trim(const std::string& str, const std::string& characte
     return str.substr(first, str.find_last_not_of(characters) - first + 1);
 }
 
+// Helper function to remove spaces and special characters from a string
 std::string TRestTools::CleanString(const std::string& str) {
     std::string s = str;
     s.erase(std::remove_if(s.begin(), s.end(),

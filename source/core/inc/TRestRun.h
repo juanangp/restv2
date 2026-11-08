@@ -22,6 +22,39 @@
 /// `TRestRun` owns input/output ROOT files, event trees, event object bindings,
 /// and run descriptors used during processing and AOD persistence. The description of the run (numbers,
 /// tags, runInfo, times) is its base TRestRunInfo.
+///
+/// Configuration (a section inside the TRestManager of restManager), with the keys of TRestRunInfo plus
+/// the processing ones:
+///
+/// \code{.yaml}
+/// run:
+///   class: TRestRun
+///   name: restRun
+///   runNumber: 1              # "auto": a new run number ($REST_HOME/.rest/runNumber)
+///   subRunNumber: 0
+///   runType: Test
+///   runTag: SignalPeaks
+///   runDescription: SignalPeaks
+///   experimentName: Test
+///   runInfo: {meshVoltage: 300 V}
+///   inputFileName: SignalPeaks_input.root
+///   # [parameter] of the name of the input file, used for the run parameters not given
+///   inputFormat: "R[runNumber]_[runTag]_V[runInfo.meshVoltage].root"
+///   inheritInputRun: false    # true: the parameters not given are taken from the run of the input file
+///   mainDataPath: /data/rest  # prefix of relative output file names
+///   outputFileName: "R[runNumber]_[runTag].root"   # "/dev/null" (default): nothing written
+///   outputBasketSize: 1048576 # bytes per branch basket of the output event trees, 0: ROOT default
+///   # outputEvent is written by REST: the last saved event type
+/// \endcode
+///
+/// The run parameters not given in the configuration are taken from the name of the input file
+/// (inputFormat), otherwise from the run of the input file if inheritInputRun is true; startTime, endTime,
+/// mergedSubRuns and runInfo always come from the input run (the keys of the configuration replace those
+/// of runInfo). Input files that are not REST run files (e.g. DAQ files) are not opened: they are read
+/// by a process. A pattern with wildcards (`*`, `?`) is not opened either (used by TRestAnalysisPlot).
+///
+/// A REST run file contains the `AnalysisTree` (event info and observables), one tree per saved event
+/// type (named as the event class) and the `RESTMetadataStore` directory with the configurations.
 class TRestRun : public TRestRunInfo {
    private:
     /// The metadata of the input file (without its TRestRun), with their objects
@@ -44,31 +77,42 @@ class TRestRun : public TRestRunInfo {
     bool CopiesInputAnalysisTree() const { return fAnalysisTree && fInputAnalysisStorage; }
 
    public:
+    /// Input file (`inputFileName`), "Null" if none.
     std::string fInputFileName = "Null";
     /// Output file; "/dev/null" (default, also "Null" or empty) for no output: the pipeline runs but
     /// nothing is written
     std::string fOutputFileName = "/dev/null";
+    /// Directory prefixed to a relative output file name (`mainDataPath`).
     std::string fMainDataPath = "";
+    /// Pattern of the input file name (`inputFormat`) with [parameter] placeholders, used to build the
+    /// input file name when inputFileName is not given and to take run parameters from it.
     std::string fInputFormat = "";
     /// Last saved event type: output event of the last process of the chain that wrote the file (e.g.
     /// TRestTrackEvent), preserved from the input file otherwise. Selected event (GetEvent) when the file
     /// is opened
     std::string fOutputEvent = "";
+    /// Current entry of the input file (GetEntry).
     long long fEntry = 0;
 
+    /// Entries of the input analysis tree.
     long long fInputEntries = 0;
 
+    /// Configuration of the TRestRun stored in the input file.
     YAML::Node fInputFileNode;
 
-    std::unique_ptr<TFile> fInputFile;
-    std::unique_ptr<TFile> fOutputFile;
+    std::unique_ptr<TFile> fInputFile;   ///< Input ROOT file.
+    std::unique_ptr<TFile> fOutputFile;  ///< Output ROOT file.
 
+    /// Event trees of the input file, by event class name (owned by the input file).
     std::map<std::string, TTree*> fInputEventTrees;
+    /// Event trees of the output file, by event class name (owned by the output file).
     std::map<std::string, TTree*> fOutputEventTrees;
-    TTree* fAnalysisTree = nullptr;
-    TTree* fOutputAnalysisTree = nullptr;
+    TTree* fAnalysisTree = nullptr;        ///< `AnalysisTree` of the input file.
+    TTree* fOutputAnalysisTree = nullptr;  ///< `AnalysisTree` of the output file.
 
+    /// Events bound to the input event trees, by class name (owned by the run).
     std::map<std::string, TRestEvent*> fInputEvents;
+    /// Events registered for output (RegisterEvent), by class name (not owned).
     std::map<std::string, TRestEvent*> fOutputEvents;
 
     /// Selected event, see GetEvent/SetEvent
@@ -77,9 +121,11 @@ class TRestRun : public TRestRunInfo {
     /// inheritInputRun: the run parameters not given in the configuration nor in the name of the input
     /// file (inputFormat) are taken from the run of the input file
     bool fInheritInputRun = false;
+    /// Bytes per branch basket of the output event trees (`outputBasketSize`), 0 = ROOT default.
     int fOutputBasketSize = 1024 * 1024;  //!  bytes per branch basket of output event trees, 0 = ROOT default
 
-    /// \brief Prefixes main data path to a relative filename.
+    /// \brief Prefixes main data path to a relative filename (absolute names, "Null" and "/dev/null" are
+    /// returned unchanged).
     /// \param fileName Input filename.
     /// \return Resolved full path.
     std::string PrefixMainDataPath(const std::string& fileName) const;
@@ -88,10 +134,14 @@ class TRestRun : public TRestRunInfo {
     /// Throws if it is the input file (it would be overwritten).
     void ResolveOutputFileName();
 
+    /// \brief Resolves the output file name, writes the resolved parameters to the node and opens the
+    /// output file (OpenOutputFile).
     void FormOutputFile();
 
     /// \brief Parameters in the name of the input file, from the [parameter] of inputFormat (its file name,
-    /// without directories; the rest is literal). Throws if the name of the input file does not match it.
+    /// without directories nor extension; each [parameter] matches a part without "_", the rest is
+    /// literal). Throws if a [parameter] is not a run parameter nor runInfo.key; if the name of the input
+    /// file does not match, a warning is printed and nothing is returned.
     /// \return Parameter name (e.g. runNumber, runInfo.meshVoltage) and value as written in the name.
     std::map<std::string, std::string> ParseInputFormat() const;
 
@@ -104,7 +154,7 @@ class TRestRun : public TRestRunInfo {
 
     /// \brief Constructor from YAML node.
     /// \param instanceName Instance name.
-    /// \param node YAML node with parameters.
+    /// \param node YAML node with parameters (LoadConfig is called, opening the input file).
     TRestRun(const std::string& instanceName, const YAML::Node& node);
 
     /// \brief Constructor from YAML file and section.
@@ -141,6 +191,8 @@ class TRestRun : public TRestRunInfo {
     /// \param v Input file path.
     void SetInputFileName(const std::string& v);
 
+    /// \brief Sets output file name and mirrors value into YAML node when available.
+    /// \param v Output file path.
     void SetOutputFileName(const std::string& v);
 
     /// \brief Sets the last saved event type of the output file and mirrors it into the YAML node.
@@ -151,6 +203,7 @@ class TRestRun : public TRestRunInfo {
     /// \param filename Input file path.
     void OpenInputFile(const std::string& filename);
 
+    /// \brief Whether an input file is open and valid.
     bool IsOpen() const { return fInputFile && !fInputFile->IsZombie(); }
     /// \brief Input ROOT file, or nullptr if none is open.
     TFile* GetInputFile() const { return fInputFile.get(); }
@@ -160,13 +213,16 @@ class TRestRun : public TRestRunInfo {
     /// input analysis tree). Must be set before OpenOutputFile.
     void SetInputAnalysisStorage(bool store) { fInputAnalysisStorage = store; }
 
-    /// \brief Opens output ROOT file and creates output trees.
+    /// \brief Opens output ROOT file and creates the output analysis tree (a copy of the input one, see
+    /// SetInputAnalysisStorage, or a new one). With "UPDATE" only the file is opened.
+    /// \param fileName Output file, fOutputFileName if empty (and stored there).
+    /// \param option TFile open option.
     void OpenOutputFile(std::string fileName = "", const std::string& option = "RECREATE");
 
-    /// \brief Closes open input/output files.
+    /// \brief Writes the output trees and closes open input/output files.
     void CloseFiles();
 
-    /// \brief Returns number of entries in analysis tree.
+    /// \brief Returns number of entries of the input file (its analysis tree).
     /// \return Entry count or `0` when analysis tree is missing.
     long long GetEntries() const {
         if (fInputEntries > 0) return fInputEntries;
@@ -174,21 +230,32 @@ class TRestRun : public TRestRunInfo {
         return fAnalysisTree->GetEntries();
     }
 
+    /// \brief Entries filled in the output analysis tree, 0 without output.
     long long GetSavedEntries() const {
         if (!fOutputAnalysisTree) return 0;
         return fOutputAnalysisTree->GetEntries();
     }
 
+    /// \brief Finds and loads (GetEntry) the first entry of the input analysis tree with the given IDs.
+    /// \param eventID Event ID.
+    /// \param subEventID Subevent ID, -1 for any.
+    /// \param tag Subevent tag, empty for any.
+    /// \return Entry index, -1 if not found.
     long long GetEntryWithID(int eventID, int subEventID = -1, const std::string& tag = "");
 
+    /// \brief Prints the observables of the input analysis tree for the current entry (TTree::Show).
     void PrintObservables();
 
-    /// \brief Loads one entry from input trees.
+    /// \brief Loads one entry from input trees (event trees and, if any was read, the analysis tree). A
+    /// file without event trees (only the analysis tree) is read from the analysis tree alone.
     /// \param entry Entry index.
-    /// \return `true` if entry was loaded.
+    /// \return `true` if entry was loaded (from an event tree, or from the analysis tree without them).
     bool GetEntry(long long entry);
+    /// \brief Loads the entry following the current one.
+    /// \return `true` if entry was loaded.
     bool GetNextEntry();
 
+    /// \brief Index of the current entry.
     long long GetCurrentEntry() const { return fEntry; }
 
     /// \brief Checks whether an input event tree exists.
@@ -200,6 +267,7 @@ class TRestRun : public TRestRunInfo {
     /// \tparam T Event type.
     /// \param treeName Event tree/class name.
     /// \return Reference to typed input event.
+    /// \throws std::runtime_error if the tree does not exist; std::bad_cast if it is not a T.
     template <typename T = TRestEvent>
     T& GetEvent(const std::string& treeName) {
         auto it = fInputEvents.find(treeName);
@@ -210,8 +278,12 @@ class TRestRun : public TRestRunInfo {
     }
 
     /// \brief Registers an output event object and creates its output tree if needed.
+    ///
+    /// Creates the event branches, writes the format version in the tree UserInfo and, for the first
+    /// registered event, the event info branches of the output analysis tree. The output file must be open.
     /// \tparam T Event type.
     /// \param className Output tree/class name.
+    /// \param eventObject Event bound to the branches (not owned, must outlive the run output).
     template <typename T>
     void RegisterEvent(const std::string& className, T& eventObject) {
         static_assert(std::is_base_of_v<TRestEvent, T>, "T must inherit from TRestEvent");
@@ -241,7 +313,7 @@ class TRestRun : public TRestRunInfo {
         }
     }
 
-    /// \brief Registers an observable branch in analysis tree.
+    /// \brief Registers an observable branch in the output analysis tree (or binds the existing one).
     /// \tparam T Observable value type.
     /// \param name Observable branch name.
     /// \param variable Variable bound to branch.
@@ -280,20 +352,23 @@ class TRestRun : public TRestRunInfo {
         return *static_cast<const T*>(GetObservableAddress(name, typeid(T)));
     }
 
+    /// \brief Binds the branches of the output analysis tree without address to the addresses of the input
+    /// analysis tree branches of the same name.
     void SyncAnalysisTreeBranches();
 
-    /// \brief Adds metadata object description into run store.
-    /// \param instanceName Metadata instance name.
-    /// \param className Metadata class name.
-    /// \param configNode Metadata YAML node.
+    /// \brief Writes a metadata (its configuration) to the RESTMetadataStore of the output file.
+    /// \param metadata Metadata to write; throws if null.
     void AddMetadata(TRestMetadata* metadata);
+    /// \brief Writes the metadata of the input file (GetMetadataStore) to the output file.
     void AddHistoricMetadata();
 
-    /// \brief Retrieves metadata YAML node by instance name.
+    /// \brief Retrieves metadata YAML node by instance name from the input file.
     /// \param instanceName Metadata instance name.
     /// \return YAML node (null node if not found).
     YAML::Node GetMetadata(const std::string& instanceName) const;
 
+    /// \brief The first metadata of the input file of a class, nullptr if none.
+    /// \param className Class name (GetClassName).
     TRestMetadata* GetMetadataClass(const std::string& className) const;
     /// \brief The metadata of the input file of class T or derived from it
     template <class T>
@@ -316,12 +391,16 @@ class TRestRun : public TRestRunInfo {
     /// \param treeName Event tree/class name.
     void SetEvent(const std::string& treeName);
 
+    /// \brief The input events by class name.
     std::map<std::string, TRestEvent*> GetEventMap() const { return fInputEvents; }
 
-    /// \brief Fills all registered output trees for current event.
+    /// \brief Fills all registered output trees and the output analysis tree for the current event, and
+    /// increases the saved entries.
     void Fill();
 
-    /// \brief Loads run configuration from YAML node.
+    /// \brief Loads run configuration from YAML node: reads the fields (runNumber "auto" gives a new run
+    /// number), opens the input file if it is a REST run file, completes the run parameters from the
+    /// input file (inputFormat, inheritInputRun), resolves outputFileName and writes the result to the node.
     void LoadConfig() override;
 
     /// \brief No-op initialize hook.
@@ -330,6 +409,7 @@ class TRestRun : public TRestRunInfo {
     /// \brief Prints run metadata summary.
     void PrintMetadata() const override;
 
+    /// \brief Prints the metadata of the input file.
     void PrintAllMetadata() const;
 };
 

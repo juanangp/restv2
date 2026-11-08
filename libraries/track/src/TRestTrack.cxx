@@ -77,13 +77,16 @@ std::vector<float> TRestTrack::GetSigmaZ() const {
 }
 
 float TRestTrack::GetSigmaX(std::size_t localHitIdx) const {
+    if (!IsValid()) return 0;
     return fEvent->fData.sigmaX[GetHitStart() + localHitIdx];
 }
 
 float TRestTrack::GetSigmaY(std::size_t localHitIdx) const {
+    if (!IsValid()) return 0;
     return fEvent->fData.sigmaY[GetHitStart() + localHitIdx];
 }
 
 float TRestTrack::GetSigmaZ(std::size_t localHitIdx) const {
+    if (!IsValid()) return 0;
     return fEvent->fData.sigmaZ[GetHitStart() + localHitIdx];
 }

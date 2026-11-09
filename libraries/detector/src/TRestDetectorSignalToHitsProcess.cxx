@@ -187,7 +187,8 @@ void TRestDetectorSignalToHitsProcess::InitProcess() {
     if (fDriftVelocity <= 0) {
         const std::string user = "TRestDetectorSignalToHitsProcess";
         const auto* medium = fManager->FindMetadata<TRestDetectorMedium>(fMediumName, user, "medium");
-        if (medium) {
+        // A medium without charge (e.g. a scintillator with only `light`) gives no drift: no drift velocity
+        if (medium && (medium->GetChargeResponse() || !fMediumName.empty())) {
             fDriftVelocity = medium->GetChargeResponse(user).GetDriftVelocity();
             if (fDriftVelocity <= 0 && !fMediumName.empty()) {
                 throw std::runtime_error(user + ": the medium '" + fMediumName + "' gives no drift velocity");

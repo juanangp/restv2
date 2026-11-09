@@ -204,6 +204,41 @@ not). Included files can include others; a cycle, a missing file or key is an er
 of the main file, resolved after the includes are expanded. Example:
 [packages/restG4/examples/04.MuonScan](../packages/restG4/examples/04.MuonScan).
 
+### 2.6 Conditional blocks (`select`)
+
+A map with the keys `select` and `cases` is replaced by the case whose name is the value of `select`
+(`default` if none matches; neither is an error), usually a parameter. The other keys of the map are common to
+all the cases: the case is merged over them (maps merged recursively, the case wins). A case can also be a
+scalar (then the block has no other keys):
+
+```yaml
+parameters:
+  generator: "Gammas"
+  energy: 5.5
+...
+generator:
+  select: "${PARAM:generator}"
+  source:                         # common to all the cases
+    angular: {type: "flux", direction: [0, 0, 1]}
+  cases:
+    Gammas:
+      type: "point"
+      source:
+        particle: "gamma"
+        energy: {type: "mono", energy: "${PARAM:energy} MeV"}
+    Muons:
+      type: "cosmic"
+      source:
+        particle: "mu-"
+runTag:
+  select: "${PARAM:generator}"
+  cases: {Gammas: "gammas_${PARAM:energy}MeV", default: "${PARAM:generator}"}
+```
+
+The blocks are resolved after the parameters (`restG4 sim.yaml --set generator=Muons` changes the case), so
+the parameters of all the cases must be defined and count as used; only the case chosen remains in the
+configuration stored in the output file.
+
 There is no `globals` section: what was global in legacy REST is a parameter, a key of the run, or the
 `verbose` of a container (inherited by its sections).
 
@@ -833,16 +868,20 @@ The macro `REST_ViewTMVA(dataset, name[, pdf])` draws the results of a `TRestDat
 
 The [detector library](../libraries/detector/README.md) describes the detector:
 
-- **Readouts** map positions to channels and back: `TRestMicromegasReadout` (strip planes) and
+- **Readouts** map positions to channels and back: `TRestMicromegasReadout` (strip planes),
   `TRestGDMLReadout` (volumes of a GDML geometry, e.g. vetoes, with a readout volume for the light
-  attenuation). A readout is built once from its YAML and a decoding file (`daqChannel physicalID` rows) and
-  exported to a ROOT file with the macros `REST_Detector_GenerateMicromegasReadout` and
-  `REST_Detector_GenerateGDMLReadout`; the pipelines load it with a `TRestDetectorReadoutManager`
+  attenuation) and `TRestFibreReadout` (a scintillator crossed by fibre lattices, e.g. LiquidO: the closest
+  fibre, the capture probability of each fibre versus the distance, and the fibre placements for the GDML of
+  the simulation). A readout is built once from its YAML and a decoding file (`daqChannel physicalID` rows)
+  and exported to a ROOT file with the macros `REST_Detector_GenerateMicromegasReadout`,
+  `REST_Detector_GenerateGDMLReadout` and `REST_Detector_GenerateFibreReadout`; the pipelines load it with a `TRestDetectorReadoutManager`
   (`readouts`: `instanceName`, `decodingName`, `inputFileName`; `readout`: the readout of the data), which also
   stores it in the output file.
 - **Media** (`TRestDetectorMedium`): a material at its `pressure` and `temperature`, with a `charge` response
   (`wValue`, `fanoFactor`, `driftField`, fixed transport parameters or the transport and gain tables of its
-  `mediumFile`, computed by restGarfield) and a `light` response (`attenuationLength`, `effectiveLightSpeed`).
+  `mediumFile`, computed by restGarfield) and a `light` response (`lightYield`, used by
+  `TRestDetectorScintillationProcess` to give the photoelectrons of the channels, `attenuationLength`,
+  `effectiveLightSpeed`).
   The processes find the medium and the readout by name (`medium`, `readout`; optional if there is only one).
 
 ```yaml

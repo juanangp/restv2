@@ -123,6 +123,7 @@ note in parentheses in an N row says where its functionality went.
 |   | x |   | TRestDetectorHits3DReconstructionProcess | Reconstructs XYZ hits from XZ and YZ strip hits. |
 | x |   |   | TRestDetectorAvalancheProcess (migrated, same name, new meaning) | Applies the avalanche gain fluctuation to the hit energy. |
 | x |   |   | TRestDetectorLightAttenuationProcess (migrated, same name; parameters in the `light` response of the medium) | Attenuates the energy of veto hits by the distance to the light readout. |
+| x |   |   | TRestDetectorScintillationProcess and TRestFibreReadout (new, LiquidO macro Geant4ToSignal.C of losimulations) | Photoelectrons of the fibres from the energy of the hits; readout of fibre lattices. |
 |   | x |   | TRestDetectorPositionMappingProcess | Corrects the energy by position (gain map) and generates the map. |
 |   | x |   | TRestDetectorGainMap | Metadata with the gain map per module/position and its application to events. |
 |   | x |   | TRestDetectorSingleChannelAnalysisProcess (TRestDataSetGainMap) | Calibrates the (relative) gain of each channel and applies it to the signals. |
@@ -203,8 +204,9 @@ migrate one anyway.
 - **New repository and CI**: the GitHub Actions workflows stay local until the maintainer creates the new
   repository outside rest-for-physics; the Docker image (`/home/juanan/restv2-docker`) is built and pushed by
   the maintainer (2026-11-09).
-- **Light response of the medium**: only attenuationLength and effectiveLightSpeed; light yield, decay time,
-  quenching and quantum efficiency once it is decided how to parametrize the light (2026-11-06).
+- **Light response of the medium**: lightYield, attenuationLength and effectiveLightSpeed; the decay time of
+  the scintillator and the propagation along the fibres (TRestFibreReadout) are not simulated yet
+  (2026-11-09).
 - **Field model**: field maps will replace `driftField` of the `charge` response (2026-11-05).
 - **Gain tables with a mesh**: restGarfield simulates avalanches in a uniform field (parallel plates); a
   geometry field for the mesh will be added later (2026-11-05).
@@ -904,6 +906,48 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   `REST_ViewTMVA(dataset, name, pdf)` in source/macros (ReadFromFile + DrawResults).
 - High-level analysis examples (DataSetLogOdds.yaml, DataSetTMVA.yaml) in `examples/` at the root: they do not
   belong to any library; DataSetCalibration.yaml stays in detector (uses TRestDataSetGainMap).
+
+### Fibre readout and scintillation (2026-11-09, implemented, user decisions)
+
+- Origin: the macro `Geant4ToSignal.C` of the LiquidO simulations (losimulations), which emulated the light
+  (photoelectrons per keV, Gaussian light ball, closest fibre), the electronics and the tracking in a single
+  macro. Only the light and the readout are new: the rest is the existing chain (TRestGeant4QuenchingProcess,
+  TRestGeant4ToDetectorHitsProcess, TRestDetectorHitsToSignalProcess, TRestDetectorSignalShapingProcess,
+  TRestDetectorSignalToRawSignalProcess, TRestRawSignalAddNoiseProcess, TRestRawToDetectorSignalProcess,
+  TRestDetectorSignalToHitsProcess, TRestDetectorHitsToTrackProcess).
+- TRestFibreReadout: a parametric readout (not fibres in the GDML read with TRestGDMLReadout): a box and a
+  list of fibre families (`fibres`: axis, pitch, offset), so any lattice (two or three directions, different
+  pitches) is described. Channel = the closest fibre (computed, not a geometry search:
+  TRestDetectorReadout::GetChannelFromPosition is virtual); a fibre gives its two transverse coordinates
+  (XZ / YZ hits as strips). Without decodingFile the DAQ ID is the physical ID.
+- The light (user): scintillation (lightYield of the `light` of the medium), capture by the fibre and quantum
+  efficiency of the SiPM. The light ball of the opaque scintillator and the trapping of the fibre are a single
+  capture probability versus the distance to the fibre, P(r), a parameter of each fibre family (formula or a
+  graph from an optical simulation of Geant4, to parametrize the light path); quantumEfficiency is a
+  parameter of the readout. Photoelectrons per fibre = Poisson(E * lightYield * P(r) * QE), no photon
+  tracking (TRestDetectorReadout::GetLightCollection, by default the channel at the position with
+  probability 1).
+- TRestDetectorScintillationProcess (user: "scintillation", although an opaque scintillator is a particular
+  case): hits → hits with energy in photoelectrons, one per hit and fibre, at the projection of the deposit
+  on the fibre. No attenuation nor delay along the fibre for now (user): GetDistanceToReadout of the fibre
+  readout would give it later.
+- Fibres in Geant4 (user: they are dead material): the placements are generated from the same readout
+  parameters (TRestFibreReadout::WriteGDMLPlacements, macro REST_Detector_GenerateFibreReadout) and included
+  as an external entity inside the scintillator volume; the solid and material of the fibres are written by
+  hand in the GDML (logical volume `volume` of each family). Rejected: GDML divisions (shared names), C++ in
+  restG4 (dependency on the detector library), homogenized material (no event by event effect). ROOT reads
+  neither GDML `replicavol` nor `loop`.
+- TRestDetectorHitsToSignalProcess and TRestDetectorSignalToHitsProcess accept a medium without `charge`
+  (a scintillator with only `light`): no drift velocity.
+
+### Conditional blocks in the YAML (2026-11-09, implemented, user decisions)
+
+- Legacy RML `<if>` (e.g. the generators of the LiquidO simulations) becomes a `select` block: `select:
+  value` (a parameter) and `cases` (name: content, optional `default`); the other keys of the block are
+  common and the case is merged over them (TRestYAMLUtils::ResolveRefs, after the parameters, so `--set`
+  changes the case). Rejected: if/then/else (several cases need nesting) and cases as siblings of `select`
+  (no common keys, names colliding with real keys). Only the case chosen is stored in the metadata (user).
+- The parameters of the cases not chosen are resolved too (they must be defined and count as used).
 
 ### TRestDataSetSignalSelection (2026-11-09, implemented)
 

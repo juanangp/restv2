@@ -156,12 +156,30 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Names of the decodings stored for a geometry in a ROOT file.
     static std::vector<std::string> GetDecodingNames(TFile* fIn, const std::string& geometryName);
 
-    /// \brief Returns DAQ channel corresponding to a spatial position.
+    /// \brief Returns DAQ channel corresponding to a spatial position: by default the channel volume of the
+    /// geometry containing it; readouts whose channels are not volumes override it (TRestFibreReadout: the
+    /// closest fibre).
     /// \param x X coordinate in detector reference frame.
     /// \param y Y coordinate in detector reference frame.
     /// \param z Z coordinate in detector reference frame.
     /// \return DAQ channel, or `-1` when no channel is found.
-    int GetChannelFromPosition(double x, double y, double z) const;
+    virtual int GetChannelFromPosition(double x, double y, double z) const;
+
+    /// \brief A channel collecting the light produced at a position (GetLightCollection).
+    struct LightCollection {
+        int daqID = -1;          ///< DAQ channel
+        double probability = 0;  ///< Probability that a photon produced at the position gives a signal
+        ROOT::Math::XYZVector position;  ///< A position of the channel (GetChannelFromPosition gives daqID)
+    };
+    /// \brief The channels that collect the scintillation light produced at a position, with the probability
+    /// that a photon gives a signal in each one (used by TRestDetectorScintillationProcess). By default the
+    /// channel at the position, with probability 1, at the position itself; TRestFibreReadout: the fibres
+    /// within the range of their capture probability.
+    virtual std::vector<LightCollection> GetLightCollection(const ROOT::Math::XYZVector& position) const {
+        const int daqID = GetChannelFromPosition(position.X(), position.Y(), position.Z());
+        if (daqID < 0) return {};
+        return {{daqID, 1.0, position}};
+    }
 
     /// \brief Returns the centroid position of a given DAQ channel.
     /// \param daqID DAQ channel identifier.

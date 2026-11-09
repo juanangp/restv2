@@ -169,6 +169,7 @@ YAML::Node TRestDetectorMedium::GetFileMetadata(TFile* file, const std::string& 
 static const bool TRestDetectorLightResponse_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     using L = TRestDetectorLightResponse;
+    reg.RegisterField<L>("lightYield", &L::fLightYield);
     reg.RegisterField<L>("attenuationLength", &L::fAttenuationLength);
     reg.RegisterField<L>("effectiveLightSpeed", &L::fEffectiveLightSpeed);
     return true;
@@ -186,9 +187,9 @@ TRestDetectorLightResponse::TRestDetectorLightResponse(const std::string& instan
 
 void TRestDetectorLightResponse::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorLightResponse>(fNode);
-    if (fAttenuationLength < 0 || fEffectiveLightSpeed < 0) {
+    if (fLightYield < 0 || fAttenuationLength < 0 || fEffectiveLightSpeed < 0) {
         throw std::runtime_error(
-            "TRestDetectorLightResponse: attenuationLength and effectiveLightSpeed must be >= 0");
+            "TRestDetectorLightResponse: lightYield, attenuationLength and effectiveLightSpeed must be >= 0");
     }
     UpdateYAMLFromParams<TRestDetectorLightResponse>(fNode);
 }

@@ -45,4 +45,4 @@ restRoot [ROOT options] [file.root] [macro.C ...]
   `_ev` or `_dataSet`); if several are given only the last one is opened (with a warning). The other
   arguments are passed to ROOT (TRint).
 
-Other executables are built by the packages (e.g. `restG4`, `restGarfield`, `restDAQ`).
+Other executables are built by the packages (`restG4` and `restCRY`, `restGarfield`, `femclient` of restDAQ).

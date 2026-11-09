@@ -105,8 +105,26 @@ source ../install/thisREST.sh
 
 The installation goes to `install/` in the repository (or `$REST_PATH` if defined), never to `/usr/local`.
 
-The libraries and packages are enabled by default and disabled when their dependencies are missing; the CMake
-options are listed in [SETUP_AND_RUN.md](SETUP_AND_RUN.md).
+`thisREST.sh` sets `REST_PATH`, `PATH`, `LD_LIBRARY_PATH` and `ROOT_INCLUDE_PATH`, removing the entries of a
+REST loaded before (e.g. a legacy installation sourced in `~/.bashrc`, whose headers or libraries would
+otherwise be found first).
+
+### CMake options
+
+| Option | Default | Description |
+|---|---|---|
+| `CMAKE_CXX_STANDARD` | 17 | C++ standard (raised automatically if ROOT uses a newer one). |
+| `RestRaw`, `RestDetector`, `RestTrack`, `RestGeant4`, `RestConnectors` | ON | The libraries; the connectors are built only with the libraries they connect. |
+| `REST_G4` | ON | `restG4`; disabled if Geant4 is not found (`Geant4_DIR`). |
+| `REST_CRY` | ON | `restCRY` (packages/restG4, CRY showers for the `cry` generator of restG4); disabled with a warning if CRY is not found (`CRY_PATH` or `$CRYHOME`, set by the CRY setup script). |
+| `REST_GARFIELD` | ON | `restGarfield` (transport and gain tables of the media); disabled if Garfield++ is not found (`$GARFIELD_INSTALL` or `Garfield_DIR`). |
+| `REST_DAQ` | OFF | `femclient` (packages/restDAQ); needs readline and prometheus-cpp (found with `find_package`, e.g. `-DCMAKE_PREFIX_PATH=<prometheus-cpp install>`, otherwise downloaded). |
+| `BUILD_TESTING` | OFF | The tests (GoogleTest). |
+| `REST_WERROR` | OFF | Compiler warnings as errors (recommended for development). |
+| `REST_USE_CCACHE` | ON | `ccache` as compiler launcher if installed (fast rebuilds after reconfiguring or switching branches). |
+
+The packages are part of the repository (not submodules). To skip them even if their dependencies are
+installed, e.g. `cmake .. -DREST_G4=OFF -DREST_GARFIELD=OFF` (`REST_CRY` depends on `REST_G4`).
 
 ## Usage
 
@@ -116,7 +134,9 @@ restG4 simulation.yaml                                        # Geant4 simulatio
 restRoot                                                      # ROOT with the REST libraries and macros
 ```
 
-The executables and their options are described in [source/bin](source/bin/README.md).
+The executables and their options are described in [source/bin](source/bin/README.md). The
+[user guide](doc/UserGuide.md) explains the configuration, the format of the events and of the REST files,
+the processes, the datasets and the analysis.
 
 ## Tests and documentation
 
@@ -132,12 +152,16 @@ The validation of the pull requests (GitHub Actions) builds everything and runs 
 of the `restv2-docker` repository; see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow (master only
 changes through pull requests) and the continuous integration.
 
-## Migration from REST v2.x
+## Documentation
 
-- [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md): changes for users of the legacy framework.
-- [LEGACY_INVENTORY.md](LEGACY_INVENTORY.md) and [LEGACY_COMPARISON.md](LEGACY_COMPARISON.md): legacy classes and
-  their equivalents.
-- [MIGRATION_PENDING.md](MIGRATION_PENDING.md): what is still to be migrated.
+- [doc/UserGuide.md](doc/UserGuide.md): how to use restv2 (configuration, events and file formats, processes,
+  runs, cuts and plots, datasets).
+- The README of each component (table above) and the class documentation (Doxygen, target `doc`).
+- [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md): moving from REST v2.x (legacy): configurations, equivalent classes,
+  and how to port a legacy class to restv2.
+- [MIGRATION_STATUS.md](MIGRATION_STATUS.md): status of the migration of the legacy classes, pending work and
+  decision log.
+- [CONTRIBUTING.md](CONTRIBUTING.md): workflow, tests and continuous integration.
 
 ## License
 

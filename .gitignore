@@ -5,3 +5,5 @@ install/
 # examples/ of each library and package)
 testdata/
 config/
+# Previous versions of the documentation, kept locally as reference
+old-docs/

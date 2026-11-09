@@ -1,0 +1,102 @@
+# Hits -> tracks pipeline: TRestDetectorHitsEvent (input file) -> TRestTrackEvent, plus hits and track
+# observables, the tracks reduced to nodes ordered along the track and the observables of their ends.
+#   restManager --c libraries/connectors/examples/HitsToTrack.yaml --i <file with TRestDetectorHitsEvent>
+# The input can be the output of RawToHits.yaml or libraries/detector/examples/SignalToHits.yaml.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    runDescription: "HitsToTrack"
+    inputFileName: ""
+    outputFileName: "R[runNumber]_[subRunNumber]_[runTag]_[runType]_TRACKS.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+    hitsAnalysis:
+      class: "TRestDetectorHitsAnalysisProcess"
+      projections: ["XZ", "YZ"]  # strip readout: X and Y hits
+      observables:
+        - "NHits"
+        - "Energy"
+        - "MeanZ"
+        - "SigmaZ"
+        - "NHits_XZ"
+        - "NHits_YZ"
+        - "EnergyBalance_XZ_YZ"
+        - "SigmaBalance_XZ_YZ"
+    hitsToTrack:
+      class: "TRestDetectorHitsToTrackProcess"
+      clusterDistance: "2.5mm"
+      # > 0: isolated hits (track of one hit) with less energy join the track of a hit closer than
+      # attachDistance in each coordinate [X, Y, Z] (time walk of small pulses: relax Z, keep the neighbour
+      # strips in X and Y)
+      attachEnergy: 0
+      attachDistance: [2.5mm, 2.5mm, 4mm]
+    trackAnalysis:
+      class: "TRestTrackAnalysisProcess"
+      projections: ["XZ", "YZ"]  # strip readout: X and Y tracks
+      gaussFit: false
+      twistTailPercentage: 20
+      cutsEnabled: false
+      nTracksCut: [1, 10]
+      observables:
+        - "NTracks"
+        - "TotalEnergy"
+        - "MaxTrackEnergy"
+        - "TracksEnergy"
+        - "TracksType"
+        # Legacy strip selection: nTracks_X/Y, MaxTrackEnergyRatio, MaxTrack_XZ/YZ_nHits,
+        # MaxTrack_XYZ_SigmaZ2 (MaxTrackSigmaZ^2), MaxTrackEnergyBalanceXY, MaxTrackxySigmaBalance
+        - "NTracks_XZ"
+        - "NTracks_YZ"
+        - "MaxTrackEnergyRatio"
+        - "MaxTrack_XZ_NHits"
+        - "MaxTrack_YZ_NHits"
+        - "MaxTrackSigmaZ"
+        - "EnergyBalance_XZ_YZ"
+        - "SigmaBalance_XZ_YZ"
+        - "MaxTrackMeanX"
+        - "MaxTrackMeanY"
+        - "MaxTrackMeanZ"
+        - "MaxTrackSkewXY"
+        - "MaxTrackSkewZ"
+    # Tracks reduced to at most maxNodes nodes, ordered along the shortest path (output event)
+    trackReduction:
+      class: "TRestTrackReductionProcess"
+      startingDistance: "0.5mm"
+      minimumDistance: "3mm"
+      distanceStepFactor: 1.5
+      maxNodes: 30
+      kMeans: true
+      maxIterations: 100
+    trackPathMinimization:
+      class: "TRestTrackPathMinimizationProcess"
+      cyclic: false
+      maxExactNodes: 12
+      branchFactor: 3  # a step longer than 3 times the median step is a jump
+      observables:
+        - "Branches"
+    # Ends (blobs) of the main X and Y tracks, from the ordered nodes
+    trackBlobAnalysis:
+      class: "TRestTrackBlobAnalysisProcess"
+      projections: ["XZ", "YZ"]
+      hitsToCheckFraction: 0.2
+      radii: [5mm, 10mm]  # one entry per radius in the Q observables
+      observables:
+        - "Distance_XZ"
+        - "Distance_YZ"
+        - "QHigh_XZ"
+        - "QLow_XZ"
+        - "QBalance_XZ"
+        - "QHigh_YZ"
+        - "QLow_YZ"
+        - "QBalance_YZ"

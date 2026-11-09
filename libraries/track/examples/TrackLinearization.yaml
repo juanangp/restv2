@@ -1,0 +1,46 @@
+# Track linearization: TRestTrackEvent (input file) -> TRestTrackEvent with the tracks reduced to nodes
+# along a line, plus track observables of the linearized tracks and the line analysis (origin, end,
+# length, direction). The line analysis goes last: its output event only keeps the main tracks.
+#   restManager --c libraries/track/examples/TrackLinearization.yaml --i <file with TRestTrackEvent>
+# The input can be the output of libraries/connectors/examples/HitsToTrack.yaml.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    runDescription: "TrackLinearization"
+    inputFileName: ""
+    outputFileName: "R[runNumber]_[subRunNumber]_[runTag]_[runType]_LINEAR.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+    trackLinearization:
+      class: "TRestTrackLinearizationProcess"
+      maxNodes: 8
+      nodeDistance: 0mm  # > 0: one node every nodeDistance, up to maxNodes
+      maxIterations: 1  # k-means iterations, 1 as legacy
+      fixBoundaries: false  # true: add 2 nodes to maxNodes
+    trackAnalysis:
+      class: "TRestTrackAnalysisProcess"
+      projections: ["XZ", "YZ"]
+      observables:
+        - "NTracks_XZ"
+        - "NTracks_YZ"
+        - "MaxTrack_XZ_NHits"
+        - "MaxTrack_YZ_NHits"
+        - "MaxTrack_XZ_Length"
+        - "MaxTrack_YZ_Length"
+    trackLineAnalysis:
+      class: "TRestTrackLineAnalysisProcess"
+      projections: ["XZ", "YZ"]  # strip readout; empty: the most energetic track (e.g. XYZ)
+      lineAnaMethod: "default"  # or "3D"
+      observables:
+        - "all"

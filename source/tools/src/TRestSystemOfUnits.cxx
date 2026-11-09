@@ -1,7 +1,9 @@
 #include "TRestSystemOfUnits.h"
 
+#include <TError.h>
 #include <TGeoManager.h>
 
+#include <algorithm>
 #include <charconv>
 #include <stdexcept>
 
@@ -97,10 +99,14 @@ std::optional<double> ParseValueWithUnits(const std::string& text) {
 
 bool SetGeoManagerDefaultUnits() {
     static const bool done = [] {
-        // ROOT locks the default units once geometry elements exist
+        // ROOT locks the default units once geometry elements exist. Its message "Changing system of units
+        // to Geant4 units" (Info) is not printed: it is expected, at the start of every REST program
+        const Int_t errorLevel = gErrorIgnoreLevel;
+        gErrorIgnoreLevel = std::max<Int_t>(errorLevel, kWarning);
         TGeoManager::LockDefaultUnits(kFALSE);
         TGeoManager::SetDefaultUnits(TGeoManager::kG4Units);
         TGeoManager::LockDefaultUnits(kTRUE);
+        gErrorIgnoreLevel = errorLevel;
         return true;
     }();
     return done;

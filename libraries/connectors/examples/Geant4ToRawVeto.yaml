@@ -1,0 +1,80 @@
+# Geant4 -> raw signals of the vetoes, with the acquisition window of the Micromegas (common trigger of the
+# DAQ). The vetoes and the Micromegas are simulated in separate runs on the same restG4 file
+# (TRestGeant4ToDetectorHitsProcess keeps the hits of their volumes), so the veto run has no Micromegas
+# signals: the trigger time comes from TRestGeant4AnalysisProcess, here the time of the first energy
+# deposit in the gas (g4Ana_gas_FirstHitTime).
+#   restManager --c libraries/connectors/examples/Geant4ToRawVeto.yaml --i <restG4 output file>
+# The Micromegas DAQ triggers when the first electrons reach the readout, i.e. after their drift time; that
+# delay (event by event) and the one of the veto electronics go into triggerDelay, to be measured in data
+# (e.g. vetoAna_PeakTime of the events with veto, libraries/raw/examples/VetoAnalysis.yaml). To use the same
+# reference in both detectors, the Micromegas run can also use triggerMode observable with
+# g4Ana_gas_FirstHitTime (Geant4ToRaw.yaml with g4Ana before geant4ToHits).
+# Events without energy in the gas (non finite FirstHitTime) or without veto signals are rejected.
+# The light of each deposit is propagated to the readout volume of its veto (the light guide, readoutVolume
+# of libraries/detector/examples/GDMLReadout.yaml: veto_readout_output.root must be generated again with it)
+# with the light response of the scintillator medium; its values are placeholders to be measured.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    runDescription: "Geant4ToRawVeto"
+    inputFileName: ""
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName]_VETO_RAW.root"
+
+  readoutManager:
+    class: "TRestDetectorReadoutManager"
+    readout: "Veto_Readout"
+    readouts:
+      - inputFileName: "veto_readout_output.root"
+        instanceName: "Veto_Readout"
+        decodingName: "veto_decoding"
+
+  medium:
+    class: "TRestDetectorMedium"
+    name: "BC408"
+    state: "solid"
+    light:
+      attenuationLength: 3 m
+      effectiveLightSpeed: 150 mm/ns
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: false
+    g4Ana:
+      class: "TRestGeant4AnalysisProcess"
+      observables: ["gas_FirstHitTime"]
+      selections:
+        - name: "gas"
+          volumes: ["^gasVolume"]
+    geant4ToHits:
+      class: "TRestGeant4ToDetectorHitsProcess"
+      volumes: ["scintillatorVolume"]
+    lightAttenuation:
+      class: "TRestDetectorLightAttenuationProcess"
+      observables: ["NHitsWithoutChannel"]
+    hitsToSignal:
+      class: "TRestDetectorHitsToSignalProcess"
+    signalShaping:
+      class: "TRestDetectorSignalShapingProcess"
+      shapingType: "shaperSin"
+      shapingTime: 0.2 us
+    signalToRaw:
+      class: "TRestDetectorSignalToRawSignalProcess"
+      sampling: 0.04 us
+      nPoints: 512
+      mode: "sample"
+      triggerMode: "observable"
+      triggerObservable: "g4Ana_gas_FirstHitTime"
+      triggerDelay: 4 us
+      gain: 10
+      offset: 250
+      maxValue: 4095
+      observables: ["TriggerTime", "NSaturatedSignals"]

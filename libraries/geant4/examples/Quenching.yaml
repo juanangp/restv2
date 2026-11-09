@@ -1,0 +1,30 @@
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    inputFormat: "Run[runNumber]_[runTag]_[experimentName].root"
+    inputFileName: ""
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName]_QUENCHING.root"
+    entriesSaved: 0
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    verbose: "info"
+    eventsToProcess: 0
+    outputEventStorage: true
+
+    quenching:
+      class: "TRestGeant4QuenchingProcess"
+      volume:
+        - name: "gasVolume"
+          model: lindhard
+        - name: "^scintillatorVolume"
+          model: birks
+      observables:
+        - "all"

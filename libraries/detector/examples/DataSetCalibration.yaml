@@ -1,0 +1,80 @@
+# Energy calibration of datasets (TRestDataSetProcessManager) with the observables of a
+# TRestDetectorHitsAnalysisProcess named hitsAnalysis. The peaks are fitted in the calibration dataset
+# (generated with REST_GenerateDataSet); the same configuration calibrates the calibration and the background
+# datasets:
+#   restManager --c libraries/detector/examples/DataSetCalibration.yaml --i Dataset_Calibration.root
+#   restManager --c libraries/detector/examples/DataSetCalibration.yaml --i Dataset_Background.root
+# The outputs (Dataset_Calibration_Calibrated.root, Dataset_Background_Calibrated.root) are named with the
+# tag of inputFormat; [runNumber], [runInfo.key]... would be those of the first run of the input dataset.
+# With referenceFileName "Dataset_Calibration_Calibrated.root" the parameters are read from it (processed by
+# these processes) instead of fitted, e.g. after a refit of the gain map in restRoot (TRestDataSetGainMap).
+# Log odds and BDT of the calibrated datasets: examples/DataSetLogOdds.yaml and examples/DataSetTMVA.yaml.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  fiducial:
+    class: "TRestCut"
+    conditions:
+      inside: "hitsAnalysis_MeanX * hitsAnalysis_MeanX + hitsAnalysis_MeanY * hitsAnalysis_MeanY < 2500"
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    inputFileName: "Dataset_Calibration.root"  # --i
+    inputFormat: "Dataset_[sample].root"
+    outputFileName: "Dataset_[sample]_Calibrated.root"  # --o
+
+    # Calibration of the whole detector: calib_Energy. With a pattern, e.g. "D_*_Calibration.root", and
+    # referenceSelection: "closest", the calibration dataset closest in time is used; restManager --r
+    # calib=<dataset> forces one
+    calib:
+      class: "TRestDataSetCalibration"
+      referenceFileName: "Dataset_Calibration.root"
+      cuts: ["fiducial"]
+      observable: "hitsAnalysis_Energy"
+      nBins: 1024
+      range: [0, 20000]
+      peaks:
+        - {energy: "5.9 keV"}  # the maximum of the spectrum
+        - {energy: "2.9 keV"}
+
+    # Calibration by segments of the readout of the dataset (its TRestDetectorReadoutManager):
+    # gainMap_Energy and gainMap_EnergyNoSegmentation
+    gainMap:
+      class: "TRestDataSetGainMap"
+      referenceFileName: "Dataset_Calibration.root"
+      observable: "hitsAnalysis_Energy"
+      spatialObservableX: "hitsAnalysis_MeanX"
+      spatialObservableY: "hitsAnalysis_MeanY"
+      readout: ""  # the data readout of the dataset (its manager); its extent is divided in segments
+      segments: [4, 4]
+      range: [0, 20000]
+      peaks:
+        - {energy: "5.9 keV"}  # decreasing energy
+        - {energy: "2.9 keV", range: [4000, 7000]}
+
+  # Spectra of the output dataset (no inputFileName)
+  energyPlots:
+    class: "TRestAnalysisPlot"
+    previewPlot: false
+    canvasSize: [1200, 600]
+    canvasDivisions: [2, 1]
+    save: "DataSetCalibration.pdf"
+    plots:
+      - name: "Calibration"
+        xLabel: "Energy (keV)"
+        yLabel: "Counts"
+        histos:
+          - name: "calib"
+            variables: [{name: "calib_Energy", range: [0, 10], nBins: 200}]
+      - name: "GainMap"
+        xLabel: "Energy (keV)"
+        yLabel: "Counts"
+        legend: true
+        histos:
+          - name: "Segments"
+            variables: [{name: "gainMap_Energy", range: [0, 10], nBins: 200}]
+          - name: "No segmentation"
+            variables: [{name: "gainMap_EnergyNoSegmentation", range: [0, 10], nBins: 200}]
+            lineColor: "kRed+1"

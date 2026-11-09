@@ -1,0 +1,26 @@
+# Dataset (TRestDataSet) of the line analysis of several files analysed with TrackLinearization.yaml: the
+# selected observables of all the runs in a single file, with the TRestRun of each run and its runIndex in
+# every entry. Generated with the macro (no TRestManager nor TRestRun):
+#   restRoot
+#   REST_GenerateDataSet("libraries/track/examples/TrackLineDataSet.yaml", "dataSet")
+# Datasets are merged with a filePattern of datasets, e.g. "Dataset_*.root". Plots of the dataset:
+# TrackLineDataSetPlots.yaml.
+
+fiducial:
+  class: "TRestCut"
+  conditions:
+    balance: "trackLineAnalysis_TrackBalance > 0.9"
+    energy: "trackLineAnalysis_Energy > 0"
+
+dataSet:
+  class: "TRestDataSet"
+  filePattern: "R*_LINEAR.root"  # run files, or datasets to merge
+  observables: ["trackLineAnalysis_*"]
+  # Conditions on the TRestRun of each run, e.g. runTag: 'runTag == "Background"' or
+  # mesh: "runInfo.meshVoltage > 300 V"
+  runConditions:
+    dates: 'startTime >= date("2020/01/01") && endTime < date("2030/12/31 23:59")'
+  cuts: ["fiducial"]
+  # New columns, name: expression of observables and run parameters, e.g.
+  # columns: {energyPerVolt: "trackLineAnalysis_Energy / runInfo.meshVoltage"}
+  outputFileName: "Dataset_TrackLine.root"

@@ -1,0 +1,7 @@
+# Build and install trees
+build*/
+install/
+# Local data and configurations (not part of the repository; the examples are in examples/ and in the
+# examples/ of each library and package)
+testdata/
+config/

@@ -1,0 +1,38 @@
+# Signal -> hits pipeline: TRestDetectorSignalEvent (input file) -> TRestDetectorHitsEvent.
+#   restManager --c SignalToHits.yaml --i <file with TRestDetectorSignalEvent>
+# Readout file paths are relative to the working directory (iaxo_readout_output.root is created
+# by the REST_Detector_GenerateMicromegasReadout macro from MicromegasReadout.yaml).
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  readoutManager:
+    class: "TRestDetectorReadoutManager"
+    readouts:
+      - inputFileName: "iaxo_readout_output.root"
+        instanceName: "IAXO_D1_Readout"
+        decodingName: "nominal_decoding"  # name given to Export (REST_Detector_GenerateMicromegasReadout)
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    runNumber: 1
+    subRunNumber: 0
+    runType: "Test"
+    runTag: "SignalToHits"
+    runDescription: "SignalToHits"
+    experimentName: "Test"
+    inputFileName: "SignalToHits_input.root"
+    outputFileName: "SignalToHits_output.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+    signalToHits:
+      class: "TRestDetectorSignalToHitsProcess"
+      readout: "IAXO_D1_Readout"
+      driftVelocity: 0.5
+      method: "onlyMax"

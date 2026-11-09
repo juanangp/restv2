@@ -1,1 +1,3 @@
+# Outputs of the examples (run files); the inputs they need are kept
 *.root
+!examples/04.MuonScan/Muons.root

@@ -1,0 +1,40 @@
+# Plots (TRestAnalysisPlot) of a dataset generated with TrackLineDataSet.yaml: the input of the plot is the
+# dataset file (inputFileName, or --i), as a run file; no TRestRun nor TRestDataSet section:
+#   restManager --c libraries/track/examples/TrackLineDataSetPlots.yaml --i Dataset_TrackLine.root
+# The panels give the run time of all the runs of the dataset and {run.key} of the first one.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  upwards:
+    class: "TRestCut"
+    conditions:
+      downwards: "trackLineAnalysis_Downwards < 0"
+
+  dataSetPlots:
+    class: "TRestAnalysisPlot"
+    inputFileName: "Dataset_TrackLine.root"  # a run file, a dataset or a pattern (--i)
+    previewPlot: true
+    canvasSize: [1200, 600]
+    canvasDivisions: [2, 1]
+    save: "DataSetPlots.pdf"
+    panels:
+      - labels:
+          - {text: "First run tag: {run.runTag}", position: [0.1, 0.8]}
+          - {text: "Start: {startTime}", position: [0.1, 0.7]}
+          - {text: "End: {endTime}", position: [0.1, 0.6]}
+          - {text: "Run time: {runLength|%.2f} h", position: [0.1, 0.5]}
+          - {text: "Entries: {entries}", position: [0.1, 0.4]}
+    plots:
+      - name: "Energy"
+        xLabel: "Energy (ADC)"
+        yLabel: "Counts"
+        legend: true
+        histos:
+          - name: "All"
+            variables: [{name: "trackLineAnalysis_Energy", nBins: 100}]
+          - name: "Upwards"
+            variables: [{name: "trackLineAnalysis_Energy", nBins: 100}]
+            cuts: ["upwards"]
+            lineColor: "kRed+1"

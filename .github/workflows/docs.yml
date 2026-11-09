@@ -41,7 +41,7 @@ jobs:
           cmake -S . -B build -G Ninja
           cmake --build build --target doc
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: build/doc/html
 

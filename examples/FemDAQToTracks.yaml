@@ -1,0 +1,102 @@
+# Full chain of the IAXO D1 data of the old FEMDAQ: raw signals (TRestRawFemDAQToSignalProcess), common noise
+# reduction, raw signal analysis, detector signals, hits and track analysis:
+#   restManager --c examples/FemDAQToTracks.yaml --i Run00012_Calibration_IAXO_Data_000.root
+# Run from the repository root: the readout and medium file paths are relative to the working directory.
+# The readout file is generated with REST_Detector_GenerateMicromegasReadout (libraries/detector/README.md)
+# and the medium file with restGarfield (packages/restGarfield/examples/ArIso.yaml). The output has the
+# observables of rawToSignal used by libraries/connectors/examples/ChannelActivity.yaml.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    runUser: "${ENV:USER}"
+    runDescription: "Test"
+    experimentName: "IAXO"
+    inputFormat: "Run[runNumber]_[runTag]_[experimentName]_[runType]_[subRunNumber].root"
+    inputFileName: ""
+    outputFileName: "R[runNumber]_[subRunNumber]_ANA_[runTag]_[runDescription]_[runType].root"
+    entriesSaved: 0
+
+  readoutManager:
+    class: "TRestDetectorReadoutManager"
+    readouts:
+      - inputFileName: "libraries/detector/examples/iaxo_readout_output.root"
+        instanceName: "IAXO_D1_Readout"
+        decodingName: "nominal_decoding"
+
+  medium:
+    class: "TRestDetectorMedium"
+    name: "ArIso"
+    mediumFile: "ArIso.root"  # output of restGarfield
+    pressure: 1 bar
+    temperature: 293.15
+    charge:
+      wValue: 26.2 eV
+      fanoFactor: 0.2
+      driftField: 100 V/cm
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    verbose: "silent"
+    eventsToProcess: 0
+    outputEventStorage: true
+
+    femdaqToSignal:
+      class: "TRestRawFemDAQToSignalProcess"
+      name: "FemdaqToSignal"
+      useFeminosDaqRunInfo: true
+      setRunStartEndFromEvents: true
+    commonNoiseReduction:
+      class: "TRestRawCommonNoiseReductionProcess"
+      channels:
+        - channelRange: [[4320, 4391]]
+          mode: 0
+          centerWidth: 10
+        - channelRange: [[4392, 4463]]
+          mode: 0
+          centerWidth: 10
+        - channelRange: [[4464, 4535]]
+          mode: 0
+          centerWidth: 10
+        - channelRange: [[4536, 4607]]
+          mode: 0
+          centerWidth: 10
+
+    rawAna:
+      class: "TRestRawSignalAnalysisProcess"
+      observables:
+        - "all"
+    rawToSignal:
+      class: "TRestRawToDetectorSignalProcess"
+      sampling: 20ns
+      triggerStarts: 0
+      gain: 1
+      zeroSuppression: true
+      baselineRange: [20, 140]
+      integralRange: [150, 450]
+      pointsThreshold: 3
+      signalThreshold: 7
+      pointsOverThreshold: 7
+      observables:
+        - "all"
+    signalToHits:
+      class: "TRestDetectorSignalToHitsProcess"
+      method: "gaussFit"
+    hitsToTrack:
+      class: "TRestDetectorHitsToTrackProcess"
+      clusterDistance: "2.5mm"
+      attachEnergy: 500
+      attachDistance: [2.5mm, 2.5mm, 4mm]
+    trackAnalysis:
+      class: "TRestTrackAnalysisProcess"
+      cutsEnabled: true
+      projections: ["XZ", "YZ"]
+      nTracksCut: [1, 10]
+      gaussFit: true
+      observables:
+        - "all"

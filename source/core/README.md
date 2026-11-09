@@ -97,7 +97,7 @@ The output files are read back with `TRestRun` (events, `GetObservable`, metadat
 
 - `source/macros`: `REST_OpenInputFile.C` (used by `restRoot file.root`), `REST_ViewEvents.C` (event
   browser), `REST_GenerateDataSet.C` (dataset from a YAML section) and `REST_MergeRuns.C`.
-- `config/` and `libraries/*/examples/`: YAML configurations of complete chains, datasets
+- `examples/` and `libraries/*/examples/`: YAML configurations of complete chains, datasets
   (e.g. `libraries/detector/examples/DataSetCalibration.yaml`) and plots.
 - The class documentation of `TRestDataSet`, `TRestDataSetProcessManager` and `TRestAnalysisPlot`
   (in their `.cxx` files) describes all their keys in detail.

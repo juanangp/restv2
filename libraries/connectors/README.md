@@ -60,6 +60,7 @@ files to be generated first (see the comments at the top of each file).
 | `RawToHits.yaml` | `TRestRawSignalEvent` to `TRestDetectorSignalEvent` to `TRestDetectorHitsEvent`. |
 | `HitsToTrack.yaml` | `TRestDetectorHitsEvent` to `TRestTrackEvent`, with hits and track observables, reduction, path minimization and blob analysis. |
 | `DAQViewer.yaml` | Configuration of the DAQ viewer (readouts, pulse parameters and spectrum binning). |
+| `ChannelActivity.yaml` | Plots of the activity per DAQ and readout channel and of the maximum amplitude of the signals (observables of `TRestRawToDetectorSignalProcess`; legacy channel activity process). |
 
 ```
 restManager --c libraries/connectors/examples/Geant4ToHits.yaml --i <restG4 output file>
@@ -68,6 +69,7 @@ restManager --c libraries/connectors/examples/Geant4ToRaw.yaml --i <restG4 outpu
 restManager --c libraries/connectors/examples/Geant4ToRawVeto.yaml --i <restG4 output file>
 restManager --c libraries/connectors/examples/RawToHits.yaml --i <file with TRestRawSignalEvent>
 restManager --c libraries/connectors/examples/HitsToTrack.yaml --i <file with TRestDetectorHitsEvent>
+restManager --c libraries/connectors/examples/ChannelActivity.yaml --i <file with the observables of rawToSignal>
 
 restRoot
 [0] REST_DAQViewer("libraries/connectors/examples/DAQViewer.yaml", "<file with TRestRawSignalEvent>")

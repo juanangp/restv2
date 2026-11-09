@@ -1,0 +1,39 @@
+# Channel activity (legacy TRestDetectorSignalChannelActivityProcess), plots only:
+#   restManager --c libraries/connectors/examples/ChannelActivity.yaml --i <file processed with
+#   TRestRawToDetectorSignalProcess, e.g. the output of examples/FemDAQToTracks.yaml>
+# The input must have the observables SignalsID, SignalsPhysicalID and SignalsMaxAmplitude of a
+# TRestRawToDetectorSignalProcess named rawToSignal (SignalsPhysicalID needs a TRestDetectorReadoutManager
+# in that configuration). One entry per signal (vectors). Ranges for IAXO D1: DAQ channels 4323 to 4604,
+# physical (readout) channels 0 to 239.
+# Signals per DAQ and readout channel (legacy daqChannelActivity and rChannelActivity) and their maximum
+# amplitude. The legacy histograms by threshold and multiplicity are not made: the zero suppression already
+# sets the threshold. A selection can be added as `cuts` of a histogram (TRestCut), e.g. a condition
+# "Sum(rawToSignal_SignalsMaxAmplitude > 100) == 1", or as variable
+# "rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 100]".
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  channelActivity:
+    class: "TRestAnalysisPlot"
+    previewPlot: true
+    canvasSize: [1800, 600]
+    canvasDivisions: [3, 1]
+    plots:
+      - name: "DaqActivity"
+        title: "DAQ channel activity"
+        xLabel: "DAQ channel"
+        yLabel: "Signals"
+        variables: [{name: "rawToSignal_SignalsID", range: [4320, 4620], nBins: 300}]
+      - name: "ReadoutActivity"
+        title: "Readout channel activity"
+        xLabel: "Readout channel"
+        yLabel: "Signals"
+        variables: [{name: "rawToSignal_SignalsPhysicalID", range: [0, 240], nBins: 240}]
+      - name: "MaxAmplitude"
+        title: "Signal maximum amplitude"
+        xLabel: "Maximum amplitude (ADC)"
+        yLabel: "Signals"
+        logY: true
+        variables: [{name: "rawToSignal_SignalsMaxAmplitude", nBins: 200}]  # automatic range

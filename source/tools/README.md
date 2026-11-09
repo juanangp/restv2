@@ -56,4 +56,4 @@ links it. Its contents are free functions grouped in namespaces, plus the loggin
   `TRestTools::WriteGeometry` and `ReadGeometry`.
 
 There are no examples or macros in this directory; the configuration features (parameters, units,
-references) are used by the YAML files of `config/`, `libraries/*/examples` and `packages/restG4/examples`.
+references) are used by the YAML files of `examples/`, `libraries/*/examples` and `packages/*/examples`.

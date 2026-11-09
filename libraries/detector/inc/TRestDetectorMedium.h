@@ -145,10 +145,11 @@ class TRestDetectorChargeResponse : public TRestMetadata {
 
 /// \class TRestDetectorLightResponse
 /// \brief Light response of a scintillating medium: the light produced by the energy deposits (used by
-/// TRestDetectorScintillationProcess) and its propagation to the photocathode (used by
-/// TRestDetectorLightAttenuationProcess). It is the `light` key of a TRestDetectorMedium (no class key).
-/// The quenching is done on the Geant4 deposits (TRestGeant4QuenchingProcess); the collection of the light
-/// and the quantum efficiency are properties of the readout (e.g. TRestFibreReadout).
+/// TRestDetectorScintillationProcess) and its propagation to the photocathode in a transparent scintillator
+/// (attenuation model of TRestDetectorLightCollectionProcess). It is the `light` key of a TRestDetectorMedium
+/// (no class key). The quenching is done on the Geant4 deposits (TRestGeant4QuenchingProcess); the local
+/// capture of an opaque scintillator and the quantum efficiency are parameters of
+/// TRestDetectorLightCollectionProcess.
 ///
 /// Parameters:
 /// - lightYield: scintillation photons produced per keV of (quenched) deposited energy.

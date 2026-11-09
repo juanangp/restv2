@@ -871,17 +871,18 @@ The [detector library](../libraries/detector/README.md) describes the detector:
 - **Readouts** map positions to channels and back: `TRestMicromegasReadout` (strip planes),
   `TRestGDMLReadout` (volumes of a GDML geometry, e.g. vetoes, with a readout volume for the light
   attenuation) and `TRestFibreReadout` (a scintillator crossed by fibre lattices, e.g. LiquidO: the closest
-  fibre, the capture probability of each fibre versus the distance, and the fibre placements for the GDML of
-  the simulation). A readout is built once from its YAML and a decoding file (`daqChannel physicalID` rows)
+  fibre, the fibres within a distance, and the fibre placements for the GDML of the simulation). A readout is built once from its YAML and a decoding file (`daqChannel physicalID` rows)
   and exported to a ROOT file with the macros `REST_Detector_GenerateMicromegasReadout`,
   `REST_Detector_GenerateGDMLReadout` and `REST_Detector_GenerateFibreReadout`; the pipelines load it with a `TRestDetectorReadoutManager`
   (`readouts`: `instanceName`, `decodingName`, `inputFileName`; `readout`: the readout of the data), which also
   stores it in the output file.
 - **Media** (`TRestDetectorMedium`): a material at its `pressure` and `temperature`, with a `charge` response
   (`wValue`, `fanoFactor`, `driftField`, fixed transport parameters or the transport and gain tables of its
-  `mediumFile`, computed by restGarfield) and a `light` response (`lightYield`, used by
-  `TRestDetectorScintillationProcess` to give the photoelectrons of the channels, `attenuationLength`,
-  `effectiveLightSpeed`).
+  `mediumFile`, computed by restGarfield) and a `light` response (`lightYield`, `attenuationLength`,
+  `effectiveLightSpeed`). The light is simulated in three processes: `TRestDetectorScintillationProcess`
+  (photons produced) and `TRestDetectorLightCollectionProcess` (photons reaching each channel and their
+  photoelectrons with the quantum efficiency: `localCapture` for opaque scintillators such as LiquidO,
+  `attenuation` for transparent ones read at an end such as the vetoes).
   The processes find the medium and the readout by name (`medium`, `readout`; optional if there is only one).
 
 ```yaml

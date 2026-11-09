@@ -7,30 +7,23 @@
 #include "TRestEventProcess.h"
 
 class TRestDetectorLightResponse;
-class TRestDetectorReadout;
 
 /// \class TRestDetectorScintillationProcess
-/// \brief Converts the energy of the hits of a scintillator into the photoelectrons of the channels that
-/// collect its light: light yield of the medium and collection of the readout (e.g. the fibres of a
-/// TRestFibreReadout with their capture probability and the quantum efficiency of their photosensors).
+/// \brief Primary scintillation: converts the energy of each hit into the number of scintillation photons
+/// produced (Poisson, light yield of the medium), at the same position and time. The collection of the
+/// light and its detection (photoelectrons) are TRestDetectorLightCollectionProcess.
 ///
 /// The parameters (YAML keys), the observables and an example are described in the class documentation
 /// (TRestDetectorScintillationProcess.cxx).
 class TRestDetectorScintillationProcess : public TRestEventProcess {
    private:
-    const TRestDetectorReadout* fReadout = nullptr;
     const TRestDetectorLightResponse* fLight = nullptr;
     TRandom3 fRandom;  //!
 
     /// Observables
-    double fNPhotoelectrons = 0;  //!
-    int fNHitsWithoutLight = 0;   //!
+    double fNPhotons = 0;  //!
 
    public:
-    /// Name of the readout (in TRestDetectorReadoutManager) that collects the light. It can be omitted if
-    /// the manager contains a single readout.
-    std::string fReadoutName = "";
-
     /// Name of the TRestDetectorMedium with the light response (lightYield). It can be omitted if the
     /// manager contains a single medium.
     std::string fMediumName = "";
@@ -48,11 +41,11 @@ class TRestDetectorScintillationProcess : public TRestEventProcess {
 
     /// \brief Reads the parameters from the YAML node.
     void LoadConfig() override;
-    /// \brief Gets the readout and the light response of the medium (lightYield > 0 needed) and registers
-    /// the observables NPhotoelectrons and NHitsWithoutLight.
+    /// \brief Gets the light response of the medium (lightYield > 0 needed) and registers the observable
+    /// NPhotons.
     void InitProcess() override;
-    /// \brief Converts each hit into the photoelectrons of the channels collecting its light.
-    /// \return false if the event has no photoelectrons.
+    /// \brief Converts the energy of each hit into scintillation photons.
+    /// \return false if the event has no photons.
     bool ProcessEvent(const TRestEvent& input, TRestEvent& output) override;
     /// \brief Nothing to do at the end of the processing.
     void EndProcess() override {}

@@ -10,9 +10,12 @@
 # reference in both detectors, the Micromegas run can also use triggerMode observable with
 # g4Ana_gas_FirstHitTime (Geant4ToRaw.yaml with g4Ana before geant4ToHits).
 # Events without energy in the gas (non finite FirstHitTime) or without veto signals are rejected.
-# The light of each deposit is propagated to the readout volume of its veto (the light guide, readoutVolume
-# of libraries/detector/examples/GDMLReadout.yaml: veto_readout_output.root must be generated again with it)
-# with the light response of the scintillator medium; its values are placeholders to be measured.
+# The light: each deposit gives scintillation photons (lightYield of the medium), those reaching the readout
+# volume of its veto (the light guide, readoutVolume of libraries/detector/examples/GDMLReadout.yaml:
+# veto_readout_output.root must be generated again with it) are attenuated and delayed with the distance
+# (attenuation model, light response of the medium) and the PMT converts them into photoelectrons
+# (quantumEfficiency of lightCollection): the signals are in photoelectrons. The values of the light are placeholders to be
+# measured (BC408: about 10 photons per keV; the gain is in ADC per photoelectron).
 
 manager:
   class: "TRestManager"
@@ -40,6 +43,7 @@ manager:
     name: "BC408"
     state: "solid"
     light:
+      lightYield: 10  # photons per keV
       attenuationLength: 3 m
       effectiveLightSpeed: 150 mm/ns
 
@@ -57,9 +61,14 @@ manager:
     geant4ToHits:
       class: "TRestGeant4ToDetectorHitsProcess"
       volumes: ["scintillatorVolume"]
-    lightAttenuation:
-      class: "TRestDetectorLightAttenuationProcess"
-      observables: ["NHitsWithoutChannel"]
+    scintillation:
+      class: "TRestDetectorScintillationProcess"
+      observables: ["NPhotons"]
+    lightCollection:
+      class: "TRestDetectorLightCollectionProcess"
+      model: "attenuation"
+      quantumEfficiency: 0.25  # PMT
+      observables: ["NPhotoelectrons", "NHitsWithoutChannel"]
     hitsToSignal:
       class: "TRestDetectorHitsToSignalProcess"
     signalShaping:
@@ -74,7 +83,7 @@ manager:
       triggerMode: "observable"
       triggerObservable: "g4Ana_gas_FirstHitTime"
       triggerDelay: 4 us
-      gain: 10
+      gain: 4  # ADC per photoelectron (about 10 ADC per keV with 2.5 photoelectrons per keV)
       offset: 250
       maxValue: 4095
       observables: ["TriggerTime", "NSaturatedSignals"]

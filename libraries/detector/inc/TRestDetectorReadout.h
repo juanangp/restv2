@@ -165,20 +165,22 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \return DAQ channel, or `-1` when no channel is found.
     virtual int GetChannelFromPosition(double x, double y, double z) const;
 
-    /// \brief A channel collecting the light produced at a position (GetLightCollection).
-    struct LightCollection {
-        int daqID = -1;          ///< DAQ channel
-        double probability = 0;  ///< Probability that a photon produced at the position gives a signal
-        ROOT::Math::XYZVector position;  ///< A position of the channel (GetChannelFromPosition gives daqID)
+    /// \brief A channel near a position (GetChannelsInRange).
+    struct ChannelInRange {
+        int daqID = -1;                  ///< DAQ channel
+        double distance = 0;             ///< Distance from the position to the channel
+        ROOT::Math::XYZVector position;  ///< A point of the channel (GetChannelFromPosition gives daqID)
     };
-    /// \brief The channels that collect the scintillation light produced at a position, with the probability
-    /// that a photon gives a signal in each one (used by TRestDetectorScintillationProcess). By default the
-    /// channel at the position, with probability 1, at the position itself; TRestFibreReadout: the fibres
-    /// within the range of their capture probability.
-    virtual std::vector<LightCollection> GetLightCollection(const ROOT::Math::XYZVector& position) const {
+    /// \brief The channels closer than maxDistance to a position, with their distance (geometry only, e.g.
+    /// for the local capture of the light of TRestDetectorLightCollectionProcess). By default the channel at
+    /// the position, at distance 0; TRestFibreReadout: the fibres within maxDistance in the plane transverse
+    /// to them, at the projection of the position on each one.
+    virtual std::vector<ChannelInRange> GetChannelsInRange(const ROOT::Math::XYZVector& position,
+                                                           double maxDistance) const {
+        (void)maxDistance;
         const int daqID = GetChannelFromPosition(position.X(), position.Y(), position.Z());
         if (daqID < 0) return {};
-        return {{daqID, 1.0, position}};
+        return {{daqID, 0.0, position}};
     }
 
     /// \brief Returns the centroid position of a given DAQ channel.

@@ -122,8 +122,8 @@ note in parentheses in an N row says where its functionality went.
 |   | x |   | TRestDetectorHitsShuffleProcess | Shuffles the hits of the event randomly. |
 |   | x |   | TRestDetectorHits3DReconstructionProcess | Reconstructs XYZ hits from XZ and YZ strip hits. |
 | x |   |   | TRestDetectorAvalancheProcess (migrated, same name, new meaning) | Applies the avalanche gain fluctuation to the hit energy. |
-| x |   |   | TRestDetectorLightAttenuationProcess (migrated, same name; parameters in the `light` response of the medium) | Attenuates the energy of veto hits by the distance to the light readout. |
-| x |   |   | TRestDetectorScintillationProcess and TRestFibreReadout (new, LiquidO macro Geant4ToSignal.C of losimulations) | Photoelectrons of the fibres from the energy of the hits; readout of fibre lattices. |
+| x |   |   | TRestDetectorLightAttenuationProcess (replaced 2026-11-09: TRestDetectorLightCollectionProcess, model `attenuation`, with photons) | Attenuates the energy of veto hits by the distance to the light readout. |
+| x |   |   | TRestDetectorScintillationProcess, TRestDetectorLightCollectionProcess and TRestFibreReadout (new, LiquidO macro Geant4ToSignal.C of losimulations) | Photons, their collection by the channels (local capture or attenuation) and photoelectrons; readout of fibre lattices. |
 |   | x |   | TRestDetectorPositionMappingProcess | Corrects the energy by position (gain map) and generates the map. |
 |   | x |   | TRestDetectorGainMap | Metadata with the gain map per module/position and its application to events. |
 |   | x |   | TRestDetectorSingleChannelAnalysisProcess (TRestDataSetGainMap) | Calibrates the (relative) gain of each channel and applies it to the signals. |
@@ -199,8 +199,8 @@ migrate one anyway.
   is decided where to publish the input data outside the repository (2026-11-09).
 - **Unit test coverage**: not covered yet (2026-11-09): TRestDataSetProcess (abstract),
   TRestEventProcessManager, viewers, TRestGeant4AnalysisProcess (needs an input file),
-  TRestDetectorAvalancheProcess (gain tables), TRestDetectorLightAttenuationProcess (GDML readout),
-  TRestDataSetGainMap, restGarfield and restDAQ.
+  TRestDetectorAvalancheProcess (gain tables), TRestGDMLReadout (GDML file), TRestDataSetGainMap,
+  restGarfield and restDAQ.
 - **New repository and CI**: the GitHub Actions workflows stay local until the maintainer creates the new
   repository outside rest-for-physics; the Docker image (`/home/juanan/restv2-docker`) is built and pushed by
   the maintainer (2026-11-09).
@@ -596,7 +596,8 @@ Dated sections in chronological order, **oldest first**. Items added later to a 
 - GaussSigmaX/Y/Z and FiducialEnergy are only registered if active (`gaussFit`, `fiducialRadius` > 0). In
   general (TRestEventProcess), an `observables` name (except `all`, `none`) that the process does not give with
   its configuration is an error at initialization, with the list of the available ones.
-- TRestDetectorLightAttenuationProcess: migrated (2026-11-06), see "Veto readout".
+- TRestDetectorLightAttenuationProcess: migrated (2026-11-06), see "Veto readout"; replaced on 2026-11-09 by
+  TRestDetectorLightCollectionProcess (model `attenuation`), see "Fibre readout and scintillation".
 
 ### Veto readout (2026-11-06, implemented)
 
@@ -920,17 +921,23 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   pitches) is described. Channel = the closest fibre (computed, not a geometry search:
   TRestDetectorReadout::GetChannelFromPosition is virtual); a fibre gives its two transverse coordinates
   (XZ / YZ hits as strips). Without decodingFile the DAQ ID is the physical ID.
-- The light (user): scintillation (lightYield of the `light` of the medium), capture by the fibre and quantum
-  efficiency of the SiPM. The light ball of the opaque scintillator and the trapping of the fibre are a single
-  capture probability versus the distance to the fibre, P(r), a parameter of each fibre family (formula or a
-  graph from an optical simulation of Geant4, to parametrize the light path); quantumEfficiency is a
-  parameter of the readout. Photoelectrons per fibre = Poisson(E * lightYield * P(r) * QE), no photon
-  tracking (TRestDetectorReadout::GetLightCollection, by default the channel at the position with
-  probability 1).
-- TRestDetectorScintillationProcess (user: "scintillation", although an opaque scintillator is a particular
-  case): hits → hits with energy in photoelectrons, one per hit and fibre, at the projection of the deposit
-  on the fibre. No attenuation nor delay along the fibre for now (user): GetDistanceToReadout of the fibre
-  readout would give it later.
+- The light in two processes (user, revised the same day: a single process with the light ball was not
+  generic, it is a particular case of opaque scintillators):
+  - TRestDetectorScintillationProcess: only the primary scintillation, photons = Poisson(E * lightYield of
+    the `light` of the medium) per hit, same position and time (no decay time yet).
+  - TRestDetectorLightCollectionProcess with a `model` per kind of scintillator (user): `localCapture`
+    (opaque: the channels within maxDistance, TRestDetectorReadout::GetChannelsInRange, capture the photons
+    with captureProbability(r), a formula or a graph from an optical simulation of Geant4; multinomial, a
+    photon goes to one channel at most) and `attenuation` (transparent: Binomial(N, exp(-d/λ)) to the readout
+    of the channel, t + d/v, light response of the medium). P(r) moved from the fibre families to the process:
+    the readout keeps only the geometry (as agreed for the readouts).
+  - The quantumEfficiency (binomial, moved from the readout) is a parameter of
+    TRestDetectorLightCollectionProcess, which gives photoelectrons (user: a separate photosensor process
+    was rejected, also its name).
+  - TRestDetectorLightAttenuationProcess is removed (user): the vetoes use scintillation → lightCollection
+    (attenuation, quantumEfficiency of the PMT), with signals in photoelectrons (Geant4ToRawVeto.yaml, gain in ADC per
+    photoelectron).
+  No attenuation nor delay along the fibres for now (user).
 - Fibres in Geant4 (user: they are dead material): the placements are generated from the same readout
   parameters (TRestFibreReadout::WriteGDMLPlacements, macro REST_Detector_GenerateFibreReadout) and included
   as an external entity inside the scintillator volume; the solid and material of the fibres are written by
@@ -980,8 +987,8 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   analysis 66, raw 32, connectors 16, detector 25, track 12, geant4 11 (with the regression tests of the fixes
   below), plus the 22 restG4 examples; the 9 FFTAnalysis tests are skipped without FFTW in ROOT.
   Not covered: TRestDataSetProcess (abstract), TRestEventProcessManager, viewers, TRestGeant4AnalysisProcess
-  (needs an input file), TRestDetectorAvalancheProcess (gain tables), TRestDetectorLightAttenuationProcess
-  (GDML readout), TRestDataSetGainMap, restGarfield and restDAQ.
+  (needs an input file), TRestDetectorAvalancheProcess (gain tables), TRestGDMLReadout (GDML file),
+  TRestDataSetGainMap, restGarfield and restDAQ.
 - Problems found while writing them, fixed (2026-11-09), with regression tests:
   - Event copy: TRestEvent copied the TPad it owns (double delete) and the branch pointer; the events with
     views (TRestDetectorHitsEvent, TRestTrackEvent, TRestRawSignalEvent, TRestDetectorSignalEvent) left the

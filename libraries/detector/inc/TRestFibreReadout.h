@@ -2,15 +2,14 @@
 #define TRESTFIBREREADOUT_H
 
 #include <array>
-#include <functional>
 #include <string>
 #include <vector>
 
 #include "TRestDetectorReadout.h"
 
 /// \class TRestFibreFamily
-/// \brief A family of parallel fibres of a TRestFibreReadout (an entry of `fibres`): their axis, the grid
-/// of their positions in the plane transverse to it and their capture probability.
+/// \brief A family of parallel fibres of a TRestFibreReadout (an entry of `fibres`): their axis and the grid
+/// of their positions in the plane transverse to it.
 class TRestFibreFamily : public TRestMetadata {
    public:
     /// `axis`: direction of the fibres, "X", "Y" or "Z"
@@ -20,27 +19,15 @@ class TRestFibreFamily : public TRestMetadata {
     /// `offset`: position of the first fibre along the two transverse axes (in cyclic order after the axis:
     /// X: Y and Z; Y: Z and X; Z: X and Y), from the lower corner of the box of the readout
     std::array<TRestWithUnits, 2> fOffset = {0.0, 0.0};
-    /// `captureProbability`: probability that a scintillation photon produced at a distance r (mm) from a
-    /// fibre is captured and reaches its photosensor, as a ROOT formula of x = r (e.g.
-    /// "0.05*exp(-x*x/200)") or a graph or histogram of a ROOT file, "file.root:name" (e.g. from an optical
-    /// simulation of Geant4)
-    std::string fCaptureProbability = "";
-    /// `maxDistance`: fibres farther than this from a position collect no light from it (the range of
-    /// captureProbability)
-    TRestWithUnits fMaxDistance = 0;
     /// `volume`: logical volume of the fibre in the GDML of the simulation (the placements written by
     /// TRestFibreReadout::WriteGDMLPlacements)
     std::string fVolume = "";
-
-    /// Capture probability versus the distance (mm), built from captureProbability
-    std::function<double(double)> fCapture;  //!
 
     /// \brief Builds an empty family.
     TRestFibreFamily();
     /// \brief Builds the family from its YAML node (LoadConfig).
     TRestFibreFamily(const std::string& name, const YAML::Node& node);
-    /// \brief Reads the keys and builds the capture probability; throws if the axis is not X, Y or Z, the
-    /// pitch or maxDistance are not positive or captureProbability is not a valid formula or graph.
+    /// \brief Reads the keys; throws if the axis is not X, Y or Z or the pitch is not positive.
     void LoadConfig() override;
     /// \brief Nothing to initialise.
     void Initialize() override {}
@@ -49,13 +36,11 @@ class TRestFibreFamily : public TRestMetadata {
 
     /// \brief Axis of the fibres: 0 X, 1 Y, 2 Z.
     int GetAxis() const { return fAxis == "X" ? 0 : fAxis == "Y" ? 1 : 2; }
-    /// \brief Capture probability at a distance (mm) from a fibre (0 beyond maxDistance).
-    double GetCaptureProbability(double distance) const;
 };
 
 /// \class TRestFibreReadoutParameters
-/// \brief The `readoutParameters` of a TRestFibreReadout: the box (size, position), the quantum
-/// efficiency of the photosensors and the fibre families (`fibres`).
+/// \brief The `readoutParameters` of a TRestFibreReadout: the box (size, position) and the fibre families
+/// (`fibres`).
 class TRestFibreReadoutParameters : public TRestMetadata {
    public:
     /// `size`: size of the box filled with fibres (the scintillator), along X, Y and Z
@@ -63,9 +48,6 @@ class TRestFibreReadoutParameters : public TRestMetadata {
     /// `position`: centre of the box in the global frame (the placement of the scintillator volume, not
     /// rotated)
     std::array<TRestWithUnits, 3> fPosition = {0.0, 0.0, 0.0};
-    /// `quantumEfficiency`: probability that a photon reaching the photosensor (SiPM) of a fibre gives a
-    /// photoelectron
-    double fQuantumEfficiency = 1;
     /// `fibres`: the fibre families
     std::vector<TRestFibreFamily> fFibres;
 
@@ -73,8 +55,7 @@ class TRestFibreReadoutParameters : public TRestMetadata {
     TRestFibreReadoutParameters();
     /// \brief Builds the parameters from the `readoutParameters` node (LoadConfig).
     TRestFibreReadoutParameters(const std::string& name, const YAML::Node& node);
-    /// \brief Reads the parameters; throws if the size is not positive, the quantum efficiency is not in
-    /// [0, 1] or there are no fibres.
+    /// \brief Reads the parameters; throws if the size is not positive or there are no fibres.
     void LoadConfig() override;
     /// \brief Nothing to initialise.
     void Initialize() override {}
@@ -146,10 +127,11 @@ class TRestFibreReadout : public TRestDetectorReadout {
     /// \brief Neighbour fibres of the same family and row (physical IDs - 1 and + 1 along the second
     /// transverse axis), -1 at the ends.
     std::pair<int, int> GetAdjacentChannels(int daqID) const override;
-    /// \brief The fibres closer than the maxDistance of their family to the position (the coordinate along
-    /// the fibre inside the box), with probability captureProbability(r) * quantumEfficiency, at the
-    /// projection of the position on the fibre.
-    std::vector<LightCollection> GetLightCollection(const ROOT::Math::XYZVector& position) const override;
+    /// \brief The fibres closer than maxDistance to the position in the plane transverse to them (the
+    /// coordinate along the fibre inside the box), with that distance, at the projection of the position on
+    /// the fibre.
+    std::vector<ChannelInRange> GetChannelsInRange(const ROOT::Math::XYZVector& position,
+                                                   double maxDistance) const override;
 
     /// \brief Writes the placements of the fibres (`physvol` elements of the GDML, named fibre_<physical
     /// ID>, with the logical volume `volume` of their family) to a file, to be included as an external

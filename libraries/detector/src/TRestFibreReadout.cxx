@@ -8,15 +8,12 @@
 #include <memory>
 #include <stdexcept>
 
-#include "TF1.h"
 #include "TFile.h"
 #include "TGeoManager.h"
 #include "TGeoMatrix.h"
 #include "TGeoNode.h"
 #include "TGeoTube.h"
 #include "TGeoVolume.h"
-#include "TGraph.h"
-#include "TH1.h"
 
 /// \class TRestFibreReadout
 /// Readout of a scintillator crossed by a lattice of fibres, each one read by its own photosensor, e.g.
@@ -37,14 +34,10 @@
 /// those along X are YZ hits (as the strips of a Micromegas). GetChannelFromPosition gives the closest
 /// fibre to a position (in the plane transverse to each fibre).
 ///
-/// The light: GetLightCollection gives, for a position, the fibres closer than `maxDistance` and the
-/// probability that a scintillation photon produced there gives a photoelectron in each one,
-/// captureProbability(r) * quantumEfficiency, with r the distance to the fibre. `captureProbability` is
-/// the probability that the photon reaches the fibre, is trapped and reaches its photosensor (it includes
-/// the opacity of the medium): a ROOT formula of x = r in mm (e.g. a Gaussian light ball) or a graph or
-/// histogram of a ROOT file ("file.root:name", e.g. from an optical simulation of Geant4).
-/// `quantumEfficiency` is the one of the photosensors. TRestDetectorScintillationProcess uses it with the
-/// light yield of the medium.
+/// The readout gives only the geometry: GetChannelsInRange gives the fibres closer than a distance to a
+/// position (in the plane transverse to each fibre), used by the localCapture model of
+/// TRestDetectorLightCollectionProcess with its capture probability versus that distance and the quantum
+/// efficiency of the SiPMs; the light yield is in TRestDetectorScintillationProcess.
 ///
 /// Geant4: the fibres are dead material for the simulation. WriteGDMLPlacements (macro
 /// REST_Detector_GenerateFibreReadout) writes their placements (`physvol` named fibre_<physical ID>, of
@@ -52,8 +45,8 @@
 /// as the box along the fibre, and material), to include as an external entity inside the volume of the
 /// scintillator, so the simulation and the readout share the same fibres.
 ///
-/// Parameters: decodingFile (optional) and, in `readoutParameters`, size, position, quantumEfficiency and
-/// fibres (axis, pitch, offset, captureProbability, maxDistance, volume).
+/// Parameters: decodingFile (optional) and, in `readoutParameters`, size, position and fibres (axis, pitch,
+/// offset, volume).
 ///
 /// Example (LiquidO prototype of 1.5 m, fibres along Y and along X in alternated layers 10 mm apart):
 ///
@@ -63,19 +56,14 @@
 ///      readoutParameters:
 ///        size: [1500mm, 1500mm, 1500mm]
 ///        position: [0, 0, 750mm]
-///        quantumEfficiency: 0.3
 ///        fibres:
 ///          - axis: "Y"
 ///            pitch: 20mm
 ///            offset: [15mm, 15mm]
-///            captureProbability: "0.05*exp(-x*x/(2*10*10))"
-///            maxDistance: 40mm
 ///            volume: "fibreYVolume"
 ///          - axis: "X"
 ///            pitch: 20mm
 ///            offset: [5mm, 5mm]
-///            captureProbability: "0.05*exp(-x*x/(2*10*10))"
-///            maxDistance: 40mm
 ///            volume: "fibreXVolume"
 ///
 /// The fibres along Y (axis Y: transverse Z and X) are at z = 15 + 20 k, x = -735 + 20 i; those along X
@@ -106,15 +94,12 @@ static const bool TRestFibreReadout_FieldsRegistered = []() {
     using P = TRestFibreReadoutParameters;
     reg.RegisterField<P>("size", &P::fSize);
     reg.RegisterField<P>("position", &P::fPosition);
-    reg.RegisterField<P>("quantumEfficiency", &P::fQuantumEfficiency);
     reg.RegisterField<P>("fibres", &P::fFibres);
 
     using F = TRestFibreFamily;
     reg.RegisterField<F>("axis", &F::fAxis);
     reg.RegisterField<F>("pitch", &F::fPitch);
     reg.RegisterField<F>("offset", &F::fOffset);
-    reg.RegisterField<F>("captureProbability", &F::fCaptureProbability);
-    reg.RegisterField<F>("maxDistance", &F::fMaxDistance);
     reg.RegisterField<F>("volume", &F::fVolume);
     return true;
 }();
@@ -137,46 +122,7 @@ void TRestFibreFamily::LoadConfig() {
         throw std::runtime_error(prefix + "axis must be X, Y or Z, not '" + fAxis + "'");
     }
     if (fPitch <= 0) throw std::runtime_error(prefix + "pitch must be positive");
-    if (fMaxDistance <= 0) throw std::runtime_error(prefix + "maxDistance must be positive");
-    if (fCaptureProbability.empty()) throw std::runtime_error(prefix + "captureProbability is missing");
-
-    // "file.root:name": a graph or a histogram; otherwise a formula of x (the distance in mm)
-    const auto separator = fCaptureProbability.rfind(':');
-    const bool fromFile = separator != std::string::npos &&
-                          fCaptureProbability.find(".root") != std::string::npos &&
-                          separator > fCaptureProbability.find(".root");
-    if (fromFile) {
-        const std::string fileName = fCaptureProbability.substr(0, separator);
-        const std::string objectName = fCaptureProbability.substr(separator + 1);
-        std::unique_ptr<TFile> file(TFile::Open(fileName.c_str()));
-        if (!file || file->IsZombie()) throw std::runtime_error(prefix + "cannot open " + fileName);
-        TObject* object = file->Get(objectName.c_str());
-        if (auto* graph = dynamic_cast<TGraph*>(object)) {
-            std::shared_ptr<TGraph> copy(static_cast<TGraph*>(graph->Clone()));
-            fCapture = [copy](double r) { return copy->Eval(r); };
-        } else if (auto* histogram = dynamic_cast<TH1*>(object)) {
-            std::shared_ptr<TH1> copy(static_cast<TH1*>(histogram->Clone()));
-            copy->SetDirectory(nullptr);
-            fCapture = [copy](double r) { return copy->Interpolate(r); };
-        } else {
-            throw std::runtime_error(prefix + "no graph or histogram '" + objectName + "' in " + fileName);
-        }
-    } else {
-        // Not added to the list of functions of ROOT (several families may have the same formula)
-        auto function = std::make_shared<TF1>("fibreCaptureProbability", fCaptureProbability.c_str(), 0,
-                                              static_cast<double>(fMaxDistance), TF1::EAddToList::kNo);
-        if (!function->IsValid()) {
-            throw std::runtime_error(prefix + "captureProbability '" + fCaptureProbability +
-                                     "' is not a valid formula of x");
-        }
-        fCapture = [function](double r) { return function->Eval(r); };
-    }
     UpdateYAMLFromParams<TRestFibreFamily>(fNode);
-}
-
-double TRestFibreFamily::GetCaptureProbability(double distance) const {
-    if (!fCapture || distance > fMaxDistance) return 0;
-    return std::max(0.0, fCapture(distance));
 }
 
 // ============================================================
@@ -197,9 +143,6 @@ void TRestFibreReadoutParameters::LoadConfig() {
     const std::string prefix = "TRestFibreReadoutParameters: ";
     for (const auto& size : fSize) {
         if (size <= 0) throw std::runtime_error(prefix + "the size must be positive along X, Y and Z");
-    }
-    if (fQuantumEfficiency < 0 || fQuantumEfficiency > 1) {
-        throw std::runtime_error(prefix + "quantumEfficiency must be in [0, 1]");
     }
     if (fFibres.empty()) throw std::runtime_error(prefix + "no fibres");
     UpdateYAMLFromParams<TRestFibreReadoutParameters>(fNode);
@@ -410,22 +353,19 @@ std::pair<int, int> TRestFibreReadout::GetAdjacentChannels(int daqID) const {
     return {j > 0 ? GetDAQID(physicalID - 1) : -1, j < nV - 1 ? GetDAQID(physicalID + 1) : -1};
 }
 
-std::vector<TRestDetectorReadout::LightCollection> TRestFibreReadout::GetLightCollection(
-    const XYZVector& position) const {
-    std::vector<LightCollection> collections;
-    const double quantumEfficiency = fReadoutParams.fQuantumEfficiency;
-    if (quantumEfficiency <= 0) return collections;
+std::vector<TRestDetectorReadout::ChannelInRange> TRestFibreReadout::GetChannelsInRange(
+    const XYZVector& position, double maxDistance) const {
+    std::vector<ChannelInRange> channels;
+    if (!(maxDistance >= 0)) return channels;
 
     for (size_t f = 0; f < fGrids.size(); f++) {
         const auto& grid = fGrids[f];
-        const auto& family = fReadoutParams.fFibres[f];
         // The fibres span the box along their axis
         const double along = Component(position, grid.axis);
         const double minimum = GetMinimum(grid.axis);
         if (!(along >= minimum && along <= minimum + fReadoutParams.fSize[grid.axis])) continue;
 
-        const double pitch = family.fPitch;
-        const double maxDistance = family.fMaxDistance;
+        const double pitch = fReadoutParams.fFibres[f].fPitch;
         const double pu = Component(position, grid.u), pv = Component(position, grid.v);
         const double firstU = GetFibreCoordinate(f, 0, 0), firstV = GetFibreCoordinate(f, 1, 0);
         const int iMin = std::max(0, static_cast<int>(std::ceil((pu - maxDistance - firstU) / pitch)));
@@ -439,8 +379,7 @@ std::vector<TRestDetectorReadout::LightCollection> TRestFibreReadout::GetLightCo
             for (int j = jMin; j <= jMax; j++) {
                 const double v = firstV + j * pitch;
                 const double distance = std::hypot(pu - u, pv - v);
-                const double probability = family.GetCaptureProbability(distance) * quantumEfficiency;
-                if (probability <= 0) continue;
+                if (distance > maxDistance) continue;
                 const int daqID = GetDAQID(grid.firstID + i * grid.nV + j);
                 if (daqID < 0) continue;
                 // The projection of the position on the fibre
@@ -448,12 +387,11 @@ std::vector<TRestDetectorReadout::LightCollection> TRestFibreReadout::GetLightCo
                 projected[grid.axis] = along;
                 projected[grid.u] = u;
                 projected[grid.v] = v;
-                collections.push_back(
-                    {daqID, probability, XYZVector(projected[0], projected[1], projected[2])});
+                channels.push_back({daqID, distance, XYZVector(projected[0], projected[1], projected[2])});
             }
         }
     }
-    return collections;
+    return channels;
 }
 
 bool TRestFibreReadout::WriteGDMLPlacements(const std::string& fileName) const {

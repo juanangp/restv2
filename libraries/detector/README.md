@@ -1,4 +1,10 @@
-# Detector library
+# The detector library
+
+This library is used to define the detector: the readout topology (Micromegas planes or GDML volumes) that
+maps positions to channels, and the medium with its charge and light response. It also implements the
+processes of event reconstruction from real detector data (signal shaping, recovery, peak finding, signals
+to hits) and of emulation of the physical response of the detector (electron drift and diffusion,
+avalanche, smearing, light attenuation, spatial transformations, hits to signals).
 
 The detector library (`RestDetector`) describes the detector of restv2 and the processing of its events in
 physical units: the hits (energy deposits, drifted electrons or reconstructed positions) and the signals
@@ -104,8 +110,7 @@ except `GDMLReadout.yaml`, whose decoding and GDML paths are relative to the rep
 | `SignalToHits.yaml` | Pipeline `TRestDetectorSignalEvent` → `TRestDetectorHitsEvent` with the IAXO-D1 readout. |
 | `SignalRecovery.yaml` | Recovery of dead channels of the IAXO-D1 readout. |
 | `SignalPeaks.yaml` | Peaks and coincidence windows of the signals. |
-| `DataSetCalibration.yaml` | Energy calibration of datasets with `TRestDataSetCalibration` and a `TRestDataSetGainMap`, with plots. |
-| `DataSetLogOdds.yaml` | Log odds of the calibrated datasets. |
+| `DataSetCalibration.yaml` | Energy calibration of datasets with `TRestDataSetCalibration` and a `TRestDataSetGainMap`, with plots; its outputs are the inputs of `examples/DataSetLogOdds.yaml` and `examples/DataSetTMVA.yaml`. |
 
 Generate and view the readouts (in restRoot):
 
@@ -132,5 +137,4 @@ restManager --c SignalToHits.yaml --i <signals file>
 restManager --c SignalRecovery.yaml --i <signals file>
 restManager --c SignalPeaks.yaml --i <signals file>
 restManager --c DataSetCalibration.yaml --i Dataset_Calibration.root
-restManager --c DataSetLogOdds.yaml --i Dataset_Background_Calibrated.root
 ```

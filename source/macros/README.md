@@ -12,6 +12,7 @@ in `$REST_PATH/macros`) and its `REST_*` functions and global pointers are decla
 | `REST_OpenDataSet` | Opens a dataset file as `_dataSet`, as it is (in `REST_OpenInputFile.C`). | `REST_OpenDataSet("D_Calibration.root")` |
 | `REST_GenerateDataSet` | Generates the TRestDataSet of a YAML section with its cuts and writes it. | `REST_GenerateDataSet("dataset.yaml", "dataSet" [, "output.root", "inputPattern"])` |
 | `REST_MergeRuns` | Merges the subruns of a run (or simulations of the same configuration with different seeds) into a single run file. | `REST_MergeRuns("R01234_*_ANA.root", "R01234_ANA.root")` |
+| `REST_ViewTMVA` | Draws the training results of a TRestDataSetTMVA stored in a dataset (ROC curve, training/test scores, separation and importance of the observables), optionally saved. | `REST_ViewTMVA("Dataset_Background_TMVA.root", "bdt" [, "bdt.pdf"])` |
 | `REST_ViewEvents` | Opens a run file in the event browser (TRestBrowser + TRestEventViewer). | `REST_ViewEvents("R01234_ANA.root" [, "TRestDetectorHitsEvent"])` |
 
 All of them return 0 on success and a non-zero value on error (the reason is printed).

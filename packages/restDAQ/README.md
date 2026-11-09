@@ -1,14 +1,17 @@
-## restDAQ
+# The restDAQ package
 
-Data taking of AFTER/AGET electronics (ARC, FEMINOS, DCC and TCM), based on the `mclient` program of Denis Calvet.
-It is FEMDAQ adapted to restv2 (same executable, `femclient`): it writes REST run files.
+This package is used to take data with AFTER/AGET electronics and write it as REST run files, ready to be
+processed with the raw library.
 
-### Build
+It supports ARC, FEMINOS, DCC and TCM, and is based on the `mclient` program of Denis Calvet: it is FEMDAQ
+adapted to restv2 (same executable, `femclient`).
+
+## Build
 
 Optional package: `cmake -DREST_DAQ=ON ...`. It needs readline (`libreadline-dev`) and prometheus-cpp, found with
 `find_package` (e.g. `-DCMAKE_PREFIX_PATH=<prometheus-cpp install>`), otherwise downloaded with FetchContent.
 
-### Usage
+## Usage
 
 ```bash
 femclient restDAQ.yaml                  # interactive console (history in `$REST_HOME/.rest/femclient_history`, or `~/.rest` without REST_HOME)
@@ -40,13 +43,13 @@ The commands are those of `mclient` (sent to the active FEMs) plus:
   (levels of restv2). `exec <file>`. `sleep <s>`. `quit` or `exit`.
 * DCC: `asic <id> gain 0x<g> time 0x<t>` is translated into the write of the register of the ASIC.
 
-### Configuration
+## Configuration
 
 See `examples/restDAQ.yaml`: a TRestRawDAQMetadata (electronics, FEMs, limits of the run, Prometheus address) and a
 TRestRun (`runNumber: auto`, a new number in each `fopen`; tags; `runInfo`; `mainDataPath`; `outputFileName`).
 When a file reaches `maxFileSize` the next subrun is opened.
 
-### Output
+## Output
 
 REST run files with the events in the tree `TRestRawSignalEvent`, written as TRestRawDAQSignalEvent: the signals
 plus, for each FEM, its id, event counter, timestamp (10 ns ticks) and number of signals (branches `fFEMIDs`,
@@ -59,7 +62,7 @@ the readouts and the pulse parameters of a restv2 configuration (template:
 `libraries/connectors/examples/DAQViewer.yaml`). The signals of each event, a pad per ASIC:
 `REST_Raw_PulsesViewer("file.root")` (TRestRawPulsesViewer, raw library).
 
-### Architecture
+## Architecture
 
 * `CommandFetcher` reads the commands (readline console or command file) and runs them on a `FEMDAQ`, created for
   the `electronics` of the configuration (`RunConfig`: the TRestRun and the TRestRawDAQMetadata of the YAML file):
@@ -83,7 +86,7 @@ the readouts and the pulse parameters of a restv2 configuration (template:
 * The update thread writes the number of events and the rate every `updateRate`, updates Prometheus and ends the
   run at `nEvents` or `time`. At the end of the run the event builder writes the data left and stops.
 
-### Monitoring
+## Monitoring
 
 A Prometheus server (`prometheusAddress`, default `0.0.0.0:8080`, empty for none; not with `--tcm`) gives the run
 number (`run_number`), the rate (`event_rate`), the events (`events_total`) and the events with the FEMs out of

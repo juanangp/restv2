@@ -1,4 +1,8 @@
-# Track library
+# The track library
+
+This library defines a track event type, groups of hits clustered by a distance relation, and the
+processes that reduce, order and analyse the tracks to identify and reconstruct the physical tracks
+(topological observables: track length, blobs at the ends, straight-line fits).
 
 The track library (`RestTrack`) holds the track event of restv2 and the processes that reduce, order and
 analyse its tracks. A track is a group of hits of one type (e.g. XZ and YZ for strip readouts, XYZ for 3D

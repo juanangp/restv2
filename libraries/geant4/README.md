@@ -1,4 +1,9 @@
-# Geant4 library
+# The geant4 library
+
+This library is used to store and analyse the events generated in a Geant4 simulation. It defines and
+stores the particle generator and the simulation conditions, such as the geometry, the active volumes and
+the physics list used during the Monte Carlo, and implements processes on the simulated events (energy
+quenching, observables of volumes, particles and interactions).
 
 The geant4 library (`RestGeant4`) holds the event and the metadata of the Geant4 simulations of restv2:
 the event written by [restG4](../../packages/restG4/README.md) (primaries, energy per volume, tracks

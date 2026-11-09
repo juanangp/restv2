@@ -54,10 +54,13 @@ class TRestRunInfo : public TRestMetadata {
 
     /// \brief Default constructor.
     TRestRunInfo() = default;
-    /// \brief Constructs from a YAML node (see TRestMetadata).
+    /// \brief Constructs from a YAML node (see TRestMetadata), without reading it (LoadConfig): it is the
+    /// base of TRestRun, which reads its node (with keys TRestRunInfo does not know); the description of a
+    /// run alone is read with FromConfig.
     TRestRunInfo(const std::string& instanceName, const YAML::Node& node)
         : TRestMetadata(instanceName, node) {}
-    /// \brief Constructs from a section of a YAML file (see TRestMetadata).
+    /// \brief Constructs from a section of a YAML file (see TRestMetadata), without reading it (see the
+    /// other constructor).
     TRestRunInfo(const std::string& fileName, const std::string& sectionName)
         : TRestMetadata(fileName, sectionName) {}
 

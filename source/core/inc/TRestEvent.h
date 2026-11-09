@@ -326,6 +326,24 @@ class TRestEvent {
 
     /// \brief Default constructor.
     TRestEvent() = default;
+    /// \brief Copies the name, the event info, the run and the input format version; not the pad drawn
+    /// (owned by `other`) nor the branch address (the implicit copy would delete the pad twice and leave the
+    /// address on `other`).
+    TRestEvent(const TRestEvent& other)
+        : fName(other.fName),
+          fRestRun(other.fRestRun),
+          fInputFormatVersion(other.fInputFormatVersion),
+          fInfo(other.fInfo) {}
+    /// \brief Copies the event as the copy constructor; the pad drawn by this event is kept.
+    TRestEvent& operator=(const TRestEvent& other) {
+        if (this != &other) {
+            fName = other.fName;
+            fRestRun = other.fRestRun;
+            fInputFormatVersion = other.fInputFormatVersion;
+            fInfo = other.fInfo;
+        }
+        return *this;
+    }
 
     /// \brief Virtual destructor.
     virtual ~TRestEvent() {

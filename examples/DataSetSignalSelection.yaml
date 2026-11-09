@@ -1,0 +1,31 @@
+# Signal selection (TRestDataSetSignalSelection) of datasets processed with DataSetTMVA.yaml: the range of the
+# BDT score holding the 80% of the calibration with the highest scores (quantiles [0.2, 1], cut on the
+# calibrated energy) is computed, and only the entries of the dataset processed in that range are kept:
+#   restManager --c examples/DataSetSignalSelection.yaml --i Dataset_Background_TMVA.root
+# (output Dataset_Background_Selected.root, from the tag of inputFormat; the entries kept in each run are its
+# selectedEntries). The reference is the calibration processed by DataSetTMVA.yaml
+# (restManager --c examples/DataSetTMVA.yaml --i Dataset_Calibration_Calibrated.root).
+# For the log odds of DataSetLogOdds.yaml (lower values for the signal): observable "logOdds_total" and
+# quantiles [0, 0.8], with the inputs and reference processed by it.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  energy:
+    class: "TRestCut"
+    conditions:
+      range: "calib_Energy > 4 && calib_Energy < 8"
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    inputFileName: "Dataset_Background_TMVA.root"  # --i
+    inputFormat: "Dataset_[sample]_TMVA.root"
+    outputFileName: "Dataset_[sample]_Selected.root"  # --o
+
+    bdtSelection:
+      class: "TRestDataSetSignalSelection"
+      referenceFileName: "Dataset_Calibration_TMVA.root"
+      cuts: ["energy"]
+      observable: "bdt_score"
+      quantiles: [0.2, 1]

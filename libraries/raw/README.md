@@ -1,4 +1,10 @@
-# Raw library
+# The raw library
+
+This library is used to store and process the raw signals of the data acquisition: time pulses of ADC
+samples with a fixed number of bins. It reads the binary and ROOT formats of the electronics into REST,
+includes processes of signal conditioning (channel selection, baseline correction, common noise reduction,
+saturation recovery, shaping, noise addition) and pulse-shape analysis, and defines the event and the
+configuration of the data taking of restDAQ.
 
 The raw library (`RestRaw`) holds the raw signal event of restv2, the event of the data acquisition
 (restDAQ) and its configuration, and the processes that read the files of the DAQs, process the raw

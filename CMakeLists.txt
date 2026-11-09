@@ -45,7 +45,8 @@ set(ROOT_REQUIRED_LIBRARIES
     TreePlayer
     ROOTDataFrame
     RooFitCore
-    RooFit)
+    RooFit
+    TMVA)
 
 find_package(ROOT 6.26 REQUIRED COMPONENTS ${ROOT_REQUIRED_LIBRARIES})
 include(${ROOT_USE_FILE})
@@ -119,6 +120,10 @@ endif()
 # target uses none of its symbols. Linkers using --as-needed (default on Ubuntu
 # and others, or set in LDFLAGS) would drop it, so the target is linked with
 # --no-as-needed. Libraries whose target does not exist (disabled) are skipped.
+# The build-tree path of the libraries is written as RPATH, not RUNPATH: it is
+# searched before LD_LIBRARY_PATH, so the executables and tests of the build
+# load its libraries, not others with the same name in LD_LIBRARY_PATH (e.g. a
+# legacy REST installation). The installed ones use thisREST.sh.
 # ---------------------------------------------------------------------------
 function(rest_link_registered_libraries target)
   set(_libs "")
@@ -129,7 +134,8 @@ function(rest_link_registered_libraries target)
   endforeach()
   target_link_libraries(${target} PRIVATE ${_libs})
   if(NOT APPLE AND NOT WIN32)
-    target_link_options(${target} PRIVATE "LINKER:--no-as-needed")
+    target_link_options(${target} PRIVATE "LINKER:--no-as-needed"
+                        "LINKER:--disable-new-dtags")
   endif()
 endfunction()
 
@@ -236,12 +242,37 @@ set(REST_LIBRARIES
     ${GEANT4_LIB}
     ${CONNECTORS_LIB})
 
-# Tests (GoogleTest, ctest): OFF by default; the restG4 examples are tests only
-# with REST_G4
+# Tests (GoogleTest, ctest): OFF by default. Unit tests in the test/ directory
+# of each component (cmake/RestTests.cmake), label = component (ctest -L core);
+# the restG4 examples are tests only with REST_G4 (label restG4). ctest runs all
+# of them; the target check builds and runs them
 option(BUILD_TESTING "Build the tests (requires GoogleTest)" OFF)
 if(BUILD_TESTING)
   find_package(GTest REQUIRED)
   enable_testing()
+  add_custom_target(rest_tests)
+  add_custom_target(
+    check
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS rest_tests
+    USES_TERMINAL)
+  include(${CMAKE_SOURCE_DIR}/cmake/RestTests.cmake)
+  foreach(_component IN ITEMS source/tools source/core source/analysis)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/${_component}/test/CMakeLists.txt)
+      add_subdirectory(${_component}/test)
+    endif()
+  endforeach()
+  # The libraries enabled (their targets exist)
+  foreach(_library IN ITEMS raw detector track geant4 connectors)
+    string(SUBSTRING ${_library} 0 1 _first)
+    string(TOUPPER ${_first} _first)
+    string(SUBSTRING ${_library} 1 -1 _rest)
+    if(TARGET Rest${_first}${_rest}
+       AND EXISTS ${CMAKE_SOURCE_DIR}/libraries/${_library}/test/CMakeLists.txt)
+      add_subdirectory(libraries/${_library}/test)
+    endif()
+  endforeach()
 endif()
 
 option(REST_G4
@@ -349,10 +380,15 @@ if(ALL_REPOSITORY_MACROS)
     DESTINATION macros
     COMPONENT install)
 
+  # The header directories (inc, include) of the sources: not those of the build
+  # and install trees in the repository (an installed header, older than the
+  # source one, would be found first)
   file(
     GLOB_RECURSE ALL_INC_DIRS
     LIST_DIRECTORIES true
-    "${CMAKE_SOURCE_DIR}/**/inc")
+    "${CMAKE_SOURCE_DIR}/source/*" "${CMAKE_SOURCE_DIR}/libraries/*"
+    "${CMAKE_SOURCE_DIR}/packages/*")
+  list(FILTER ALL_INC_DIRS INCLUDE REGEX "/(inc|include)$")
 
   # Each macro is compiled in a library (lib<macro>_C.so), without dictionary,
   # and REST_Macros.h declares its functions (REST_*) and global pointers (e.g.

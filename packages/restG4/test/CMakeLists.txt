@@ -18,6 +18,9 @@ target_compile_definitions(
           RESTG4_EXECUTABLE="$<TARGET_FILE:restG4>"
           RESTMANAGER_EXECUTABLE="$<TARGET_FILE:restManager>")
 add_dependencies(restG4Examples restG4 restManager)
+if(TARGET rest_tests)
+  add_dependencies(rest_tests restG4Examples)
+endif()
 
 include(GoogleTest)
 # REST_HOME: runNumber "auto" ($REST_HOME/.rest/runNumber) and downloads, inside

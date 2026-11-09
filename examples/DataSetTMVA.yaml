@@ -1,0 +1,38 @@
+# Boosted decision tree (TRestDataSetTMVA, ROOT TMVA) of datasets calibrated with DataSetCalibration.yaml: trained
+# with the calibration as signal (cut on the calibrated energy, calib_Energy) and a background dataset, its score
+# is added to the dataset processed (bdt_score):
+#   restManager --c examples/DataSetTMVA.yaml --i Dataset_Background_Calibrated.root
+# (output Dataset_Background_TMVA.root, from the tag of inputFormat)
+# The output dataset keeps the trained BDT (weights): as referenceFileName of another pipeline, it classifies
+# other datasets without training again. The references are used as they are: they must have the columns of
+# the cuts (calib_Energy).
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  energy:
+    class: "TRestCut"
+    conditions:
+      range: "calib_Energy > 4 && calib_Energy < 8"
+
+  hits:
+    class: "TRestCut"
+    conditions:
+      nHits: "hitsAnalysis_NHits > 0"
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    inputFileName: "Dataset_Background_Calibrated.root"  # --i
+    inputFormat: "Dataset_[sample]_Calibrated.root"
+    outputFileName: "Dataset_[sample]_TMVA.root"  # --o
+
+    bdt:
+      class: "TRestDataSetTMVA"
+      referenceFileName: "Dataset_Calibration_Calibrated.root"  # signal
+      cuts: ["energy", "hits"]
+      backgroundFileName: "Dataset_Background_Calibrated.root"
+      backgroundCuts: ["hits"]
+      method: "BDT"
+      options: "NTrees=800:MinNodeSize=2.5%:MaxDepth=3:BoostType=AdaBoost:AdaBoostBeta=0.5:nCuts=20"
+      observables: ["hitsAnalysis_SigmaX", "hitsAnalysis_SigmaY", "hitsAnalysis_NHits"]

@@ -13,12 +13,7 @@ const bool kRegistered = []() {
 }  // namespace
 
 void TRestDetectorHitsEvent::AddHit(double x, double y, double z, double en, double t, REST_HitType type) {
-    fHitsData.x.push_back((float)x);
-    fHitsData.y.push_back((float)y);
-    fHitsData.z.push_back((float)z);
-    fHitsData.time.push_back((float)t);
-    fHitsData.energy.push_back((float)en);
-    fHitsData.type.push_back((int)type);
+    fHitsData.push_back(x, y, z, t, en, (int)type);
     RebuildHitsView();
 }
 

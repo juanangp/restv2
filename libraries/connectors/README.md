@@ -1,4 +1,8 @@
-# Connectors library
+# The connectors library
+
+This library contains the processes that inter-connect the fundamental REST libraries, transforming an
+event type into another one, e.g. raw signals into detector signals or detector hits into a track event,
+and other classes that need two libraries at once, such as the DAQ viewer.
 
 The connectors library (`RestConnectors`) holds what needs several libraries at once:
 

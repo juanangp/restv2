@@ -1,4 +1,7 @@
-# restGarfield
+# The restGarfield package
+
+This package is used to compute with Garfield++ the transport and gain properties of the detector media,
+stored in tables that the detector library reads without depending on Garfield++.
 
 Optional application that computes with [Garfield++](https://garfieldpp.web.cern.ch) the transport and gain
 tables of a medium defined in a `TRestDetectorTransportManager` YAML configuration, and stores them in the

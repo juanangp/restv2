@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 #include <string>
@@ -83,6 +84,20 @@ struct TRestHitsData {
 
     /// \brief Whether a hit of the given type defines the coordinate (0, 1, 2 = X, Y, Z).
     static bool IsDefined(int hitType, int axis) { return hitType % kAxisTypes[axis] == 0; }
+
+    /// \brief Appends a hit. The coordinates its type does not define are stored as NaN, whatever the value
+    /// given (e.g. the 0 of a projected position, TRestHits::GetPosition, when the hits are copied); all
+    /// of them are kept for the unknown type.
+    void push_back(double hitX, double hitY, double hitZ, double hitTime, double hitEnergy, int hitType) {
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const bool known = hitType > 0;
+        x.push_back(known && !IsDefined(hitType, 0) ? nan : (float)hitX);
+        y.push_back(known && !IsDefined(hitType, 1) ? nan : (float)hitY);
+        z.push_back(known && !IsDefined(hitType, 2) ? nan : (float)hitZ);
+        time.push_back((float)hitTime);
+        energy.push_back((float)hitEnergy);
+        type.push_back(hitType);
+    }
 
     /// \brief Clears all hit arrays.
     void clear() {

@@ -194,7 +194,7 @@ class TRestDetectorLightResponse : public TRestMetadata {
 /// medium file, if it exists, and gives it with the conditions to its responses.
 ///
 /// Parameters:
-/// - name: the name of the medium in its file.
+/// - name: the name of the medium in its file (default: the name of the section, as any metadata).
 /// - state: gas, liquid or solid.
 /// - components: names and molar fractions in percent (for gases, volume fractions or partial
 ///   pressures), e.g. {Ar: 99, iC4H10: 1} or {Si: 100}. Read from the medium file if not given; if given,
@@ -244,7 +244,7 @@ class TRestDetectorMedium : public TRestMetadata {
 
     /// \brief Returns the class name, "TRestDetectorMedium".
     std::string GetClassName() const override { return "TRestDetectorMedium"; }
-    /// \brief Reads the parameters (a name is required), reads the definition of the medium from its file
+    /// \brief Reads the parameters, reads the definition of the medium from its file
     /// if it exists (checking the components), checks the pressure of non gases and creates the responses
     /// with the medium file and conditions.
     void LoadConfig() override;

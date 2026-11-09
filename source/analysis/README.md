@@ -30,8 +30,15 @@ use them, and the dataset processes built on them. It depends on `RestCore` and 
   Its peaks are `TRestDataSetCalibrationPeak`.
 - `TRestDataSetLogOdds`: builds the PDF of observables in a reference dataset and adds their log odds
   `<name>_<observable>` and their sum `<name>_total`. Its observables are `TRestDataSetLogOddsObservable`.
+- `TRestDataSetTMVA`: trains a classifier of ROOT TMVA (a BDT by default) with the reference as signal and a
+  background dataset, and adds its score `<name>_score`; the trained weights, the ROC integral, the
+  separations and the overtraining tests are its results, the ROC curve and the score distributions its
+  objects, drawn by `DrawResults` (macro `REST_ViewTMVA` of restRoot).
+- `TRestDataSetSignalSelection`: keeps the entries with an observable (e.g. `logOdds_total`, `bdt_score`)
+  in the range holding a quantile interval of the reference (`quantiles`, e.g. [0, 0.8] or [0.2, 1]):
+  fixes a signal efficiency on a calibration and applies it to a background (filter).
 
-Both are configured in YAML with their registered fields (see the class documentation) and store their
+All are configured in YAML with their registered fields (see the class documentation) and store their
 results (fit parameters, PDFs) in their configuration, so a dataset processed with them can be used as the
 reference of later runs.
 
@@ -48,4 +55,7 @@ reference of later runs.
 ## Examples
 
 - `libraries/detector/examples/DataSetCalibration.yaml`: calibration of datasets with TRestDataSetCalibration.
-- `libraries/detector/examples/DataSetLogOdds.yaml`: log odds of calibrated datasets with TRestDataSetLogOdds.
+- `examples/DataSetLogOdds.yaml`: log odds of calibrated datasets with TRestDataSetLogOdds.
+- `examples/DataSetTMVA.yaml`: BDT of calibrated datasets with TRestDataSetTMVA.
+- `examples/DataSetSignalSelection.yaml`: selection of the entries with the BDT score of the 80% of the
+  calibration with TRestDataSetSignalSelection.

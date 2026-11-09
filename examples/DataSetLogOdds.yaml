@@ -1,0 +1,30 @@
+# Log odds (TRestDataSetLogOdds) of datasets calibrated with DataSetCalibration.yaml: the PDFs of the observables are
+# built in the calibrated calibration dataset, with a cut on the calibrated energy (calib_Energy), and the log
+# odds are added to the dataset processed (logOdds_<observable> and logOdds_total):
+#   restManager --c examples/DataSetLogOdds.yaml --i Dataset_Background_Calibrated.root
+# (output Dataset_Background_LogOdds.root, from the tag of inputFormat)
+# The reference is used as it is: it must have the columns of the cuts (calib_Energy).
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  energy:
+    class: "TRestCut"
+    conditions:
+      range: "calib_Energy > 4 && calib_Energy < 8"
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    inputFileName: "Dataset_Background_Calibrated.root"  # --i
+    inputFormat: "Dataset_[sample]_Calibrated.root"
+    outputFileName: "Dataset_[sample]_LogOdds.root"  # --o
+
+    logOdds:
+      class: "TRestDataSetLogOdds"
+      referenceFileName: "Dataset_Calibration_Calibrated.root"
+      cuts: ["energy"]
+      observables:
+        - {observable: "hitsAnalysis_SigmaX", range: [0, 10], nBins: 100}
+        - {observable: "hitsAnalysis_SigmaY", range: [0, 10], nBins: 100}
+        - {observable: "hitsAnalysis_NHits", range: [0, 100], nBins: 100}

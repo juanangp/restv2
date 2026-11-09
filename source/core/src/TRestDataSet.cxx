@@ -42,7 +42,8 @@
 /// * runConditions: name: expression (as the conditions of TRestCut) on the parameters of each run
 ///   (TRestRunInfo), as written in its YAML: runNumber, subRunNumber, runTag, runType, runUser,
 ///   experimentName, startTime, endTime (Unix time), entriesSaved, runInfo.key... A number (also with units,
-///   e.g. runInfo.meshVoltage: 300 V, in REST units) is compared as a number, a text as a std::string (e.g.
+///   e.g. runInfo.meshVoltage: 300 V, in REST units) is compared as a number (a literal with units, e.g.
+///   `runInfo.meshVoltage > 300 V`, is also converted to REST units), a text as a std::string (e.g.
 ///   `runTag == "Calibration"`), a date with date("YYYY/MM/DD HH:MM") (local time; also YYYY-MM-DD, with
 ///   or without HH:MM or HH:MM:SS), e.g. `startTime > date("2022/04/28 00:00")`. A run is selected if it
 ///   fulfills all of them; a parameter used must be in all the runs.
@@ -314,14 +315,25 @@ std::string TRestDataSet::DefineRunParameters(ROOT::RDF::RNode& frame, const std
     std::vector<YAML::Node> parameters;
     for (const auto& run : fRuns) parameters.push_back(run.run->GetParameters());
 
-    // Dates become numbers, text literals are kept; a path followed by a member (runTag.size()) is the
-    // longest run parameter
+    // Dates become numbers, text literals are kept, a number with units (300 V) becomes the number in REST
+    // units (as the run parameters); a path followed by a member (runTag.size()) is the longest run
+    // parameter
     const std::string identifier =
-        "date\\(\\s*\"[^\"]*\"\\s*\\)|\"(?:[^\"\\\\]|\\\\.)*\"|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-"
-        "9_]*)*";
+        "date\\(\\s*\"[^\"]*\"\\s*\\)|\"(?:[^\"\\\\]|\\\\.)*\"|"
+        "(?:[0-9]+\\.?[0-9]*|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?\\s*[A-Za-z][A-Za-z0-9/^]*(?![+-]?[0-9])|"
+        "[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*";
     return TRestTools::ReplaceIdentifiers(
         expression, identifier, [&](const std::string& match) -> std::optional<std::string> {
             if (match.front() == '"') return std::nullopt;
+            // A number followed by units (not an exponent: 2.5e-3 is not 2.5 e)
+            if (std::isdigit(static_cast<unsigned char>(match.front())) || match.front() == '.') {
+                // Not units (e.g. the operator "and" after a number): kept as written
+                const auto value = REST_Units::ParseValueWithUnits(match);
+                if (!value) return std::nullopt;
+                char number[32];
+                snprintf(number, sizeof(number), "%.17g", *value);
+                return std::string(number);
+            }
             if (match.rfind("date", 0) == 0 && match.find('(') != std::string::npos) {
                 const size_t open = match.find('"');
                 const std::string date = match.substr(open + 1, match.rfind('"') - open - 1);
@@ -356,7 +368,9 @@ std::string TRestDataSet::DefineRunParameters(ROOT::RDF::RNode& frame, const std
 
                 std::string column = "runParameter_" + path;
                 std::replace(column.begin(), column.end(), '.', '_');
-                if (!frame.HasColumn(column)) {
+                // The set of columns, not frame.HasColumn: it crashes (ROOT 6.36) on a frame without data
+                // source, as the frame of the runs (RDataFrame with a number of entries)
+                if (columns.insert(column).second) {
                     std::vector<double> values;
                     for (const auto& text : texts) {
                         const auto value = REST_Units::ParseValueWithUnits(text);

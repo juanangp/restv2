@@ -132,7 +132,7 @@ class TRestDetectorHitsEvent : public TRestEvent {
     }
 
     /// \brief Appends a hit (stored as float).
-    /// \param x, y, z Position (mm); the coordinates the type does not define are usually NaN.
+    /// \param x, y, z Position (mm); the coordinates the type does not define are stored as NaN.
     /// \param en Energy (keV).
     /// \param t Time (us).
     /// \param type Coordinates defined by the hit (XYZ by default).
@@ -243,6 +243,21 @@ class TRestDetectorHitsEvent : public TRestEvent {
 
     /// \brief Builds an empty event.
     TRestDetectorHitsEvent() = default;
+    /// \brief Copies the header and the hits, with the views over the storage of the copy (the implicit copy
+    /// would leave them over the storage of `other`).
+    TRestDetectorHitsEvent(const TRestDetectorHitsEvent& other)
+        : TRestEvent(other), fHitsData(other.fHitsData) {
+        RebuildHitsView();
+    }
+    /// \brief Copies the header and the hits (see the copy constructor).
+    TRestDetectorHitsEvent& operator=(const TRestDetectorHitsEvent& other) {
+        if (this != &other) {
+            TRestEvent::operator=(other);
+            fHitsData = other.fHitsData;
+            RebuildHitsView();
+        }
+        return *this;
+    }
     ~TRestDetectorHitsEvent() override = default;
 };
 

@@ -68,12 +68,7 @@ void TRestHits::CheckIsLastView(const char* method) const {
 void TRestHits::AddHit(ROOT::Math::XYZVector position, double energy, double time, REST_HitType type) {
     if (!fData) return;
     CheckIsLastView("AddHit");
-    fData->x.push_back((float)position.X());
-    fData->y.push_back((float)position.Y());
-    fData->z.push_back((float)position.Z());
-    fData->energy.push_back((float)energy);
-    fData->time.push_back((float)time);
-    fData->type.push_back(static_cast<int>(type));
+    fData->push_back(position.X(), position.Y(), position.Z(), time, energy, static_cast<int>(type));
 
     fNHits++;
 }

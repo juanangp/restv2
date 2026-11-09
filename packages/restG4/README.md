@@ -1,9 +1,10 @@
-[![pipeline status](https://gitlab.cern.ch/rest-for-physics/restg4/badges/master/pipeline.svg)](https://gitlab.cern.ch/rest-for-physics/restg4/-/commits/master)
-[![Validation](https://github.com/rest-for-physics/restG4/actions/workflows/validation.yml/badge.svg)](https://github.com/rest-for-physics/restG4/actions/workflows/validation.yml)
+# The restG4 package
 
-## restG4
+This package is used to launch Geant4 simulations configured with REST YAML files and to write the
+simulated events as REST run files, analysed with the geant4 library. It also generates cosmic-ray showers
+with CRY.
 
-Geant4 simulation with a REST configuration: `restG4` reads a YAML configuration file and writes a REST run file
+`restG4` reads a YAML configuration file and writes a REST run file
 with an event (`TRestGeant4Event`) per simulated event (or sub-event) that is stored. `restCRY` generates
 cosmic-ray showers with CRY for the `cry` generator of restG4.
 

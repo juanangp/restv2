@@ -282,6 +282,19 @@ class TRestRawSignalEvent : public TRestEvent {
     TPad* DrawEvent(const std::string& option = "") const override;
 
     TRestRawSignalEvent() = default;
+    /// \brief Copies the header and the signals; the views are rebuilt over the storage of the copy when
+    /// used (the implicit copy would leave them over the storage of `other`).
+    TRestRawSignalEvent(const TRestRawSignalEvent& other)
+        : TRestEvent(other), fSignalData(other.fSignalData) {}
+    /// \brief Copies the header and the signals (see the copy constructor).
+    TRestRawSignalEvent& operator=(const TRestRawSignalEvent& other) {
+        if (this != &other) {
+            TRestEvent::operator=(other);
+            fSignalData = other.fSignalData;
+            fSignalsViews.clear();
+        }
+        return *this;
+    }
     ~TRestRawSignalEvent() = default;
 };
 

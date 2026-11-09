@@ -59,7 +59,6 @@ TRestDetectorMedium::~TRestDetectorMedium() = default;
 void TRestDetectorMedium::LoadConfig() {
     UpdateParamsFromYAML<TRestDetectorMedium>(fNode);
     const std::string prefix = "TRestDetectorMedium '" + fName + "': ";
-    if (!fNode["name"]) throw std::runtime_error("TRestDetectorMedium: the medium needs a name");
     fState = TRestTools::NormalizeOption("state", fState, kStates);
     for (const auto& [component, fraction] : fComponents) {
         if (fraction <= 0) throw std::runtime_error(prefix + "the fraction of " + component + " must be > 0");

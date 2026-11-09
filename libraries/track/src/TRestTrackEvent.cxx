@@ -59,12 +59,7 @@ int TRestTrackEvent::AddTrack(int trackID, int parentID, const TRestHits& hits,
 
 void TRestTrackEvent::AddHitToTrack(const XYZVector& position, double energy, double time, REST_HitType type,
                                     const XYZVector& sigma) {
-    fData.hits.x.push_back((float)position.X());
-    fData.hits.y.push_back((float)position.Y());
-    fData.hits.z.push_back((float)position.Z());
-    fData.hits.time.push_back((float)time);
-    fData.hits.energy.push_back((float)energy);
-    fData.hits.type.push_back((int)type);
+    fData.hits.push_back(position.X(), position.Y(), position.Z(), time, energy, (int)type);
 
     fData.sigmaX.push_back((float)sigma.X());
     fData.sigmaY.push_back((float)sigma.Y());

@@ -100,6 +100,13 @@ class TRestDataSetProcess : public TRestMetadata {
         return frame.Define(name, expression);
     }
 
+    /// \brief Expression (conditions joined by &&) of the TRestCut of the manager given to ObtainParameters,
+    /// by name; empty without cuts. Throws if a cut is not in the manager.
+    std::string GetCutExpression(const std::vector<std::string>& cutNames) const;
+
+    /// Manager given to ObtainParameters (its TRestCut), nullptr before
+    const TRestManager* fManager = nullptr;  //!
+
     /// \brief Loads a stored configuration of this process (with its results)
     void LoadStoredConfig(const YAML::Node& config);
 

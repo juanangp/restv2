@@ -355,6 +355,20 @@ class TRestTrackEvent : public TRestEvent {
     TPad* DrawEvent(const std::string& option = "") const override;
 
     TRestTrackEvent() = default;
+    /// \brief Copies the header and the tracks, with the views over the storage of the copy (the implicit
+    /// copy would leave them over the storage of `other`).
+    TRestTrackEvent(const TRestTrackEvent& other) : TRestEvent(other), fData(other.fData) {
+        RebuildTrackViews();
+    }
+    /// \brief Copies the header and the tracks (see the copy constructor).
+    TRestTrackEvent& operator=(const TRestTrackEvent& other) {
+        if (this != &other) {
+            TRestEvent::operator=(other);
+            fData = other.fData;
+            RebuildTrackViews();
+        }
+        return *this;
+    }
     ~TRestTrackEvent() override = default;
 };
 

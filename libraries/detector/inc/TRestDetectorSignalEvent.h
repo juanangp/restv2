@@ -315,6 +315,19 @@ class TRestDetectorSignalEvent : public TRestEvent {
 
     /// \brief Builds an empty event.
     TRestDetectorSignalEvent() = default;
+    /// \brief Copies the header and the signals; the views are rebuilt over the storage of the copy when
+    /// used (the implicit copy would leave them over the storage of `other`).
+    TRestDetectorSignalEvent(const TRestDetectorSignalEvent& other)
+        : TRestEvent(other), fSignalData(other.fSignalData) {}
+    /// \brief Copies the header and the signals (see the copy constructor).
+    TRestDetectorSignalEvent& operator=(const TRestDetectorSignalEvent& other) {
+        if (this != &other) {
+            TRestEvent::operator=(other);
+            fSignalData = other.fSignalData;
+            fSignalsViews.clear();
+        }
+        return *this;
+    }
     ~TRestDetectorSignalEvent() = default;
 };
 

@@ -82,13 +82,12 @@ std::string TRestDataSetProcess::ResolveReference(const TRestDataSet& dataSet) c
     return closest;
 }
 
-void TRestDataSetProcess::ObtainParameters(const TRestDataSet& dataSet, const TRestManager* manager) {
-    // The cuts applied to the reference
-    std::string cutExpression;
-    for (const auto& name : fCutNames) {
+std::string TRestDataSetProcess::GetCutExpression(const std::vector<std::string>& cutNames) const {
+    std::string expression;
+    for (const auto& name : cutNames) {
         const TRestCut* cut = nullptr;
-        if (manager) {
-            for (const auto* c : manager->GetMetadataOfType<TRestCut>()) {
+        if (fManager) {
+            for (const auto* c : fManager->GetMetadataOfType<TRestCut>()) {
                 if (c->GetName() == name) cut = c;
             }
         }
@@ -98,9 +97,16 @@ void TRestDataSetProcess::ObtainParameters(const TRestDataSet& dataSet, const TR
         }
         const std::string condition = cut->GetExpression();
         if (condition.empty()) continue;
-        if (!cutExpression.empty()) cutExpression += " && ";
-        cutExpression += "(" + condition + ")";
+        if (!expression.empty()) expression += " && ";
+        expression += "(" + condition + ")";
     }
+    return expression;
+}
+
+void TRestDataSetProcess::ObtainParameters(const TRestDataSet& dataSet, const TRestManager* manager) {
+    fManager = manager;
+    // The cuts applied to the reference
+    const std::string cutExpression = GetCutExpression(fCutNames);
 
     // A dataset generated in memory (not in a file yet) is its own reference: computed, it has no processes;
     // the reference is the file it will be written to

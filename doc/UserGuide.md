@@ -853,6 +853,7 @@ objects in `RESTDataSetStore/<class>/<name>`.
 | `TRestDataSetLogOdds` | analysis | `<name>_<observable>` = log(1 − p) − log(p) for each observable, and `<name>_total` | PDF of each observable in the reference |
 | `TRestDataSetTMVA` | analysis | `<name>_score` | A trained TMVA method (BDT by default), signal = reference, background = `backgroundFileName`; ROC integral, separation, KS tests |
 | `TRestDataSetSignalSelection` | analysis | (filters the entries) | `range` of `observable` between the `quantiles` of the reference, and its `efficiency` |
+| `TRestDataSetCombine` | analysis | The columns of another dataset of the same events (`combineFileName`, `observables`, `prefix`), matched by run, `eventID` and `subEventID`, and `<name>_matched` (0 where the event is not there: default values, or filtered without `keepUnmatched`) | None (e.g. the vetoes and the Micromegas analysed apart, combined) |
 
 Examples (each file documents how to run it):
 [DataSetCalibration.yaml](../libraries/detector/examples/DataSetCalibration.yaml),

@@ -947,6 +947,18 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
 - TRestDetectorHitsToSignalProcess and TRestDetectorSignalToHitsProcess accept a medium without `charge`
   (a scintillator with only `light`): no drift velocity.
 
+### TRestDataSetCombine (2026-11-09, implemented, user decisions)
+
+- Combination of two datasets of the same events processed apart (IAXO: vetoes and Micromegas), not the
+  existing merge of datasets (concatenation of runs). A dataset process (user), in source/analysis; name
+  chosen by the user (TRestDataSetJoin rejected).
+- Matching by run (runNumber, subRunNumber; the runIndex of each dataset can differ), eventID and
+  subEventID. The dataset processed is the base: entries only in combineFileName are dropped (user); entries
+  without match are kept with default values (NaN, 0, empty) and `<name>_matched` 0, or filtered with
+  keepUnmatched: false (user: configurable).
+- Columns: `observables` patterns, `prefix`; an existing column or an event twice is an error. The columns
+  of combineFileName are read in memory in one event loop.
+
 ### Conditional blocks in the YAML (2026-11-09, implemented, user decisions)
 
 - Legacy RML `<if>` (e.g. the generators of the LiquidO simulations) becomes a `select` block: `select:

@@ -9,6 +9,7 @@ calibrated datasets of `libraries/detector/examples/DataSetCalibration.yaml` (`D
 | `DataSetLogOdds.yaml` | Log odds of observables (`TRestDataSetLogOdds`), PDFs from the calibration. |
 | `DataSetTMVA.yaml` | BDT of TMVA (`TRestDataSetTMVA`), the calibration as signal and a background dataset. |
 | `DataSetSignalSelection.yaml` | Selection (`TRestDataSetSignalSelection`) of the entries with the BDT score of the 80% of the calibration. |
+| `DataSetCombine.yaml` | Combination (`TRestDataSetCombine`) of the datasets of the Micromegas and of the vetoes, analysed apart, matched by event. |
 
 ```
 restManager --c examples/FemDAQToTracks.yaml --i Run00012_Calibration_IAXO_Data_000.root

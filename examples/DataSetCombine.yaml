@@ -1,0 +1,24 @@
+# Combination (TRestDataSetCombine) of the datasets of the Micromegas and of the vetoes of IAXO, processed in
+# separate pipelines from the same runs (e.g. libraries/connectors/examples/Geant4ToRaw.yaml and
+# Geant4ToRawVeto.yaml on the same restG4 files, then a dataset of each): the veto observables are added to
+# the dataset of the Micromegas, matched by run, eventID and subEventID.
+#   restManager --c examples/DataSetCombine.yaml --i Dataset_Micromegas.root
+# (output Dataset_Micromegas_Combined.root). The events of the Micromegas without veto signal (rejected by the
+# veto pipeline) are kept with vetoCombine_matched 0 and the veto columns NaN/0; the veto events without
+# Micromegas event are dropped. keepUnmatched: false keeps only the events with both.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    inputFileName: "Dataset_Micromegas.root"  # --i
+    inputFormat: "Dataset_[detector].root"
+    outputFileName: "Dataset_[detector]_Combined.root"  # --o
+
+    vetoCombine:
+      class: "TRestDataSetCombine"
+      combineFileName: "Dataset_Veto.root"
+      observables: ["vetoAna_*"]
+      keepUnmatched: true

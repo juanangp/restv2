@@ -1,0 +1,49 @@
+# Doxygen documentation of restv2 (CMake target doc) published in GitHub Pages at each push to master.
+# GitHub Pages must use GitHub Actions as source (Settings, Pages, Build and deployment, Source).
+name: Docs
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+  pages: write
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  docs:
+    name: Doxygen
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the documentation
+        run: |
+          cmake -S . -B build -G Ninja
+          cmake --build build --target doc
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/doc/html
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

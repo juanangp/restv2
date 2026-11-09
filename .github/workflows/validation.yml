@@ -1,0 +1,147 @@
+# Validation of restv2: build, unit tests, restG4 examples and format, at each pull request to master, each
+# push to master (merge), each release and by hand. The checks (job names) are required by the protection of
+# master (.github/rulesets/master.json, see CONTRIBUTING.md).
+#
+# The jobs run in the container of the restv2-docker repository (ROOT, Geant4, Garfield++, CRY...):
+# ghcr.io/<owner of this repository>/restv2-env:latest, or the image of the repository variable RESTV2_IMAGE
+# (Settings, Secrets and variables, Actions, Variables), e.g. if the owner has uppercase letters or the image
+# is published elsewhere.
+name: Validation
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# A new push to the same pull request (or branch) cancels the validation in progress
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  BUILD_DIR: ${{ github.workspace }}/build
+  INSTALL_DIR: ${{ github.workspace }}/install
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" -DBUILD_TESTING=ON -DREST_DAQ=ON
+          # Every optional part must be enabled in the image
+          grep -E "^(REST_G4|REST_CRY|REST_GARFIELD|REST_DAQ):BOOL=ON" "$BUILD_DIR/CMakeCache.txt" | wc -l | grep -qx 4 \
+            || { echo "An optional package is disabled:"; grep -E "^REST_(G4|CRY|GARFIELD|DAQ):" "$BUILD_DIR/CMakeCache.txt"; exit 1; }
+
+      - name: Build and install
+        run: cmake --build "$BUILD_DIR" --target install -j "$(nproc)"
+
+      - name: Executables and libraries
+        run: |
+          source "$INSTALL_DIR/thisREST.sh"
+          restRoot -b -q
+          command -v restManager restG4 restCRY restGarfield femclient
+
+      - name: Documentation
+        run: cmake --build "$BUILD_DIR" --target doc 2>&1 | tee doxygen.log && ! grep -i "error:" doxygen.log
+
+      # The build and install trees for the test jobs (same paths in their containers)
+      - name: Pack the build
+        run: tar -czf build.tar.gz -C "$GITHUB_WORKSPACE" build install
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build.tar.gz
+          retention-days: 1
+
+  unit-tests:
+    name: Unit tests
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+
+      - name: Unpack the build
+        run: tar -xzf build.tar.gz -C "$GITHUB_WORKSPACE"
+
+      # A step per component, to see which one fails
+      - name: tools
+        run: cd "$BUILD_DIR" && ctest -L '^tools$' --output-on-failure
+      - name: core
+        run: cd "$BUILD_DIR" && ctest -L '^core$' --output-on-failure
+      - name: analysis
+        run: cd "$BUILD_DIR" && ctest -L '^analysis$' --output-on-failure
+      - name: raw
+        run: cd "$BUILD_DIR" && ctest -L '^raw$' --output-on-failure
+      - name: detector
+        run: cd "$BUILD_DIR" && ctest -L '^detector$' --output-on-failure
+      - name: track
+        run: cd "$BUILD_DIR" && ctest -L '^track$' --output-on-failure
+      - name: geant4
+        run: cd "$BUILD_DIR" && ctest -L '^geant4$' --output-on-failure
+      - name: connectors
+        run: cd "$BUILD_DIR" && ctest -L '^connectors$' --output-on-failure
+
+  restg4-examples:
+    name: restG4 examples
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+
+      - name: Unpack the build
+        run: tar -xzf build.tar.gz -C "$GITHUB_WORKSPACE"
+
+      - name: restG4 examples
+        run: cd "$BUILD_DIR" && ctest -L '^restG4$' --output-on-failure
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: pre-commit/action@v3.0.1

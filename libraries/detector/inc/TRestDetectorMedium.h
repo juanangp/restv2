@@ -33,7 +33,9 @@ class TRestDetectorTransportTable;
 /// - driftField: the drift field of the detector (e.g. 140 V/cm), where the transport tables are evaluated
 ///   for the drift processes; needed with transport tables. Two drift regions are two media.
 /// - driftVelocity, longDiff, transDiff (sqrt(cm)), attachment (1/cm): fixed electron transport, used
-///   when there are no transport tables (e.g. no mediumFile), for any field.
+///   when there are no transport tables (e.g. no mediumFile), for any field. With transport tables they
+///   are written with the values of the tables at driftField (those used by the drift processes, kept
+///   in the stored metadata); the tables still give them at any field.
 /// - transportTable: key of the transport table to use (all the tables at the conditions if empty).
 /// - loadedTables: written with the keys of the tables loaded (not an input).
 ///

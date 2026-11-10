@@ -250,6 +250,14 @@ void TRestDetectorChargeResponse::SetMedium(const TRestDetectorMedium& medium, T
     fLoadedTables.clear();
     fRangeWarned->store(false);
     if (file) LoadTables(file);
+    // With transport tables, the stored metadata keeps their values at the drift field (the ones used by
+    // the drift processes); the tables still give them at any field
+    if (HasTransportTables() && fDriftField > 0) {
+        fDriftVelocity = GetDriftVelocity(fDriftField);
+        fLongitudinalDiffusion = GetLongitudinalDiffusion(fDriftField);
+        fTransversalDiffusion = GetTransversalDiffusion(fDriftField);
+        fAttachment = GetAttachment(fDriftField);
+    }
     UpdateYAMLFromParams<TRestDetectorChargeResponse>(fNode);
 }
 

@@ -142,7 +142,8 @@ class TRestGeant4AnalysisProcess : public TRestEventProcess {
     /// _EntryParticle, _EntryParentParticle, _EntryCreatorProcess, _EntryEnergy, _EntryTime, _EntryX/Y/Z,
     /// _EndX/Y/Z, _InitialEnergy and _InitialX/Y/Z, with perVolume <name>_<volume>_Energy and
     /// _MaxVolumeEnergy, with interactions <name>_NInteractions and _Interaction*. If empty, one per
-    /// sensitive entry of activeVolumes, named as it and with entering
+    /// sensitive entry of activeVolumes, named as it and with entering. Without entering particle, the
+    /// Entry/End/Initial observables are those of the primary created in the volumes
     std::vector<TRestGeant4SelectionInfo> fSelections;
 
     /// \brief Process without configuration.

@@ -82,7 +82,6 @@ void TRestEventProcessManager::LoadProcesses() {
         auto meta = CreateChildMetadata(key, value);
 
         if (!meta) continue;
-        meta->PrintMetadata();
 
         if (auto* proc = dynamic_cast<TRestEventProcess*>(meta.get())) {
             std::unique_ptr<TRestEventProcess> processPtr(proc);
@@ -107,6 +106,7 @@ void TRestEventProcessManager::LoadProcesses() {
             fPipelineOutputClasses.emplace_back(outputEvent);
             fProcessChain.emplace_back(std::move(processPtr));
         } else {
+            meta->PrintMetadata();
             fMetaObjects.emplace_back(std::move(meta));
         }
     }
@@ -132,6 +132,8 @@ void TRestEventProcessManager::Run() {
         proc->SetManager(fManager);
         TRestLogScope logScope(proc->GetLogContext());
         proc->Initialize();
+        // After the initialization: the values taken from other metadata (readout, medium, drift velocity...)
+        proc->PrintMetadata();
     }
     // Once all the observables are registered
     for (auto& proc : fProcessChain) proc->InitCuts();

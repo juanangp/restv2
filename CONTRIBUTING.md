@@ -9,7 +9,8 @@
 3. Open a pull request to `master` (as draft while the work is in progress), filling the template.
 4. The validation (`.github/workflows/validation.yml`) runs on the pull request, and again at each push to
    it: the checks **Build**, **Unit tests**, **restG4 examples** and **Format** must pass, and the branch must
-   be up to date with `master`, before merging.
+   be up to date with `master`, before merging. The **macOS** check (build and unit tests with the ROOT of
+   Homebrew, without Geant4, Garfield++ or restDAQ) also runs, but it is not required yet.
 5. Merge the pull request; the validation runs again on `master` and the documentation is published.
 
 ## Before pushing

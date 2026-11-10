@@ -20,6 +20,9 @@
 /// TRestEvent). It is the input and output of the hits processes of this library (drift, avalanche,
 /// smearing, transformation, light attenuation, analysis) and the output of TRestDetectorSignalToHitsProcess
 /// and of TRestGeant4ToDetectorHitsProcess (connectors library).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorHitsEvent : public TRestEvent {
    public:
     /// Type of a hit: the coordinates it defines (TRestHitsData::REST_HitType)

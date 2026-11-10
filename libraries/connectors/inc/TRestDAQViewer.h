@@ -64,6 +64,8 @@ class TTimer;
 /// The readout files are relative to the current directory. The settings of the window (files, step)
 /// are kept in $REST_HOME/.rest/DAQViewer_settings (~/.rest without
 /// REST_HOME).
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDAQViewer : public TGMainFrame {
    private:
     /// One readout: its histograms and the signals of the event

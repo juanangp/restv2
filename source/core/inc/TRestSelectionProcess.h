@@ -21,6 +21,11 @@
 ///     event: TRestTrackEvent   # required if it is the first process
 ///     cuts: ["fiducial"]
 /// \endcode
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author David Díez Ibáñez
+/// \author Álvaro Ezquerro <aezquerro@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestSelectionProcess : public TRestEventProcess {
    public:
     /// Event type (e.g. TRestTrackEvent). Empty: the output event of the previous process

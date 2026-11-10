@@ -20,6 +20,8 @@ class TRestRun;
 /// as in restRoot and restManager) from its stored configuration, not checked, and loads its objects
 /// from the file (TRestMetadata::LoadFromFile, e.g. the readouts and geometries). A metadata that cannot
 /// be created is skipped with an error message.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestMetadataStore {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetadata;

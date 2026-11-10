@@ -9,7 +9,10 @@ the results are stored in REST files (ROOT files with the events, the analysis t
 REST was born as a collaborative software effort to provide common tools for the acquisition, simulation and
 data analysis of gaseous Time Projection Chambers (TPCs), and its use is not exclusive of detector data
 analysis. restv2 is a new version of the framework: the same concepts, with YAML configurations, a single
-repository for the framework, the libraries and the packages, and ROOT RDataFrame for the datasets.
+repository for the framework, the libraries and the packages, and ROOT RDataFrame for the datasets. While REST
+was mainly focused on TPCs, restv2 is built generically for rare event searches with any kind of detector:
+the readout, the detector medium and the response are independent of the detector technology (e.g. TPCs with
+Micromegas readouts, scintillators and vetoes read through GDML volumes, or fibre lattices).
 
 The framework (`source/core`) provides three interfaces, the abstract classes `TRestEvent`, `TRestMetadata`
 and `TRestEventProcess`, from which every REST library derives its **specific objects**:
@@ -163,6 +166,28 @@ changes through pull requests) and the continuous integration.
   decision log.
 - [CONTRIBUTING.md](CONTRIBUTING.md): workflow, tests and continuous integration.
 
-## License
+## Origin, authors and license
 
-See [LICENSE](LICENSE).
+restv2 is a new version of [REST-for-Physics](https://github.com/rest-for-physics/framework)
+([doi:10.5281/zenodo.4528985](https://doi.org/10.5281/zenodo.4528985)), developed as a joint project in which
+the original developers of REST do not take part.
+
+- **Migration**: JuanAn García migrated the classes of REST-for-Physics (framework, libraries and packages) to
+  restv2. The general structure of the code is the one of REST: events, metadata and event processes in
+  processing chains, REST files with the event trees, the analysis tree and the metadata, and the same
+  libraries.
+- **New in restv2**: the YAML configuration (instead of RML/XML), the registry of the configuration fields
+  (every key is a registered field of the class, unknown keys are an error), the AOD storage of the events
+  (flat data with views instead of ROOT schema evolution of nested objects) and the dataset processes.
+  restDAQ is based on [FEMDAQ](https://github.com/juanangp/femdaq).
+- **Authors of REST-for-Physics** (its
+  [CITATION.cff](https://github.com/rest-for-physics/framework/blob/master/CITATION.cff)): Konrad Altenmüller,
+  Susana Cebrián, Theopisti Dafni, David Díez-Ibáñez, Javier Galán, Javier Galindo, Juan García, Igor
+  Irastorza, Gloria Luzón, Cristina Margalejo, Héctor Mirallas, Luis Obis, Óscar Pérez, Ke Han, Kaixiang Ni,
+  Yann Bedfer, Barbara Biasuzzi, Esther Ferrer-Ribas, Damien Neyret, Thomas Papaevangelou, Cristian Cogollos
+  and Eduardo Picatoste.
+- **Authors of each class**: in its documentation (`\author`), the authors of the class of REST-for-Physics it
+  comes from and those of restv2.
+
+restv2 keeps the license of REST-for-Physics: GNU General Public License version 3 or later, see
+[LICENSE](LICENSE).

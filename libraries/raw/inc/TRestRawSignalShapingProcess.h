@@ -25,6 +25,10 @@ class TRestRawSignalEvent;
 ///   gain: 1
 ///   baselineRange: [5, 55]
 /// \endcode
+///
+/// \author Xinglong
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawSignalShapingProcess : public TRestEventProcess {
    private:
     /// Kernel built once in InitProcess (it does not change between events).

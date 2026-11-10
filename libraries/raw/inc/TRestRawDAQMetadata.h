@@ -54,6 +54,8 @@ class TRestRawDAQFEM : public TRestMetadata {
 ///       maxFileSize: "1GB"        # a new subrun (file) when reached
 ///       updateRate: 5 s           # rate printout and Prometheus update
 ///       prometheusAddress: "0.0.0.0:8080"
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawDAQMetadata : public TRestMetadata {
    public:
     /// Electronics type (YAML `electronics`): ARC, FEMINOS or DCC

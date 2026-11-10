@@ -21,6 +21,9 @@ class TRestRawSignalEvent;
 /// - **SignalsSaturated**: signals considered saturated (or processed, with processAllSignals).
 /// - **SignalsRecovered**: signals modified by the fit.
 /// - **SignalsIDsRecovered**: IDs of the recovered signals (vector).
+///
+/// \author Álvaro Ezquerro <aezquerro@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawSignalRecoverSaturationProcess : public TRestEventProcess {
    private:
     struct Observables {

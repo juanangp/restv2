@@ -21,6 +21,9 @@ class TEveLine;
 /// process type and process name (Electromagnetic processes red, Transportation and Init white, hadElastic
 /// orange, neutronInelastic green, nCapture blue). It needs the TRestGeant4Metadata of the event
 /// (GetGeant4Metadata) for the names of the IDs.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4EventViewer : public TRestEveEventViewer {
    private:
     /// The lines of the tracks added with AddTrack or AddParentTrack, by track ID (owned by TEve)

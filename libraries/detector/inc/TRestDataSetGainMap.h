@@ -18,6 +18,9 @@ class TRestDetectorReadout;
 /// \class TRestDataSetGainMap
 /// \brief Gain map of a readout: calibrates each segment of the readout to correct its gain
 /// inhomogeneities. See the class documentation in TRestDataSetGainMap.cxx.
+///
+/// \author Álvaro Ezquerro <aezquerro@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetGainMap : public TRestDataSetProcess {
    private:
     /// Spectrum of each segment [x][y] and of the whole readout, with the peak fits g0, g1...

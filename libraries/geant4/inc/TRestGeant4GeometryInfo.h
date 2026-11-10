@@ -26,6 +26,9 @@ class TGeoManager;
 ///
 /// The volume expressions are regular expressions (TPRegexp, matched anywhere in the name, e.g. "^gas"
 /// for the names starting with gas) of physical or logical volume names.
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4GeometryInfo {
    private:
     bool fIsAssembly = false;

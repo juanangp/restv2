@@ -19,6 +19,10 @@ class TF1;
 /// \brief Generic functions to calculate signal parameters (baseline, maxima, integrals, rise time, peaks,
 /// shaping and noise) on signals given as std::vector (one value per bin) or TGraph (time, value), so they
 /// can be used with any signal container (raw, DAQ or detector signals).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Konrad Altenmüller
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestPulseShapeAnalysis {
 
 /// Options of CalculateBaselineAndSigma ("": mean and standard deviation, robust: median and IQR, outliers:

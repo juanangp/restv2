@@ -45,6 +45,11 @@ class TRestMetadataFieldRegistry;
 /// (CheckConfig). The configuration (with the values actually used) is stored in the output ROOT file
 /// as a YAML string in the `RESTMetadataStore` directory (WriteMetadata), and read back with
 /// ReadMetadata / TRestMetadataStore.
+///
+/// \author Igor G. Irastorza
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestMetadata {
    protected:
     /// Metadata instance name.

@@ -68,6 +68,8 @@ class TRestFibreReadoutParameters : public TRestMetadata {
 /// LiquidO, an opaque scintillator with wavelength shifting fibres read by SiPMs).
 ///
 /// The parameters and an example are described in the class documentation (TRestFibreReadout.cxx).
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestFibreReadout : public TRestDetectorReadout {
    public:
     TRestFibreReadoutParameters fReadoutParams;  ///< `readoutParameters`

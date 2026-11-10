@@ -138,6 +138,9 @@ struct TRestGeant4EventData {
 ///
 /// The constructor from a G4Event and InsertTrack, UpdateTrack, InsertStep and UpdatePrimaryData are
 /// implemented in restG4 (they need Geant4).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4Event : public TRestEvent {
    private:
     /// Index in volumeIDs of each volume, and in cross* of each volume, particle and process

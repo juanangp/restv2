@@ -13,6 +13,8 @@ class TFile;
 
 /// YAML functions: configuration files, parameters of the nodes and the metadata stored in the REST files.
 /// The generic functions (strings, files, ROOT files, geometries) are in TRestTools.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestYAMLUtils {
 
 /// \brief A YAML configuration file with its `include` keys expanded, at any depth: a map with

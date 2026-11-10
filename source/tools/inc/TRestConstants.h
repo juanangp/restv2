@@ -5,6 +5,9 @@
 #include <limits>
 
 /// \brief Mathematical and physical constants used across REST (SI units unless stated otherwise).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestConstants {
 
 // MATH

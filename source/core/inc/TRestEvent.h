@@ -44,6 +44,9 @@ struct TRestEventInfo {
 /// DrawEvent, and usually extends CreateBranches / SetBranchAddresses with its own branches (calling
 /// the base versions first). Event types are created by name through EventRegistry, where each event
 /// class registers itself.
+///
+/// \author Igor G. Irastorza
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestEvent {
    protected:
     /// Logical event class/instance name.

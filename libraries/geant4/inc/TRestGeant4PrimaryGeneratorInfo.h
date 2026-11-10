@@ -32,6 +32,9 @@
 ///         energy:
 ///           type: "mono"
 ///           energy: 30 keV
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
    public:
     /// TF3 formula of x, y, z (mm) in [0, 1], the probability to accept a volume or surface position

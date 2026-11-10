@@ -58,6 +58,8 @@ class TRestManager;
 ///   cuts: ["energy"]
 ///   # referenceUsed and parametersFileName are results, written by REST
 /// \endcode
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetProcess : public TRestMetadata {
    public:
     /// Folder of the objects of the dataset processes in a dataset file

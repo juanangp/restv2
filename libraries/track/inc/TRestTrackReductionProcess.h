@@ -13,6 +13,9 @@ class TRestHits;
 /// \brief Reduces the hits of each track (any type) to nodes, merging the hits closer than a growing
 /// distance up to a maximum number of nodes, optionally refined with k-means. The output event holds one
 /// track per input track.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackReductionProcess : public TRestEventProcess {
    private:
     /// \brief Nodes of the reduced track, empty if it cannot be reduced (hits of different types).

@@ -99,6 +99,8 @@ inline TRestProgressBar RESTProgress;
 /// \brief Singleton writing the messages of REST (RESTError, RESTWarning, RESTInfo... macros) to the console,
 /// with colors, and to an optional log file, from any thread. It holds the verbose levels and the global
 /// settings of the suppression of repeated messages.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestLogManager {
    public:
     /// Verbose levels: a message is written if its level is not above the verbose of its context

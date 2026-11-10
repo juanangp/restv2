@@ -85,6 +85,8 @@ class TRestGDMLReadoutParameters : public TRestMetadata {
 ///          - volume: .*scintillatorVolume-*
 ///            readoutVolume: scintillatorLightGuideVolume
 ///            offset: 288
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGDMLReadout : public TRestDetectorReadout {
    private:
     /// Global position of the readout volume of each physical ID, computed at the first GetReadoutPosition

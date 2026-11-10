@@ -224,6 +224,8 @@ class TRestDetectorLightResponse : public TRestMetadata {
 ///        wValue: 26.2 eV
 ///        fanoFactor: 0.2
 ///        driftField: 140 V/cm
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorMedium : public TRestMetadata {
    private:
     std::shared_ptr<TRestDetectorChargeResponse> fCharge;  //!

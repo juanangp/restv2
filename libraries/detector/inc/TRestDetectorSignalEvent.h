@@ -130,6 +130,10 @@ class TRestDetectorSignal {
 /// TRestDetectorHitsToSignalProcess (simulations) or from the raw signals (TRestRawToDetectorSignalProcess,
 /// connectors library), and used by the signal processes of this library (shaping, recovery, peaks finder,
 /// signal to hits) and by TRestDetectorSignalToRawSignalProcess (connectors).
+///
+/// \author JuanAn García <juanangp@unizar.es>
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Javier Gracia
 class TRestDetectorSignalEvent : public TRestEvent {
    protected:
     TRestDetectorSignalData fSignalData;                     ///< Points of all the signals

@@ -17,6 +17,10 @@ class TRandom;
 /// case insensitive and an unknown one throws std::invalid_argument. Also the helpers shared by the
 /// generator classes (TRestGeant4SpatialGenerator, TRestGeant4EnergyDistribution,
 /// TRestGeant4AngularDistribution, TRestGeant4ParticleSource).
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestGeant4PrimaryGeneratorTypes {
 
 /// \brief Named energy formulas (keV), `formula` of the energy type formula

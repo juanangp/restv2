@@ -29,6 +29,9 @@ class TRestRawSignalEvent;
 /// multiFeminosToSignal:
 ///   class: "TRestRawMultiFEMINOSToSignalProcess"
 /// \endcode
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawMultiFEMINOSToSignalProcess : public TRestEventProcess {
    private:
     FILE* fInputBinFile = nullptr;

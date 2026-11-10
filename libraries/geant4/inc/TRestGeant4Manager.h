@@ -27,6 +27,8 @@ class TRestRun;
 ///       physicsG4:
 ///         class: "TRestGeant4PhysicsLists" # see TRestGeant4PhysicsLists
 ///         ...
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4Manager : public TRestMetadata {
    public:
     /// \brief Pointer to Geant4 run metadata loaded from configuration.

@@ -9,6 +9,9 @@
 ///
 /// A spectrum is the full complex spectrum (N bins) of a real signal, so it
 /// keeps Hermitian symmetry: X[N-k] = conj(X[k]).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestFFTAnalysis {
 
 /// Full complex spectrum of N bins (bin k: frequency k / N in units of the inverse sampling time)

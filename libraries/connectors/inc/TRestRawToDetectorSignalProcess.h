@@ -12,6 +12,10 @@ class TRestDetectorReadout;
 /// \class TRestRawToDetectorSignalProcess
 /// \brief Transforms a TRestRawSignalEvent (ADC samples per bin) into a TRestDetectorSignalEvent
 /// (time, amplitude points), optionally applying zero suppression.
+///
+/// \author Javier Gracia
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawToDetectorSignalProcess : public TRestEventProcess {
    private:
     /// Number of signals of the event without any point in the output

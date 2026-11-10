@@ -48,6 +48,9 @@ class TGeoShape;
 ///
 /// The channels are identified by their physical ID (the geometry) and by their DAQ ID (the signals); the
 /// public methods take DAQ IDs. Positions are in mm in the global frame of the readout geometry.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorReadout : public TRestMetadata {
    protected:
     /// ROOT geometry manager used for geometry navigation and position lookup.

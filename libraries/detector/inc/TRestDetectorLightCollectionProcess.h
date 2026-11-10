@@ -22,6 +22,9 @@ class TRestDetectorReadout;
 ///
 /// The parameters (YAML keys), the observables and an example are described in the class documentation
 /// (TRestDetectorLightCollectionProcess.cxx).
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorLightCollectionProcess : public TRestEventProcess {
    private:
     const TRestDetectorReadout* fReadout = nullptr;

@@ -12,6 +12,9 @@ class TRestHits;
 /// \brief Observables of the two ends (blobs) of the main track of a TRestTrackEvent with ordered nodes
 /// (after TRestTrackPathMinimizationProcess): their positions, distance and the energy of the nodes inside
 /// spheres around them, for the main track or the main track of each projection.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackBlobAnalysisProcess : public TRestEventProcess {
    private:
     /// Observables of the main track of one projection (hit type), or of the most energetic track

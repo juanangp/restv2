@@ -19,6 +19,9 @@
 ///     energy:
 ///       type: "flat"                # mono, flat, log, formula, TH1D, formula2, TH2D or cosmic
 ///       range: [1 MeV, 10 MeV]
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4EnergyDistribution : public TRestMetadata {
    public:
     std::string fType;  ///< `type`, case insensitive (it selects the derived class in Create)

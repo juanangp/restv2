@@ -10,6 +10,10 @@
 /// \class TRestGeant4ToDetectorHitsProcess
 /// \brief Transforms the hits of a TRestGeant4Event into the hits of a TRestDetectorHitsEvent, only those
 /// of the selected geometry volumes (the sensitive ones by default).
+///
+/// \author Igor G. Irastorza
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4ToDetectorHitsProcess : public TRestEventProcess {
    private:
     /// IDs (TRestGeant4Metadata volume map) of the volumes matching fVolumes, or of the sensitive ones

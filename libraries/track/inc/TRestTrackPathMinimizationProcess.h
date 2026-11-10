@@ -8,6 +8,9 @@
 /// \class TRestTrackPathMinimizationProcess
 /// \brief Orders the hits (nodes) of each track along the shortest path through all of them, e.g. after
 /// TRestTrackReductionProcess. The output event holds one track per input track.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackPathMinimizationProcess : public TRestEventProcess {
    private:
     /// Tracks copied as they are (not ordered) and tracks processed, reported at EndProcess

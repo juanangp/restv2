@@ -29,6 +29,10 @@ class TRestRun;
 /// (TRestRun::GetOutputEvent). The selection is an expression of the analysis tree observables
 /// (TTreeFormula) used to jump to the previous/next entry passing it. Opened, e.g., with the macro
 /// REST_ViewEvents.
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestBrowser {
    protected:
     /// \name GUI widgets

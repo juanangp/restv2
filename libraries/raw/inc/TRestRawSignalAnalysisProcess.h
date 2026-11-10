@@ -66,6 +66,9 @@ class TRestRawSignalEvent;
 ///   ThresholdIntegralSum).
 /// - **AmplitudeIntegralRatio**: ThresholdIntegralSum / MaxIntegral; **AmplitudeRatio**: MaxIntegral /
 ///   MaxPeakAmplitude.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawSignalAnalysisProcess : public TRestEventProcess {
    private:
     struct SignalObservables {

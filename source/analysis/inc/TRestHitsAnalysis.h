@@ -14,6 +14,10 @@
 /// 2D (or 1D) hits: the distances are computed with the three coordinates, so the undefined ones must
 /// have the same value in all the points (TRestHits::GetPoints sets them to 0), which gives the distance
 /// in the projection the hits define. FindClusters instead takes the coordinates to use.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
+/// \author Cristina Margalejo <cmargalejo@unizar.es>
 namespace TRestHitsAnalysis {
 
 /// Position of a hit or node

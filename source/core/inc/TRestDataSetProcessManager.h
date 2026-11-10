@@ -30,6 +30,8 @@ class TRestManager;
 ///       referenceFileName: "Dataset_Calibration.root"
 ///       ...
 /// \endcode
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetProcessManager : public TRestMetadata {
    private:
     /// The dataset processes, in declaration order

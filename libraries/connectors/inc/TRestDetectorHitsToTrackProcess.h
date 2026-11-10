@@ -10,6 +10,10 @@
 /// \brief Transforms a TRestDetectorHitsEvent into a TRestTrackEvent, grouping in tracks the hits closer
 /// than clusterDistance. Optionally, the isolated low energy hits are attached to a track with a
 /// distance per coordinate (time walk).
+///
+/// \author Javier Gracia
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorHitsToTrackProcess : public TRestEventProcess {
    private:
     /// Isolated low energy hits attached to a track and with no hit close enough, reported at EndProcess

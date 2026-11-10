@@ -63,6 +63,9 @@ struct TRestTrackData {
 /// all of them: "X" selects only the XZ tracks, "Y" only the YZ tracks and "XYZ" only the XYZ (3D) tracks;
 /// any other option selects no track. The empty option "" is the XYZ tracks in GetMaxEnergyTrack and the
 /// methods based on it, and all the tracks in GetNumberOfTracks and GetEnergy (as without option).
+///
+/// \author Javier Gracia
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackEvent : public TRestEvent {
     friend class TRestTrack;
 

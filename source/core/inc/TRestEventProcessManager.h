@@ -34,6 +34,10 @@ class TRestManager;
 ///     class: TRestDetectorSignalPeaksFinderProcess
 ///     ...
 /// \endcode
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestEventProcessManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;

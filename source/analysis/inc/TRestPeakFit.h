@@ -22,6 +22,8 @@ class TH1;
 /// background), in the histogram scale. The RooFitResult is not kept: written to a file it adds a
 /// TProcessID (ProcessID0, for the references of the RooFit variables); its free parameters are in
 /// Peak::parameters.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestPeakFit {
 
 /// Shape of a peak

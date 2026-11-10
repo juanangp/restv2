@@ -38,6 +38,9 @@ class TBrowser;
 ///
 /// Derived viewers (e.g. 3D viewers based on TRestEveEventViewer) override AddEvent and Plot. They are
 /// created by TRestBrowser from their class name (ROOT dictionary) or given to it already created.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestEventViewer {
    protected:
     /// Geometry shown with the events (not owned), nullptr if none

@@ -23,6 +23,9 @@ class TRestTrackEvent;
 /// TRestTrack track = event->GetMaxEnergyTrack();
 /// if (track.GetEvent()) std::cout << track.GetEnergy() << " " << track.GetLength() << std::endl;
 /// \endcode
+///
+/// \author Javier Gracia
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrack {
    protected:
     TRestTrackEvent* fEvent = nullptr;  ///< Event holding the track, nullptr for an invalid track

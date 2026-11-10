@@ -38,6 +38,9 @@ class TPad;
 ///
 /// Derived classes implement AddEvent, adding the hits of their event with AddSphericalHit and calling
 /// Update. The Eve windows are created in the constructor (Initialize), not embedded in TRestBrowser.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestEveEventViewer : public TRestEventViewer {
    protected:
     TEveManager* gEve;  ///< Eve manager (TEveManager::Create), shadows the ROOT global of the same name.

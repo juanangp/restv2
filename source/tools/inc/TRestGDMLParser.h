@@ -11,6 +11,9 @@ class TGeoManager;
 /// REST_Geant4_ViewGeometry): with the entities expanded and the parameters of the configuration
 /// (TRestYAMLUtils::GetParameters) replacing the GDML constants and entities with their name, so a GDML
 /// keeps its default values and stays valid for any viewer (no environment variables in it).
+///
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestGDMLParser {
 
 /// \brief GDML with its entities and parameters resolved, in a single text without dependencies:

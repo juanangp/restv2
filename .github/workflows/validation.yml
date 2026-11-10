@@ -97,21 +97,21 @@ jobs:
 
       # A step per component, to see which one fails
       - name: tools
-        run: cd "$BUILD_DIR" && ctest -L '^tools$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^tools$' --output-on-failure
       - name: core
-        run: cd "$BUILD_DIR" && ctest -L '^core$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^core$' --output-on-failure
       - name: analysis
-        run: cd "$BUILD_DIR" && ctest -L '^analysis$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^analysis$' --output-on-failure
       - name: raw
-        run: cd "$BUILD_DIR" && ctest -L '^raw$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^raw$' --output-on-failure
       - name: detector
-        run: cd "$BUILD_DIR" && ctest -L '^detector$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^detector$' --output-on-failure
       - name: track
-        run: cd "$BUILD_DIR" && ctest -L '^track$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^track$' --output-on-failure
       - name: geant4
-        run: cd "$BUILD_DIR" && ctest -L '^geant4$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^geant4$' --output-on-failure
       - name: connectors
-        run: cd "$BUILD_DIR" && ctest -L '^connectors$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^connectors$' --output-on-failure
 
   restg4-examples:
     name: restG4 examples
@@ -134,7 +134,7 @@ jobs:
         run: tar -xzf build.tar.gz -C "$GITHUB_WORKSPACE"
 
       - name: restG4 examples
-        run: cd "$BUILD_DIR" && ctest -L '^restG4$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^restG4$' --output-on-failure
 
   format:
     name: Format

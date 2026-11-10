@@ -68,6 +68,9 @@ class TRestGeant4QuenchingInfo : public TRestMetadata {
 /// 0 otherwise). It throws at initialization if the run has no TRestGeant4Metadata or if a volume uses the
 /// lindhard model and the simulation has no storeHadronicTargetInfo; a volume entry without model is a
 /// configuration error; an expression without matching volume is reported as an error and skipped.
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4QuenchingProcess : public TRestEventProcess {
    private:
     struct QuenchingObservables {

@@ -123,6 +123,10 @@ struct TRestHitsData {
 ///
 /// The energy-weighted means, sigmas and skewness of a coordinate only use the hits defining it. The
 /// distances use the plane of the hits if all are XY, XZ or YZ, otherwise the three coordinates.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
+/// \author Cristina Margalejo <cmargalejo@unizar.es>
 class TRestHits {
    protected:
     TRestHitsData* fData = nullptr;  ///< Shared storage (not owned).

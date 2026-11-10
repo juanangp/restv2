@@ -28,6 +28,8 @@ class TTree;
 /// restRoot
 /// [0] REST_Raw_PulsesViewer("RawSignals.root")
 /// \endcode
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawPulsesViewer : public TGMainFrame {
    private:
     TRootEmbeddedCanvas* fCanvas;

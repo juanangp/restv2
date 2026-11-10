@@ -12,6 +12,9 @@ class TRestDetectorSignalEvent;
 /// \class TRestDetectorSignalToRawSignalProcess
 /// \brief Digitizes a TRestDetectorSignalEvent into a TRestRawSignalEvent: nPoints samples of width sampling
 /// from a trigger time, converted to ADC units (the inverse of TRestRawToDetectorSignalProcess).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorSignalToRawSignalProcess : public TRestEventProcess {
    private:
     /// Gain and offset used (from calibrationEnergy and calibrationRange if given)

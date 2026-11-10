@@ -19,6 +19,9 @@
 /// volumes need the Geant4 geometry, they are given by SampleGdmlPosition, which restG4 implements.
 /// Units: keV, mm. The generator options (YAML) and examples are documented in
 /// TRestGeant4PrimaryGenerator.cxx.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4PrimaryGenerator {
    public:
     /// \brief Generator of a thread: copies (Clone) the spatial generator and the sources and loads their

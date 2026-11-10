@@ -20,6 +20,8 @@
 ///
 /// A process resynchronizing the FEMs must check that the branches exist (HasFEMInfo after
 /// SetBranchAddresses).
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawDAQSignalEvent : public TRestRawSignalEvent {
    protected:
     std::vector<int> fFEMIDs;                        ///< FEM id of each FEM entry

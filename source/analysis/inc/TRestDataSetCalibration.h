@@ -59,6 +59,8 @@ class TRestDataSetCalibrationPeak : public TRestMetadata {
 /// \brief Energy calibration of a dataset: fits the peaks of known energy in the spectrum of an observable
 /// of the reference and adds the calibrated energy, a linear function of the observable. See the class
 /// documentation in TRestDataSetCalibration.cxx.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetCalibration : public TRestDataSetProcess {
    private:
     /// Spectrum of the observable in the reference, with the peak fits

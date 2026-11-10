@@ -10,6 +10,8 @@
 /// \brief Selection of the entries of a dataset in the range of an observable holding a quantile interval of
 /// the signal (the reference), e.g. the 80% of a calibration with the lowest log odds. See the class
 /// documentation in TRestDataSetSignalSelection.cxx.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetSignalSelection : public TRestDataSetProcess {
    protected:
     /// \brief The range of the observable between the quantiles of the reference, and the fraction of the

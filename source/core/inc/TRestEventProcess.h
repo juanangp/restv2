@@ -34,6 +34,10 @@ class TRestManager;
 /// A derived process implements GetInputEvent / GetOutputEvent (event class names; "None" as input for a
 /// generator creating the events, empty for processes of any event type taking the event of the
 /// previous one), InitProcess (registering its observables with RegisterObservable) and ProcessEvent.
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestEventProcess : public TRestMetadata {
    private:
     /// The TRestCut of fCutNames, resolved in InitCuts

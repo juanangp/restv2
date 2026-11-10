@@ -10,6 +10,8 @@
 /// \brief Adds to a dataset the columns of another dataset of the same events (e.g. the analysis of the
 /// vetoes, processed apart, to the dataset of the Micromegas), matching the entries by run (runNumber and
 /// subRunNumber), eventID and subEventID. See the class documentation in TRestDataSetCombine.cxx.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetCombine : public TRestDataSetProcess {
    protected:
     /// \brief Nothing to compute (the columns are read from combineFileName in Apply).

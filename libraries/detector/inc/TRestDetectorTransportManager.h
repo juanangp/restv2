@@ -317,6 +317,8 @@ class TRestDetectorGainTable : public TRestMetadata {
 ///        pressures: [1 bar, 1.4 bar]
 ///        gap: 128 um
 ///        reducedFieldRange: [25 kV/cm/bar, 35 kV/cm/bar]
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorTransportManager : public TRestMetadata {
    public:
     /// Configuration of the medium and of the tables (`medium`, `transport` and `gain` keys)

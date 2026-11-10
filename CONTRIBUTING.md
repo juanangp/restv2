@@ -33,8 +33,8 @@ data published outside the repository.
 
 ## Continuous integration
 
-The jobs run in the Docker image of the `restv2-docker` repository (ROOT, Geant4, Garfield++, CRY,
-prometheus-cpp), `ghcr.io/<owner>/restv2-env:latest`, with `<owner>` the owner of this repository; the
+The jobs run in the Docker image of the `rest-docker` repository (ROOT, Geant4, Garfield++, CRY,
+prometheus-cpp), `ghcr.io/<owner>/rest-env:latest`, with `<owner>` the owner of this repository; the
 repository variable `RESTV2_IMAGE` (Settings, Secrets and variables, Actions, Variables) sets another
 image. The package of the image must be readable by this repository (public, or Package settings, Manage
 Actions access).

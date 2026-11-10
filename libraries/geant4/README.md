@@ -87,7 +87,7 @@ Loaded by `restRoot`:
 | --- | --- |
 | `REST_Geant4_ReadEvents(file, first, last, energyMin, energyMax, maxTracks, maxHits)` | Prints the events of a range of entries, optionally only those with sensitive energy in a range. |
 | `REST_Geant4_ListIsotopes(file, outputFile, gammaMin, gammaMax, bins)` | Counts the particles and isotopes produced (with their creation volumes) and draws the spectrum of the gammas. |
-| `REST_Geant4_ViewEvent(file)` | Opens the file in `TRestBrowser` with the 3D event viewer. |
+| `REST_Geant4_ViewEvent(file [, maxVolumeCopies])` | Opens the file in `TRestBrowser` with the 3D event viewer. Logical volumes placed more than `maxVolumeCopies` times (default 1000, e.g. fibres) are not drawn, 0 draws all. |
 | `REST_Geant4_ViewGeometry(file, option)` | Draws the geometry of a restG4 file or a GDML file (OpenGL, or TEve with `"eve"`). |
 | `REST_Geant4_GenerateResponseMatrix(filePattern, varX, varY, range, cut)` | Response matrix (varY versus varX per simulated event) of analysis files, written as a binary table. |
 

@@ -29,7 +29,10 @@
 #include <TGLViewer.h>
 #include <TGTab.h>
 #include <TGeoManager.h>
+#include <TGeoNode.h>
+#include <TGeoVolume.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 
@@ -43,18 +46,6 @@ TRestEveEventViewer::TRestEveEventViewer() {
     Initialize();
     fEnergyDeposits = new TEvePointSet();
     fEnergyDeposits->SetElementName("Energy deposits");
-
-    RESTWarning << "There are some issues with geometry representation in Eve 3D scenes!" << RESTendl;
-    RESTWarning
-        << "We use a geometry scaling factor to place the hits in the scene and correct a placement problem"
-        << RESTendl;
-    RESTWarning << "Presently the default value of fGeomScale is " << fGeomScale << RESTendl;
-    RESTWarning << "Please, report to the dev team if you experience problems visualizing the geometry."
-                << RESTendl;
-    RESTWarning << "For example: when hit positions seem to do not match geometry positions" << RESTendl;
-
-    RESTWarning << " " << RESTendl;
-    RESTWarning << "You may try to fix this using TRestEventViewer::SetGeomScale(1.0);" << RESTendl;
 }
 
 TRestEveEventViewer::~TRestEveEventViewer() {
@@ -109,37 +100,70 @@ void TRestEveEventViewer::Initialize() {
 }
 
 void TRestEveEventViewer::SetGeometry(TGeoManager* geo) {
+    // Already drawn: not added twice to the global scene
+    if (geo == fGeometry) return;
+
+    DeleteGeometry();
     TRestEventViewer::SetGeometry(geo);
 
     if (fGeometry == nullptr) {
         return;
     }
 
+    // Placements of each logical volume: the volumes placed many times (e.g. thousands of fibres) are hidden,
+    // drawing them in every viewer makes the display very slow
+    std::map<TGeoVolume*, size_t> copies;
+    TGeoIterator next(fGeometry->GetTopVolume());
+    while (TGeoNode* node = next()) copies[node->GetVolume()]++;
+
     const unsigned int nVolumes = fGeometry->GetListOfVolumes()->GetEntries();
     double transparencyLevel = 85;
     if (nVolumes > 30) {
         transparencyLevel = 90;
     }
-    for (int i = 0; i < fGeometry->GetListOfVolumes()->GetEntries(); i++) {
+    for (unsigned int i = 0; i < nVolumes; i++) {
         auto volume = fGeometry->GetVolume(i);
         auto material = volume->GetMaterial();
+        bool visible = true;
         if (material->GetDensity() <= 0.01) {
             volume->SetTransparency(99);
-            if (material->GetDensity() <= 0.001) {
-                // We consider this vacuum for display purposes
-                volume->SetVisibility(kFALSE);
-            }
+            // We consider this vacuum for display purposes
+            if (material->GetDensity() <= 0.001) visible = false;
         } else {
             volume->SetTransparency(transparencyLevel);
         }
+        const size_t nCopies = copies.count(volume) ? copies.at(volume) : 0;
+        if (visible && fMaxVolumeCopies > 0 && nCopies > fMaxVolumeCopies) {
+            RESTWarning << "TRestEveEventViewer: volume '" << volume->GetName() << "' not drawn, placed "
+                        << nCopies << " times (more than " << fMaxVolumeCopies
+                        << ", SetMaxVolumeCopies(0) draws all)" << RESTendl;
+            visible = false;
+        }
+        volume->SetVisibility(visible);
     }
 
+    // From the world (top node, mm as the hits: TGeoManager in Geant4 units) down to the deepest volume
     TEveGeoTopNode* eveGeoTopNode = new TEveGeoTopNode(fGeometry, fGeometry->GetTopNode());
-    eveGeoTopNode->SetVisLevel(5);
+    eveGeoTopNode->SetVisLevel(std::max(5, fGeometry->GetMaxLevel()));
 
     gEve->AddGlobalElement(eveGeoTopNode);
 
-    viewer3D->AddScene(gEve->GetGlobalScene());
+    if (!fGlobalSceneInViewer3D) {
+        viewer3D->AddScene(gEve->GetGlobalScene());
+        fGlobalSceneInViewer3D = true;
+    }
+
+    // The cameras were reset with the empty scenes (Initialize): fitted now to the world
+    gEve->FullRedraw3D(kTRUE);
+}
+
+void TRestEveEventViewer::SetMaxVolumeCopies(size_t maxCopies) {
+    fMaxVolumeCopies = maxCopies;
+    // Drawn again with the new limit
+    if (TGeoManager* geometry = fGeometry) {
+        DeleteGeometry();
+        SetGeometry(geometry);
+    }
 }
 
 void TRestEveEventViewer::DeleteCurrentEvent() {
@@ -152,8 +176,8 @@ void TRestEveEventViewer::DeleteCurrentEvent() {
 }
 
 void TRestEveEventViewer::DeleteGeometry() {
-    cout << "Removing geometry" << endl;
     gEve->GetGlobalScene()->DestroyElements();
+    fGeometry = nullptr;
 }
 
 void TRestEveEventViewer::MultiView() {

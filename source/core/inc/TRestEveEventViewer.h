@@ -65,23 +65,28 @@ class TRestEveEventViewer : public TRestEventViewer {
     double fMinRadius = 0.2;  ///< Minimum marker radius of a hit, for derived viewers.
     double fMaxRadius = 3.0;  ///< Maximum marker radius of a hit, for derived viewers.
 
+    /// Logical volumes placed more times than this are not drawn (0 for no limit), see SetMaxVolumeCopies
+    size_t fMaxVolumeCopies = 1000;
+
+    bool fGlobalSceneInViewer3D = false;  ///< The global scene (geometry) was added to the multi view.
+
    public:
     /// \brief Creates the Eve manager, the viewers and the projections.
-    virtual void Initialize();
+    void Initialize() override;
 
     /// \brief Nothing: the Eve windows are not embedded in the browser.
-    virtual void Embed(TBrowser* b) {}
+    void Embed(TBrowser* b) override {}
 
     /// \brief Removes the energy deposits and annotations of the current event from the scenes.
-    virtual void DeleteCurrentEvent();
-    /// \brief Removes the geometry from the global scene.
+    void DeleteCurrentEvent() override;
+    /// \brief Removes the geometry from the global scene (it is not deleted, it is not owned).
     void DeleteGeometry();
 
     /// \brief Adds the event to the scenes (implemented by each viewer).
-    virtual void AddEvent(TRestEvent* ev) = 0;
+    void AddEvent(TRestEvent* ev) override = 0;
 
     /// \brief Nothing: the event is drawn by AddEvent and Update.
-    virtual void Plot(const char* option) {}
+    void Plot(const char* option) override {}
 
     /// \brief Adds a hit as a point (scaled by the geometry scale) to the energy deposits.
     /// \param x X position.
@@ -95,10 +100,19 @@ class TRestEveEventViewer : public TRestEventViewer {
     void MultiView();
     /// \brief Sets the guides and style of the 3D viewer.
     void DrawTab();
-    /// \brief Adds the geometry to the global scene (light materials transparent, vacuum hidden).
-    void SetGeometry(TGeoManager* geo);
+    /// \brief Draws the geometry (not owned) in the global scene from the world down to its deepest volume
+    /// (light materials transparent, vacuum and volumes placed more than SetMaxVolumeCopies times hidden),
+    /// replacing a previous one, and fits the cameras to the world. Positions in mm, as the hits (TGeoManager
+    /// in Geant4 units, TRestSystemOfUnits).
+    void SetGeometry(TGeoManager* geo) override;
     /// \brief Adds the energy deposits to the event and redraws the projections.
     void Update();
+
+    /// \brief Logical volumes placed more than `maxCopies` times (e.g. thousands of fibres) are not drawn,
+    /// they make the display very slow; 0 draws all (default 1000). The geometry already drawn is redrawn.
+    void SetMaxVolumeCopies(size_t maxCopies);
+    /// \brief Limit of placements of a drawn logical volume (0 for no limit).
+    size_t GetMaxVolumeCopies() const { return fMaxVolumeCopies; }
 
     /// \brief Sets the minimum marker radius.
     void SetMinRadius(double rmin) { fMinRadius = rmin; }
@@ -108,6 +122,6 @@ class TRestEveEventViewer : public TRestEventViewer {
     /// \brief Constructor: creates the Eve windows (Initialize).
     TRestEveEventViewer();
     /// \brief Destructor: removes the event and the geometry from the scenes.
-    virtual ~TRestEveEventViewer();
+    ~TRestEveEventViewer() override;
 };
 #endif

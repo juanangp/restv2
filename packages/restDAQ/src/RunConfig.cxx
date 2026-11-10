@@ -1,7 +1,9 @@
 #include "RunConfig.h"
 
+// readline.h uses FILE without including stdio.h (needed on macOS)
 #include <readline/readline.h>
 
+#include <cstdio>
 #include <iostream>
 #include <stdexcept>
 #include <utility>

@@ -20,10 +20,12 @@
 /// closed at exit). An error in a command is written and the session continues; an error in the
 /// configuration ends femclient. The exit code is 1 only for a wrong command line.
 
+// readline.h uses FILE without including stdio.h (needed on macOS)
 #include <readline/readline.h>
 #include <unistd.h>
 
 #include <csignal>
+#include <cstdio>
 #include <iostream>
 #include <map>
 #include <string>

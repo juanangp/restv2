@@ -1,10 +1,12 @@
 #include "CommandFetcher.h"
 
+// readline.h uses FILE without including stdio.h (needed on macOS)
 #include <readline/history.h>
 #include <readline/readline.h>
 
 #include <charconv>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <sstream>

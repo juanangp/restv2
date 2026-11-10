@@ -153,7 +153,7 @@ jobs:
         run: |
           cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" -DBUILD_TESTING=ON \
-            -DREST_G4=OFF -DREST_GARFIELD=OFF -DREST_DAQ=OFF
+            -DREST_G4=OFF -DREST_GARFIELD=OFF
 
       - name: Build and install
         run: cmake --build "$BUILD_DIR" --target install -j "$(sysctl -n hw.ncpu)"

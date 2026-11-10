@@ -26,3 +26,8 @@ foreach(src ${BIN_SOURCES})
 
   install(TARGETS ${exe_name} RUNTIME DESTINATION bin)
 endforeach()
+
+# restRoot loads the REST libraries and macros by file name: .so on Linux,
+# .dylib on macOS
+target_compile_definitions(
+  restRoot PRIVATE REST_SHARED_LIBRARY_SUFFIX="${CMAKE_SHARED_LIBRARY_SUFFIX}")

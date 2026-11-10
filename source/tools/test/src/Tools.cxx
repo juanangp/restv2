@@ -166,6 +166,29 @@ TEST(Tools, Paths) {
     EXPECT_EQ(TRestTools::SeparatePathAndName("run.root").first, "");
 }
 
+TEST(Tools, URLs) {
+    EXPECT_TRUE(TRestTools::IsURL("https://example.org/materials.xml"));
+    EXPECT_TRUE(TRestTools::IsURL("http://example.org"));
+    EXPECT_FALSE(TRestTools::IsURL("geometry/materials.xml"));
+    EXPECT_FALSE(TRestTools::IsURL("/data/https://x"));
+    EXPECT_EQ(TRestTools::GetLocalFile("geometry/materials.xml"), "geometry/materials.xml");
+
+    // A URL already in the cache ($REST_HOME/.rest/download) is not downloaded again (no network needed)
+    const fs::path dir = WorkDir();
+    const char* previous = std::getenv("REST_HOME");
+    const std::string saved = previous ? previous : "";
+    setenv("REST_HOME", dir.c_str(), 1);
+    const fs::path cached = dir / ".rest" / "download" / "example.org_rest-common_v1.0_materials.xml";
+    WriteFile(cached, "<materials/>");
+    const std::string url = "https://example.org/rest-common/v1.0/materials.xml";
+    EXPECT_EQ(fs::path(TRestTools::GetLocalFile(url)), cached);
+    if (previous) {
+        setenv("REST_HOME", saved.c_str(), 1);
+    } else {
+        unsetenv("REST_HOME");
+    }
+}
+
 TEST(Tools, FilesMatchingPattern) {
     const fs::path dir = WorkDir();
     WriteFile(dir / "R001_ANA.root", "x");

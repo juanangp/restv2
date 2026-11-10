@@ -210,7 +210,8 @@ class TRestDetectorLightResponse : public TRestMetadata {
 ///   pressures), e.g. {Ar: 99, iC4H10: 1} or {Si: 100}. Read from the medium file if not given; if given,
 ///   they must agree with it.
 /// - mediumFile: path of the medium file (a leading ~ is $HOME). restGarfield writes to it (by default
-///   `<name>.root`).
+///   `<name>.root`). It can be a URL for reading (downloaded and cached, TRestTools::GetLocalFile; e.g. a
+///   versioned table of rest-common); a URL that cannot be downloaded is an error.
 /// - pressure (gases only, 1 bar), temperature (293.15 K): the conditions of the detector (and the default
 ///   ones of the tables of restGarfield). A pressure other than 1 bar for a liquid or a solid is an error
 ///   (1 bar is accepted, it is written to the metadata for any state).

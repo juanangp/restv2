@@ -220,9 +220,16 @@ YAML::Node ExpandSelects(const YAML::Node& node) {
     return ExpandSelects(MergeNodes(common, chosen));
 }
 
-/// \brief Node with its `include` keys expanded (LoadConfigFile), at any depth. `directory`: the one of the
-/// file of the node, for the relative paths; `stack`: the files being included, to detect cycles
-YAML::Node ExpandIncludes(const YAML::Node& node, const std::filesystem::path& directory,
+/// \brief Base of the relative includes of a file or URL: its directory, or its URL up to the last '/'
+std::string IncludeBase(const std::string& location) {
+    if (TRestTools::IsURL(location)) return location.substr(0, location.rfind('/') + 1);
+    return std::filesystem::path(location).parent_path().string();
+}
+
+/// \brief Node with its `include` keys expanded (LoadConfigFile), at any depth. `directory`: the base of the
+/// relative paths, the directory of the file of the node or the URL of its directory (IncludeBase);
+/// `stack`: the files being included, to detect cycles
+YAML::Node ExpandIncludes(const YAML::Node& node, const std::string& directory,
                           std::vector<std::string>& stack) {
     if (node.IsSequence()) {
         YAML::Node out(YAML::NodeType::Sequence);
@@ -264,19 +271,27 @@ YAML::Node ExpandIncludes(const YAML::Node& node, const std::filesystem::path& d
         }
     }
 
-    std::filesystem::path path(fileName);
-    if (path.is_relative()) path = directory / path;
-    path = std::filesystem::weakly_canonical(path);
-    const std::string pathString = path.string();
-    if (!std::filesystem::exists(path))
-        throw std::runtime_error("include: file " + pathString +
-                                 " not found (relative paths are relative to " +
-                                 "the file that includes it)");
+    // A URL (e.g. a versioned file of rest-common) is downloaded; relative to a URL, a URL
+    std::string pathString;
+    if (TRestTools::IsURL(fileName)) {
+        pathString = fileName;
+    } else if (TRestTools::IsURL(directory) && std::filesystem::path(fileName).is_relative()) {
+        pathString = directory + fileName;
+    } else {
+        std::filesystem::path path(fileName);
+        if (path.is_relative()) path = std::filesystem::path(directory) / path;
+        pathString = std::filesystem::weakly_canonical(path).string();
+        if (!std::filesystem::exists(path))
+            throw std::runtime_error("include: file " + pathString +
+                                     " not found (relative paths are relative to " +
+                                     "the file that includes it)");
+    }
     if (std::find(stack.begin(), stack.end(), pathString) != stack.end())
         throw std::runtime_error("include: " + pathString + " includes itself (directly or not)");
 
     stack.push_back(pathString);
-    YAML::Node included = ExpandIncludes(YAML::LoadFile(pathString), path.parent_path(), stack);
+    YAML::Node included =
+        ExpandIncludes(YAML::LoadFile(TRestTools::GetLocalFile(pathString)), IncludeBase(pathString), stack);
     stack.pop_back();
 
     if (!sectionKey.empty()) {
@@ -294,8 +309,10 @@ YAML::Node ExpandIncludes(const YAML::Node& node, const std::filesystem::path& d
 }  // namespace
 
 YAML::Node TRestYAMLUtils::LoadConfigFile(const std::string& fileName) {
-    std::vector<std::string> stack{std::filesystem::weakly_canonical(fileName).string()};
-    return ExpandIncludes(YAML::LoadFile(fileName), std::filesystem::path(stack.front()).parent_path(),
+    // The file itself can also be a URL
+    std::vector<std::string> stack{
+        TRestTools::IsURL(fileName) ? fileName : std::filesystem::weakly_canonical(fileName).string()};
+    return ExpandIncludes(YAML::LoadFile(TRestTools::GetLocalFile(fileName)), IncludeBase(stack.front()),
                           stack);
 }
 

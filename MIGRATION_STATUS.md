@@ -1023,3 +1023,18 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
     std::runtime_error).
   - TRestGeant4QuenchingProcess and TRestGeant4AnalysisProcess only read their metadata from the input file.
   - TRestHitsAnalysis::GetTwist and GetTwistWeighted measure the angle differently (as legacy).
+
+### Shared resources by URL (2026-11-11, implemented, user decisions)
+
+- Organization: one repository per project in rest-for-physics-toolkit (alphacamm, liquido...), grouped by a
+  topic and the profile of the organization, and `rest-common` for the shared resources: `materials/`
+  (materials.xml of Geant4), `gases/` (restGarfield YAML and its tables) and `readouts/` (YAML, decoding and
+  the readout file). The generated ROOT files are committed with their YAML (no CI).
+- The projects read them with versioned URLs (a tag), not GitHub Pages (only the latest version):
+  `https://raw.githubusercontent.com/rest-for-physics-toolkit/rest-common/<tag>/materials/materials.xml`.
+- Read from a URL (TRestTools::GetLocalFile: downloaded once with curl and cached in
+  `$REST_HOME/.rest/download`, so it works without network once cached, e.g. in the nodes of a cluster):
+  the GDML entities (before), the YAML `include` (relative includes of a URL are relative to it) and the
+  main YAML file, `mediumFile` of TRestDetectorMedium (read only: restGarfield needs a local file) and
+  `inputFileName` of the readouts of TRestDetectorReadoutManager. The `gdmlFilename` of restG4 stays local
+  (the projects keep their setup GDML, its entities point to rest-common).

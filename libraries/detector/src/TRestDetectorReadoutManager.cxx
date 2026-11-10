@@ -107,13 +107,15 @@ void TRestDetectorReadoutManager::LoadReadout() {
                 continue;
             }
         } else {
-            if (!TRestTools::isRootFile(readoutInfo.fInputFileName)) {
+            // A URL (e.g. a versioned readout of rest-common) is downloaded and cached
+            const std::string inputFile = TRestTools::GetLocalFile(readoutInfo.fInputFileName);
+            if (!TRestTools::isRootFile(inputFile)) {
                 RESTError << "Input file " << readoutInfo.fInputFileName
                           << " not found, readout will not be loaded" << RESTendl;
                 continue;
             }
 
-            ownedFile.reset(TFile::Open(readoutInfo.fInputFileName.c_str(), "READ"));
+            ownedFile.reset(TFile::Open(inputFile.c_str(), "READ"));
             if (!ownedFile || ownedFile->IsZombie()) {
                 RESTError << "Could not open ROOT file: " << readoutInfo.fInputFileName << RESTendl;
                 continue;

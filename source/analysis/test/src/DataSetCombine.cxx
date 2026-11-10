@@ -152,7 +152,9 @@ TEST(DataSetCombine, OnlyTheMatchedEntries) {
     // Events 0, 2, 4, 6, 8 of run 1 and 3 of run 2
     auto frame = micromegas.GetDataFrame();
     EXPECT_EQ(*frame.Count(), 6u);
-    for (double value : *frame.Take<double>("j_vetoValue")) EXPECT_FALSE(std::isnan(value));
+    // The result of Take kept: a temporary in the range of the for would be destroyed before the loop
+    auto values = frame.Take<double>("j_vetoValue");  // not const: operator* of RResultPtr is not const
+    for (double value : *values) EXPECT_FALSE(std::isnan(value));
     const auto names = frame.GetColumnNames();
     EXPECT_EQ(std::find(names.begin(), names.end(), "j_vetoCount"), names.end());  // not selected
 }
@@ -191,7 +193,8 @@ TEST(DataSetCombine, Errors) {
         const std::string other = WriteDataSet(directory / "Dataset_Other.root", {7}, {{0, 1, 1, 1}}, "veto");
         auto combine = MakeCombine(other);
         combine.Apply(micromegas);
-        for (int matched : *micromegas.GetDataFrame().Take<int>("vetoCombine_matched")) EXPECT_EQ(matched, 0);
+        auto matched = micromegas.GetDataFrame().Take<int>("vetoCombine_matched");
+        for (int value : *matched) EXPECT_EQ(value, 0);
     }
     EXPECT_THROW(TRestDataSetCombine("combine", YAML::Load("{verbose: warning}")), std::runtime_error);
 }

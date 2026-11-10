@@ -76,7 +76,7 @@ Optional (each one enables a part of restv2; without it that part is not built a
 | Software | Version | Enables | CMake option |
 |---|---|---|---|
 | [Geant4](https://geant4.web.cern.ch) | ≥ 11.0 (tested with 11.0.3), with GDML (Xerces-C) and its data | `restG4` (packages/restG4) | `REST_G4` (ON if found, `Geant4_DIR`) |
-| [CRY](https://nuclear.llnl.gov/simulate/cry/) | 1.7 | `restCRY`, cosmic-ray showers for restG4 | `REST_CRY` (ON if found, `CRY_PATH` or `$CRYHOME`) |
+| [CRY](https://nuclear.llnl.gov/simulation/main.html) | 1.7 | `restCRY`, cosmic-ray showers for restG4 | `REST_CRY` (ON if found, `CRY_PATH` or `$CRYHOME`) |
 | [Garfield++](https://garfieldpp.web.cern.ch) | ≥ 4.0 | `restGarfield`, transport and gain tables of the media | `REST_GARFIELD` (ON if found, `$GARFIELD_INSTALL`) |
 | readline and [prometheus-cpp](https://github.com/jupp0r/prometheus-cpp) | prometheus-cpp 1.2 (downloaded if not found) | `femclient` (packages/restDAQ) | `REST_DAQ` (OFF by default) |
 | [GoogleTest](https://github.com/google/googletest) | ≥ 1.10 | The tests (`ctest`) | `BUILD_TESTING` (OFF by default) |

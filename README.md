@@ -94,7 +94,7 @@ sudo apt install build-essential cmake git libyaml-cpp-dev \
     libgtest-dev libreadline-dev doxygen graphviz ccache      # optional
 ```
 
-The Docker image of the continuous integration (repository `restv2-docker`) has all of them installed, and
+The Docker image of the continuous integration (repository `rest-docker`) has all of them installed, and
 can be used to build restv2 in a clean environment.
 
 ## Build and install
@@ -152,7 +152,7 @@ cmake --build . --target doc              # Doxygen HTML in build/doc/html
 ```
 
 The validation of the pull requests (GitHub Actions) builds everything and runs the tests in the Docker image
-of the `restv2-docker` repository; see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow (master only
+of the `rest-docker` repository; see [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow (master only
 changes through pull requests) and the continuous integration.
 
 ## Documentation

@@ -994,7 +994,7 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   PRs with green checks). See CONTRIBUTING.md.
 - CI Docker image in a separate repository, `/home/juanan/restv2-docker` (Ubuntu 24.04, ROOT 6.36.04 binary,
   Geant4 11.0.3, Garfield++ 4.0, CRY 1.7, prometheus-cpp), published by its workflow in
-  `ghcr.io/<owner>/restv2-env`; built and pushed by the maintainer.
+  `ghcr.io/<owner>/rest-env`; built and pushed by the maintainer.
 - Unit tests (2026-11-09, all passing with ctest, validated by the maintainer): tools 44, core 36,
   analysis 66, raw 32, connectors 16, detector 25, track 12, geant4 11 (with the regression tests of the fixes
   below), plus the 22 restG4 examples; the 9 FFTAnalysis tests are skipped without FFTW in ROOT.

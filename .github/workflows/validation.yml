@@ -2,8 +2,8 @@
 # push to master (merge), each release and by hand. The checks (job names) are required by the protection of
 # master (.github/rulesets/master.json, see CONTRIBUTING.md).
 #
-# The jobs run in the container of the restv2-docker repository (ROOT, Geant4, Garfield++, CRY...):
-# ghcr.io/<owner of this repository>/restv2-env:latest, or the image of the repository variable RESTV2_IMAGE
+# The jobs run in the container of the rest-docker repository (ROOT, Geant4, Garfield++, CRY...):
+# ghcr.io/<owner of this repository>/rest-env:latest, or the image of the repository variable RESTV2_IMAGE
 # (Settings, Secrets and variables, Actions, Variables), e.g. if the owner has uppercase letters or the image
 # is published elsewhere.
 name: Validation
@@ -39,7 +39,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -81,7 +81,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

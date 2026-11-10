@@ -136,6 +136,37 @@ jobs:
       - name: restG4 examples
         run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^restG4$' --output-on-failure
 
+  # macOS (Apple Clang, ROOT of Homebrew): build, install, restRoot and unit tests. Without Geant4, Garfield++
+  # and CRY (not in the image, the restG4 and restGarfield packages are checked on Linux). Not required by
+  # the protection of master yet
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: brew install root yaml-cpp googletest readline ninja
+
+      - name: Configure
+        run: |
+          cmake -S . -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" -DBUILD_TESTING=ON -DREST_DAQ=ON \
+            -DREST_G4=OFF -DREST_GARFIELD=OFF -DCMAKE_PREFIX_PATH="$(brew --prefix readline)"
+
+      - name: Build and install
+        run: cmake --build "$BUILD_DIR" --target install -j "$(sysctl -n hw.ncpu)"
+
+      - name: Executables and libraries
+        run: |
+          source "$INSTALL_DIR/thisREST.sh"
+          restRoot -b -q
+          command -v restManager femclient
+
+      - name: Unit tests
+        run: cd "$BUILD_DIR" && ctest -j "$(sysctl -n hw.ncpu)" --output-on-failure
+
   format:
     name: Format
     runs-on: ubuntu-latest

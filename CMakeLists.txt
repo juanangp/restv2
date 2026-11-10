@@ -96,6 +96,13 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR CMAKE_INSTALL_PREFIX STREQUAL
   message(STATUS "Install prefix set to: ${CMAKE_INSTALL_PREFIX}")
 endif()
 
+# macOS: the installed executables and macros find the REST libraries in
+# <prefix>/lib without DYLD_LIBRARY_PATH (SIP removes it in the processes
+# launched by the system shells, e.g. /bin/sh scripts)
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+endif()
+
 # ---------------------------------------------------------------------------
 # External dependencies
 # ---------------------------------------------------------------------------

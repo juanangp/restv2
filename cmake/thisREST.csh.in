@@ -8,7 +8,11 @@ setenv REST_PATH   "@CMAKE_INSTALL_PREFIX@"
 if ( $?ROOT_INCLUDE_PATH == 0 ) setenv ROOT_INCLUDE_PATH ''
 setenv ROOT_INCLUDE_PATH "${REST_PATH}/include:${ROOT_INCLUDE_PATH}"
 setenv PATH              "${REST_PATH}/bin:${PATH}"
+if ( $?LD_LIBRARY_PATH == 0 ) setenv LD_LIBRARY_PATH ''
 setenv LD_LIBRARY_PATH   "${REST_PATH}/lib:${LD_LIBRARY_PATH}"
+# macOS
+if ( $?DYLD_LIBRARY_PATH == 0 ) setenv DYLD_LIBRARY_PATH ''
+setenv DYLD_LIBRARY_PATH "${REST_PATH}/lib:${DYLD_LIBRARY_PATH}"
 if ( $?LIBRARY_PATH == 0 ) setenv LIBRARY_PATH ''
 setenv LIBRARY_PATH "${REST_PATH}/lib:${LIBRARY_PATH}"
 

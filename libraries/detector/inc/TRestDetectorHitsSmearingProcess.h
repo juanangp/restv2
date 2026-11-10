@@ -14,6 +14,10 @@ class TRestDetectorChargeResponse;
 ///
 /// The parameters (YAML keys), the observables and an example are described in the class documentation
 /// (TRestDetectorHitsSmearingProcess.cxx).
+///
+/// \author Javier G. Garza
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorHitsSmearingProcess : public TRestEventProcess {
    private:
     const TRestDetectorChargeResponse* fCharge = nullptr;

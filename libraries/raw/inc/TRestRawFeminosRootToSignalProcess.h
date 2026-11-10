@@ -30,6 +30,10 @@ class TTree;
 ///   class: "TRestRawFeminosRootToSignalProcess"
 ///   useFeminosDaqRunInfo: true
 /// \endcode
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author Álvaro Ezquerro <aezquerro@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawFeminosRootToSignalProcess : public TRestEventProcess {
    private:
     long long fInputTreeEntry = 0;

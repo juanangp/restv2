@@ -47,6 +47,10 @@ class TRestManager;
 ///       xLabel: "Energy (ADC)"
 ///       variables: [{name: "trackLineAnalysis_Energy", range: [0, 1e6], nBins: 200}]
 /// \endcode
+///
+/// \author Gloria Luzón
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestAnalysisPlot : public TRestMetadata {
    public:
     /// Observable of a histogram axis

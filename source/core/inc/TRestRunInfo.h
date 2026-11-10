@@ -33,6 +33,10 @@
 ///     driftVoltage: 1000 V
 ///   # mergedSubRuns, startTime, endTime and entriesSaved are written by REST
 /// \endcode
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRunInfo : public TRestMetadata {
    public:
     int fRunNumber = -1;    ///< Run number (`runNumber`), -1 if not set.

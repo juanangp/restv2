@@ -41,6 +41,9 @@ class TTree;
 /// Differences with legacy: one key `conditions` (name: expression) instead of the `cut` elements with
 /// `value` or `variable` and `condition` (the observables are found in the expression), C++ operators
 /// instead of AND/OR, and the cuts can be applied in the pipeline by any process.
+///
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestCut : public TRestMetadata {
    private:
     /// Analysis tree the formula reads (Compile), not owned

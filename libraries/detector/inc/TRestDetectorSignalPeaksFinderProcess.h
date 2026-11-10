@@ -10,6 +10,9 @@
 /// \brief Finds all the peaks of the signals of a TRestDetectorSignalEvent and groups them in time
 /// coincidence windows. The event is not modified. See the class documentation in
 /// TRestDetectorSignalPeaksFinderProcess.cxx (observables and example).
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorSignalPeaksFinderProcess : public TRestEventProcess {
    private:
     struct PeaksObservables {

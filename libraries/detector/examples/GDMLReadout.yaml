@@ -3,7 +3,7 @@
 # - readoutVolume: where the signal of each channel is collected, here the light guide of the same veto
 #   (the volume of the same assembly copy, so it follows the rotation of each layer); the PMT is not in the
 #   geometry, its photocathode would be at the end of the light guide. GetReadoutPosition and
-#   GetDistanceToReadout (TRestDetectorLightAttenuationProcess) use it.
+#   GetDistanceToReadout (attenuation model of TRestDetectorLightCollectionProcess) use it.
 # Run from the repository root: the decoding and GDML file paths are relative to the working directory:
 #   REST_Detector_GenerateGDMLReadout("libraries/detector/examples/GDMLReadout.yaml",
 #                                     "libraries/detector/examples/veto_readout_output.root")

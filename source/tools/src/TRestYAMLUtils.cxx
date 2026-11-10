@@ -163,6 +163,63 @@ YAML::Node MergeNodes(const YAML::Node& base, const YAML::Node& local) {
     return out;
 }
 
+/// \brief Node with its `select` blocks replaced by the case chosen, at any depth (ResolveRefs, after the
+/// parameters): a map with `select: value` and `cases` becomes the case `value` of `cases` (or `default`)
+/// merged over the other keys of the map (the common ones, MergeNodes: the case wins); a case that is not
+/// a map (e.g. a scalar) replaces the block, which then has no other keys. The case chosen can have other
+/// blocks.
+YAML::Node ExpandSelects(const YAML::Node& node) {
+    if (node.IsSequence()) {
+        YAML::Node out(YAML::NodeType::Sequence);
+        for (const auto& element : node) out.push_back(ExpandSelects(element));
+        return out;
+    }
+    if (!node.IsMap()) return node;
+
+    const YAML::Node select = node["select"];
+    if (!select) {
+        YAML::Node out(YAML::NodeType::Map);
+        for (const auto& element : node) out[element.first.Scalar()] = ExpandSelects(element.second);
+        return out;
+    }
+
+    const YAML::Node cases = node["cases"];
+    if (!select.IsScalar()) throw std::runtime_error("select: a value expected (e.g. \"${PARAM:name}\")");
+    if (!cases || !cases.IsMap()) throw std::runtime_error("select: a map `cases` (value: content) expected");
+    const std::string value = select.Scalar();
+    // Const access (a missing key is not added) and reset (assigning a node would write into the case); a
+    // default YAML::Node is a defined (null) node: whether a case is found is kept apart
+    const YAML::Node& constCases = cases;
+    YAML::Node chosen;
+    bool found = false;
+    for (const std::string& name : {value, std::string("default")}) {
+        if (!found && constCases[name]) {
+            chosen.reset(constCases[name]);
+            found = true;
+        }
+    }
+    if (!found) {
+        std::string names;
+        for (const auto& element : cases) names += (names.empty() ? "" : ", ") + element.first.Scalar();
+        throw std::runtime_error("select: no case '" + value + "' nor `default` in the cases (" + names +
+                                 ")");
+    }
+
+    YAML::Node common(YAML::NodeType::Map);
+    for (const auto& element : node) {
+        const std::string key = element.first.Scalar();
+        if (key != "select" && key != "cases") common[key] = element.second;
+    }
+    if (!chosen.IsMap()) {
+        if (common.size() > 0) {
+            throw std::runtime_error("select: the case '" + value +
+                                     "' is not a map, the block cannot have other keys");
+        }
+        return ExpandSelects(chosen);
+    }
+    return ExpandSelects(MergeNodes(common, chosen));
+}
+
 /// \brief Node with its `include` keys expanded (LoadConfigFile), at any depth. `directory`: the one of the
 /// file of the node, for the relative paths; `stack`: the files being included, to detect cycles
 YAML::Node ExpandIncludes(const YAML::Node& node, const std::filesystem::path& directory,
@@ -290,7 +347,9 @@ YAML::Node TRestYAMLUtils::ResolveRefs(const YAML::Node& root,
             gParameters[name] = parameter.second.Scalar();
         }
     }
-    cfg = ResolveParameters(ResolveEnvVars(cfg));
+    // The parameters are resolved in all the cases of the select blocks (those of the cases not chosen are
+    // also defined and used), then the blocks are replaced by their case
+    cfg = ExpandSelects(ResolveParameters(ResolveEnvVars(cfg)));
     return ResolveYamlRefs(cfg, cfg);
 }
 

@@ -3,10 +3,11 @@
 
 #include "TRestEvent.h"
 #include "TRestMetadata.h"
+// RegisterObservable uses TRestRun (TRestRun.h does not include this header): every process gets it
+#include "TRestRun.h"
 
 class TRestCut;
 class TRestManager;
-class TRestRun;
 
 /// \class TRestEventProcess
 /// \brief Abstract base for event-processing pipeline stages.
@@ -33,6 +34,10 @@ class TRestRun;
 /// A derived process implements GetInputEvent / GetOutputEvent (event class names; "None" as input for a
 /// generator creating the events, empty for processes of any event type taking the event of the
 /// previous one), InitProcess (registering its observables with RegisterObservable) and ProcessEvent.
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestEventProcess : public TRestMetadata {
    private:
     /// The TRestCut of fCutNames, resolved in InitCuts
@@ -123,15 +128,12 @@ class TRestEventProcess : public TRestMetadata {
     /// The `observables` list of the configuration uses `name`; the branch of the analysis tree is
     /// `processName_name` (as legacy), so the observables of different processes never collide.
     /// Every call offers the observable (CheckObservables); a name offered twice throws.
-    /// The `Run` parameter defers the TRestRun lookup to the point of instantiation,
-    /// where TRestRun.h must be included.
     /// \param name Observable name (without the process prefix).
     /// \param variable Variable bound to the branch; must live while the output is written.
-    template <typename T, typename Run = TRestRun>
+    template <typename T>
     void RegisterObservable(const std::string& name, T& variable) {
         if (!ShouldRegisterObservable(name)) return;
-        Run* run = fRunInfo;
-        run->SetObservable(GetName() + "_" + name, variable);
+        fRunInfo->SetObservable(GetName() + "_" + name, variable);
     }
 
    private:

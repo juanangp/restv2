@@ -55,6 +55,10 @@
 ///
 /// A REST run file contains the `AnalysisTree` (event info and observables), one tree per saved event
 /// type (named as the event class) and the `RESTMetadataStore` directory with the configurations.
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRun : public TRestRunInfo {
    private:
     /// The metadata of the input file (without its TRestRun), with their objects

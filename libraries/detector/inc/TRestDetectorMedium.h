@@ -144,22 +144,28 @@ class TRestDetectorChargeResponse : public TRestMetadata {
 };
 
 /// \class TRestDetectorLightResponse
-/// \brief Light response of a scintillating medium: the propagation of the light to the photocathode (used
-/// by TRestDetectorLightAttenuationProcess). It is the `light` key of a TRestDetectorMedium (no class key).
-/// The light yield, decay time, quenching or quantum efficiency will be other parameters when the light
-/// is parametrised.
+/// \brief Light response of a scintillating medium: the light produced by the energy deposits (used by
+/// TRestDetectorScintillationProcess) and its propagation to the photocathode in a transparent scintillator
+/// (attenuation model of TRestDetectorLightCollectionProcess). It is the `light` key of a TRestDetectorMedium
+/// (no class key). The quenching is done on the Geant4 deposits (TRestGeant4QuenchingProcess); the local
+/// capture of an opaque scintillator and the quantum efficiency are parameters of
+/// TRestDetectorLightCollectionProcess.
 ///
 /// Parameters:
+/// - lightYield: scintillation photons produced per keV of (quenched) deposited energy.
 /// - attenuationLength: the deposited energy reaching the readout is E exp(-d / attenuationLength), with d
 ///   the distance to the readout of the channel (TRestDetectorReadout::GetDistanceToReadout).
 /// - effectiveLightSpeed: the signal is delayed by d / effectiveLightSpeed (effective speed along the
 ///   scintillator, with its reflections).
 ///
 ///      light:
+///        lightYield: 10
 ///        attenuationLength: 3 m
 ///        effectiveLightSpeed: 150 mm/ns
 class TRestDetectorLightResponse : public TRestMetadata {
    public:
+    /// `lightYield`: scintillation photons per keV (0: not given)
+    double fLightYield = 0;  // 1/keV
     /// `attenuationLength`: attenuation length of the light (0: none)
     TRestWithUnits fAttenuationLength = 0;  // mm
     /// `effectiveLightSpeed`: effective speed of the light to the readout (0: no delay)
@@ -177,6 +183,8 @@ class TRestDetectorLightResponse : public TRestMetadata {
     /// \brief Nothing to initialise.
     void Initialize() override {}
 
+    /// \brief Scintillation photons per keV.
+    inline double GetLightYield() const { return fLightYield; }
     /// \brief Attenuation length (mm).
     inline double GetAttenuationLength() const { return fAttenuationLength; }
     /// \brief Effective light speed (mm/us).
@@ -216,6 +224,8 @@ class TRestDetectorLightResponse : public TRestMetadata {
 ///        wValue: 26.2 eV
 ///        fanoFactor: 0.2
 ///        driftField: 140 V/cm
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorMedium : public TRestMetadata {
    private:
     std::shared_ptr<TRestDetectorChargeResponse> fCharge;  //!

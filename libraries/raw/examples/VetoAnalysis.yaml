@@ -1,0 +1,53 @@
+# Veto analysis (legacy TRestRawVetoAnalysisProcess) with the existing processes:
+#   restManager --c VetoAnalysis.yaml --i <TRestRawSignalEvent file>
+# 1. keepVeto: keeps only the veto signals (DAQ IDs 288 to 346, veto.dec of libraries/detector/examples).
+# 2. baseLineCorrection: baseline of the veto signals as a moving average (optional).
+# 3. vetoAna: one entry per veto signal: vetoAna_SignalsID, vetoAna_AmpSgnMaxMethod (legacy
+#    MaxPeakAmplitude), vetoAna_PeakTime (legacy PeakTime) and vetoAna_PointsOverThr.
+# The detector is analysed in another run on the same input, removing the veto signals (as legacy did):
+#   removeVeto: {class: "TRestRawSignalChannelSelectionProcess", removeChannelRange: [[288, 346]]}
+# and both analysis trees are combined by event ID.
+# Legacy observables as expressions (in a TRestCut or a TRestAnalysisPlot):
+#   MaxPeakAmplitude (0 under threshold):  vetoAna_AmpSgnMaxMethod * (vetoAna_PointsOverThr >= 4)
+#   VetoAboveThreshold / NvetoAboveThreshold:  Any(vetoAna_AmpSgnMaxMethod > 500) / Sum(... > 500)
+#   VetoInTimeWindow / NVetoInTimeWindow:  Sum(vetoAna_PeakTime > 100 && vetoAna_PeakTime < 300) (> 0)
+#   group (vetoGroup):  vetoAna_AmpSgnMaxMethod[vetoAna_SignalsID >= 288 && vetoAna_SignalsID <= 299]
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    inputFileName: ""
+    outputFileName: "VetoAnalysis.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+
+    keepVeto:
+      class: "TRestRawSignalChannelSelectionProcess"
+      name: "keepVeto"
+      keepChannelRange:
+        - [288, 346]
+
+    baseLineCorrection:
+      class: "TRestRawBaseLineCorrectionProcess"
+      name: "baseLineCorrection"
+      smoothingWindow: 75
+
+    vetoAna:
+      class: "TRestRawSignalAnalysisProcess"
+      name: "vetoAna"
+      baselineRange: [5, 55]
+      baselineOption: "robust"
+      integralRange: [5, 507]
+      pointsThreshold: 1.5
+      signalThreshold: 1.5
+      pointsOverThreshold: 4
+      observables: ["SignalsID", "AmpSgnMaxMethod", "PeakTime", "PointsOverThr"]

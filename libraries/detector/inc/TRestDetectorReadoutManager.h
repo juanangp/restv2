@@ -58,6 +58,8 @@ class TRestReadoutInfo : public TRestMetadata {
 ///      readouts:
 ///        - {instanceName: "micromegas", decodingName: "iaxo_d1_iaxolab", inputFileName: "readout.root"}
 ///        - {instanceName: "veto", decodingName: "veto", inputFileName: "veto_readout.root"}
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorReadoutManager : public TRestMetadata {
    public:
     /// \brief Builds an empty readout manager.

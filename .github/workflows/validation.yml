@@ -2,8 +2,8 @@
 # push to master (merge), each release and by hand. The checks (job names) are required by the protection of
 # master (.github/rulesets/master.json, see CONTRIBUTING.md).
 #
-# The jobs run in the container of the restv2-docker repository (ROOT, Geant4, Garfield++, CRY...):
-# ghcr.io/<owner of this repository>/restv2-env:latest, or the image of the repository variable RESTV2_IMAGE
+# The jobs run in the container of the rest-docker repository (ROOT, Geant4, Garfield++, CRY...):
+# ghcr.io/<owner of this repository>/rest-env:latest, or the image of the repository variable RESTV2_IMAGE
 # (Settings, Secrets and variables, Actions, Variables), e.g. if the owner has uppercase letters or the image
 # is published elsewhere.
 name: Validation
@@ -39,7 +39,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +70,7 @@ jobs:
       - name: Pack the build
         run: tar -czf build.tar.gz -C "$GITHUB_WORKSPACE" build install
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: build
           path: build.tar.gz
@@ -81,14 +81,14 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: build
 
@@ -97,21 +97,21 @@ jobs:
 
       # A step per component, to see which one fails
       - name: tools
-        run: cd "$BUILD_DIR" && ctest -L '^tools$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^tools$' --output-on-failure
       - name: core
-        run: cd "$BUILD_DIR" && ctest -L '^core$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^core$' --output-on-failure
       - name: analysis
-        run: cd "$BUILD_DIR" && ctest -L '^analysis$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^analysis$' --output-on-failure
       - name: raw
-        run: cd "$BUILD_DIR" && ctest -L '^raw$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^raw$' --output-on-failure
       - name: detector
-        run: cd "$BUILD_DIR" && ctest -L '^detector$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^detector$' --output-on-failure
       - name: track
-        run: cd "$BUILD_DIR" && ctest -L '^track$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^track$' --output-on-failure
       - name: geant4
-        run: cd "$BUILD_DIR" && ctest -L '^geant4$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^geant4$' --output-on-failure
       - name: connectors
-        run: cd "$BUILD_DIR" && ctest -L '^connectors$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^connectors$' --output-on-failure
 
   restg4-examples:
     name: restG4 examples
@@ -119,14 +119,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: build
 
@@ -134,14 +134,14 @@ jobs:
         run: tar -xzf build.tar.gz -C "$GITHUB_WORKSPACE"
 
       - name: restG4 examples
-        run: cd "$BUILD_DIR" && ctest -L '^restG4$' --output-on-failure
+        run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^restG4$' --output-on-failure
 
   format:
     name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: pre-commit/action@v3.0.1

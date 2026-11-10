@@ -1,0 +1,28 @@
+# Raw signal analysis (TRestRawSignalAnalysisProcess, all its observables) of a file with TRestRawSignalEvent,
+# keeping the run of the input file (inheritInputRun):
+#   restManager --c libraries/raw/examples/RawSignalAnalysis.yaml --i <file with TRestRawSignalEvent>
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    inputFileName: ""
+    outputFileName: "R[runNumber]_[subRunNumber]_[runTag]_[runDescription]_[runType]_RAWANA.root"
+    entriesSaved: 0
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    verbose: "silent"
+    eventsToProcess: 0
+    outputEventStorage: true
+    rawAna:
+      class: "TRestRawSignalAnalysisProcess"
+      name: "rawAna"
+      observables:
+        - "all"

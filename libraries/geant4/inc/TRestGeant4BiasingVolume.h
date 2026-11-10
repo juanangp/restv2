@@ -30,6 +30,9 @@
 ///         size: 50 cm               # box side or sphere radius (mm), > 0
 ///         biasingFactor: 10         # integer >= 1: replicas of each particle stored
 ///         energyRange: [0, 10 MeV]  # keV: particles stored (inclusive range)
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4BiasingVolume : public TRestMetadata {
    public:
     std::array<TRestWithUnits, 3> fVolumePosition = {0.0, 0.0, 0.0};  ///< `position`: center (mm)

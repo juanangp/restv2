@@ -17,6 +17,8 @@ class TRestRawSignalEvent;
 /// zsToRaw:
 ///   class: "TRestRawZeroSupressionToRawProcess"
 /// \endcode
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawZeroSupressionToRawProcess : public TRestEventProcess {
    public:
     /// \brief Default constructor (no configuration).

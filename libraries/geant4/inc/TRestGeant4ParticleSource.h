@@ -32,6 +32,9 @@
 ///         type: "isotropic"
 ///
 /// or a Decay0 file, `source: {use: "Xe136bb0n.dat"}`, without particle, energy and angular.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4ParticleSource : public TRestMetadata {
    public:
     std::string fParticleName;           ///< `particle`: Geant4 particle or ion name

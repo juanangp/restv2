@@ -64,6 +64,11 @@ class TRestGeant4SelectionInfo : public TRestMetadata {
 /// x/y/zDirectionPrimary, thetaPrimary, phiPrimary, eventPrimaryParticleName, subEventPrimaryParticleName
 /// and the <name>_* ones of each selection), the YAML example and the differences with legacy are
 /// documented in TRestGeant4AnalysisProcess.cxx (detailed description below).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Gloria Luzón
+/// \author Álvaro Ezquerro <aezquerro@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4AnalysisProcess : public TRestEventProcess {
    private:
     struct GlobalObservables {

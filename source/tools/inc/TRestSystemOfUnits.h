@@ -18,6 +18,10 @@
 /// \brief System of units of REST: the values are stored in the REST units keV, us, mm, kg, V, T, bar and
 /// rad, and the configuration gives them with units ("300 V", "1 kV/cm", "5.9 keV"), converted with
 /// ParseUnit and ParseValueWithUnits (TRestWithUnits for the configuration fields).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 namespace REST_Units {
 
 /// Physical quantity of a unit

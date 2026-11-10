@@ -48,6 +48,8 @@ class TRestDataSetLogOddsObservable : public TRestMetadata {
 /// \class TRestDataSetLogOdds
 /// \brief Log odds of observables with respect to their PDFs in a reference dataset: log(1 - p) - log(p)
 /// of each observable and their sum. See the class documentation in TRestDataSetLogOdds.cxx.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetLogOdds : public TRestDataSetProcess {
    protected:
     /// \brief Builds the PDF of each observable in the reference: a histogram in its range normalized to 1,

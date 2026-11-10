@@ -77,6 +77,9 @@ class TRestPhysicsListItem : public TRestMetadata {
 ///         - name: "G4RadioactiveDecayPhysics"
 ///         - name: "G4HadronElasticPhysicsHP"
 ///         - name: "G4HadronPhysicsQGSP_BIC_HP"
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4PhysicsLists : public TRestMetadata {
    public:
     /// The physics list names known by restG4

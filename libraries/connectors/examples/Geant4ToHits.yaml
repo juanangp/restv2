@@ -1,0 +1,28 @@
+# Geant4 -> hits pipeline: TRestGeant4Event (restG4 output file) -> TRestDetectorHitsEvent.
+#   restManager --c libraries/connectors/examples/Geant4ToHits.yaml --i <restG4 output file>
+# e.g. libraries/geant4/examples/Run00010_CosmicNeutrons_IAXO_QUENCHING.root. The volumes are regular
+# expressions as in TRestGeant4QuenchingProcess; remove `volumes` to transfer the hits of all the volumes.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    runDescription: "Geant4ToHits"
+    inputFileName: ""
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName]_HITS.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+    geant4ToHits:
+      class: "TRestGeant4ToDetectorHitsProcess"
+      volumes:
+        - "gasVolume"
+        - "^scintillatorVolume"

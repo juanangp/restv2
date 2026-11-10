@@ -1,0 +1,76 @@
+# Plots of the line analysis (TRestAnalysisPlot, without pipeline) of one or several files analysed with
+# TrackLinearization.yaml, with cuts (TRestCut):
+#   restManager --c libraries/track/examples/TrackLinePlots.yaml --i "R*_LINEAR.root"
+# The observables are the branches processName_observable (trackLineAnalysis of TrackLinearization.yaml).
+# The same TRestCut can be used in a pipeline: `cuts: ["fiducial"]` in any process, or a
+# TRestSelectionProcess.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  fiducial:
+    class: "TRestCut"
+    conditions:
+      balance: "trackLineAnalysis_TrackBalance > 0.9"
+      energy: "trackLineAnalysis_Energy > 0"
+
+  upwards:
+    class: "TRestCut"
+    conditions:
+      downwards: "trackLineAnalysis_Downwards < 0"
+
+  downwards:
+    class: "TRestCut"
+    conditions:
+      downwards: "trackLineAnalysis_Downwards > 0"
+
+  linePlots:
+    class: "TRestAnalysisPlot"
+    inputFileName: "R*_LINEAR.root"  # a run file, a dataset or a pattern (--i)
+    previewPlot: true  # shown, saved when Enter is pressed
+    canvasSize: [1200, 1200]
+    canvasDivisions: [2, 2]
+    save: "LinePlots_{run.runTag}.pdf"  # image of the combined canvas
+    outputFileName: "LinePlots.root"  # canvas, histograms and metadata
+    cuts: ["fiducial"]
+    panels:
+      - textSize: 0.05
+        precision: 3
+        labels:
+          - {text: "Run tag: {run.runTag}", position: [0.1, 0.85]}
+          - {text: "Start: {startTime}", position: [0.1, 0.75]}
+          - {text: "Duration: {runLength|%.2f} h", position: [0.1, 0.65]}
+          - {text: "Entries: {entries}", position: [0.1, 0.55]}
+          - {text: "Rate: {entries/runLength|%.1f} per hour", position: [0.1, 0.45]}
+          - {text: "Mean angle: {mean(trackLineAnalysis_Angle)} rad", position: [0.1, 0.35]}
+          - {text: "Mean length: {mean(trackLineAnalysis_Length)} #pm {sigma(trackLineAnalysis_Length)} mm",
+             position: [0.1, 0.25]}
+    plots:
+      - name: "Energy"
+        xLabel: "Energy (ADC)"
+        yLabel: "Counts"
+        legend: true
+        histos:
+          - name: "Upwards"
+            variables: [{name: "trackLineAnalysis_Energy", nBins: 100}]  # automatic range
+            cuts: ["upwards"]
+            lineColor: "kRed+1"
+          - name: "Downwards"
+            variables: [{name: "trackLineAnalysis_Energy", nBins: 100}]
+            cuts: ["downwards"]
+            lineColor: "kBlue+1"
+      - name: "Origin"
+        title: "Track origin"
+        xLabel: "X (mm)"
+        yLabel: "Y (mm)"
+        option: "colz"
+        variables:
+          - {name: "trackLineAnalysis_OriginX", nBins: 100}
+          - {name: "trackLineAnalysis_OriginY", nBins: 100}
+      - name: "Angle"
+        xLabel: "Angle (rad)"
+        yLabel: "Counts"
+        stats: true
+        save: "LineAngle_{run.runTag}.png"
+        variables: [{name: "trackLineAnalysis_Angle", range: [0, 1.6], nBins: 80}]

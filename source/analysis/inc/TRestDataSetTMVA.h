@@ -17,6 +17,8 @@ class TCanvas;
 /// \brief Classifier of ROOT TMVA (a boosted decision tree by default) trained with a signal (the reference)
 /// and a background dataset, adding its score to the dataset processed. See the class documentation in
 /// TRestDataSetTMVA.cxx.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSetTMVA : public TRestDataSetProcess {
    private:
     /// ROC curve of the test sample (objects of the folder of the process)

@@ -48,6 +48,9 @@ class TGeoShape;
 ///
 /// The channels are identified by their physical ID (the geometry) and by their DAQ ID (the signals); the
 /// public methods take DAQ IDs. Positions are in mm in the global frame of the readout geometry.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorReadout : public TRestMetadata {
    protected:
     /// ROOT geometry manager used for geometry navigation and position lookup.
@@ -156,12 +159,32 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Names of the decodings stored for a geometry in a ROOT file.
     static std::vector<std::string> GetDecodingNames(TFile* fIn, const std::string& geometryName);
 
-    /// \brief Returns DAQ channel corresponding to a spatial position.
+    /// \brief Returns DAQ channel corresponding to a spatial position: by default the channel volume of the
+    /// geometry containing it; readouts whose channels are not volumes override it (TRestFibreReadout: the
+    /// closest fibre).
     /// \param x X coordinate in detector reference frame.
     /// \param y Y coordinate in detector reference frame.
     /// \param z Z coordinate in detector reference frame.
     /// \return DAQ channel, or `-1` when no channel is found.
-    int GetChannelFromPosition(double x, double y, double z) const;
+    virtual int GetChannelFromPosition(double x, double y, double z) const;
+
+    /// \brief A channel near a position (GetChannelsInRange).
+    struct ChannelInRange {
+        int daqID = -1;                  ///< DAQ channel
+        double distance = 0;             ///< Distance from the position to the channel
+        ROOT::Math::XYZVector position;  ///< A point of the channel (GetChannelFromPosition gives daqID)
+    };
+    /// \brief The channels closer than maxDistance to a position, with their distance (geometry only, e.g.
+    /// for the local capture of the light of TRestDetectorLightCollectionProcess). By default the channel at
+    /// the position, at distance 0; TRestFibreReadout: the fibres within maxDistance in the plane transverse
+    /// to them, at the projection of the position on each one.
+    virtual std::vector<ChannelInRange> GetChannelsInRange(const ROOT::Math::XYZVector& position,
+                                                           double maxDistance) const {
+        (void)maxDistance;
+        const int daqID = GetChannelFromPosition(position.X(), position.Y(), position.Z());
+        if (daqID < 0) return {};
+        return {{daqID, 0.0, position}};
+    }
 
     /// \brief Returns the centroid position of a given DAQ channel.
     /// \param daqID DAQ channel identifier.

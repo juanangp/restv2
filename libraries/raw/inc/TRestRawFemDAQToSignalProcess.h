@@ -30,6 +30,8 @@ class TRestRawSignalEvent;
 ///   useFeminosDaqRunInfo: true
 ///   setRunStartEndFromEvents: false
 /// \endcode
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawFemDAQToSignalProcess : public TRestEventProcess {
    private:
     long long fInputTreeEntry = 0;

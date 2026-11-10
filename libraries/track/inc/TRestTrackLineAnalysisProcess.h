@@ -10,6 +10,8 @@
 /// \brief Origin, end, length and direction of linear tracks (e.g. alpha tracks), for any readout: from
 /// the most energetic track or, for the given projections (hit types, e.g. XZ and YZ for strips), from
 /// the main tracks of all of them together. The output event holds the tracks used.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackLineAnalysisProcess : public TRestEventProcess {
    private:
     /// Main track of one projection (hit type)

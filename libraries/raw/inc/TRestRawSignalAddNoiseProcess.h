@@ -51,6 +51,9 @@ class TRestNoiseParameters : public TRestMetadata {
 ///       amplitude: 100
 ///       period: 55
 /// \endcode
+///
+/// \author Javier Gracia
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawSignalAddNoiseProcess : public TRestEventProcess {
    public:
     /// Noise components added to the signals (YAML `noise`)

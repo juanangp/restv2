@@ -51,6 +51,10 @@ class TRestDataSet;
 ///     class: TRestAnalysisPlot
 ///     ...
 /// \endcode
+///
+/// \author Igor G. Irastorza
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestManager : public TRestMetadata {
    private:
     std::vector<std::unique_ptr<TRestMetadata>> fMetaObjects;

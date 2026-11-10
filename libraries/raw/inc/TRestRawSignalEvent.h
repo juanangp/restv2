@@ -117,6 +117,9 @@ class TRestRawSignal {
 ///
 /// Signal IDs are unique in an event: AddSignal ignores, with a warning, an ID that already exists.
 /// Adding or removing signals invalidates the references returned by GetSignal.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawSignalEvent : public TRestEvent {
    protected:
     TRestRawSignalData fSignalData;                     ///< Samples, IDs and offsets of all the signals

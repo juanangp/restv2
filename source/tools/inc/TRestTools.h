@@ -12,6 +12,10 @@ class TGeoManager;
 
 /// \brief Generic functions: strings, files, ROOT files and geometries. The YAML functions are in
 /// TRestYAMLUtils.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Kaixiang Ni
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestTools {
 
 /// \brief Regular files of a directory whose name matches a pattern, e.g. "data/Run_*.root": `*` is the

@@ -37,6 +37,9 @@ class TRestCut;
 ///     energyPerVolt: "trackLineAnalysis_Energy / runInfo.meshVoltage"
 ///   outputFileName: "D_[runStart]_[runEnd]_[runTag|Mixed].root"
 /// \endcode
+///
+/// \author Javier Galán <javier.galan.lacarra@cern.ch>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDataSet : public TRestMetadata {
    public:
     /// A run of the dataset

@@ -1,0 +1,12 @@
+readout:
+  class: "TRestMicromegasReadout"
+  name: "AlphaCAMM_Readout"
+  decodingFile: "AlphaCAMM.dec"
+  readoutParameters:
+    nChannels: 256
+    pitch: 0.96
+    thickness: 1 um
+    gasThickness: 90 mm
+    normal: [0, 0, 1]  # readout plane at z = 0, cathode at z = 90 mm: the drift distance is z
+    positionRelative: [0.0, 0.0, 0.0]
+    globalRotation: 0 deg

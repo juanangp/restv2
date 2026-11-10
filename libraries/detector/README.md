@@ -37,6 +37,8 @@ A readout gives the channel of a position and the position of a channel, the dis
 | `TRestMicromegasReadoutParameters` | The `readoutParameters` of a `TRestMicromegasReadout`. |
 | `TRestGDMLReadout` | Readout taken from the GDML geometry of the simulation (e.g. vetoes): channels selected by regular expressions on the volume paths, with an optional readout volume (light guide) for the light attenuation. |
 | `TRestGDMLReadoutParameters`, `TRestGDMLReadoutInfo` | The `readoutParameters` of a `TRestGDMLReadout` and each group of channels (`volume`, `readoutVolume`, `offset`, `multiplier`). |
+| `TRestFibreReadout` | Scintillator crossed by families of parallel fibres (e.g. LiquidO): box (`size`, `position`) and, per family, axis, pitch, offset and GDML volume; the closest fibre to a position, the fibres within a distance, and the placements of the fibres for the GDML of the simulation. |
+| `TRestFibreReadoutParameters`, `TRestFibreFamily` | The `readoutParameters` of a `TRestFibreReadout` and each family of fibres (`fibres`). |
 | `TRestDetectorReadoutManager` | Imports the readouts of a run or dataset from their ROOT files and selects the readout of the data (`readout`); used by the processes and the gain map. |
 | `TRestReadoutInfo` | One readout to import: `instanceName`, `decodingName`, `inputFileName`. |
 
@@ -46,7 +48,7 @@ A readout gives the channel of a position and the position of a channel, the dis
 | --- | --- |
 | `TRestDetectorMedium` | A material (gas, liquid or solid) at its pressure and temperature, with its medium file (tables of restGarfield) and its responses (`charge`, `light`). |
 | `TRestDetectorChargeResponse` | Ionisation (W-value, Fano factor), electron transport at the drift field (from the tables or fixed parameters) and avalanche gain tables of a medium. |
-| `TRestDetectorLightResponse` | Propagation of the scintillation light to the readout: attenuation length and effective light speed. |
+| `TRestDetectorLightResponse` | Scintillation light of a medium: light yield (photons per keV) and propagation to the readout in a transparent scintillator (attenuation length and effective light speed). |
 | `TRestDetectorTransportTable` | Drift velocity, diffusion, Townsend and attachment coefficients versus the field (configuration of restGarfield and one table of the medium file), scaled with E/p for gases. |
 | `TRestDetectorGainTable` | Mean avalanche gain and Polya parameter versus the amplification field for a gap (configuration of restGarfield and one table of the medium file). |
 | `TRestDetectorTransportManager` | Top section of a restGarfield configuration: a medium and the transport and gain tables to compute for it. |
@@ -61,7 +63,8 @@ Hits processes (`TRestDetectorHitsEvent` to `TRestDetectorHitsEvent`):
 | `TRestDetectorAvalancheProcess` | Multiplies the drifted electrons by the avalanche gain of the amplification gap, with Polya fluctuations, from a gain table of the medium. |
 | `TRestDetectorHitsSmearingProcess` | Applies the energy resolution of the detector (one gaussian gain per event), optionally without the Fano part. |
 | `TRestDetectorHitsTransformationProcess` | Scales the energy and mirrors, rotates and translates the hit positions. |
-| `TRestDetectorLightAttenuationProcess` | Attenuates and delays the energy deposits of a scintillator with the distance to the readout of their channel (light response of the medium). Observable `NHitsWithoutChannel`. |
+| `TRestDetectorScintillationProcess` | Primary scintillation: the energy of each hit becomes scintillation photons, Poisson(E · lightYield of the medium). Observable `NPhotons`. |
+| `TRestDetectorLightCollectionProcess` | Collection of the photons by the readout channels and their photoelectrons (`quantumEfficiency` of the photosensors, binomial), with a model per scintillator: `localCapture` (opaque, e.g. LiquidO: the channels within `maxDistance` capture them with `captureProbability(r)`, a formula or a graph of an optical simulation, multinomial) or `attenuation` (transparent, e.g. vetoes: the photons reach the readout of their channel attenuated and delayed with the distance, light response of the medium). Observables `NPhotoelectrons`, `NHitsWithoutChannel`. Replaces legacy `TRestDetectorLightAttenuationProcess`. |
 | `TRestDetectorHitsAnalysisProcess` | Observables of the hits: number, energy, mean position, sigma, skewness, gaussian sigma, fiducial energy, and per projection with balances. |
 
 Signal processes:
@@ -90,6 +93,7 @@ The macros are compiled and available in `restRoot` (called directly, without `.
 | Macro | Description |
 | --- | --- |
 | `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. |
+| `REST_Detector_GenerateFibreReadout(yamlFile, outputFile, gdmlFile, decodingName)` | Same for a `TRestFibreReadout` (identity decoding without `decodingFile`); with `gdmlFile`, also writes the placements of the fibres to include in the GDML of the simulation as an external entity. |
 | `REST_Detector_GenerateGDMLReadout(yamlFile, outputFile, decodingName)` | Same for a `TRestGDMLReadout` (decoding `veto_decoding` by default; default files those of `libraries/detector/examples`, from the repository root). |
 | `REST_Detector_ViewMicromegasReadout(instanceName, decodingName, inputFile)` | Imports a readout from its ROOT file (closed after the import), tests the position lookup and draws it with some channels highlighted. |
 | `REST_Detector_ViewGDMLReadout(instanceName, decodingName, inputFile)` | Same for the veto readout. |

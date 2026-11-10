@@ -10,6 +10,8 @@
 ///
 /// A primary particle given by TRestGeant4PrimaryGenerator to restG4: name, excitation level and charge
 /// (ions), kinetic energy (keV), unit direction, origin (mm) and start time (us).
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4ParticleState {
    protected:
     std::string fParticleName;                           ///< Geant4 particle or ion name

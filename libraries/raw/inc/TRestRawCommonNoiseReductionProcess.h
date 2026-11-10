@@ -88,6 +88,10 @@ class TRestCommonNoiseBlock : public TRestMetadata {
 ///     - channelRange: [[4392, 4463]]
 ///       mode: 0
 /// \endcode
+///
+/// \author Benjamin Manier
+/// \author David Díez Ibáñez
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawCommonNoiseReductionProcess : public TRestEventProcess {
    private:
     /// Parameters used for the single implicit block when fBlocks is empty.

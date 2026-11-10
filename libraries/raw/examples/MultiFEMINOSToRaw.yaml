@@ -1,0 +1,24 @@
+# Decodes a .aqs file of the Feminos cards into TRestRawSignalEvent:
+#   restManager --c MultiFEMINOSToRaw.yaml --i R01234_..._-000.aqs
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    runUser: "${ENV:USER}"
+    inputFileName: ""
+    # Resolved before the process reads the run of the DAQ file: [runNumber] or [runTag] here would be the
+    # ones of the configuration (or of inputFormat), not the ones of the DAQ
+    outputFileName: "RawSignals.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+
+    multiFeminosToSignal:
+      class: "TRestRawMultiFEMINOSToSignalProcess"
+      name: "multiFeminosToSignal"

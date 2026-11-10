@@ -28,6 +28,8 @@
 ///       rotationAxis: [0, 0, 1]
 ///       rotationValue: 0 deg
 ///       source: ...                    # TRestGeant4ParticleSource
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4SpatialGenerator : public TRestMetadata {
    public:
     std::string fType;  ///< `type`, case insensitive (it selects the derived class in Create)

@@ -14,6 +14,9 @@ class TRestHits;
 /// track (the most energetic one or, with projections, the main tracks of all of them together), vectors
 /// for the other tracks and, for the given projections (hit types, e.g. XZ and YZ for strips), the main
 /// track of each one and balances. Optionally rejects events by number of tracks.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackAnalysisProcess : public TRestEventProcess {
    private:
     /// Observables of one track (or set of hits). Coordinates it does not define are NaN

@@ -176,6 +176,9 @@ void TRestGeant4EventViewer::AddEvent(TRestEvent* event) {
         return;
     }
 
+    // The geometry of the simulation (gGeoManager, given by the browser, may be another one, e.g. a readout)
+    if (auto* geometry = fG4Metadata->GetGeant4GeometryInfo().GetGeometry()) SetGeometry(geometry);
+
     const int nTracks = fG4Event->GetNumberOfTracks();
 
     size_t trackCounter = 0;

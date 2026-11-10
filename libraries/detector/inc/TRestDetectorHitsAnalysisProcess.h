@@ -15,6 +15,9 @@ class TRestHits;
 ///
 /// The parameters (YAML keys), the observables and an example are described in the class documentation
 /// (TRestDetectorHitsAnalysisProcess.cxx).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorHitsAnalysisProcess : public TRestEventProcess {
    private:
     /// Hits of one projection (hit type)

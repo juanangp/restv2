@@ -14,6 +14,10 @@
 ///
 /// The parameters (YAML keys), the observables and an example are described in the class documentation
 /// (TRestDetectorHitsTransformationProcess.cxx).
+///
+/// \author Javier G. Garza
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorHitsTransformationProcess : public TRestEventProcess {
    public:
     /// Factor applied to the energy of all the hits

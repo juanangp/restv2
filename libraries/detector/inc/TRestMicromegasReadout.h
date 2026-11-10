@@ -87,6 +87,9 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
 ///        normal: [0, 0, 1]
 ///        positionRelative: [0.0, 0.0, 0.0]
 ///        globalRotation: 0 deg
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestMicromegasReadout : public TRestDetectorReadout {
    public:
     TRestMicromegasReadoutParameters fReadoutParams;  ///< `readoutParameters`

@@ -1,0 +1,49 @@
+# Raw -> detector signal -> hits pipeline, two event type changes:
+#   TRestRawSignalEvent (input file) -> TRestDetectorSignalEvent -> TRestDetectorHitsEvent
+#   restManager --c libraries/connectors/examples/RawToHits.yaml --i <file with TRestRawSignalEvent>
+# Readout file paths are relative to the working directory (here, the repository root).
+# The readout and its decoding must match the channels of the input data.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  readoutManager:
+    class: "TRestDetectorReadoutManager"
+    readouts:
+      - inputFileName: "libraries/detector/examples/iaxo_readout_output.root"
+        instanceName: "IAXO_D1_Readout"
+        decodingName: "nominal_decoding"  # name given to Export (REST_Detector_GenerateMicromegasReadout)
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    runDescription: "RawToHits"
+    inputFileName: ""
+    outputFileName: "R[runNumber]_[subRunNumber]_[runTag]_[runType]_HITS.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+    rawToSignal:
+      class: "TRestRawToDetectorSignalProcess"
+      sampling: 0.04
+      triggerStarts: 0
+      gain: 1
+      zeroSuppression: true
+      baselineRange: [20, 140]
+      integralRange: [150, 450]
+      pointsThreshold: 3
+      signalThreshold: 7
+      pointsOverThreshold: 7
+      observables:
+        - "NSignalsRejected"
+    signalToHits:
+      class: "TRestDetectorSignalToHitsProcess"
+      readout: "IAXO_D1_Readout"
+      driftVelocity: 1.0
+      method: "tripleMaxAverage"

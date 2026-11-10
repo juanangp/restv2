@@ -16,6 +16,9 @@ class TFile;
 /// Each field is the YAML key without the `f` prefix and with the first letter in lower case (e.g.
 /// fNShowers is `nShowers`); the results (`showersGenerated`, `timeSimulated`, `program`,
 /// `creationDate`) are written by restCRY.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4CRYShowers : public TRestMetadata {
    public:
     bool fReturnNeutrons = true;   ///< `returnNeutrons`: CRY returns neutrons

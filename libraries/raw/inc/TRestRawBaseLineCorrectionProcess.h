@@ -19,6 +19,9 @@
 ///   class: "TRestRawBaseLineCorrectionProcess"
 ///   smoothingWindow: 75
 /// \endcode
+///
+/// \author Konrad Altenmüller
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawBaseLineCorrectionProcess : public TRestEventProcess {
    public:
     /// Number of bins of the moving average used as baseline (YAML `smoothingWindow`, at least 1)

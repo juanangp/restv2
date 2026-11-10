@@ -1,0 +1,43 @@
+# Geant4 analysis (TRestGeant4AnalysisProcess): global, primary, selection (also per particle and per track)
+# and entering track observables of a TRestGeant4Event.
+#   restManager --c libraries/geant4/examples/Geant4Analysis.yaml --i <restG4 output file>
+# e.g. libraries/geant4/examples/Run00010_CosmicNeutrons_IAXO_QUENCHING.root. Volumes are regular expressions
+# as in TRestGeant4QuenchingProcess, particles and processes Geant4 names (an error if not in the metadata).
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    inheritInputRun: true
+    runUser: "${ENV:USER}"
+    runDescription: "Geant4Analysis"
+    inputFileName: ""
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName]_G4ANA.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true
+
+    g4Ana:
+      class: "TRestGeant4AnalysisProcess"
+      observables: ["all"]
+      selections:
+        - name: "gas"
+          volumes: ["gasVolume"]
+          splitByParticle: ["alpha", "e-", "proton"]
+          entering: true
+        - name: "gasCompton"
+          volumes: ["gasVolume"]
+          processes: ["compt"]
+        - name: "gasHadElastic"
+          volumes: ["gasVolume"]
+          processes: ["hadElastic"]
+        - name: "scintillator"
+          volumes: ["^scintillatorVolume"]
+        - name: "neutron"
+          particles: ["neutron"]

@@ -34,8 +34,8 @@ links it. Its contents are free functions grouped in namespaces, plus the loggin
 ### Logging
 
 - `TRestLogManager` (TRestLogManager.h): the singleton writing the messages to the console and an optional
-  log file, thread safe, with verbose levels (`silent`, `error`, `warning`, `info`, `debug`) and suppression
-  of repeated messages.
+  log file, thread safe, with verbose levels (`error`, `silent`, `warning`, `info`, `debug`; `silent` writes
+  the same as `error`: the errors are always written) and suppression of repeated messages.
 - `RESTError`, `RESTWarning`, `RESTInfo`, `RESTDebug`, `RESTMetadata`, `RESTLog` and `RESTendl`: the macros
   used everywhere to write messages (`RESTInfo << "text" << RESTendl;`). The verbose level is the one of the
   metadata writing the message (its `verbose` field) or the global one.
@@ -56,4 +56,4 @@ links it. Its contents are free functions grouped in namespaces, plus the loggin
   `TRestTools::WriteGeometry` and `ReadGeometry`.
 
 There are no examples or macros in this directory; the configuration features (parameters, units,
-references) are used by the YAML files of `config/`, `libraries/*/examples` and `packages/restG4/examples`.
+references) are used by the YAML files of `examples/`, `libraries/*/examples` and `packages/*/examples`.

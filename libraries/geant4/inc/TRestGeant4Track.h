@@ -20,6 +20,9 @@ class TRestGeant4Metadata;
 ///
 /// The hit indices of the methods are relative to the track (0 to GetNumberOfHits() - 1). Units: keV, mm,
 /// us. The names need the TRestGeant4Metadata of the event (GetGeant4Metadata).
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4Track {
    protected:
     /// The event of the track

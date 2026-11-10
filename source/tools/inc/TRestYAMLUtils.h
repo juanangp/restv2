@@ -13,6 +13,8 @@ class TFile;
 
 /// YAML functions: configuration files, parameters of the nodes and the metadata stored in the REST files.
 /// The generic functions (strings, files, ROOT files, geometries) are in TRestTools.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 namespace TRestYAMLUtils {
 
 /// \brief A YAML configuration file with its `include` keys expanded, at any depth: a map with
@@ -52,6 +54,29 @@ YAML::Node OpenConfigFile(const std::string& fileName,
 /// parameters (GetParameters), those of the last configuration resolved, unless setCurrentParameters is false
 /// (another file read by a metadata, TRestMetadata(fileName, section): the parameters of the main
 /// configuration and those used are kept).
+///
+/// Conditional blocks: a map with `select` and `cases` is replaced, after the parameters are resolved, by
+/// the case whose name is the value of `select` (`default` if none matches; neither is an error), merged
+/// over the other keys of the map (common to all the cases; the maps are merged recursively and the case
+/// wins). Only the case chosen remains in the returned node (the configuration stored); the parameters of
+/// all the cases must be defined. A case can be a scalar (then the block has no other keys). E.g.
+///
+///     parameters:
+///       generator: "Gammas"
+///     ...
+///     generator:
+///       select: "${PARAM:generator}"
+///       source:                      # common to all the cases
+///         particle: "gamma"
+///       cases:
+///         Gammas:
+///           type: "point"
+///         SolarAxions:
+///           type: "surface"
+///           shape: "circle"
+///     energy:
+///       select: "${PARAM:generator}"
+///       cases: {Gammas: 5.5 MeV, default: 10 MeV}
 YAML::Node ResolveRefs(const YAML::Node& root, const std::map<std::string, std::string>& overrides = {},
                        bool setCurrentParameters = true);
 /// \brief The parameters of the last configuration resolved (ResolveRefs): name -> value as written, with

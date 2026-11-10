@@ -1,0 +1,34 @@
+# Peaks and coincidence windows of the signals of a TRestDetectorSignalEvent (the event is not modified).
+#   restManager --c SignalPeaks.yaml --i <file with TRestDetectorSignalEvent>
+# Legacy veto signals: halfWindow 2, maxGreaterEqual 0, refineMaximum false, amplitudeHalfWindow 0.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    runNumber: 1
+    subRunNumber: 0
+    runType: "Test"
+    runTag: "SignalPeaks"
+    runDescription: "SignalPeaks"
+    experimentName: "Test"
+    inputFileName: "SignalPeaks_input.root"
+    outputFileName: "SignalPeaks_output.root"
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: false
+    peaksFinder:
+      class: "TRestDetectorSignalPeaksFinderProcess"
+      threshold: 50
+      distance: 400ns
+      halfWindow: 5
+      maxGreaterEqual: 3
+      refineMaximum: true
+      amplitudeHalfWindow: 1
+      window: 200ns

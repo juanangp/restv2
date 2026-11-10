@@ -26,7 +26,7 @@ jobs:
     name: Doxygen
     runs-on: ubuntu-latest
     container:
-      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/restv2-env:latest', github.repository_owner) }}
+      image: ${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -41,7 +41,7 @@ jobs:
           cmake -S . -B build -G Ninja
           cmake --build build --target doc
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: build/doc/html
 

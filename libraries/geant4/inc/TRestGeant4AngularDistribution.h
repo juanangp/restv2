@@ -24,6 +24,9 @@
 ///       type: "isotropic"           # flux, isotropic, formula, TH1D, formula2, TH2D or cosmic
 ///       direction: [0, -1, 0]
 ///       isotropicConeHalfAngle: 20 deg
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4AngularDistribution : public TRestMetadata {
    public:
     std::string fType;  ///< `type`, case insensitive (it selects the derived class in Create)

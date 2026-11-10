@@ -32,6 +32,9 @@ class TRestRawSignalEvent;
 ///     - [288, 346]
 ///   removeChannelIds: [300]
 /// \endcode
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestRawSignalChannelSelectionProcess : public TRestEventProcess {
    public:
     /// Individual signal IDs to remove.

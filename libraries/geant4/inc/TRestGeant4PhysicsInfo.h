@@ -14,6 +14,9 @@ class G4VProcess;
 /// Part of TRestGeant4Metadata, filled by restG4 while simulating (thread safe insertions): the particle
 /// IDs are the PDG encodings, the process IDs Geant4 process type * 1000 + subtype (processes sharing
 /// type and subtype, e.g. eIoni and ionIoni, share the ID and the first name inserted is kept).
+///
+/// \author Luis Obis <luis.antonio.obis@gmail.com>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4PhysicsInfo {
    public:
     std::map<int, std::string> fProcessNamesMap;         ///< Process ID -> process name

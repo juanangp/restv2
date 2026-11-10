@@ -68,8 +68,8 @@ class TRestGDMLReadoutParameters : public TRestMetadata {
 /// `readoutVolume` (optional) is the regular expression of the volume where the signal of each channel is
 /// collected (e.g. the light guide of a scintillator): exactly one in the same parent volume as the
 /// channel, otherwise BuildGeometry throws. It gives GetReadoutPosition and GetDistanceToReadout (used by
-/// TRestDetectorLightAttenuationProcess). The hits are not drifted: GetDistanceToReadout without channel is
-/// NaN.
+/// the attenuation model of TRestDetectorLightCollectionProcess). The hits are not drifted:
+/// GetDistanceToReadout without channel is NaN.
 ///
 /// Parameters: decodingFile and, in `readoutParameters`, gdmlFileName and readoutInfo (volume,
 /// readoutVolume, offset, multiplier). volumeToPhysicalIDMap and physicalIDToReadoutPath are written by
@@ -85,6 +85,8 @@ class TRestGDMLReadoutParameters : public TRestMetadata {
 ///          - volume: .*scintillatorVolume-*
 ///            readoutVolume: scintillatorLightGuideVolume
 ///            offset: 288
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGDMLReadout : public TRestDetectorReadout {
    private:
     /// Global position of the readout volume of each physical ID, computed at the first GetReadoutPosition

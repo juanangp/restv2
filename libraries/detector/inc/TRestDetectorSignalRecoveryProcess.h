@@ -33,6 +33,10 @@ class TRestDetectorReadout;
 ///      class: "TRestDetectorSignalRecoveryProcess"
 ///      channelIds: [4490, 4489]
 ///      readout: "IAXO_D1_Readout"
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author Ana Quintana
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorSignalRecoveryProcess : public TRestEventProcess {
    private:
     /// A group of consecutive dead channels between two alive channels

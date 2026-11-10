@@ -13,6 +13,10 @@
 ///
 /// The parameters (YAML keys), the observables and an example are described in the class documentation
 /// (TRestDetectorSignalShapingProcess.cxx).
+///
+/// \author Xinglong
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorSignalShapingProcess : public TRestEventProcess {
    private:
     /// Range of u = t / shapingTime of the response

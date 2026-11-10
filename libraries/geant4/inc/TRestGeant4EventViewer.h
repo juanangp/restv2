@@ -21,6 +21,9 @@ class TEveLine;
 /// process type and process name (Electromagnetic processes red, Transportation and Init white, hadElastic
 /// orange, neutronInelastic green, nCapture blue). It needs the TRestGeant4Metadata of the event
 /// (GetGeant4Metadata) for the names of the IDs.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4EventViewer : public TRestEveEventViewer {
    private:
     /// The lines of the tracks added with AddTrack or AddParentTrack, by track ID (owned by TEve)
@@ -34,12 +37,12 @@ class TRestGeant4EventViewer : public TRestEveEventViewer {
 
    public:
     /// \brief Resets the event (not owned, the one of AddEvent) and the track lines.
-    void Initialize();
+    void Initialize() override;
     /// \brief Removes the drawn event, the metadata and the track lines.
-    void DeleteCurrentEvent();
+    void DeleteCurrentEvent() override;
     /// \brief Draws a TRestGeant4Event: its tracks, hits and a text with the event ID and the primary
     /// origin (an error is printed if the event or its metadata is missing).
-    void AddEvent(TRestEvent* event);
+    void AddEvent(TRestEvent* event) override;
 
     /// \brief Adds a point (mm) to the line of the track `trkID` (a track ID added with AddTrack or
     /// AddParentTrack; a warning if not).
@@ -60,6 +63,6 @@ class TRestGeant4EventViewer : public TRestEveEventViewer {
     /// \brief Viewer without event (Initialize).
     TRestGeant4EventViewer();
     // Destructor
-    ~TRestGeant4EventViewer();
+    ~TRestGeant4EventViewer() override;
 };
 #endif

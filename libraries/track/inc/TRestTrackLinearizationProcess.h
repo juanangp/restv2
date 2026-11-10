@@ -12,6 +12,8 @@ class TRestHits;
 /// \class TRestTrackLinearizationProcess
 /// \brief Reduces each track (any type) to nodes along the line that best fits its hits, e.g. for alpha
 /// tracks. The output event holds one track per input track.
+///
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestTrackLinearizationProcess : public TRestEventProcess {
    private:
     /// \brief Nodes of the linearized track, empty if it cannot be linearized (no energy).

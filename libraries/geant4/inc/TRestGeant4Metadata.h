@@ -131,6 +131,9 @@ class TRestGeant4ActiveVolumeMetadata : public TRestMetadata {
 /// the total factor (times GetBiasingCompletedFraction if the simulation ended early); GetBiasingEventWeight
 /// is the weight of each output event. Without `biasingVolumes` the equivalent number is `nEvents` and the
 /// weight 1.
+///
+/// \author Javier Galán <javier.galan@unizar.es>
+/// \author JuanAn García <juanangp@unizar.es>
 class TRestGeant4Metadata : public TRestMetadata {
    public:
     /// Defines if metadata is the result of a merge of other metadata

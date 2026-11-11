@@ -78,6 +78,7 @@ void RunGainSimulation(const TRestDetectorMedium& medium, TRestDetectorGainTable
                                                                    fields.back(), penning);
             bool exists = false;
             if (std::filesystem::exists(fileName)) {
+                const MediumFileLock lock(mediumFile);
                 std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
                 exists = file && !file->IsZombie() &&
                          TRestDetectorGainTable::HasTable(file.get(), medium.GetName(), key);
@@ -131,6 +132,8 @@ void RunGainSimulation(const TRestDetectorMedium& medium, TRestDetectorGainTable
             std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
             generator["date"] = date;
 
+            // Locked (other processes may write other media or tables) until the file is closed
+            const MediumFileLock lock(mediumFile);
             std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "UPDATE"));
             if (!file || file->IsZombie()) throw std::runtime_error("restGarfield: cannot open " + fileName);
             table.Write(file.get(), medium.GetDefinition(), generator, sizes);

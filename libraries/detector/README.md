@@ -92,9 +92,9 @@ The macros are compiled and available in `restRoot` (called directly, without `.
 
 | Macro | Description |
 | --- | --- |
-| `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. |
-| `REST_Detector_GenerateFibreReadout(yamlFile, outputFile, gdmlFile, decodingName)` | Same for a `TRestFibreReadout` (identity decoding without `decodingFile`); with `gdmlFile`, also writes the placements of the fibres to include in the GDML of the simulation as an external entity. |
-| `REST_Detector_GenerateGDMLReadout(yamlFile, outputFile, decodingName)` | Same for a `TRestGDMLReadout` (decoding `veto_decoding` by default; default files those of `libraries/detector/examples`, from the repository root). |
+| `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. With `checkOverlaps`, nothing is written if the geometry has overlaps. Returns 0, or 1 on any error (the exit code of `restRoot -b -q`). |
+| `REST_Detector_GenerateFibreReadout(yamlFile, outputFile, gdmlFile, decodingName, checkOverlaps)` | Same for a `TRestFibreReadout` (identity decoding without `decodingFile`); with `gdmlFile`, also writes the placements of the fibres to include in the GDML of the simulation as an external entity. |
+| `REST_Detector_GenerateGDMLReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Same for a `TRestGDMLReadout` (decoding `veto_decoding` by default; default files those of `libraries/detector/examples`, from the repository root). |
 | `REST_Detector_ViewMicromegasReadout(instanceName, decodingName, inputFile)` | Imports a readout from its ROOT file (closed after the import), tests the position lookup and draws it with some channels highlighted. |
 | `REST_Detector_ViewGDMLReadout(instanceName, decodingName, inputFile)` | Same for the veto readout. |
 | `REST_Detector_TimeWalk(fileName, method, selection, nEntries, refFraction, smoothingPoints, outputFileName)` | Time walk diagnostic of the pulses of a `TRestDetectorSignalEvent` file: delay against the relative amplitude, the amplitude and the strip distance (strips of the data readout of the file). |
@@ -123,6 +123,12 @@ REST_Detector_GenerateMicromegasReadout("MicromegasReadout.yaml", "iaxo_readout_
 REST_Detector_GenerateMicromegasReadout("AlphaCAMM.yaml", "AlphaCAMM_readout.root")
 REST_Detector_ViewMicromegasReadout("IAXO_D1_Readout", "nominal_decoding", "iaxo_readout_output.root")
 REST_Detector_ViewGDMLReadout("Veto_Readout", "veto_decoding", "veto_readout_output.root")
+```
+
+In a CI, with the overlaps checked (the exit code is that of the macro):
+
+```
+restRoot -b -q 'REST_Detector_GenerateMicromegasReadout("AlphaCAMM.yaml", "AlphaCAMM_readout.root", "nominal_decoding", true)'
 ```
 
 The veto readout is generated from the repository root (`GDMLReadout.yaml` reads the GDML of

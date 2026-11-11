@@ -23,7 +23,7 @@
 ///   at different pressures then overlap if the scaling holds;
 /// - gain tables (TRestDetectorGainTable): mean gain and Polya theta versus the amplification
 ///   field, one color per table. The distributions of the avalanche sizes are the TH1D of
-///   amplification/<key>/ in the file.
+///   amplification/<medium>/<key>/ in the file.
 ///
 ///    restRoot
 ///    REST_Garfield_DrawMedium("~/.rest/media/ArIso.root")

@@ -20,6 +20,7 @@
 #include <TRestDetectorSignalRecoveryProcess.h>
 #include <TRestDetectorSignalShapingProcess.h>
 #include <TRestDetectorSignalToHitsProcess.h>
+#include <TRestDetectorTransportManager.h>
 #include <TRestManager.h>
 #include <TRestMicromegasReadout.h>
 #include <TRestRun.h>
@@ -369,6 +370,9 @@ TEST(DetectorReadout, MicromegasDriftGeometry) {
 
     // The normal must be along an axis
     EXPECT_THROW(TRestMicromegasReadout("bad", ReadoutNode("[1, 1, 0]")), std::runtime_error);
+
+    // The X and Y pixels do not overlap (sampling check of the strips and the gas)
+    EXPECT_EQ(readout->CheckOverlaps(), 0);
 }
 
 TEST(DetectorReadout, ExportAndImportWithManager) {
@@ -992,5 +996,33 @@ TEST(DetectorSignalEvent, CopyHasItsOwnStorage) {
     for (auto* event : {&copy, &assigned}) {
         ASSERT_EQ(event->GetNumberOfSignals(), 1);
         EXPECT_EQ(event->GetSignal(0).GetSignalID(), 3);
+    }
+}
+
+TEST(DetectorTransportTable, SeveralMediaInAFile) {
+    // Two media of a mixture (Ar99_iC4H10_1, Ar98_iC4H10_2) with tables of the same key in the same file
+    const std::string fileName = std::string(TESTS_WORK_DIR) + "/detector_test_media.root";
+    {
+        std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "RECREATE"));
+        for (const auto& [name, velocity] : {std::pair<std::string, double>{"Ar99_iC4H10_1", 10.},
+                                             std::pair<std::string, double>{"Ar98_iC4H10_2", 20.}}) {
+            TRestDetectorTransportTable table;
+            table.fMedium = name;
+            table.fFields = {1., 10.};
+            auto& electron = table.fCarriers["electron"];
+            electron.fDriftVelocity = {velocity, velocity};
+            electron.fLongitudinalDiffusion = electron.fTransversalDiffusion = {0.03, 0.03};
+            electron.fTownsend = electron.fAttachment = {0, 0};
+            table.Write(file.get(), YAML::Load("{name: " + name + ", state: gas}"), YAML::Load("{}"));
+        }
+    }
+    std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
+    for (const auto& [name, velocity] : {std::pair<std::string, double>{"Ar99_iC4H10_1", 10.},
+                                         std::pair<std::string, double>{"Ar98_iC4H10_2", 20.}}) {
+        const YAML::Node tables = TRestDetectorTransportTable::GetTables(file.get(), name);
+        ASSERT_EQ(tables.size(), 1u);
+        const auto table =
+            TRestDetectorTransportTable::Read(file.get(), name, tables[0]["key"].as<std::string>());
+        EXPECT_DOUBLE_EQ(table.GetDriftVelocity(5., 1.), velocity);
     }
 }

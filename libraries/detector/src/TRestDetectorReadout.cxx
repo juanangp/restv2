@@ -5,6 +5,7 @@
 #include <TGeoMatrix.h>
 #include <TGeoMedium.h>
 #include <TGeoNode.h>
+#include <TGeoOverlap.h>
 #include <TGeoVolume.h>
 
 #include <algorithm>
@@ -551,4 +552,19 @@ void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) {
     if (geo == fGeoManager) return;
     ReleaseGeometry();
     fGeoManager = geo;
+}
+
+int TRestDetectorReadout::CheckOverlaps(double tolerance) const {
+    if (!fGeoManager) return 0;
+    fGeoManager->ClearOverlaps();
+    fGeoManager->CheckOverlaps(tolerance);
+    return PrintOverlaps(fGeoManager);
+}
+
+int TRestDetectorReadout::PrintOverlaps(TGeoManager* geometry) {
+    TObjArray* overlaps = geometry->GetListOfOverlaps();
+    const int n = overlaps ? overlaps->GetEntriesFast() : 0;
+    for (int i = 0; i < n; i++) static_cast<TGeoOverlap*>(overlaps->At(i))->Print();
+    std::cout << "[" << (n ? "-" : "+") << "] Overlaps found: " << n << std::endl;
+    return n;
 }

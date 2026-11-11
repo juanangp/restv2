@@ -53,6 +53,10 @@ class TGeoShape;
 /// \author JuanAn García <juanangp@unizar.es>
 class TRestDetectorReadout : public TRestMetadata {
    protected:
+    /// \brief Prints the overlaps found by the last check of a geometry (TGeoManager::GetListOfOverlaps).
+    /// \return Their number.
+    static int PrintOverlaps(TGeoManager* geometry);
+
     /// ROOT geometry manager used for geometry navigation and position lookup.
     TGeoManager* fGeoManager = nullptr;
 
@@ -112,6 +116,11 @@ class TRestDetectorReadout : public TRestMetadata {
     /// \brief Builds the technology-specific readout geometry from the parameters of the YAML and loads the
     /// decoding file (decodingFile). Throws if the decoding or the geometry cannot be loaded.
     virtual void BuildGeometry() = 0;
+
+    /// \brief Checks the overlaps of the built geometry (TGeoManager::CheckOverlaps, with the given
+    /// tolerance in mm) and prints each one found.
+    /// \return The number of overlaps (extrusions included); 0 if there is no geometry.
+    virtual int CheckOverlaps(double tolerance = 0.001) const;
 
     /// \brief Replaces the geometry by a new empty TGeoManager named as the readout, with an assembly
     /// READOUT_TOP as top volume (called by the BuildGeometry of the derived classes that build their

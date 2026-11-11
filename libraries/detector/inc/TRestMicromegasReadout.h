@@ -31,7 +31,8 @@ class TRestMicromegasReadoutParameters : public TRestMetadata {
     /// [0, +-1, 0] or [0, 0, +-1]. The X and Y strips measure the two other axes, in cyclic order: normal Z:
     /// X and Y; normal X: Y and Z; normal Y: Z and X
     std::array<double, 3> fNormal = {0.0, 0.0, 1.0};
-    /// Run a sampling overlap check on the strips after building (slow for large nChannels)
+    /// Run a sampling overlap check on the strips after building (CheckOverlaps; slow for large nChannels):
+    /// BuildGeometry throws if there are overlaps
     bool fCheckOverlaps = false;
 
     /// \brief Builds empty parameters.
@@ -110,6 +111,10 @@ class TRestMicromegasReadout : public TRestDetectorReadout {
     /// rotation, see the class description) and loads the decoding file. Throws if the decoding cannot be
     /// loaded.
     void BuildGeometry() override;
+    /// \brief Sampling overlap check of the strips and the gas (the direct daughters of the plane): X vs Y
+    /// pixels; the pixels of a strip cannot overlap by construction, and the full pairwise check is
+    /// unaffordable.
+    int CheckOverlaps(double tolerance = 0.001) const override;
     /// \brief Returns the nominal position of a Micromegas DAQ channel: X for the X strips and Y for the Y
     /// strips (the other coordinates NaN), in the frame of the readout plane (without globalRotation).
     ROOT::Math::XYZVector GetPositionFromChannel(int daqID) const override;

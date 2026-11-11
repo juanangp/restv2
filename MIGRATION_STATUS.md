@@ -1028,10 +1028,15 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
 
 - Organization: one repository per project in rest-for-physics-toolkit (alphacamm, liquido...), grouped by a
   topic and the profile of the organization, and `rest-common` for the shared resources: `materials/`
-  (materials.xml of Geant4), `gases/` (restGarfield YAML and its tables) and `readouts/` (YAML, decoding and
-  the readout file). The generated ROOT files are committed with their YAML (no CI).
+  (materials.xml of Geant4), `gases/` (restGarfield YAML and its tables) and `readouts/` (YAML and decoding).
+  Only the sources are committed: on a tag, the CI of rest-common generates the readout files (with the
+  overlaps checked: the generation macros return 1, the exit code of `restRoot -b -q`, if
+  TRestDetectorReadout::CheckOverlaps finds any) and `materials.xml` (merged from `definitions/`, as
+  rest-for-physics/materials), and attaches them to the release; the gas tables (too slow for a CI runner)
+  are computed locally (`restGarfield --jobs`) and attached by hand. A medium file can hold several media
+  (`tables/<medium>/<key>`), e.g. `ArIso.root` with `Ar99_iC4H10_1`, `Ar98_iC4H10_2`...
 - The projects read them with versioned URLs (a tag), not GitHub Pages (only the latest version):
-  `https://raw.githubusercontent.com/rest-for-physics-toolkit/rest-common/<tag>/materials/materials.xml`.
+  `https://github.com/rest-for-physics-toolkit/rest-common/releases/download/<tag>/materials.xml`.
 - Read from a URL (TRestTools::GetLocalFile: downloaded once with curl and cached in
   `$REST_HOME/.rest/download`, so it works without network once cached, e.g. in the nodes of a cluster):
   the GDML entities (before), the YAML `include` (relative includes of a URL are relative to it) and the

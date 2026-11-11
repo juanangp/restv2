@@ -1028,13 +1028,20 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
 
 - Organization: one repository per project in rest-for-physics-toolkit (alphacamm, liquido...), grouped by a
   topic and the profile of the organization, and `rest-common` for the shared resources: `materials/`
-  (materials.xml of Geant4), `gases/` (restGarfield YAML and its tables) and `readouts/` (YAML and decoding).
+  (materials.xml of Geant4), `transport/` (restGarfield YAML and its transport tables) and `readouts/` (YAML
+  and decoding).
   Only the sources are committed: on a tag, the CI of rest-common generates the readout files (with the
   overlaps checked: the generation macros return 1, the exit code of `restRoot -b -q`, if
   TRestDetectorReadout::CheckOverlaps finds any) and `materials.xml` (merged from `definitions/`, as
-  rest-for-physics/materials), and attaches them to the release; the gas tables (too slow for a CI runner)
-  are computed locally (`restGarfield --jobs`) and attached by hand. A medium file can hold several media
-  (`tables/<medium>/<key>`), e.g. `ArIso.root` with `Ar99_iC4H10_1`, `Ar98_iC4H10_2`...
+  rest-for-physics/materials), and attaches them to the release; the transport tables (too slow for a CI
+  runner) are computed locally (`restGarfield --jobs`) and attached by hand. A medium file can hold several
+  media (`tables/<medium>/<key>`), e.g. `ArIso.root` with `Ar99_iC4H10_1`, `Ar98_iC4H10_2`...
+- One readout file per project (e.g. `TREXDM.root` with its two planes): `REST_Detector_GenerateReadouts`
+  builds every readout section of a YAML and exports them all to the same file (`Readouts/<name>/`); the
+  readout manager has one entry per readout with the same `inputFileName`. A readout stores several
+  decodings (`decodings`: name and decoding file, besides `decodingFile`), and a decoding can be added later
+  to a readout file without rewriting its geometry (TRestDetectorReadout::AddDecoding, macro
+  REST_Detector_AddDecoding); the manager chooses one with `decodingName`.
 - The projects read them with versioned URLs (a tag), not GitHub Pages (only the latest version):
   `https://github.com/rest-for-physics-toolkit/rest-common/releases/download/<tag>/materials.xml`.
 - Read from a URL (TRestTools::GetLocalFile: downloaded once with curl and cached in

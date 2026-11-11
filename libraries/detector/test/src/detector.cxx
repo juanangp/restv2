@@ -33,6 +33,7 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -407,6 +408,44 @@ TEST(DetectorReadout, ExportAndImportWithManager) {
 
     std::string missing = "other";
     EXPECT_THROW(manager.SelectReadout(missing, "test"), std::runtime_error);
+}
+
+TEST(DetectorReadout, AddDecodingToAFile) {
+    const std::string fileName = std::string(TESTS_WORK_DIR) + "/detector_test_add_decoding.root";
+    {
+        const auto readout = BuildReadout();
+        std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "RECREATE"));
+        ASSERT_TRUE(readout->Export(file.get(), "mmTest", "nominal"));
+    }
+    // Another decoding (DAQ channel = 200 + physical ID), and one with a physical ID of no strip
+    const std::string other = std::string(TESTS_WORK_DIR) + "/detector_test_other.dec";
+    const std::string wrong = std::string(TESTS_WORK_DIR) + "/detector_test_wrong.dec";
+    {
+        std::ofstream out(other);
+        for (int physicalID = 0; physicalID < 2 * kNChannels; physicalID++) {
+            out << 200 + physicalID << "\t" << physicalID << "\n";
+        }
+        std::ofstream(wrong) << "300\t" << 2 * kNChannels << "\n";
+    }
+    {
+        std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "UPDATE"));
+        EXPECT_TRUE(TRestDetectorReadout::AddDecoding(file.get(), "mmTest", "other", other));
+        EXPECT_FALSE(TRestDetectorReadout::AddDecoding(file.get(), "mmTest", "wrong", wrong));
+        EXPECT_FALSE(TRestDetectorReadout::AddDecoding(file.get(), "missing", "other", other));
+    }
+    std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
+    const auto names = TRestDetectorReadout::GetDecodingNames(file.get(), "mmTest");
+    EXPECT_EQ(std::set<std::string>(names.begin(), names.end()), (std::set<std::string>{"nominal", "other"}));
+
+    // The readout manager uses the added decoding (the geometry of the file)
+    const YAML::Node node = YAML::Load(
+        "readouts:\n  - {instanceName: mmTest, decodingName: other, inputFileName: \"" + fileName + "\"}\n");
+    TRestDetectorReadoutManager manager("readouts", node);
+    manager.LoadReadout();
+    ASSERT_TRUE(manager.HasReadout("mmTest"));
+    const auto pixel = XStripPixel(1, 2);
+    EXPECT_EQ(manager.GetReadout("mmTest")->GetChannelFromPosition(pixel.X(), pixel.Y(), pixel.Z()),
+              200 + kNChannels + 1);
 }
 
 TEST(DetectorMedium, FixedChargeResponse) {

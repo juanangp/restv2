@@ -35,6 +35,10 @@ class TGeoShape;
 /// Common parameters (those of the technology are in its `readoutParameters`):
 /// - decodingFile: text file with one `daqChannel physicalID` row per channel (as legacy; `#` starts a
 ///   comment, a negative physical ID marks an unconnected DAQ channel).
+/// - decodings: additional decodings, name and decoding file (e.g. {iaxolab: "IAXO_D1.dec"}), stored by
+///   Export with the readout besides the one of decodingFile; the readout manager chooses one by its
+///   decodingName. A decoding can also be added later to a readout file (AddDecoding, macro
+///   REST_Detector_AddDecoding).
 /// - volumeToPhysicalIDMap: geometry path of each channel volume and its physical ID; written by the
 ///   readouts that identify the channels by path (TRestGDMLReadout), not an input.
 ///
@@ -70,6 +74,8 @@ class TRestDetectorReadout : public TRestMetadata {
    public:
     /// \brief Default decoding file name used when none is provided by configuration.
     std::string fDecodingFile = "default_decoding.dec";
+    /// Additional decodings stored by Export (`decodings`): name and decoding file
+    std::map<std::string, std::string> fDecodings;
     /// Geometry path of each channel volume and its physical ID (`volumeToPhysicalIDMap`). Empty: the
     /// physical ID is the UniqueID of the geometry node (TRestMicromegasReadout)
     std::map<std::string, int> fPathToPhysicalIDMap;
@@ -167,6 +173,17 @@ class TRestDetectorReadout : public TRestMetadata {
 
     /// \brief Names of the decodings stored for a geometry in a ROOT file.
     static std::vector<std::string> GetDecodingNames(TFile* fIn, const std::string& geometryName);
+
+    /// \brief Adds (or replaces) a decoding of a readout already in a ROOT file, without rewriting its
+    /// geometry: Readouts/<geometryName>/Decodings/<decodingName>. The physical IDs of the decoding must be
+    /// among those of the decodings already stored for the readout.
+    /// \param file ROOT file opened for writing (UPDATE).
+    /// \param geometryName Name of the readout in the file.
+    /// \param decodingName Name of the decoding (what Import and the readout manager are given).
+    /// \param decodingFile Decoding file (`daqChannel physicalID` rows).
+    /// \return `true` if the decoding was written; otherwise the reason is printed.
+    static bool AddDecoding(TFile* file, const std::string& geometryName, const std::string& decodingName,
+                            const std::string& decodingFile);
 
     /// \brief Returns DAQ channel corresponding to a spatial position: by default the channel volume of the
     /// geometry containing it; readouts whose channels are not volumes override it (TRestFibreReadout: the

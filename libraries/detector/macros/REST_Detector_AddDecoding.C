@@ -14,7 +14,7 @@
 /// \param readoutName Name of the readout in the file (the instanceName of the readout manager).
 /// \param decodingFile Decoding file (`daqChannel physicalID` rows).
 /// \param decodingName Name of the decoding in the file.
-/// \return 0 on success, 1 on any error (the exit code of `restRoot -b -q`).
+/// \return 0 on success, 1 on any error; as exit code: restRoot -b -q -e 'gSystem->Exit(<macro>(...));'
 ///
 /// Usage in restRoot:
 ///

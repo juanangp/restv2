@@ -92,7 +92,7 @@ The macros are compiled and available in `restRoot` (called directly, without `.
 
 | Macro | Description |
 | --- | --- |
-| `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. With `checkOverlaps`, nothing is written if the geometry has overlaps. Returns 0, or 1 on any error (the exit code of `restRoot -b -q`). |
+| `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. With `checkOverlaps`, nothing is written if the geometry has overlaps. Returns 0, or 1 on any error. |
 | `REST_Detector_GenerateFibreReadout(yamlFile, outputFile, gdmlFile, decodingName, checkOverlaps)` | Same for a `TRestFibreReadout` (identity decoding without `decodingFile`); with `gdmlFile`, also writes the placements of the fibres to include in the GDML of the simulation as an external entity. |
 | `REST_Detector_GenerateGDMLReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Same for a `TRestGDMLReadout` (decoding `veto_decoding` by default; default files those of `libraries/detector/examples`, from the repository root). |
 | `REST_Detector_GenerateReadouts(yamlFile, outputFile, decodingName, checkOverlaps)` | Builds every readout section of a YAML file (`TRestMicromegasReadout`, `TRestGDMLReadout`, `TRestFibreReadout`, e.g. the planes of a detector) and exports them all to the same ROOT file (a single readout file per project; the manager has one entry per readout with the same `inputFileName`). The fibre placements go to `<readout name>_fibres.xml` next to the output. The `decodings` of a readout (name and decoding file) are stored besides the one of `decodingFile`. Returns 0, or 1 on any error (the output file is then removed). |
@@ -127,10 +127,11 @@ REST_Detector_ViewMicromegasReadout("IAXO_D1_Readout", "nominal_decoding", "iaxo
 REST_Detector_ViewGDMLReadout("Veto_Readout", "veto_decoding", "veto_readout_output.root")
 ```
 
-In a CI, with the overlaps checked (the exit code is that of the macro):
+In a CI, with the overlaps checked and the value of the macro as exit code (`-e` and `gSystem->Exit`:
+`restRoot` does not run a bare function call given as argument):
 
 ```
-restRoot -b -q 'REST_Detector_GenerateMicromegasReadout("AlphaCAMM.yaml", "AlphaCAMM_readout.root", "nominal_decoding", true)'
+restRoot -b -q -e 'gSystem->Exit(REST_Detector_GenerateReadouts("TREXDM.yaml", "TREXDM.root", "nominal_decoding", true));'
 ```
 
 The veto readout is generated from the repository root (`GDMLReadout.yaml` reads the GDML of

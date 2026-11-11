@@ -1031,10 +1031,11 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   (materials.xml of Geant4), `transport/` (restGarfield YAML and its transport tables) and `readouts/` (YAML
   and decoding).
   Only the sources are committed: on a tag, the CI of rest-common generates the readout files (with the
-  overlaps checked: the generation macros return 1, the exit code of `restRoot -b -q`, if
-  TRestDetectorReadout::CheckOverlaps finds any) and `materials.xml` (merged from `definitions/`, as
-  rest-for-physics/materials), and attaches them to the release; the transport tables (too slow for a CI
-  runner) are computed locally (`restGarfield --jobs`) and attached by hand. A medium file can hold several
+  overlaps checked: the generation macros return 1 if TRestDetectorReadout::CheckOverlaps finds any, the
+  exit code of `restRoot -b -q -e 'gSystem->Exit(<macro>(...));'`; a bare call is not run by restRoot)
+  and `materials.xml` (merged from `definitions/`, as rest-for-physics/materials), and attaches them to the
+  release; the transport tables (too slow for a CI runner) are computed locally (`restGarfield --jobs`) and
+  attached by hand. A medium file can hold several
   media (`tables/<medium>/<key>`), e.g. `ArIso.root` with `Ar99_iC4H10_1`, `Ar98_iC4H10_2`...
 - One readout file per project (e.g. `TREXDM.root` with its two planes): `REST_Detector_GenerateReadouts`
   builds every readout section of a YAML and exports them all to the same file (`Readouts/<name>/`); the

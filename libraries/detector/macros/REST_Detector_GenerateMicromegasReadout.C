@@ -22,7 +22,8 @@ TRestMicromegasReadout* mmReadout = nullptr;
 /// \param decodingName Name of the decoding stored with the readout.
 /// \param checkOverlaps Checks the overlaps of the geometry (TRestDetectorReadout::CheckOverlaps) before
 /// exporting it: nothing is written if there is any.
-/// \return 0 on success, 1 on any error (the exit code of `restRoot -b -q`, e.g. in a CI).
+/// \return 0 on success, 1 on any error; as exit code (e.g. in a CI):
+///     restRoot -b -q -e 'gSystem->Exit(<macro>(...));'
 ///
 /// Usage in restRoot (from the examples directory):
 ///

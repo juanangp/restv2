@@ -34,8 +34,8 @@
 /// \param decodingName Name of the decoding stored with each readout.
 /// \param checkOverlaps Checks the overlaps of each geometry (TRestDetectorReadout::CheckOverlaps) before
 /// exporting it.
-/// \return 0 on success, 1 on any error (the exit code of `restRoot -b -q`, e.g. in a CI); on an error the
-/// output file is removed.
+/// \return 0 on success, 1 on any error (the output file is then removed); as exit code (e.g. in a CI):
+///     restRoot -b -q -e 'gSystem->Exit(REST_Detector_GenerateReadouts("TREXDM.yaml", "TREXDM.root"));'
 ///
 /// Usage in restRoot:
 ///

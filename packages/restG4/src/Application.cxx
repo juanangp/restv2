@@ -475,7 +475,11 @@ void Application::Run(const CommandLineOptions::Options& options) {
     auto runManager = new G4RunManager();
 #endif
 
+    // The files of the generator (histograms, Decay0, cry showers) are relative to the configuration, as the
+    // GDML; the output file to the launch directory
+    if (!filesystem::path(inputConfigPath).empty()) filesystem::current_path(inputConfigPath);
     fSimulationManager.InitializeUserDistributions();
+    filesystem::current_path(originalDirectory);
 
     // cry generator: at most the showers of the file, the number of events of the progress
     const int64_t showers = metadata->GetGeant4PrimaryGeneratorInfo().GetCRYShowersInFile();

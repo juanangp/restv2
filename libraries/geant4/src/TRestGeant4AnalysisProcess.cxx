@@ -37,8 +37,10 @@
 ///   If the energy is given only by particles created in the volumes (e.g. a source inside the gas),
 ///   <name>_NEntering is 0 and these observables are those of the primary created in the volumes with
 ///   the lowest ID (the first ancestor of the tracks with energy, e.g. the alpha of the source): the
-///   entry is its first hit, where it starts. Without such a primary, the strings are empty and the
-///   numbers NaN. Its cost is a walk over the ancestors of the tracks with energy in the selection.
+///   entry is its first hit, where it starts. A primary at rest (an ion that decays, e.g. Po210) is not
+///   one: its products are (e.g. its alpha, with a lower ID than the recoil nucleus). Without such a primary,
+///   the strings are empty and the numbers NaN. Its cost is a walk over the ancestors of the tracks with
+///   energy in the selection.
 ///
 /// * With `perVolume: true`: <name>_<volume>_Energy, the energy of each volume of the selection (the
 ///   geometry name with the characters not allowed as `_`; an error if two volumes give the same one),
@@ -578,9 +580,16 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
                 break;
             }
             const auto parent = indexOfID.find(data.parentIDs[current]);
+            // The product of a primary at rest (an ion that decays, e.g. the alpha of Po210): as a primary
+            if (parent != indexOfID.end() && data.parentIDs[parent->second] == 0 &&
+                data.trackInitialEnergies[parent->second] == 0) {
+                if (data.trackNHits[current] > 0) insidePrimaries.emplace(data.trackIDs[current], current);
+                break;
+            }
             if (data.parentIDs[current] == 0 || parent == indexOfID.end()) {
                 // A primary starting in the volumes (e.g. a source in the gas)
-                if (data.parentIDs[current] == 0 && data.trackNHits[current] > 0) {
+                if (data.parentIDs[current] == 0 && data.trackNHits[current] > 0 &&
+                    data.trackInitialEnergies[current] != 0) {
                     insidePrimaries.emplace(data.trackIDs[current], current);
                 }
                 break;

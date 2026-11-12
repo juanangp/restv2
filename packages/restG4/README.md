@@ -71,10 +71,11 @@ g4Manager:
 ```
 
 The values can use the `parameters` of the file (`${PARAM:name}`, changed for one execution with `--set`) and
-environment variables (`${ENV:USER}`). The GDML file is resolved relative to the directory of the configuration
-file (then in `geometryPath`); its entities and the parameters used in its constants are resolved before Geant4
-reads it. A parameter that is used neither by the configuration nor by the geometry is an error (a typo). The
-physical and logical volume names of the geometry must be unique.
+environment variables (`${ENV:USER}`). The GDML file is resolved relative to the directory of the
+configuration file (then in `geometryPath`), as the files of the generator (histograms, Decay0, cry showers);
+the output file relative to the launch directory. The entities of the GDML and the parameters used in its
+constants are resolved before Geant4 reads it. A parameter that is used neither by the configuration nor by
+the geometry is an error (a typo). The physical and logical volume names of the geometry must be unique.
 
 The old `.rml` (XML) configuration files of REST are not supported. The full examples are in `examples/` (see
 below), and the options of each section are documented in the classes of the geant4 library

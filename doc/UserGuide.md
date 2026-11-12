@@ -1,9 +1,10 @@
 # REST user guide
 
-This guide describes how to use restv2, the C++/ROOT framework of REST (Rare Event Searches Toolkit): how to
-write the YAML configurations, what the events and the REST files contain, how the processes, cuts, plots and
-datasets work, and where to find the details of each library and package. It is written for the users of REST;
-the build and installation are described in the [README](../README.md).
+This guide describes how to use rest-for-physics-toolkit, the new version of the C++/ROOT framework of REST
+(Rare Event Searches Toolkit): how to write the YAML configurations, what the events and the REST files
+contain, how the processes, cuts, plots and datasets work, and where to find the details of each library and
+package. It is written for the users of REST; the build and installation are described in the
+[README](../README.md).
 
 ## Contents
 
@@ -200,8 +201,8 @@ pipeline:
 ```
 
 The path is relative to the including file (absolute paths and `${ENV:VAR}` are accepted, `${PARAM:...}` is
-not). Included files can include others; a cycle, a missing file or key is an error. The `parameters` are those
-of the main file, resolved after the includes are expanded. Example:
+not). Included files can include others; a cycle, a missing file or key is an error. The `parameters` are
+those of the main file, resolved after the includes are expanded. Example:
 [packages/restG4/examples/04.MuonScan](../packages/restG4/examples/04.MuonScan).
 
 ### 2.6 Conditional blocks (`select`)
@@ -559,10 +560,10 @@ How each parameter is obtained:
 
 ### 5.2 File names
 
-`outputFileName` and `inputFormat` are patterns with `[key]` placeholders: any key of the run as written in the
-YAML (`[runNumber]`, `[subRunNumber]`, `[runTag]`, `[runType]`, `[runInfo.meshVoltage]`...) and `[version]` (the
-REST version). `[runNumber]` is written with 5 digits and `[subRunNumber]` with 3 (zero padded). Any other
-placeholder is an error (the legacy `[fRunTag]` names no longer exist).
+`outputFileName` and `inputFormat` are patterns with `[key]` placeholders: any key of the run as written in
+the YAML (`[runNumber]`, `[subRunNumber]`, `[runTag]`, `[runType]`, `[runInfo.meshVoltage]`...) and
+`[version]` (the REST version). `[runNumber]` is written with 5 digits and `[subRunNumber]` with 3 (zero
+padded). Any other placeholder is an error (the legacy `[fRunTag]` names no longer exist).
 
 - Without `outputFileName` (or `"Null"`), the output is `/dev/null`: the pipeline runs but nothing is written
   (plots of the pipeline output are then an error).
@@ -631,8 +632,8 @@ fiducial:
 Cuts are sections of the manager (or of the dataset YAML) and are used by name:
 
 - by any process, with `cuts: ["fiducial"]`: the event is rejected after the process if it does not pass them.
-  They can use the observables of the process, of the previous ones and of the input file; in the pipeline only
-  scalar observables (numbers or booleans).
+  They can use the observables of the process, of the previous ones and of the input file; in the pipeline
+  only scalar observables (numbers or booleans).
 - by `TRestSelectionProcess`, which only applies its cuts and copies the event; `event` is the event type
   (empty: the output of the previous process; required if it is the first process):
 
@@ -649,8 +650,9 @@ Cuts are sections of the manager (or of the dataset YAML) and are used by name:
 ### 6.2 `TRestAnalysisPlot`
 
 A combined canvas of text panels and histograms of the observables of a run file, a dataset or a pattern of
-them, filled in a single RDataFrame loop. Without `inputFileName`, it draws the output of the manager (pipeline,
-generated or processed dataset); a manager with only cuts and plots draws the files given with `--i`:
+them, filled in a single RDataFrame loop. Without `inputFileName`, it draws the output of the manager
+(pipeline, generated or processed dataset); a manager with only cuts and plots draws the files given with
+`--i`:
 
 ```
 restManager --c libraries/track/examples/TrackLinePlots.yaml --i "R*_LINEAR.root"
@@ -698,8 +700,8 @@ All the keys are described in [TRestAnalysisPlot.cxx](../source/core/src/TRestAn
 ### 7.1 `TRestDataSet`
 
 A dataset joins the analysis trees of several runs (or datasets) in a single file and keeps the description of
-every run (`TRestRunInfo`); each entry has the column `runIndex`, the position of its run, so the parameters of
-the run of any entry are known and totals (e.g. the run time) are computed from the runs when needed.
+every run (`TRestRunInfo`); each entry has the column `runIndex`, the position of its run, so the parameters
+of the run of any entry are known and totals (e.g. the run time) are computed from the runs when needed.
 
 ```yaml
 fiducial:
@@ -745,16 +747,16 @@ root [0] REST_GenerateDataSet("libraries/track/examples/TrackLineDataSet.yaml", 
 root [1] REST_GenerateDataSet("dataset.yaml", "dataSet", "D_Calibration.root", "R01234_*_ANA.root")
 ```
 
-or with restManager, the `TRestDataSet` (and its cuts) inside a `TRestManager`, without `TRestRun`: `--i` is its
-`filePattern` and `--o` its `outputFileName`:
+or with restManager, the `TRestDataSet` (and its cuts) inside a `TRestManager`, without `TRestRun`: `--i` is
+its `filePattern` and `--o` its `outputFileName`:
 
 ```
 restManager --c Generation.yaml --i "R*_ANA.root" --o "D_[runStart]_[runEnd]_[runTag|Mixed].root"
 ```
 
 With a `TRestDataSetProcessManager` in the same manager, the generated dataset is processed in memory and only
-the processed one is written (`--o` is then its output; the generated one is also written if the `TRestDataSet`
-has an `outputFileName`).
+the processed one is written (`--o` is then its output; the generated one is also written if the
+`TRestDataSet` has an `outputFileName`).
 
 ### 7.3 Output names
 
@@ -780,8 +782,8 @@ E.g. `D_[runStart]_[runEnd]_[runTag|Mixed].root` → `D_00010_00012_Calibration.
 | `Readouts/`, `Geometry` | | The readouts and geometry of that input file; a `TRestDetectorReadoutManager` with `inputFileName: "Dataset.root"` loads a readout of the dataset. |
 | `RESTDataSetStore/<class>/<name>/` | directory | Objects of each dataset process (spectra, fits, PDFs, ROC curves...). |
 
-Merging datasets: a `filePattern` of datasets joins their runs (renumbering `runIndex`); the result is a dataset
-like any other.
+Merging datasets: a `filePattern` of datasets joins their runs (renumbering `runIndex`); the result is a
+dataset like any other.
 
 ### 7.5 Using a dataset
 
@@ -802,8 +804,8 @@ auto* readouts = dataSet.GetMetadataOfType<TRestDetectorReadoutManager>().front(
 ### 7.6 Dataset processes (`TRestDataSetProcessManager`)
 
 A `TRestDataSetProcessManager` section of the `TRestManager` (instead of `TRestRun` and the event pipeline)
-processes a dataset: each dataset process, in order, obtains its parameters on a **reference** dataset and adds
-columns to the processed dataset, which is written once.
+processes a dataset: each dataset process, in order, obtains its parameters on a **reference** dataset and
+adds columns to the processed dataset, which is written once.
 
 ```yaml
 manager:
@@ -869,14 +871,15 @@ The macro `REST_ViewTMVA(dataset, name[, pdf])` draws the results of a `TRestDat
 
 The [detector library](../libraries/detector/README.md) describes the detector:
 
-- **Readouts** map positions to channels and back: `TRestMicromegasReadout` (strip planes),
-  `TRestGDMLReadout` (volumes of a GDML geometry, e.g. vetoes, with a readout volume for the light
-  attenuation) and `TRestFibreReadout` (a scintillator crossed by fibre lattices, e.g. LiquidO: the closest
-  fibre, the fibres within a distance, and the fibre placements for the GDML of the simulation). A readout is built once from its YAML and a decoding file (`daqChannel physicalID` rows)
-  and exported to a ROOT file with the macros `REST_Detector_GenerateMicromegasReadout`,
-  `REST_Detector_GenerateGDMLReadout` and `REST_Detector_GenerateFibreReadout`; the pipelines load it with a `TRestDetectorReadoutManager`
-  (`readouts`: `instanceName`, `decodingName`, `inputFileName`; `readout`: the readout of the data), which also
-  stores it in the output file.
+- **Readouts** map positions to channels and back: `TRestMicromegasReadout` (strip planes), `TRestGDMLReadout`
+  (volumes of a GDML geometry, e.g. vetoes, with a readout volume for the light attenuation) and
+  `TRestFibreReadout` (a scintillator crossed by fibre lattices, e.g. LiquidO: the closest fibre, the fibres
+  within a distance, and the fibre placements for the GDML of the simulation). A readout is built once from
+  its YAML and a decoding file (`daqChannel physicalID` rows) and exported to a ROOT file with the macros
+  `REST_Detector_GenerateMicromegasReadout`, `REST_Detector_GenerateGDMLReadout` and
+  `REST_Detector_GenerateFibreReadout`; the pipelines load it with a `TRestDetectorReadoutManager`
+  (`readouts`: `instanceName`, `decodingName`, `inputFileName`; `readout`: the readout of the data), which
+  also stores it in the output file.
 - **Media** (`TRestDetectorMedium`): a material at its `pressure` and `temperature`, with a `charge` response
   (`wValue`, `fanoFactor`, `driftField`, fixed transport parameters or the transport and gain tables of its
   `mediumFile`, computed by restGarfield) and a `light` response (`lightYield`, `attenuationLength`,
@@ -914,15 +917,15 @@ The conversions between libraries (Geant4 → hits, hits → tracks, raw ↔ det
   `restG4 simulation.yaml [-t threads] [-n events] [-s seed] [-o output.root] [--set name=value]`. The
   configuration has a `TRestGeant4Manager` with a `TRestRun`, a `TRestGeant4Metadata` (geometry, `nEvents`,
   `seed`, `generator`, `activeVolumes`, `storeTracks`, biasing...) and a `TRestGeant4PhysicsLists`. The output
-  is a REST file with the tree `TRestGeant4Event` (3.7), the metadata and the `Geometry`. The `parameters` also
-  replace the GDML `<constant>`s and `<!ENTITY>`s of the same name; `--update-gdml` writes them into the GDML
-  files and exits. Normalize with `TRestGeant4Metadata::GetEquivalentNumberOfEvents()`.
+  is a REST file with the tree `TRestGeant4Event` (3.7), the metadata and the `Geometry`. The `parameters`
+  also replace the GDML `<constant>`s and `<!ENTITY>`s of the same name; `--update-gdml` writes them into the
+  GDML files and exits. Normalize with `TRestGeant4Metadata::GetEquivalentNumberOfEvents()`.
 - **restCRY**: `restCRY CRYShowers.yaml` writes cosmic-ray showers (a `TRestGeant4CRYShowers` section),
   simulated by the restG4 generator `type: "cry"`, which stores the exposure time for rates
   ([12.Generators](../packages/restG4/examples/12.Generators)).
 - **restGarfield** ([README](../packages/restGarfield/README.md)): `restGarfield ArIso.yaml` computes the
-  transport and gain tables of a medium with Garfield++ and stores them in its medium file, read by the detector
-  library without Garfield++.
+  transport and gain tables of a medium with Garfield++ and stores them in its medium file, read by the
+  detector library without Garfield++.
 - The simulated events are analysed with the [geant4 library](../libraries/geant4/README.md)
   (`TRestGeant4AnalysisProcess`, `TRestGeant4QuenchingProcess`) and converted to detector hits by
   `TRestGeant4ToDetectorHitsProcess`.
@@ -947,8 +950,8 @@ processes of the [raw library](../libraries/raw/README.md) (`TRestRawMultiFEMINO
 | `info` | Also the information of each step (default global level). |
 | `debug` | Also debug messages. |
 
-- `verbose` can be given to any section; without it, a section inside a container (the processes of a pipeline,
-  the sections of the manager) takes the one of its container, and the rest the global level
+- `verbose` can be given to any section; without it, a section inside a container (the processes of a
+  pipeline, the sections of the manager) takes the one of its container, and the rest the global level
   (`restManager --v <level>`). The `verbose` of a process also applies to the messages of the events and
   utilities it uses.
 - Similar warning and info messages written many times from the same line of code are suppressed after 10 in

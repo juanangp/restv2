@@ -5,12 +5,12 @@ stores the particle generator and the simulation conditions, such as the geometr
 the physics list used during the Monte Carlo, and implements processes on the simulated events (energy
 quenching, observables of volumes, particles and interactions).
 
-The geant4 library (`RestGeant4`) holds the event and the metadata of the Geant4 simulations of restv2:
-the event written by [restG4](../../packages/restG4/README.md) (primaries, energy per volume, tracks
-and hits), the simulation conditions (geometry, physics lists, active volumes, primary generator) and the
-processes that analyse the simulated events. It does not depend on Geant4: the parts that need it (filling
-the event from Geant4 steps, the volume tables of the Geant4 world, the positions in GDML volumes) are
-implemented in restG4. The conversion of the simulated hits into detector hits is done by the
+The geant4 library (`RestGeant4`) holds the event and the metadata of the Geant4 simulations of
+rest-for-physics-toolkit: the event written by [restG4](../../packages/restG4/README.md) (primaries, energy
+per volume, tracks and hits), the simulation conditions (geometry, physics lists, active volumes, primary
+generator) and the processes that analyse the simulated events. It does not depend on Geant4: the parts that
+need it (filling the event from Geant4 steps, the volume tables of the Geant4 world, the positions in GDML
+volumes) are implemented in restG4. The conversion of the simulated hits into detector hits is done by the
 [connectors library](../connectors/README.md).
 
 Units: energies in keV, lengths in mm, times in us and angles in rad; any YAML value can be given with

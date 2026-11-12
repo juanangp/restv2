@@ -6,13 +6,13 @@ processes of event reconstruction from real detector data (signal shaping, recov
 to hits) and of emulation of the physical response of the detector (electron drift and diffusion,
 avalanche, smearing, light attenuation, spatial transformations, hits to signals).
 
-The detector library (`RestDetector`) describes the detector of restv2 and the processing of its events in
-physical units: the hits (energy deposits, drifted electrons or reconstructed positions) and the signals
-of the readout channels, the readouts that map positions to channels, the medium with its charge and
-light responses and the transport and gain tables computed by restGarfield, the processes that go from
-hits to signals (simulation) and from signals to hits (reconstruction), and the gain map of datasets. The
-conversions from and to other libraries (Geant4 events, raw signals, tracks) are in the
-[connectors library](../connectors/README.md).
+The detector library (`RestDetector`) describes the detector of rest-for-physics-toolkit and the processing of
+its events in physical units: the hits (energy deposits, drifted electrons or reconstructed positions) and the
+signals of the readout channels, the readouts that map positions to channels, the medium with its charge and
+light responses and the transport and gain tables computed by restGarfield, the processes that go from hits to
+signals (simulation) and from signals to hits (reconstruction), and the gain map of datasets. The conversions
+from and to other libraries (Geant4 events, raw signals, tracks) are in the [connectors
+library](../connectors/README.md).
 
 ## Events
 
@@ -103,11 +103,11 @@ The macros are compiled and available in `restRoot` (called directly, without `.
 
 ## Examples
 
-The files of `examples/` are run from that directory, except `GDMLReadout.yaml`, whose decoding and GDML
-paths are relative to the repository root. The pipelines read the readouts of
-[rest-common-readouts](https://github.com/rest-for-physics-toolkit/rest-common-readouts) by URL (`IAXO.root` with
-`IAXO_D1_Readout`, `AlphaCAMM.root` with `AlphaCAMM_Readout`; downloaded once and cached); the veto one is
-generated here.
+The files of `examples/` are run from that directory, except `GDMLReadout.yaml`, whose decoding and GDML paths
+are relative to the repository root. The pipelines read the readouts of
+[rest-common-readouts](https://github.com/rest-for-physics-toolkit/rest-common-readouts) by URL (`IAXO.root`
+with `IAXO_D1_Readout`, `AlphaCAMM.root` with `AlphaCAMM_Readout`; downloaded once and cached); the veto one
+is generated here.
 
 | File | Contents |
 | --- | --- |

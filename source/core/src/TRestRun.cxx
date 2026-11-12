@@ -122,7 +122,9 @@ void TRestRun::LoadConfig() {
     // A new run number ($REST_HOME/.rest/runNumber)
     if (autoRunNumber) fRunNumber = GetRunNumberAuto();
 
-    fMainDataPath = GetFullPath(fMainDataPath);
+    // Empty: the output file relative to the launch directory (restG4 reads the configuration from its own
+    // directory, which GetFullPath("") would give)
+    if (!fMainDataPath.empty()) fMainDataPath = GetFullPath(fMainDataPath);
 
     if ((fInputFileName.empty() || fInputFileName == "Null") && !fInputFormat.empty()) {
         fInputFileName = ResolveFilePattern(fInputFormat);

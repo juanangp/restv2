@@ -42,6 +42,12 @@ TEST(Run, OutputFileName) {
 
     EXPECT_EQ(run.PrefixMainDataPath("/abs/file.root"), "/abs/file.root");
     EXPECT_EQ(run.PrefixMainDataPath("/dev/null"), "/dev/null");
+
+    // Without mainDataPath, the output file name stays relative: to the launch directory, not to the one
+    // where the configuration was read (restG4 reads it from the directory of the configuration file)
+    TRestRun relative("run",
+                      YAML::Load("class: TRestRun\nrunNumber: 7\noutputFileName: \"R[runNumber].root\"\n"));
+    EXPECT_EQ(relative.GetOutputFileName(), "R00007.root");
 }
 
 TEST(Run, NullOutputAndErrors) {

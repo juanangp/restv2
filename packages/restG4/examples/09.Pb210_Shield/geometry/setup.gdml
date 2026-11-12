@@ -3,7 +3,7 @@
 
 <!DOCTYPE gdml [
         <!ENTITY geometry SYSTEM "geometry.gdml">
-        <!ENTITY materials SYSTEM "materials.xml">
+        <!ENTITY materials SYSTEM "https://github.com/rest-for-physics-toolkit/rest-common-materials/releases/download/v1.0/materials.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -12,7 +12,7 @@
     <!-- Just an example of main geometry file : myGeometryTemplate.gdml
          This file just defines de parameters of the geometry.
          The geometry it is defined in geometry/myGeometryDefinition.gdml
-         The materials are defined in geometry/materials.xml
+         The materials are defined in materials.xml of rest-common-materials (v1.0, downloaded once and cached)
          Author :   J. Galan    Date : 09-Jul-2015
     -->
 

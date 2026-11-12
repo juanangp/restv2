@@ -890,7 +890,7 @@ The [detector library](../libraries/detector/README.md) describes the detector:
 readoutManager:
   class: "TRestDetectorReadoutManager"
   readouts:
-    - inputFileName: "AlphaCAMM_readout.root"
+    - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/AlphaCAMM.root"
       instanceName: "AlphaCAMM_Readout"
       decodingName: "nominal_decoding"
 medium:

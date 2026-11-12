@@ -78,7 +78,7 @@ The examples are in `examples/`; the paths are relative to the repository root.
 | File | Description |
 | --- | --- |
 | `MultiFEMINOSToRaw.yaml` | Decodes a `.aqs` file of the Feminos cards into `TRestRawSignalEvent` (`RawSignals.root`). |
-| `FeminosRootToRaw.yaml` | Reads a ROOT file of feminos-daq and runs the chain to tracks: common noise reduction, raw to detector signals, hits and track analysis (processes of the detector, connectors and track libraries). It loads the readout `libraries/detector/examples/iaxo_readout_output.root` and the gas file `testdata/ArIso.root`, relative to the repository root (run it from there). |
+| `FeminosRootToRaw.yaml` | Reads a ROOT file of feminos-daq and runs the chain to tracks: common noise reduction, raw to detector signals, hits and track analysis (processes of the detector, connectors and track libraries). It loads the readout `IAXO.root` and the transport tables `ArIso.root` (medium `Ar99_iC4H10_1`) of [rest-common-readouts](https://github.com/rest-for-physics-toolkit/rest-common-readouts) and [rest-common-transport](https://github.com/rest-for-physics-toolkit/rest-common-transport) by URL. |
 | `RawSignalAnalysis.yaml` | Raw signal analysis (`TRestRawSignalAnalysisProcess`, all its observables) of a file with `TRestRawSignalEvent`, keeping its run. |
 | `VetoAnalysis.yaml` | Veto analysis (legacy `TRestRawVetoAnalysisProcess`) with the existing processes: keeps the veto channels, corrects their baseline and computes their amplitude and peak time; the comments give the legacy observables as expressions. |
 

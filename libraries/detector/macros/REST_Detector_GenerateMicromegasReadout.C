@@ -29,7 +29,6 @@ TRestMicromegasReadout* mmReadout = nullptr;
 ///
 ///    restRoot
 ///    [0] REST_Detector_GenerateMicromegasReadout("MicromegasReadout.yaml", "iaxo_readout_output.root")
-///    [1] REST_Detector_GenerateMicromegasReadout("AlphaCAMM.yaml", "AlphaCAMM_readout.root")
 int REST_Detector_GenerateMicromegasReadout(const std::string& yamlFile = "MicromegasReadout.yaml",
                                             const std::string outputFile = "iaxo_readout_output.root",
                                             const std::string& decodingName = "nominal_decoding",

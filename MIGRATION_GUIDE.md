@@ -376,9 +376,10 @@ Examples: `libraries/detector/examples/DataSetCalibration.yaml`, `examples/DataS
   shower once, storing `showersUsed` and `exposureTime` (examples in `packages/restG4/examples/12.Generators`).
 - **GDML**: no environment variables; `<constant>` and internal entities with defaults, replaced by the
   parameters with the same name. `restG4 config.yaml --update-gdml` writes the parameters into the GDML
-  files so that viewers show the geometry simulated. The examples share
-  `packages/restG4/examples/materials.xml` (fixed mixtures named by fractions and pressure, e.g.
-  `Argon1%Isobutane1.4bar`) instead of parametrised materials (`gasPressure`, `targetGasDensity`).
+  files so that viewers show the geometry simulated. The examples share the `materials.xml` of
+  [rest-common-materials](https://github.com/rest-for-physics-toolkit/rest-common-materials), included by URL (fixed mixtures
+  named by fractions and pressure, e.g. `Argon1%Isobutane1.4bar`) instead of parametrised materials
+  (`gasPressure`, `targetGasDensity`).
 - **Biasing**: `biasingVolumes` (chained stages in one execution, outer to inner; example
   `09.Pb210_Shield/Biasing.yaml`).
 - **`TRestGeant4Event` branches** are flat numbers: positions and directions as X, Y, Z floats, particle,

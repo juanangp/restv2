@@ -3,7 +3,7 @@
 
 <!DOCTYPE gdml [
         <!ENTITY geometry SYSTEM "geometry.gdml">
-        <!ENTITY materials SYSTEM "materials.xml">
+        <!ENTITY materials SYSTEM "https://github.com/rest-for-physics-toolkit/rest-common-materials/releases/download/v1.0/materials.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

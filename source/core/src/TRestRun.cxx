@@ -541,6 +541,13 @@ void TRestRun::SyncAnalysisTreeBranches() {
             continue;
         }
 
+        // A branch of numbers not read by any process has no address: CopyAddresses has bound the leaves of
+        // the output branch to those of the input one, and SetAddress(nullptr) would give them a new buffer
+        // (the observable copied as 0)
+        if (inputBranch->GetAddress() == nullptr) {
+            continue;
+        }
+
         outputBranch->SetAddress(inputBranch->GetAddress());
     }
 }

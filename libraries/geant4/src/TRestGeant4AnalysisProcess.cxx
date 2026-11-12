@@ -38,9 +38,11 @@
 ///   <name>_NEntering is 0 and these observables are those of the primary created in the volumes with
 ///   the lowest ID (the first ancestor of the tracks with energy, e.g. the alpha of the source): the
 ///   entry is its first hit, where it starts. A primary at rest (an ion that decays, e.g. Po210) is not
-///   one: its products are (e.g. its alpha, with a lower ID than the recoil nucleus). Without such a primary,
-///   the strings are empty and the numbers NaN. Its cost is a walk over the ancestors of the tracks with
-///   energy in the selection.
+///   one: its products are; to take only one of them (e.g. the alpha, not the recoil nucleus or the
+///   gammas), a selection with `particles: ["alpha"]`. A track whose parent is not in the event (removed
+///   without hits, `registerEmptyTracks: false`) is also taken as created in the volumes. Without such a
+///   primary, the strings are empty and the numbers NaN. Its cost is a walk over the ancestors of the
+///   tracks with energy in the selection.
 ///
 /// * With `perVolume: true`: <name>_<volume>_Energy, the energy of each volume of the selection (the
 ///   geometry name with the characters not allowed as `_`; an error if two volumes give the same one),
@@ -587,9 +589,10 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
                 break;
             }
             if (data.parentIDs[current] == 0 || parent == indexOfID.end()) {
-                // A primary starting in the volumes (e.g. a source in the gas)
-                if (data.parentIDs[current] == 0 && data.trackNHits[current] > 0 &&
-                    data.trackInitialEnergies[current] != 0) {
+                // A primary starting in the volumes (e.g. a source in the gas), or a track whose parent is
+                // not in the event (removed without hits, registerEmptyTracks: false): it starts there
+                const bool primary = data.parentIDs[current] == 0 && data.trackInitialEnergies[current] != 0;
+                if ((primary || data.parentIDs[current] != 0) && data.trackNHits[current] > 0) {
                     insidePrimaries.emplace(data.trackIDs[current], current);
                 }
                 break;

@@ -219,11 +219,13 @@ stages of factor 10: weight 1 / 100).
 
 ## restCRY
 
-`restCRY config.yaml [--set name=value ...]` (the options and the file in any order) generates cosmic-ray showers with CRY from the section of class
-`TRestGeant4CRYShowers` of the configuration (altitude, latitude, `subBoxLength`, `nShowers` and/or
-`exposureTime`) and writes them to its `outputFileName`. The `cry` generator of restG4 simulates the showers of
-that file, one per event, and stores the exposure time simulated in the `TRestGeant4Metadata`, to normalize to a
-rate. See `examples/12.Generators/CRYShowers.yaml` and `CRYSimulation.yaml`.
+`restCRY config.yaml [--set name=value ...]` (the options and the file in any order) generates cosmic-ray
+showers with CRY from the section of class `TRestGeant4CRYShowers` of the configuration (altitude, latitude,
+`subBoxLength`, `nShowers` and/or `exposureTime`) and writes them to its `outputFileName`, relative to the
+configuration as the `filename` of the `cry` generator (both configurations side by side, launched from any
+directory). The `cry` generator of restG4 simulates the showers of that file, one per event, and stores the
+exposure time simulated in the `TRestGeant4Metadata`, to normalize to a rate. See
+`examples/12.Generators/CRYShowers.yaml` and `CRYSimulation.yaml`.
 
 ## Examples and tests
 

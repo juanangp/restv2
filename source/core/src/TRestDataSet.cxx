@@ -37,8 +37,8 @@
 /// * inputFileName: a dataset already generated, opened as it is; its stored configuration is kept apart,
 ///   not changed. Not for the generation.
 /// * observables: patterns (* and ?) of the analysis tree columns written, e.g. ["trackLineAnalysis_*",
-///   "rawAnalysis_NumberOfSignals"]. Empty (default): all. eventID, subEventID, timeSeconds and runIndex are
-///   always written.
+///   "rawAnalysis_NumberOfSignals"]. Empty (default): all. eventID, subEventID, timeSeconds, timeNanoSecs
+///   (if available) and runIndex are always written.
 /// * runConditions: name: expression (as the conditions of TRestCut) on the parameters of each run
 ///   (TRestRunInfo), as written in its YAML: runNumber, subRunNumber, runTag, runType, runUser,
 ///   experimentName, startTime, endTime (Unix time), entriesSaved, runInfo.key... A number (also with units,
@@ -589,6 +589,8 @@ void TRestDataSet::Generate(const std::vector<TRestCut*>& cuts) {
 
     // Columns written: those of every event, runIndex, the observables and the new columns
     fColumns = kEventColumns;
+    if (std::find(treeColumns.begin(), treeColumns.end(), "timeNanoSecs") != treeColumns.end())
+        fColumns.push_back("timeNanoSecs");
     fColumns.push_back("runIndex");
     for (const auto& column : treeColumns) {
         if (std::find(fColumns.begin(), fColumns.end(), column) != fColumns.end()) continue;

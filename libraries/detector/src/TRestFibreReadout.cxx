@@ -223,11 +223,6 @@ bool TRestFibreReadout::GetFibre(int physicalID, size_t& family, int& i, int& j)
     return false;
 }
 
-int TRestFibreReadout::GetDAQID(int physicalID) const {
-    const auto it = fPhysicalToDAQMap.find(physicalID);
-    return it == fPhysicalToDAQMap.end() ? -1 : it->second;
-}
-
 void TRestFibreReadout::BuildGeometry() {
     if (!fNode || fNode.IsNull()) {
         throw std::runtime_error("TRestFibreReadout: the YAML node is not initialized");

@@ -6,7 +6,11 @@
 /// analysis tree given to the process through a TRestRun.
 
 #include <TFile.h>
+#include <TObjString.h>
+#include <TROOT.h>
 #include <TRandom3.h>
+#include <TRestDataSet.h>
+#include <TRestDataSetTardis.h>
 #include <TRestDetectorHitsAnalysisProcess.h>
 #include <TRestDetectorHitsDriftProcess.h>
 #include <TRestDetectorHitsEvent.h>
@@ -30,8 +34,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -1064,4 +1070,197 @@ TEST(DetectorTransportTable, SeveralMediaInAFile) {
             TRestDetectorTransportTable::Read(file.get(), name, tables[0]["key"].as<std::string>());
         EXPECT_DOUBLE_EQ(table.GetDriftVelocity(5., 1.), velocity);
     }
+}
+
+// ---------------------------------------------------------------------------
+// TRestDataSetTardis
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// An entry of TRestDataSetTardis::TimeDelays at seconds + nanoseconds with physical channels
+TRestDataSetTardis::Entry TardisEntry(long long seconds, int nanoseconds, std::vector<int> channels = {}) {
+    TRestDataSetTardis::Entry entry;
+    entry.seconds = seconds;
+    entry.nanoseconds = nanoseconds;
+    entry.channels = std::move(channels);
+    return entry;
+}
+
+/// Physical IDs of the readout of the tests: X strip n and Y strip n
+int XStripID(int n) { return kNChannels + n; }
+int YStripID(int n) { return n; }
+
+/// A file of the current test in the work directory (ctest runs the tests in parallel)
+std::string TardisPath(const std::string& name) {
+    const auto* test = ::testing::UnitTest::GetInstance()->current_test_info();
+    return std::string(TESTS_WORK_DIR) + "/tardis_" + test->name() + "_" + name;
+}
+
+/// A dataset of two runs with the timestamps out of order: eventID = entry, runIndex = entry % 2.
+/// Chronological order: 4 (0 s), 3 (500 ns), 1 (999999999 ns), 0 and 2 (1 s, same timestamp).
+std::string WriteTardisDataSet(const std::string& name) {
+    const std::string path = TardisPath(name);
+    TFile file(path.c_str(), "RECREATE");
+    TTree tree("AnalysisTree", "AnalysisTree");
+    int runIndex = 0, eventID = 0, subEventID = 0, nanos = 0;
+    long long seconds = 0;
+    tree.Branch("runIndex", &runIndex);
+    tree.Branch("eventID", &eventID);
+    tree.Branch("subEventID", &subEventID);
+    tree.Branch("timeSeconds", &seconds);
+    tree.Branch("timeNanoSecs", &nanos);
+    const std::vector<long long> times = {1700000001, 1700000000, 1700000001, 1700000000, 1700000000};
+    const std::vector<int> fractions = {0, 999999999, 0, 500, 0};
+    for (size_t i = 0; i < times.size(); ++i) {
+        runIndex = i % 2;
+        eventID = i;
+        seconds = times[i];
+        nanos = fractions[i];
+        tree.Fill();
+    }
+    tree.Write();
+    TObjString runs(
+        "- run: {runNumber: 1}\n  fileName: a.root\n  entries: 3\n  processing: 0\n"
+        "- run: {runNumber: 2}\n  fileName: b.root\n  entries: 2\n  processing: 0\n");
+    file.WriteTObject(&runs, "RESTDataSetInfo");
+    return path;
+}
+
+/// eventID -> <column> of a dataset file
+std::map<int, double> TardisDelays(const std::string& fileName, const std::string& column) {
+    TFile file(fileName.c_str(), "READ");
+    auto* tree = file.Get<TTree>("AnalysisTree");
+    if (!tree) throw std::runtime_error("no AnalysisTree in " + fileName);
+    int id = 0;
+    double delay = 0;
+    tree->SetBranchAddress("eventID", &id);
+    tree->SetBranchAddress(column.c_str(), &delay);
+    std::map<int, double> delays;
+    for (Long64_t i = 0; i < tree->GetEntries(); ++i) {
+        tree->GetEntry(i);
+        delays[id] = delay;
+    }
+    return delays;
+}
+
+}  // namespace
+
+TEST(DataSetTardis, TimeDelaysWithoutReadout) {
+    const auto delays = TRestDataSetTardis::TimeDelays(
+        {TardisEntry(10, 999999999), TardisEntry(11, 0), TardisEntry(11, 0), TardisEntry(13, 500)});
+    ASSERT_EQ(delays.size(), 4u);
+    EXPECT_TRUE(std::isnan(delays[0]));
+    EXPECT_NEAR(delays[1], 1e-9, 1e-15);
+    EXPECT_DOUBLE_EQ(delays[2], 0);
+    EXPECT_NEAR(delays[3], 2 + 500e-9, 1e-12);
+}
+
+TEST(DataSetTardis, TimeDelaysInTheSameStrips) {
+    const auto readout = BuildReadout();
+    const std::vector<TRestDataSetTardis::Entry> entries = {
+        TardisEntry(0, 0, {XStripID(0), YStripID(0)}),
+        TardisEntry(1, 0, {XStripID(3), YStripID(3)}),
+        TardisEntry(2, 0, {XStripID(1), YStripID(1)}),  // next to the entry 0 in X and in Y
+        TardisEntry(3, 0, {XStripID(1), YStripID(3)}),  // X of 0 and 2, Y of 1: none in both
+        TardisEntry(4, 0, {XStripID(2)}),               // only X: next to the entry 3
+        TardisEntry(5, 500000000, {YStripID(3)}),       // only Y: the entry 3 (not the X strip 0 next to it)
+        TardisEntry(6, 0, {-1, 99}),                    // no channel of the readout
+    };
+
+    const auto delays = TRestDataSetTardis::TimeDelays(entries, readout.get(), 1);
+    ASSERT_EQ(delays.size(), entries.size());
+    EXPECT_TRUE(std::isnan(delays[0]));
+    EXPECT_TRUE(std::isnan(delays[1]));
+    EXPECT_DOUBLE_EQ(delays[2], 2);
+    EXPECT_TRUE(std::isnan(delays[3]));
+    EXPECT_DOUBLE_EQ(delays[4], 1);
+    EXPECT_DOUBLE_EQ(delays[5], 2.5);
+    EXPECT_TRUE(std::isnan(delays[6]));
+
+    // Only the same channels
+    const auto same = TRestDataSetTardis::TimeDelays(entries, readout.get(), 0);
+    EXPECT_TRUE(std::isnan(same[2]));
+    EXPECT_TRUE(std::isnan(same[4]));
+    EXPECT_DOUBLE_EQ(same[5], 2.5);
+
+    // Two neighbours: the entry 3 is next to the entry 2 (the same X strip, Y strips 3 and 1)
+    const auto two = TRestDataSetTardis::TimeDelays(entries, readout.get(), 2);
+    EXPECT_DOUBLE_EQ(two[3], 1);
+}
+
+TEST(DataSetTardis, ApplyAcrossRunsWithoutReordering) {
+    const std::string input = WriteTardisDataSet("input.root");
+    TRestDataSetTardis tardis("tardis", YAML::Load("{class: TRestDataSetTardis, verbose: warning}"));
+    for (const bool multithreaded : {false, true}) {
+        if (multithreaded) ROOT::EnableImplicitMT(2);
+        TRestDataSet dataSet(input);
+        tardis.ObtainParameters(dataSet, nullptr);
+        tardis.Apply(dataSet);
+        const std::string output = TardisPath(multithreaded ? "output_mt.root" : "output.root");
+        dataSet.Write(output);
+        if (multithreaded) ROOT::DisableImplicitMT();
+
+        const auto delays = TardisDelays(output, "tardis_timeDelay");
+        ASSERT_EQ(delays.size(), 5u);
+        EXPECT_TRUE(std::isnan(delays.at(4)));
+        EXPECT_NEAR(delays.at(3), 500e-9, 1e-15);
+        EXPECT_NEAR(delays.at(1), 0.999999999 - 500e-9, 1e-15);
+        // Same timestamp (both of run index 0): ordered by event, 0 first
+        EXPECT_NEAR(delays.at(0), 1e-9, 1e-15);
+        EXPECT_DOUBLE_EQ(delays.at(2), 0);
+
+        // The dataset is not reordered (one thread)
+        if (multithreaded) continue;
+        TFile file(output.c_str(), "READ");
+        auto* tree = file.Get<TTree>("AnalysisTree");
+        ASSERT_NE(tree, nullptr);
+        int id = 0;
+        tree->SetBranchAddress("eventID", &id);
+        for (int i = 0; i < 5; ++i) {
+            tree->GetEntry(i);
+            EXPECT_EQ(id, i);
+        }
+    }
+}
+
+TEST(DataSetTardis, CutsFilterTheDataSet) {
+    const std::string input = WriteTardisDataSet("input.root");
+    TRestManager manager("manager", YAML::Load("class: TRestManager\n"
+                                               "even:\n"
+                                               "  class: TRestCut\n"
+                                               "  conditions: {even: \"runIndex == 0\"}\n"));
+    TRestDataSetTardis tardis("tardis",
+                              YAML::Load("{class: TRestDataSetTardis, verbose: warning, cuts: [even]}"));
+    TRestDataSet dataSet(input);
+    tardis.ObtainParameters(dataSet, &manager);
+    tardis.Apply(dataSet);
+    const std::string output = TardisPath("output.root");
+    dataSet.Write(output);
+
+    // Entries 0, 2 and 4 (run index 0): 4 at 0 s, then 0 and 2 at 1 s
+    const auto delays = TardisDelays(output, "tardis_timeDelay");
+    ASSERT_EQ(delays.size(), 3u);
+    EXPECT_TRUE(std::isnan(delays.at(4)));
+    EXPECT_DOUBLE_EQ(delays.at(0), 1);
+    EXPECT_DOUBLE_EQ(delays.at(2), 0);
+}
+
+TEST(DataSetTardis, Errors) {
+    // A reference is not used: cleared (warning)
+    TRestDataSetTardis tardis("tardis", YAML::Load("{class: TRestDataSetTardis, verbose: error, "
+                                                   "referenceFileName: other.root}"));
+    EXPECT_TRUE(tardis.fReferenceFileName.empty());
+    const YAML::Node negative = YAML::Load("{class: TRestDataSetTardis, channelTolerance: -1}");
+    EXPECT_THROW(TRestDataSetTardis("tardis", negative), std::runtime_error);
+
+    // Cuts without a manager
+    TRestDataSetTardis withCuts("tardis", YAML::Load("{class: TRestDataSetTardis, cuts: [even]}"));
+    TRestDataSet dataSet(WriteTardisDataSet("input.root"));
+    EXPECT_THROW(withCuts.ObtainParameters(dataSet, nullptr), std::runtime_error);
+
+    // Channels without a readout in the dataset
+    TRestDataSetTardis withChannels(
+        "tardis", YAML::Load("{class: TRestDataSetTardis, channels: rawToSignal_SignalsPhysicalID}"));
+    EXPECT_THROW(withChannels.Apply(dataSet), std::runtime_error);
 }

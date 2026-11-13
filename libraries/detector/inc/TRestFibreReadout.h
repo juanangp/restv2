@@ -96,8 +96,6 @@ class TRestFibreReadout : public TRestDetectorReadout {
     double GetFibreCoordinate(size_t family, int t, int index) const;
     /// \brief Family and indices of a physical ID; false if it is not a fibre.
     bool GetFibre(int physicalID, size_t& family, int& i, int& j) const;
-    /// \brief DAQ ID of a physical ID, -1 if not connected.
-    int GetDAQID(int physicalID) const;
 
    public:
     /// \brief Constructor.

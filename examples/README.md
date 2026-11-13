@@ -1,7 +1,8 @@
 # Examples
 
 High-level analysis of datasets (TRestDataSetProcessManager), not tied to a library. Their inputs are the
-calibrated datasets of `libraries/detector/examples/DataSetCalibration.yaml` (`Dataset_*_Calibrated.root`).
+calibrated datasets of `libraries/detector/examples/DataSetCalibration.yaml` (`Dataset_*_Calibrated.root`),
+except where noted.
 
 | File | Contents |
 |---|---|
@@ -10,10 +11,12 @@ calibrated datasets of `libraries/detector/examples/DataSetCalibration.yaml` (`D
 | `DataSetTMVA.yaml` | BDT of TMVA (`TRestDataSetTMVA`), the calibration as signal and a background dataset. |
 | `DataSetSignalSelection.yaml` | Selection (`TRestDataSetSignalSelection`) of the entries with the BDT score of the 80% of the calibration. |
 | `DataSetCombine.yaml` | Combination (`TRestDataSetCombine`) of the datasets of the Micromegas and of the vetoes, analysed apart, matched by event. |
+| `DataSetTardis.yaml` | Chronological time differences (`TRestDataSetTardis`) for any dataset with both timestamp columns. |
 
 ```
 restManager --c examples/FemDAQToTracks.yaml --i Run00012_Calibration_IAXO_Data_000.root
 restManager --c examples/DataSetLogOdds.yaml --i Dataset_Background_Calibrated.root
 restManager --c examples/DataSetTMVA.yaml --i Dataset_Background_Calibrated.root
 restManager --c examples/DataSetSignalSelection.yaml --i Dataset_Background_TMVA.root
+restManager --c examples/DataSetTardis.yaml --i Dataset.root --o Dataset_Tardis.root
 ```

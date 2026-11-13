@@ -288,6 +288,12 @@ class TRestDetectorReadout : public TRestMetadata {
         return false;
     }
 
+    /// \brief Returns the DAQ channel of a physical ID, or -1 if it is not in the decoding table.
+    int GetDAQID(int physicalID) const {
+        const auto it = fPhysicalToDAQMap.find(physicalID);
+        return it == fPhysicalToDAQMap.end() ? -1 : it->second;
+    }
+
     /// \brief Returns the physical ID of a DAQ channel, or -1 if it is not in the decoding table.
     int GetPhysicalID(int daqID) const {
         for (const auto& [physicalID, channelID] : fPhysicalToDAQMap) {

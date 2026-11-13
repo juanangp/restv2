@@ -724,7 +724,7 @@ dataSet:
 | Key | Meaning |
 |---|---|
 | `filePattern` | Files the dataset is generated from (`*` and `?` in the file name): run files, or datasets to merge (not mixed). |
-| `observables` | Patterns of the columns written (empty: all). `eventID`, `subEventID`, `timeSeconds` and `runIndex` are always written. |
+| `observables` | Patterns of the columns written (empty: all). `eventID`, `subEventID`, `timeSeconds`, `timeNanoSecs` (when available) and `runIndex` are always written. |
 | `runConditions` | name: expression on the parameters of each run, as written in its `TRestRunInfo` (`runNumber`, `subRunNumber`, `runTag`, `runType`, `runUser`, `experimentName`, `startTime`, `endTime`, `entriesSaved`, `runInfo.key`). Numbers (also with units) are compared in REST units, and **a literal with units such as `300 V` is converted to REST units**; texts as strings (`runTag == "Calibration"`); dates with `date("YYYY/MM/DD HH:MM")` (local time; also `YYYY-MM-DD`, with or without the time). A run is selected if it fulfills all of them. |
 | `cuts` | `TRestCut` names (sections of the same YAML) applied to the entries. |
 | `columns` | name: expression of new columns, in order, with observables and run parameters (the value of the run of each entry). |
@@ -855,11 +855,36 @@ objects in `RESTDataSetStore/<class>/<name>`.
 | `TRestDataSetTMVA` | analysis | `<name>_score` | A trained TMVA method (BDT by default), signal = reference, background = `backgroundFileName`; ROC integral, separation, KS tests |
 | `TRestDataSetSignalSelection` | analysis | (filters the entries) | `range` of `observable` between the `quantiles` of the reference, and its `efficiency` |
 | `TRestDataSetCombine` | analysis | The columns of another dataset of the same events (`combineFileName`, `observables`, `prefix`), matched by run, `eventID` and `subEventID`, and `<name>_matched` (0 where the event is not there: default values, or filtered without `keepUnmatched`) | None (e.g. the vetoes and the Micromegas analysed apart, combined) |
+| `TRestDataSetTardis` | detector | `<name>_timeDelay`: time in seconds since the previous event in chronological order across all runs (with `channels`: in the same place of the readout); NaN for the first event | None (its `cuts` filter the dataset) |
+
+`TRestDataSetTardis` requires `timeSeconds` and `timeNanoSecs`; regenerate older datasets if the latter is
+missing. The dataset keeps its order: each entry gets its delay. Its `cuts` (TRestCut names, e.g. to remove the
+noise) remove the entries that do not pass them before the delays are computed: a removed event is never the
+previous one. Entries with the same timestamp are ordered by run, event and subevent: the first has the
+delay from the previous timestamp, the others 0. The delay is computed on the entries present at that point
+of the pipeline and is not recomputed after later filters. A reference is not used.
+
+With `channels` (a column or expression of the physical channels of each event, e.g.
+`rawToSignal_SignalsPhysicalID`, or with a mask:
+`rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 25]`), the delay is the time since the previous event in the same place of the readout (`readout` of the
+TRestDetectorReadoutManager of the dataset; empty: its data readout): in each group of channels that both
+events have (the X and the Y strips of a Micromegas, the families of fibres; a single group for pixels),
+channels within `channelTolerance` neighbours of the readout (1 by default, 0: the same channel). Events
+without channels of the readout get NaN.
+
+```yaml
+tardis:
+  class: "TRestDataSetTardis"
+  cuts: ["noise"]                             # optional: removes the noise events
+  channels: "rawToSignal_SignalsPhysicalID"   # optional: the previous event in the same place
+  channelTolerance: 1
+```
 
 Examples (each file documents how to run it):
 [DataSetCalibration.yaml](../libraries/detector/examples/DataSetCalibration.yaml),
 [DataSetLogOdds.yaml](../examples/DataSetLogOdds.yaml), [DataSetTMVA.yaml](../examples/DataSetTMVA.yaml),
-[DataSetSignalSelection.yaml](../examples/DataSetSignalSelection.yaml) (see
+[DataSetSignalSelection.yaml](../examples/DataSetSignalSelection.yaml),
+[DataSetTardis.yaml](../examples/DataSetTardis.yaml) (see
 [examples/README.md](../examples/README.md)).
 The macro `REST_ViewTMVA(dataset, name[, pdf])` draws the results of a `TRestDataSetTMVA`, and
 `TRestDataSetGainMap::ReadFromFile`, `DrawSpectrum`, `DrawGainMap` and `Refit` inspect a gain map in restRoot.

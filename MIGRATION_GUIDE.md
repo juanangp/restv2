@@ -280,7 +280,7 @@ The usage of `TRestDataSet` is described in the [user guide](doc/UserGuide.md). 
 | `processObservables: final` | `observables: ["final_*"]` (patterns) |
 | Merging keeps the metadata of the first dataset | Datasets merged with their runs; a repeated run is an error |
 | Metadata of the first file, not checked | Processing, readouts and geometry of the first run; Generate throws if the runs differ in processes, analysis tree branches, readouts or geometry (process parameters may differ: `RESTDataSetProcessing`) |
-| Temporary files; txt/csv export | One Snapshot; ROOT output only |
+| Temporary files; txt/csv export | One Snapshot for ordinary datasets; ordered dataset processes use temporary files; ROOT output only |
 | `REST_GenerateDataSets` | `REST_GenerateDataSet` or a TRestDataSet section in restManager (`--i` = `filePattern`, `--o` = `outputFileName`) |
 | `TRestDataSetPlot` | `TRestAnalysisPlot` with the dataset as `inputFileName` |
 
@@ -303,8 +303,8 @@ called from macros (`calibFile`, `oddsFile`). In restv2 they are dataset process
 - `TRestDataSetGainMap` covers a single readout (one gain map per readout), without modules (no
   `planeId`, `moduleId`, `definitionCut`); its extent is the bounding box of the channels of the readout;
 - `TRestDataSetLogOdds` (legacy `TRestDataSetOdds`) adds `<name>_<observable>` and `<name>_total`;
-- new: `TRestDataSetTMVA` (from the unmerged framework pull request #448) and
-  `TRestDataSetSignalSelection`;
+- new: `TRestDataSetTMVA` (from the unmerged framework pull request #448),
+  `TRestDataSetSignalSelection` and `TRestDataSetTardis` (time since the previous event);
 - peak fits use RooFit (`TRestPeakFit`, gaussian or Crystal Ball, optional background) instead of
   TSpectrum; `autoRangePeaks` is replaced by the optional `peakSearch`.
 

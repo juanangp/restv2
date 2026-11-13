@@ -73,7 +73,8 @@ TEST(DataSet, GenerateAllRuns) {
 
     // Always written: the event info and runIndex; all the observables without `observables`
     const auto& columns = dataSet.GetColumns();
-    for (const std::string column : {"eventID", "subEventID", "timeSeconds", "runIndex", "ana_energy"}) {
+    for (const std::string column :
+         {"eventID", "subEventID", "timeSeconds", "timeNanoSecs", "runIndex", "ana_energy"}) {
         EXPECT_NE(std::find(columns.begin(), columns.end(), column), columns.end()) << column;
     }
     EXPECT_EQ(Column<int>(dataSet, "runIndex"),
@@ -155,7 +156,8 @@ TEST(DataSet, SelectionCutsColumnsAndWrite) {
     EXPECT_EQ(opened.GetRuns()[0].entries, 5);
     EXPECT_EQ(*opened.GetDataFrame().Count(), 6u);
     const auto openedColumns = opened.GetColumns();
-    for (const std::string column : {"runIndex", "energyPerVolt", "doubled", "energyKeV", "ana_energy"}) {
+    for (const std::string column :
+         {"runIndex", "timeSeconds", "timeNanoSecs", "energyPerVolt", "doubled", "energyKeV", "ana_energy"}) {
         EXPECT_NE(std::find(openedColumns.begin(), openedColumns.end(), column), openedColumns.end())
             << column;
     }

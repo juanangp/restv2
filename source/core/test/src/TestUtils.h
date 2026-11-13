@@ -45,7 +45,7 @@ struct RunFile {
 };
 
 /// Writes a REST run file R<runNumber>_<runTag>.root in `dir` with TRestRun, as restManager does: an
-/// AnalysisTree with the event info observables (eventID = entry, subEventID = 0, timeSeconds) and the
+/// AnalysisTree with the event info observables (eventID = entry, subEventID = 0, timestamp) and the
 /// observable ana_energy (double), and the TRestRun in RESTMetadataStore (instance "run"). Extra metadata
 /// are written with it. Returns the file name.
 inline std::string WriteRunFile(const std::filesystem::path& dir, const RunFile& description,
@@ -63,12 +63,13 @@ inline std::string WriteRunFile(const std::filesystem::path& dir, const RunFile&
 
     TRestRun run("run", node);
     run.OpenOutputFile();
-    int eventID = 0, subEventID = 0;
+    int eventID = 0, subEventID = 0, timeNanoSecs = 0;
     long long timeSeconds = 0;
     double energy = 0;
     run.SetObservable("eventID", eventID);
     run.SetObservable("subEventID", subEventID);
     run.SetObservable("timeSeconds", timeSeconds);
+    run.SetObservable("timeNanoSecs", timeNanoSecs);
     run.SetObservable("ana_energy", energy);
     for (size_t i = 0; i < description.energies.size(); i++) {
         eventID = static_cast<int>(i);

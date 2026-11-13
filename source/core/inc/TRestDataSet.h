@@ -124,7 +124,7 @@ class TRestDataSet : public TRestMetadata {
     /// GetFilesMatchingPattern) of run files or datasets
     std::string fFilePattern = "";
     /// Patterns (* and ?) of the analysis tree columns written, e.g. "trackLineAnalysis_*". Empty: all.
-    /// eventID, subEventID, timeSeconds and runIndex are always written
+    /// eventID, subEventID, timeSeconds, available timeNanoSecs and runIndex are always written
     std::vector<std::string> fObservables = {};
     /// Conditions on the TRestRunInfo of each run (name: expression, as TRestCut) to select the runs
     std::map<std::string, std::string> fRunConditions = {};

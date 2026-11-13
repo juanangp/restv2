@@ -1,0 +1,21 @@
+# Add tardis_timeDelay to a dataset: seconds since the previous event in chronological order, across all runs
+# (NaN for the first event). The dataset keeps its order. The input must contain timeSeconds and timeNanoSecs.
+# Run from the repository root with an existing dataset:
+#   restManager --c examples/DataSetTardis.yaml --i Dataset.root --o Dataset_Tardis.root
+# Later filters do not recompute the delays: remove the noise with the cuts of the process, so that a noise
+# event is never the previous one.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    inputFileName: "Dataset.root"  # --i
+    outputFileName: "Dataset_Tardis.root"  # --o
+
+    tardis:
+      class: "TRestDataSetTardis"
+      # Optional: the previous event in the same channels of the readout of the dataset (+-1 neighbour)
+      # channels: "rawToSignal_SignalsPhysicalID"
+      # channelTolerance: 1

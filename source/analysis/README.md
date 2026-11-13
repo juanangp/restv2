@@ -63,3 +63,4 @@ reference of later runs.
 - `examples/DataSetTMVA.yaml`: BDT of calibrated datasets with TRestDataSetTMVA.
 - `examples/DataSetSignalSelection.yaml`: selection of the entries with the BDT score of the 80% of the
   calibration with TRestDataSetSignalSelection.
+- `examples/DataSetTardis.yaml`: time since the previous event with TRestDataSetTardis (libraries/detector).

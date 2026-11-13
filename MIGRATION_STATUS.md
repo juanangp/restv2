@@ -82,7 +82,14 @@ note in parentheses in an N row says where its functionality went.
 
 | M | N | P | Class | What it does |
 |---|---|---|-------|--------------|
+| x |   |   | TRestRawSignalAnalysisProcess (migrated, same name) | Computes observables of raw signals. |
+| x |   |   | TRestRawSignalAddNoiseProcess (migrated, same name) | Adds white and sinusoidal noise to raw signals. |
 | x |   |   | TRestRawBaseLineCorrectionProcess (migrated, same name) | Corrects the signal baseline with a moving average. |
+| x |   |   | TRestRawCommonNoiseReductionProcess (migrated, same name) | Subtracts common-mode noise per block of channels, bin by bin. |
+| x |   |   | TRestRawSignalShapingProcess (migrated, same name) | Convolves signals with a shaping kernel to emulate electronics. |
+| x |   |   | TRestRawSignalRecoverSaturationProcess (migrated, same name) | Recovers ADC-saturated pulses by fitting the AGET response. |
+| x |   |   | TRestRawZeroSupressionToRawProcess (migrated, same name) | Removes the offset of zero-suppressed signals. |
+| x |   |   | TRestRawSignalRemoveChannelsProcess (migrated: TRestRawSignalChannelSelectionProcess) | Keeps or removes channels by ID or range. |
 |   | x |   | TRestRawSignalFittingProcess | Fits each signal to the AGET response (logistic function): amplitude, time, chi2. |
 |   | x |   | TRestRawSignalConvolutionFittingProcess | Same, with the AGET response convolved with a gaussian. |
 |   | x |   | TRestRawSignalGeneralFitProcess | Fits each signal to a user-defined function from the configuration. |
@@ -98,6 +105,7 @@ note in parentheses in an N row says where its functionality went.
 |   | x |   | TRestRawToSignalProcess | Base class of the decoders from binary files to TRestRawSignalEvent. |
 | x |   |   | TRestRawMultiFEMINOSToSignalProcess (migrated, same name) | Decodes binary files of several FEMINOS/TCM cards. |
 | x |   |   | TRestRawFeminosRootToSignalProcess (migrated, same name) | Converts ROOT files of the Feminos DAQ (feminos-daq) to TRestRawSignalEvent. |
+| x |   |   | TRestRawFemDAQToSignalProcess (migrated, same name) | Reads old FEMDAQ ROOT files (tree `SignalEvent`). |
 |   | x |   | TRestRawAFTERToSignalProcess | Decodes binary files of the AFTER electronics. |
 |   | x |   | TRestRawMultiCoBoAsAdToSignalProcess | Decodes CoBo/AsAd (GET) files; flagged as possibly obsolete. |
 |   | x |   | TRestRawFEUDreamToSignalProcess | Decodes binary files of the FEU Dream electronics. |
@@ -137,7 +145,10 @@ note in parentheses in an N row says where its functionality went.
 
 | M | N | P | Class | What it does |
 |---|---|---|-------|--------------|
+| x |   |   | TRestTrackAnalysisProcess (migrated, same name) | Computes track and event observables, optionally by projection. |
+| x |   |   | TRestTrackLineAnalysisProcess (migrated, same name) | Finds origin, end, length and direction of linear tracks. |
 | x |   |   | TRestTrackReductionProcess (migrated, same name) | Merges the hits of each track into nodes up to a maximum number of nodes. |
+| x |   |   | TRestTrackLinearizationProcess (migrated, same name) | Reduces each track to nodes along its best-fit line. |
 | x |   |   | TRestTrackPathMinimizationProcess (migrated, same name) | Orders the hits/nodes of each track along the shortest path (TSP). |
 |   | x |   | TRestTrackReconnectionProcess (its `branches` observable: Branches of TRestTrackPathMinimizationProcess) | Breaks and reconnects the segments of an ordered track where there are jumps. |
 |   | x |   | TRestTrackDetachIsolatedNodesProcess | Detaches the isolated nodes of the track. |
@@ -210,8 +221,6 @@ migrate one anyway.
 - **Field model**: field maps will replace `driftField` of the `charge` response (2026-11-05).
 - **Gain tables with a mesh**: restGarfield simulates avalanches in a uniform field (parallel plates); a
   geometry field for the mesh will be added later (2026-11-05).
-- **02.TREXDM gas**: Neon 1% isobutane at 10 bar (nominal TREX-DM) to be confirmed (2026-11-04).
-
 ### Ideas
 
 - **Event format version conversions** (not needed yet, 2026-11-06). Done: a format version per event class
@@ -1081,3 +1090,28 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   main YAML file, `mediumFile` of TRestDetectorMedium (read only: restGarfield needs a local file) and
   `inputFileName` of the readouts of TRestDetectorReadoutManager. The `gdmlFilename` of restG4 stays local
   (the projects keep their setup GDML, its entities point to rest-common-*).
+
+### TREX-DM gas (2026-11-13, user)
+
+- Neon with 1% isobutane at 10 bar is the nominal TREX-DM gas configuration, not the only mixture the
+  experiment may use. It is not pending confirmation.
+
+### Dataset event time differences (2026-11-13, user)
+
+- `TRestDataSetTardis` (named as the other dataset processes, without `Process`) adds `<name>_timeDelay`,
+  the time in seconds since the previous entry in chronological order across the runs, NaN for the first.
+- The dataset is not reordered (user choice): the timestamps are read in memory and the delays matched to
+  the entries by runIndex, eventID and subEventID, as TRestDataSetCombine. TRestDataSet is not changed (a
+  first version wrote the dataset ordered with temporary files and a reordering in TRestDataSet::Write).
+- `cuts` filter the dataset; the delays are those between the remaining entries. A reference is not used
+  (warning). No results stored (user choice).
+- Dataset generation keeps `timeNanoSecs` when present, regardless of `observables`. The process requires
+  both timestamp components; datasets that omitted nanoseconds must be regenerated. Later filters do not
+  recompute the delays.
+- Option `channels` (user, 2026-11-13): the previous event in the same place. The physical channels of each
+  event (a vector column, e.g. rawToSignal_SignalsPhysicalID; not the hits, not the DAQ channels) and the
+  readout of the dataset, which gives the neighbours (GetAdjacentChannels, `channelTolerance` 1) and the
+  groups (finite coordinates of GetPositionFromChannel: X/Y strips, fibre families), so no columns per
+  axis. Same place: a group in common and near channels in every group both events have. The class moved
+  to libraries/detector (it needs the readout, as TRestDataSetGainMap); GetDAQID moved from
+  TRestFibreReadout to TRestDetectorReadout.

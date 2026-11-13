@@ -107,6 +107,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
         const chrono::duration<double> elapsed = chrono::high_resolution_clock::now() - start;
         outputManager->SetEventTimeWallPrimaryGeneration(elapsed.count());
         outputManager->UpdatePrimaryData(event);
+        fSimulationManager->SetLastEventGenerated();
         return;
     }
 
@@ -161,4 +162,5 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
     const chrono::duration<double> elapsed = chrono::high_resolution_clock::now() - start;
     outputManager->SetEventTimeWallPrimaryGeneration(elapsed.count());
     outputManager->UpdatePrimaryData(event);
+    fSimulationManager->SetLastEventGenerated();
 }

@@ -577,8 +577,13 @@ void Application::Run(const CommandLineOptions::Options& options) {
     // job termination
     delete runManager;
 
-    systime = time(nullptr);
-    run->SetEndTimeStamp((double)systime);
+    // The run goes from the generation of the first event to that of the last one, stored or not: not
+    // from the initialization (geometry, physics tables) to the end of the job (Geant4 termination), which
+    // would lower the rate
+    const double firstEventTime = fSimulationManager.GetFirstEventGeneratedTime();
+    const double lastEventTime = fSimulationManager.GetLastEventGeneratedTime();
+    if (firstEventTime > 0) run->SetStartTimeStamp(firstEventTime);
+    run->SetEndTimeStamp(lastEventTime > 0 ? lastEventTime : static_cast<double>(time(nullptr)));
     const string filename = TRestTools::GetFullPath(run->GetOutputFileName());
 
     const auto nEntries = run->GetSavedEntries();

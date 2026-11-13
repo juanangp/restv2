@@ -92,36 +92,33 @@ if(COMMAND rest_link_registered_libraries)
 endif()
 install(TARGETS restG4 RUNTIME DESTINATION bin)
 
-# --- restCRY: the CRY showers read by the cry generator
-# (TRestGeant4CRYShowers), only if CRY is found ---
-option(REST_CRY "Build restCRY (requires CRY)" ON)
+# --- CRY: the cosmic-ray showers of the cry generator, only if CRY is found ---
+option(REST_CRY "restG4 with CRY, for the cry generator (requires CRY)" ON)
 if(REST_CRY)
   # cmake/FindCRY.cmake of REST: CRY_PATH, or $CRYHOME of the CRY setup script
   # (source <cry>/setup)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
   find_package(CRY QUIET)
   if(NOT CRY_FOUND)
-    message(WARNING "CRY not found, restCRY will not be built "
+    message(WARNING "CRY not found, restG4 without the cry generator "
                     "(source the CRY setup, set -DCRY_PATH or -DREST_CRY=OFF)")
     set(REST_CRY OFF)
   endif()
 endif()
 if(REST_CRY)
-  add_executable(restCRY restCRY.cxx)
-  # The data tables of the build, $CRYDATAPATH at run time if set
-  target_compile_definitions(restCRY PRIVATE CRY_DATA_PATH="${CRY_DATA_DIR}")
-  target_link_libraries(
-    restCRY PRIVATE RestCore RestTools ${GEANT4_LIB} CRY::CRY
-                    ${ROOT_TARGET_LIBRARIES} ${YAML_CPP_TARGET})
-  # CRY builds only a static library, maybe without -fPIC: link it in a non
-  # position independent executable
-  set_target_properties(restCRY PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+  # In the executable: CRY builds only a static library, maybe without -fPIC,
+  # which cannot go in the shared library RestG4. The data tables of the build,
+  # $CRYDATAPATH at run time if set
+  target_sources(restG4 PRIVATE cry/CRYEngine.cxx)
+  target_compile_definitions(restG4 PRIVATE REST_CRY
+                                            CRY_DATA_PATH="${CRY_DATA_DIR}")
+  target_link_libraries(restG4 PRIVATE CRY::CRY)
+  set_target_properties(restG4 PROPERTIES POSITION_INDEPENDENT_CODE OFF)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_link_options(restCRY PRIVATE -no-pie)
+    target_link_options(restG4 PRIVATE -no-pie)
   endif()
-  install(TARGETS restCRY RUNTIME DESTINATION bin)
 endif()
-message(STATUS "restCRY: ${REST_CRY}")
+message(STATUS "restG4 with CRY: ${REST_CRY}")
 
 # The examples as tests (BUILD_TESTING): restG4 and restManager run on a copy of
 # examples/

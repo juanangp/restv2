@@ -62,10 +62,10 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
     /// \brief The fields of the spatial generator, which reads this same section
     std::set<std::string> GetSharedNodeKeys() const override;
 
-    /// \brief Builds the distributions of the sources and opens the cry showers file, needed only to
-    /// generate (it checks them before the simulation, each thread loads its own copy of the
-    /// distributions, the showers file is shared)
-    void LoadDistributions();
+    /// \brief Builds the distributions of the sources and starts CRY for the cry generator (with `seed`),
+    /// needed only to generate (it checks them before the simulation, each thread loads its own copy of
+    /// the distributions, the CRY generator is shared)
+    void LoadDistributions(long seed = 0);
 
     /// \brief The spatial generator of `type`
     inline const TRestGeant4SpatialGenerator* GetSpatialGenerator() const { return fSpatialGenerator.get(); }
@@ -75,13 +75,13 @@ class TRestGeant4PrimaryGeneratorInfo : public TRestMetadata {
 
     /// \brief True for the cosmic generator
     bool IsCosmic() const;
-    /// \brief True for the cry generator (the showers of a restCRY file, no sources)
+    /// \brief True for the cry generator (the showers of CRY, no sources)
     bool IsCRY() const;
-    /// \brief Showers in the file of the cry generator, once open (0 if not cry)
-    int64_t GetCRYShowersInFile() const;
+    /// \brief The cry generator: its CRY options (the TRestGeant4CRY section, TRestGeant4Manager)
+    void SetCRY(const TRestGeant4CRY& cry);
     /// \brief The corners of the CRY square of the cry generator in world coordinates (empty if not cry)
     std::vector<ROOT::Math::XYZVector> GetCRYPlaneCorners() const;
-    /// \brief The cry generator: sets the showers used and their exposure from the showers taken
+    /// \brief The cry generator: sets the showers used and their exposure from the showers generated
     void UpdateCRYExposure();
     /// \brief Showers of the cry generator used and their exposure (time simulated, us), 0 if not cry
     int64_t GetCRYShowersUsed() const;

@@ -30,6 +30,11 @@
 
 using namespace std;
 
+#ifdef REST_CRY
+// cry/CRYEngine.cxx: CRY for the cry generator (restG4 built with CRY)
+void RegisterCRYEngine();
+#endif
+
 constexpr auto banner =
     "\n"
     "                         888     .d8888b.      d8888 \n"
@@ -46,6 +51,9 @@ constexpr auto banner =
 
 int main(int argc, char* argv[]) {
     REST_Units::SetGeoManagerDefaultUnits();
+#ifdef REST_CRY
+    RegisterCRYEngine();
+#endif
 
     cout << banner << endl;
 

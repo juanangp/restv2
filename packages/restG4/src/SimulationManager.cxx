@@ -247,9 +247,10 @@ void SimulationManager::InitializeUserDistributions() {
                     FatalException, "No generator or particle sources defined");
     }
     // Formulas, histograms and Decay0 files, read once and copied by the generator of each thread, and the
-    // cry showers file, shared
+    // CRY generator, shared
     try {
-        fRestGeant4Metadata->GetGeant4PrimaryGeneratorInfo().LoadDistributions();
+        auto& generatorInfo = fRestGeant4Metadata->GetGeant4PrimaryGeneratorInfo();
+        generatorInfo.LoadDistributions(fRestGeant4Metadata->GetSeed());
     } catch (const std::exception& error) {
         G4Exception("SimulationManager::InitializeUserDistributions", "REST_G4_GENERATOR", FatalException,
                     error.what());

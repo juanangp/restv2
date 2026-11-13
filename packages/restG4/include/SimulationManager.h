@@ -179,7 +179,7 @@ class SimulationManager {
     /// \brief Primaries of the generator started inside the outermost biasing volume
     inline int64_t GetBiasingPrimariesInside() const { return fBiasingPrimariesInside; }
 
-    /// \brief The generator has no more primaries (all the showers of the cry file): the run is stopped
+    /// \brief The generator has no more primaries (maxExposureTime of CRY reached): the run is stopped
     /// as a normal end of the primaries, not as an abort
     inline void SetGeneratorExhausted() { fGeneratorExhausted = true; }
     /// \brief Whether the generator has no more primaries
@@ -225,9 +225,9 @@ class SimulationManager {
 
     /* Primary generation */
    public:
-    /// \brief Loads the distributions of the generator (formulas, histograms, Decay0 files, CRY showers
-    /// file), shared by the generators of all the threads. A Geant4 fatal exception if there are no
-    /// sources nor cry generator, or if they cannot be loaded
+    /// \brief Loads the distributions of the generator (formulas, histograms, Decay0 files) and starts CRY
+    /// (with the metadata seed), shared by the generators of all the threads. A Geant4 fatal exception if
+    /// there are no sources nor cry generator, or if they cannot be loaded
     void InitializeUserDistributions();
 };
 

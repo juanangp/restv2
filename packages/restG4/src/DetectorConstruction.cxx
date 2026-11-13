@@ -96,7 +96,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
         if (abs(corner.X()) >= worldHalfSize.x() || abs(corner.Y()) >= worldHalfSize.y() ||
             abs(corner.Z()) >= worldHalfSize.z()) {
             ostringstream message;
-            message << "The CRY square (subBoxLength of the showers file, centered at the generator "
+            message << "The CRY square (subBoxLength of the cry generator, centered at its "
                        "position) is not inside the world: corner ("
                     << corner.X() << ", " << corner.Y() << ", " << corner.Z() << ") mm, world half size ("
                     << worldHalfSize.x() << ", " << worldHalfSize.y() << ", " << worldHalfSize.z()

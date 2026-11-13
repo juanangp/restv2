@@ -163,7 +163,7 @@ note in parentheses in an N row says where its functionality went.
 |   | x |   | TRestGeant4NeutronTaggingProcess (TRestGeant4AnalysisProcess: `perVolume`, `interactions` and TRestGeant4QuenchingProcess) | Observables to tag neutrons (captures, deposits in vetoes and moderators). |
 |   | x |   | TRestGeant4BlobAnalysisProcess | Position and distance of the double beta blobs from the Monte Carlo truth. |
 |   | x |   | TRestGeant4ParticleSourceCosmics | Cosmic source with energy and angle read from histograms. |
-| x |   |   | TRestGeant4ParticleSourceCry | Cosmics generated with the CRY library. Migrated (2026-11-01) as restCRY + restG4 generator `cry`. |
+| x |   |   | TRestGeant4ParticleSourceCry | Cosmics generated with the CRY library. Migrated (2026-11-13) as the restG4 generator `cry` (CRY linked to restG4). |
 |   | x |   | TRestGeant4ParticleSourceDecay0 | Decays (double beta, etc.) generated with BxDecay0. |
 
 ### Replaced or not needed
@@ -254,7 +254,8 @@ Dated sections in chronological order, **oldest first**. Items added later to a 
   TRestDetectorPositionMappingProcess are not migrated.
 - TRestDetectorAvalancheProcess: changes meaning. Extend restGarfield to obtain the avalanche parameters as a
   function of the voltage and have the process use them (designed and implemented 2026-11-05, see below).
-- TRestGeant4ParticleSourceCry: replaced by a `restCRY` package (2026-11-01, implemented, see below).
+- TRestGeant4ParticleSourceCry: the restG4 generator `cry`, CRY called during the simulation (2026-11-13,
+  implemented, see below; the restCRY executable of 2026-11-01 was removed).
 - TRestDataSetCalibration, TRestDataSetGainMap and TRestDataSetOdds: as processes of a new
   TRestDataSetProcessManager (design 2026-11-02, see below).
 - TRestTrackToDetectorHitsProcess: not migrated (2026-11-06). Each track already stores its hits and
@@ -265,7 +266,31 @@ Dated sections in chronological order, **oldest first**. Items added later to a 
 - TRestDetectorHitsToTrackFastProcess: not migrated; TRestDetectorHitsToTrackProcess gives the same tracks as
   legacy and is already as fast.
 
-### CRY (2026-11-01, implemented)
+### CRY in restG4 (2026-11-13, implemented)
+
+Replaces the restCRY design below. The showers file of restCRY was too large to keep or share (10^8 showers
+over 3 m: tens of GB) and restG4 takes much longer to simulate the showers than CRY to generate them, so CRY
+is called during the simulation (the user chose it; the legacy design, rejected on 2026-11-01).
+
+- The options of CRY in their own section of the TRestGeant4Manager, class `TRestGeant4CRY` (as the physics
+  lists; the user found them too many for the generator, "equivalent to the readouts"): `particles` (a list
+  of muons, neutrons, protons, gammas, electrons, pions, kaons; all by default; replaces the legacy
+  returnMuons... flags), nParticlesMin/Max, date, latitude, altitude, `subBoxLength` (now needed), optional
+  `maxExposureTime` (stops when CRY has simulated that time; with nEvents 0 only it). TRestGeant4Manager
+  links it to the cry generator (an error if it is missing) and stores it in the output; with another
+  generator the section is not used (the same configuration for several generators).
+- Generator `type: "cry"` (TRestGeant4SpatialGeneratorCRY, libraries/geant4, no CRY dependency): only
+  `position` and `verticalAxis` of the CRY square. Results `showersUsed` and `exposureTime` (the time
+  simulated by CRY) in the generator section as before; `Merge` adds them.
+- CRY is behind an interface (TRestGeant4CRYEngine) given by restG4: `packages/restG4/cry/CRYEngine.cxx`,
+  compiled into the restG4 executable (non-PIE, `libCRY.a` has no -fPIC) when CRY is found (`REST_CRY`), and
+  registered by main.cxx. Without CRY the cry generator is an error.
+- A single CRY generator shared by the threads, called under a lock; its seed is the metadata seed.
+- Removed: restCRY, TRestGeant4CRYShowers (TRestGeant4CRY keeps its CRY options), the showers file and
+  `filename`;
+  examples/12.Generators/CRYShowers.yaml.
+
+### CRY (2026-11-01, implemented; replaced on 2026-11-13, see above)
 
 - Executable `restCRY config.yaml` in the restG4 package (`packages/restG4/restCRY.cxx`), CMake flag, links
   `libCRY.a` from `/programas/titan/cry/cry_v1.7` (the .so is not needed). Only restCRY depends on CRY.
@@ -461,7 +486,7 @@ Dated sections in chronological order, **oldest first**. Items added later to a 
       of the legacy Validate with fewer events: run metadata, entries, mean energies (±20%), distributions of
       the primaries (ranges and means), isotopes of the chain (16 of U238, --set isotope=Be7), alpha fractions,
       Fe55 peak, efficiency (0.91 ± 0.03), speed of the geantinos, geometry volumes and --update-gdml. Without
-      the exact values depending on the Geant4 version (number of hits and tracks). CRY has no test (restCRY
+      the exact values depending on the Geant4 version (number of hits and tracks). CRY has no test (CRY
       optional).
     - New TRestGeant4Event::GetPrimaryEnergy(n).
     - Postponed (2026-11-04): compile and tune the tests (values and tolerances) when the gtests of the rest of

@@ -32,7 +32,7 @@ class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
     /// \brief A primary vertex per generated particle (particle, energy, direction, position and time).
     /// After the first biasing stage, a single vertex with the stored particle replayed by the event
     /// (SimulationManager::GetBiasingReplayParticle), the generator is not used. With the cry generator, when
-    /// all the showers of the file were simulated, the simulation is stopped and the event aborted. It also
+    /// its maxExposureTime was reached, the simulation is stopped and the event aborted. It also
     /// records the wall time of the generation in the OutputManager
     void GeneratePrimaries(G4Event*) override;
 

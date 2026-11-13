@@ -9,6 +9,7 @@
 #include <TRestGeant4Manager.h>
 #include <TRestGeant4Metadata.h>
 #include <TRestGeant4PhysicsLists.h>
+#include <TRestGeant4SpatialGenerator.h>
 #include <TRestRun.h>
 #include <TRestTools.h>
 #include <TRestYAMLUtils.h>
@@ -379,6 +380,13 @@ void Application::Run(const CommandLineOptions::Options& options) {
     if (options.nEvents != 0) {
         metadata->SetNumberOfEvents(options.nEvents);
     }
+    // The cry generator needs restG4 built with CRY: an error before Geant4, not a G4Exception
+    if (metadata->GetGeant4PrimaryGeneratorInfo().IsCRY() && !TRestGeant4SpatialGeneratorCRY::HasEngine()) {
+        cerr << "ERROR: the generator type cry needs restG4 built with CRY (REST_CRY, found with CRY_PATH or "
+                "$CRYHOME, the CRY setup script)"
+             << endl;
+        exit(1);
+    }
     if (metadata->GetNumberOfBiasingVolumes() > 0) {
         // The stages need the events of the generator, and nested volumes
         if (metadata->GetNumberOfEvents() <= 0 || metadata->GetNumberOfEvents() > maxPrimariesAllowed) {
@@ -496,18 +504,11 @@ void Application::Run(const CommandLineOptions::Options& options) {
     auto runManager = new G4RunManager();
 #endif
 
-    // The files of the generator (histograms, Decay0, cry showers) are relative to the configuration, as the
-    // GDML; the output file to the launch directory
+    // The files of the generator (histograms, Decay0) are relative to the configuration, as the GDML; the
+    // output file to the launch directory
     if (!filesystem::path(inputConfigPath).empty()) filesystem::current_path(inputConfigPath);
     fSimulationManager.InitializeUserDistributions();
     filesystem::current_path(originalDirectory);
-
-    // cry generator: at most the showers of the file, the number of events of the progress
-    const int64_t showers = metadata->GetGeant4PrimaryGeneratorInfo().GetCRYShowersInFile();
-    if (showers > 0 && metadata->GetNumberOfEvents() > showers) {
-        cout << "CRY showers file: " << showers << " showers, number of events set to " << showers << endl;
-        metadata->SetNumberOfEvents(showers);
-    }
 
     runManager->SetUserInitialization(new DetectorConstruction(&fSimulationManager));
     runManager->SetUserInitialization(
@@ -673,7 +674,7 @@ void Application::RunBiasingStages(int64_t nEvents) {
         if (stage == nVolumes) break;
 
         if (fSimulationManager.GetAbortFlag()) {
-            // The end of the showers of the cry file is the end of the primaries, not an abort
+            // The maxExposureTime of CRY is the end of the primaries, not an abort
             if (stage == 0 && fSimulationManager.IsGeneratorExhausted()) {
                 fSimulationManager.ResetAbortFlag();
             } else {

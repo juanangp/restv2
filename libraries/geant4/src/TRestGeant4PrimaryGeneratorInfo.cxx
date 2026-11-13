@@ -53,7 +53,7 @@ void TRestGeant4PrimaryGeneratorInfo::LoadConfig() {
 
     if (IsCRY()) {
         if (!fSources.empty()) {
-            throw runtime_error(GetClassName() + ": the cry generator has no 'source' (the file gives them)");
+            throw runtime_error(GetClassName() + ": the cry generator has no 'source' (CRY gives them)");
         }
     } else if (fSources.empty()) {
         throw runtime_error(GetClassName() + ": no 'source' in the generator");
@@ -76,9 +76,9 @@ std::set<std::string> TRestGeant4PrimaryGeneratorInfo::GetSharedNodeKeys() const
     return TRestMetadataFieldRegistry::Instance().GetFieldKeys(fSpatialGenerator.get());
 }
 
-void TRestGeant4PrimaryGeneratorInfo::LoadDistributions() {
+void TRestGeant4PrimaryGeneratorInfo::LoadDistributions(long seed) {
     for (auto& source : fSources) source.LoadDistributions();
-    if (auto* cry = dynamic_cast<TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get())) cry->Open();
+    if (auto* cry = dynamic_cast<TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get())) cry->Start(seed);
 }
 
 bool TRestGeant4PrimaryGeneratorInfo::HasDecay0Sources() const {
@@ -96,9 +96,10 @@ bool TRestGeant4PrimaryGeneratorInfo::IsCRY() const {
     return dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get()) != nullptr;
 }
 
-int64_t TRestGeant4PrimaryGeneratorInfo::GetCRYShowersInFile() const {
-    const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
-    return cry ? cry->GetShowersInFile() : 0;
+void TRestGeant4PrimaryGeneratorInfo::SetCRY(const TRestGeant4CRY& cry) {
+    if (auto* generator = dynamic_cast<TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get())) {
+        generator->SetCRY(cry);
+    }
 }
 
 vector<ROOT::Math::XYZVector> TRestGeant4PrimaryGeneratorInfo::GetCRYPlaneCorners() const {
@@ -168,7 +169,7 @@ void TRestGeant4PrimaryGeneratorInfo::Print() const {
     }
     if (IsCRY()) {
         const auto* cry = dynamic_cast<const TRestGeant4SpatialGeneratorCRY*>(fSpatialGenerator.get());
-        RESTMetadata << "CRY showers file: " << cry->fFilename << RESTendl;
+        RESTMetadata << "CRY: " << cry->GetCRYSetup() << RESTendl;
     }
     if (!fSpatialDensityFunction.empty()) {
         RESTMetadata << "Density: " << fSpatialDensityFunction << RESTendl;

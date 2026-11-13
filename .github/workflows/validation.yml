@@ -61,7 +61,7 @@ jobs:
         run: |
           source "$INSTALL_DIR/thisREST.sh"
           restRoot -b -q
-          command -v restManager restG4 restCRY restGarfield femclient
+          command -v restManager restG4 restGarfield femclient
 
       - name: Documentation
         run: cmake --build "$BUILD_DIR" --target doc 2>&1 | tee doxygen.log && ! grep -i "error:" doxygen.log

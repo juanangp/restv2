@@ -29,13 +29,13 @@ units (e.g. `5.3 MeV`, `2 cm`, `30 deg`).
 
 | Class | Description |
 | --- | --- |
-| `TRestGeant4Manager` | Top section of a restG4 configuration: creates the run, the `TRestGeant4Metadata` and the `TRestGeant4PhysicsLists`. |
+| `TRestGeant4Manager` | Top section of a restG4 configuration: creates the run, the `TRestGeant4Metadata`, the `TRestGeant4PhysicsLists` and the `TRestGeant4CRY`, linked to the `cry` generator. |
+| `TRestGeant4CRY` | The options of CRY for the `cry` generator (`subBoxLength`, `latitude`, `altitude`, `date`, `particles` returned, `maxExposureTime`), a section of the `TRestGeant4Manager`. |
 | `TRestGeant4Metadata` | Simulation conditions (geometry, number of events, seed, stored energy range, active volumes with their storage `chance`, `activateAllVolumes`, sensitive and kill volumes, `registerEmptyTracks`, decay chain options, biasing volumes, generator) and the ID tables and biasing results (`biasingTotalFactor`, events and particles per stage) written by restG4; it keeps the geometry with the file. Normalize with `GetEquivalentNumberOfEvents` (`nEvents` without biasing). |
 | `TRestGeant4ActiveVolumeMetadata` | An entry of `activeVolumes`: volume expression, maximum step and sensitive flag. |
 | `TRestGeant4BiasingVolume` | An entry of `biasingVolumes`: a virtual box or sphere (not part of the geometry), an integer factor and an energy range. restG4 simulates in stages: the particles entering each volume (outermost first) are stopped and stored, and replayed `biasingFactor` times by the next stage; only the last stage is written, each event with weight 1 / `biasingTotalFactor` (see the restG4 README). |
 | `TRestGeant4GeometryInfo` | Geometry of the simulation (TGeoManager), volume ID table and volume lookup by regular expression. |
 | `TRestGeant4PhysicsInfo` | Particle and process ID tables (PDG encodings, Geant4 process type * 1000 + subtype). |
-| `TRestGeant4CRYShowers` | Configuration and results of a CRY cosmic-ray shower simulation run by restCRY; the showers file is read by the `cry` generator. |
 
 ## Physics lists
 
@@ -60,7 +60,7 @@ The `generator` section of `TRestGeant4Metadata`; the options and examples are d
 | `TRestGeant4SpatialGeneratorVolume` | `type: volume`: uniform in a GDML volume, box, sphere or cylinder. |
 | `TRestGeant4SpatialGeneratorSurface` | `type: surface`: on the surface of a GDML volume, sphere, cylinder, circle or wall. |
 | `TRestGeant4SpatialGeneratorCosmic` | `type: cosmic`: origin on a sphere around the world from the direction, for a flux. |
-| `TRestGeant4SpatialGeneratorCRY` | `type: cry`: the showers of a restCRY file, one per event. |
+| `TRestGeant4SpatialGeneratorCRY` | `type: cry`: the cosmic-ray showers of CRY (called by restG4 built with CRY), one per event, with the options of the `TRestGeant4CRY` section. |
 | `TRestGeant4ParticleSource` | A `source`: particle with energy and angular distributions, or a Decay0 file. |
 | `TRestGeant4EnergyDistribution` | Base of the energy types: mono, flat, log, formula, TH1D and the joint formula2, TH2D, cosmic (`...Mono`, `...Flat`, `...Log`, `...Formula`, `...TH1D`, `...Joint`). |
 | `TRestGeant4AngularDistribution` | Base of the angular types: flux, isotropic, formula, TH1D and the joint ones (`...Flux`, `...Isotropic`, `...Formula`, `...TH1D`, `...Joint`). |

@@ -1,5 +1,8 @@
 #include "TRestGeant4Manager.h"
 
+#include <stdexcept>
+
+#include "TRestGeant4CRY.h"
 #include "TRestGeant4Metadata.h"
 #include "TRestGeant4PhysicsLists.h"
 #include "TRestLogManager.h"
@@ -40,6 +43,7 @@ void TRestGeant4Manager::LoadConfig() {
     fG4Metadata = nullptr;
     fRunInfo = nullptr;
     fG4PhysicsLists = nullptr;
+    fCRY = nullptr;
 
     for (const auto& element : fNode) {
         const auto key = element.first.as<std::string>();
@@ -63,6 +67,25 @@ void TRestGeant4Manager::LoadConfig() {
             fG4Metadata = G4Meta;
             meta.release();
         }
+        if (auto* cry = dynamic_cast<TRestGeant4CRY*>(meta.get())) {
+            fCRY = cry;
+            meta.release();
+        }
+    }
+
+    // The cry generator takes the options of CRY of their own section, as a process its readout. With
+    // another generator the section is not used (nor stored): the same configuration for several generators
+    const bool cryGenerator = fG4Metadata && fG4Metadata->GetGeant4PrimaryGeneratorInfo().IsCRY();
+    if (cryGenerator && !fCRY) {
+        throw std::runtime_error(
+            "TRestGeant4Manager: the generator type cry needs a section of class TRestGeant4CRY (the options "
+            "of CRY) in the TRestGeant4Manager");
+    }
+    if (cryGenerator) {
+        fG4Metadata->GetGeant4PrimaryGeneratorInfo().SetCRY(*fCRY);
+    } else if (fCRY) {
+        delete fCRY;
+        fCRY = nullptr;
     }
 }
 
@@ -76,6 +99,7 @@ void TRestGeant4Manager::SaveMetadata() {
     // metadata in the output file of the run, and the run is not written by TRestRun::CloseFiles
     fRunInfo->AddMetadata(fRunInfo);
     if (fG4PhysicsLists) fRunInfo->AddMetadata(fG4PhysicsLists);
+    if (fCRY) fRunInfo->AddMetadata(fCRY);
     if (fG4Metadata) {
         fG4Metadata->SyncMetadataMapsFromRuntime();
         fRunInfo->AddMetadata(fG4Metadata);
@@ -88,4 +112,5 @@ void TRestGeant4Manager::PrintMetadata() const {
     if (fRunInfo) fRunInfo->PrintMetadata();
     if (fG4Metadata) fG4Metadata->PrintMetadata();
     if (fG4PhysicsLists) fG4PhysicsLists->PrintMetadata();
+    if (fCRY) fCRY->PrintMetadata();
 }

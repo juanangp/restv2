@@ -371,9 +371,11 @@ Examples: `libraries/detector/examples/DataSetCalibration.yaml`, `examples/DataS
   (spatial: point, volume, surface, cosmic, cry; energy and angular: mono, flat, log, formula, TH1D,
   formula2, TH2D, cosmic). Removed: back to back, the `custom` and `source` types; a Decay0 source is
   `use: "file.dat"`. Options and differences in `libraries/geant4/src/TRestGeant4PrimaryGenerator.cxx`.
-- **CRY**: legacy `TRestGeant4ParticleSourceCry` called CRY during the simulation. Now `restCRY` (optional,
-  built with CRY) writes the showers and their exposure, and the generator `type: "cry"` simulates each
-  shower once, storing `showersUsed` and `exposureTime` (examples in `packages/restG4/examples/12.Generators`).
+- **CRY**: legacy `TRestGeant4ParticleSourceCry` is the generator `type: "cry"` (restG4 built with CRY): CRY
+  is called during the simulation, each event is a whole shower, the options of CRY are in their own section
+  of the `TRestGeant4Manager` (class `TRestGeant4CRY`, as the physics lists) and `showersUsed` and
+  `exposureTime` are stored, with an optional `maxExposureTime` stop (example in
+  `packages/restG4/examples/12.Generators`).
 - **GDML**: no environment variables; `<constant>` and internal entities with defaults, replaced by the
   parameters with the same name. `restG4 config.yaml --update-gdml` writes the parameters into the GDML
   files so that viewers show the geometry simulated. The examples share the `materials.xml` of
@@ -517,12 +519,12 @@ are not migrated.
 | TRestGeant4Event, TRestGeant4Track, TRestGeant4Metadata, TRestGeant4PhysicsLists, TRestGeant4PhysicsInfo, TRestGeant4GeometryInfo, TRestGeant4PrimaryGeneratorInfo, TRestGeant4BiasingVolume, TRestGeant4EventViewer | Same names |
 | TRestGeant4Hits, TRestGeant4Particle | Integrated in TRestGeant4Event / TRestGeant4Track (TRestGeant4ParticleState) |
 | TRestGeant4ParticleSource | Same name; energy and angle are TRestGeant4EnergyDistribution / TRestGeant4AngularDistribution (one class per `type`), position TRestGeant4SpatialGenerator; sampled by TRestGeant4PrimaryGenerator |
-| TRestGeant4ParticleSourceCry | restCRY + TRestGeant4CRYShowers + generator `cry` (TRestGeant4SpatialGeneratorCRY) |
+| TRestGeant4ParticleSourceCry | TRestGeant4CRY + generator `cry` (TRestGeant4SpatialGeneratorCRY, CRY linked to restG4) |
 | TRestGeant4ParticleSourceCosmics, TRestGeant4ParticleSourceDecay0 | Not migrated as classes: `cosmic`/TH2D distributions; Decay0 files with `use` |
 | TRestGeant4AnalysisProcess, TRestGeant4QuenchingProcess | Same names (analysis redesigned with `selections`) |
 | TRestGeant4VetoAnalysisProcess, TRestGeant4NeutronTaggingProcess | Not migrated: TRestGeant4AnalysisProcess (`perVolume`, `interactions`) + TRestGeant4QuenchingProcess |
 | TRestGeant4BlobAnalysisProcess | Not migrated |
-| — | New: TRestGeant4Manager, TRestGeant4CRYShowers |
+| — | New: TRestGeant4Manager, TRestGeant4CRY |
 
 ### Connectors (`libraries/connectors`)
 
@@ -539,7 +541,7 @@ are not migrated.
 
 | Legacy | restv2 |
 |--------|--------|
-| restG4 | `packages/restG4` (restG4, and restCRY) |
+| restG4 | `packages/restG4` (restG4) |
 | Gas generation in TRestDetectorGas | `packages/restGarfield` |
 | FEMDAQ (separate program) | `packages/restDAQ` |
 | restSQL, restP3DB | Not migrated |

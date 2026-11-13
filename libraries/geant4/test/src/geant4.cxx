@@ -1,7 +1,8 @@
 /// Unit tests of the geant4 library (GoogleTest, BUILD_TESTING), without Geant4: TRestGeant4Event and its
 /// tracks filled by hand (as restG4 fills its TRestGeant4EventData), TRestGeant4Metadata, the generator
-/// and the physics lists from YAML strings, the biasing volumes, and the quenching process (Birks and
-/// Lindhard factors on known values) with a small TGeoManager geometry built in memory.
+/// (also the cry one, with a CRY engine for the tests) and the physics lists from YAML strings, the biasing
+/// volumes, and the quenching process (Birks and Lindhard factors on known values) with a small TGeoManager
+/// geometry built in memory.
 
 #include <TGeoManager.h>
 #include <TGeoMaterial.h>
@@ -11,10 +12,13 @@
 #include <TGeoVolume.h>
 #include <TRandom3.h>
 #include <TRestGeant4BiasingVolume.h>
+#include <TRestGeant4CRY.h>
 #include <TRestGeant4EnergyDistribution.h>
 #include <TRestGeant4Event.h>
+#include <TRestGeant4Manager.h>
 #include <TRestGeant4Metadata.h>
 #include <TRestGeant4PhysicsLists.h>
+#include <TRestGeant4PrimaryGenerator.h>
 #include <TRestGeant4PrimaryGeneratorInfo.h>
 #include <TRestGeant4QuenchingProcess.h>
 #include <TRestGeant4SpatialGenerator.h>
@@ -377,6 +381,121 @@ TEST(Geant4Metadata, PointGenerator) {
     EXPECT_DOUBLE_EQ(particles[0].GetEnergy(), 30);
     EXPECT_NEAR(particles[0].GetDirection().Z(), 1, 1e-12);
     EXPECT_NEAR(particles[0].GetOrigin().Z(), -200, 1e-12);
+}
+
+namespace {
+/// A CRY engine for the tests (no CRY): a muon per shower at (100, 0, 0) mm going down, 1 s per shower
+class FakeCRYEngine : public TRestGeant4CRYEngine {
+   public:
+    std::vector<TRestGeant4ParticleState> Generate() override {
+        fShowers++;
+        TRestGeant4ParticleState muon;
+        muon.SetParticleName("mu-");
+        muon.SetEnergy(1e6);
+        muon.SetOrigin({100, 0, 0});
+        muon.SetDirection({0, 0, -1});
+        return {muon};
+    }
+    double GetTimeSimulated() const override { return fShowers * 1e6; }
+
+   private:
+    int fShowers = 0;
+};
+}  // namespace
+
+TEST(Geant4Metadata, CRYGenerator) {
+    // The options of CRY in their own section of the manager, linked to the cry generator
+    const std::string metadataSection =
+        "geant4Metadata:\n"
+        "  class: TRestGeant4Metadata\n"
+        "  seed: 5\n"
+        "  generator:\n"
+        "    type: cry\n"
+        "    position: [0, 1 m, 0]\n"
+        "    verticalAxis: [0, 1, 0]\n";
+    const std::string crySection =
+        "cry:\n"
+        "  class: TRestGeant4CRY\n"
+        "  subBoxLength: 2 m\n"
+        "  latitude: 42\n"
+        "  maxExposureTime: 3 s\n";
+    TRestGeant4Manager manager("g4Manager", YAML::Load(metadataSection + crySection));
+    ASSERT_NE(manager.fG4Metadata, nullptr);
+    ASSERT_NE(manager.fCRY, nullptr);
+    TRestGeant4Metadata& metadata = *manager.fG4Metadata;
+    auto& info = metadata.GetGeant4PrimaryGeneratorInfo();
+    EXPECT_TRUE(info.IsCRY());
+    EXPECT_EQ(metadata.GetNumberOfSources(), 0);
+
+    // The CRY square, from y = 1 m (verticalAxis +Y)
+    const auto corners = info.GetCRYPlaneCorners();
+    ASSERT_EQ(corners.size(), 4u);
+    for (const auto& corner : corners) {
+        EXPECT_NEAR(corner.Y(), 1000, 1e-9);
+        EXPECT_NEAR(std::abs(corner.X()), 1000, 1e-9);
+        EXPECT_NEAR(std::abs(corner.Z()), 1000, 1e-9);
+    }
+
+    // Without engine (restG4 without CRY): an error
+    TRestGeant4SpatialGeneratorCRY::SetEngineFactory(nullptr);
+    EXPECT_FALSE(TRestGeant4SpatialGeneratorCRY::HasEngine());
+    EXPECT_THROW(info.LoadDistributions(metadata.GetSeed()), std::runtime_error);
+
+    std::string setup;
+    long seed = 0;
+    TRestGeant4SpatialGeneratorCRY::SetEngineFactory([&](const std::string& s, long engineSeed) {
+        setup = s;
+        seed = engineSeed;
+        return std::unique_ptr<TRestGeant4CRYEngine>(std::make_unique<FakeCRYEngine>());
+    });
+    EXPECT_TRUE(TRestGeant4SpatialGeneratorCRY::HasEngine());
+    info.LoadDistributions(metadata.GetSeed());
+    EXPECT_EQ(seed, 5);
+    EXPECT_NE(setup.find("latitude 42"), std::string::npos);
+    EXPECT_NE(setup.find("subboxLength 2"), std::string::npos);
+
+    // Two generators (threads) share the CRY generator: the CRY +Z is +Y, the plane at y = 1 m
+    TRestGeant4PrimaryGenerator first(info, 1), second(info, 2);
+    for (auto* generator : {&first, &second, &first}) {
+        const auto particles = generator->Generate();
+        ASSERT_EQ(particles.size(), 1u);
+        EXPECT_EQ(particles[0].GetParticleName(), "mu-");
+        EXPECT_NEAR(particles[0].GetOrigin().X(), 100, 1e-9);
+        EXPECT_NEAR(particles[0].GetOrigin().Y(), 1000, 1e-9);
+        EXPECT_NEAR(particles[0].GetOrigin().Z(), 0, 1e-9);
+        EXPECT_NEAR(particles[0].GetDirection().Y(), -1, 1e-12);
+    }
+    // maxExposureTime (3 s) reached: no more showers
+    EXPECT_TRUE(second.Generate().empty());
+
+    info.UpdateCRYExposure();
+    EXPECT_EQ(metadata.GetCRYShowersUsed(), 3);
+    EXPECT_NEAR(metadata.GetCRYExposureTime(), 3e6, 1e-6);
+    TRestGeant4SpatialGeneratorCRY::SetEngineFactory(nullptr);
+
+    // The cry generator needs the CRY section; with another generator the section is not used
+    EXPECT_THROW(TRestGeant4Manager("g4Manager", YAML::Load(metadataSection)), std::runtime_error);
+    const std::string pointSection =
+        "geant4Metadata:\n"
+        "  class: TRestGeant4Metadata\n"
+        "  generator:\n"
+        "    type: point\n"
+        "    source: {particle: gamma, angular: {type: flux}, energy: {type: mono, energy: 1}}\n";
+    const TRestGeant4Manager pointManager("g4Manager", YAML::Load(pointSection + crySection));
+    EXPECT_EQ(pointManager.fCRY, nullptr);
+
+    // Only some particles: CRY returns only them
+    const TRestGeant4CRY muons("cry", YAML::Load("{subBoxLength: 1 m, particles: [muons, neutrons]}"));
+    EXPECT_TRUE(muons.Returns("muons"));
+    EXPECT_TRUE(muons.Returns("neutrons"));
+    EXPECT_FALSE(muons.Returns("gammas"));
+    EXPECT_NE(muons.GetCRYSetup().find("returnMuons 1 returnPions 0"), std::string::npos);
+    EXPECT_TRUE(manager.fCRY->Returns("electrons"));  // all by default
+    // subBoxLength is needed, the particles known, the altitude one of the CRY tables
+    EXPECT_THROW(TRestGeant4CRY("cry", YAML::Load("{latitude: 42}")), std::runtime_error);
+    EXPECT_THROW(TRestGeant4CRY("cry", YAML::Load("{subBoxLength: 1 m, particles: [muon]}")),
+                 std::runtime_error);
+    EXPECT_THROW(TRestGeant4CRY("cry", YAML::Load("{subBoxLength: 1 m, altitude: 5 m}")), std::runtime_error);
 }
 
 TEST(Geant4Metadata, GeneratorErrors) {

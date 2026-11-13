@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -194,30 +195,47 @@ class TRestGeant4SpatialGeneratorCosmic : public TRestGeant4SpatialGenerator {
     double GetSurfaceCm2() const { return M_PI * fRadius * fRadius * 0.01; }
 };
 
+class TRestGeant4CRY;
+
+/// \class TRestGeant4CRYEngine
+/// \brief The CRY library behind the cry generator. This library does not depend on CRY: restG4, built with
+/// CRY, gives the engine (TRestGeant4SpatialGeneratorCRY::SetEngineFactory).
+class TRestGeant4CRYEngine {
+   public:
+    virtual ~TRestGeant4CRYEngine() = default;
+    /// \brief The particles of a new shower, in CRY coordinates (horizontal plane z = 0, +Z up): Geant4
+    /// names, positions in mm, kinetic energies in keV, times in us relative to the first particle
+    virtual std::vector<TRestGeant4ParticleState> Generate() = 0;
+    /// \brief Time simulated by CRY so far (us): the exposure of the showers generated
+    virtual double GetTimeSimulated() const = 0;
+};
+
 /// \class TRestGeant4SpatialGeneratorCRY
-/// \brief `type: "cry"`: the particles and positions of the showers of a restCRY file (`filename`, see
-/// TRestGeant4CRYShowers), one per event, in order. The CRY plane (z = 0) is centered at `position` and its
-/// +Z (up) is `verticalAxis`. The showers are read by all the copies (threads) from the same file, each one
-/// once; the generator has no sources.
+/// \brief `type: "cry"`: the cosmic-ray showers of CRY, generated during the simulation, one per event with
+/// all its particles, with the options of the TRestGeant4CRY section (SetCRY). The CRY plane (z = 0, the
+/// square of subBoxLength) is centered at `position` and its +Z (up) is `verticalAxis`. The copies
+/// (threads) share the CRY generator; the generator has no sources.
 class TRestGeant4SpatialGeneratorCRY : public TRestGeant4SpatialGenerator {
    public:
-    std::string fFilename;                                      ///< `filename`: the showers file of restCRY
-    std::array<TRestWithUnits, 3> fPosition = {0.0, 0.0, 0.0};  ///< `position`: CRY plane center (mm)
+    std::array<TRestWithUnits, 3> fPosition = {0.0, 0.0, 0.0};      ///< `position`: CRY plane center (mm)
     std::array<TRestWithUnits, 3> fVerticalAxis = {0.0, 1.0, 0.0};  ///< `verticalAxis`: the CRY +Z (up)
 
     /// Results, written at the end of the simulation: showers simulated and their exposure (time simulated
-    /// by CRY times the fraction of the showers of the file simulated)
+    /// by CRY), to normalize to a rate
     int64_t fShowersUsed = 0;
     TRestWithUnits fExposureTime = 0.0;  ///< `exposureTime`: exposure of the showers used (us)
+
+    /// The engine of CRY for a configuration (CRYSetup string, GetCRYSetup) and a seed
+    using EngineFactory = std::function<std::unique_ptr<TRestGeant4CRYEngine>(const std::string&, long)>;
 
     TRestGeant4SpatialGeneratorCRY() = default;
     /// \brief Configured from the `generator` section.
     TRestGeant4SpatialGeneratorCRY(const std::string& name, const YAML::Node& node);
-    /// \brief Reads `type`, `filename`, `position`, `verticalAxis` and the results, and checks them.
+    /// \brief Reads `type`, `position`, `verticalAxis` and the results, and checks them.
     void LoadConfig() override;
     std::string GetClassName() const override { return "TRestGeant4SpatialGeneratorCRY"; }
 
-    /// \brief A copy reading the same file (the showers are shared)
+    /// \brief A copy sharing the CRY generator (once started)
     std::unique_ptr<TRestGeant4SpatialGenerator> Clone() const override {
         return std::make_unique<TRestGeant4SpatialGeneratorCRY>(*this);
     }
@@ -226,27 +244,43 @@ class TRestGeant4SpatialGeneratorCRY : public TRestGeant4SpatialGenerator {
     /// \brief Returns `position`.
     ROOT::Math::XYZVector GetCenter() const override;
 
-    /// \brief Opens the file, shared by the copies made after it (restG4 master thread)
-    void Open();
-    /// \brief The particles of the next shower not simulated yet, in world coordinates (thread safe).
-    /// False if all the showers of the file were simulated
+    /// \brief Sets the engine factory (restG4 built with CRY)
+    static void SetEngineFactory(EngineFactory factory);
+    /// \brief True if there is an engine factory (restG4 built with CRY)
+    static bool HasEngine();
+    /// \brief The CRY options of the TRestGeant4CRY section (TRestGeant4Manager::LoadConfig)
+    void SetCRY(const TRestGeant4CRY& cry);
+    /// \brief True once SetCRY was called
+    bool HasCRY() const { return !fCRYSetup.empty(); }
+    /// \brief maxExposureTime of the TRestGeant4CRY (us, 0: no limit)
+    double GetMaxExposureTime() const { return fMaxExposureTime; }
+    /// \brief Starts CRY with a seed, shared by the copies made after it (restG4 master thread). Throws if
+    /// there is no TRestGeant4CRY or no engine (restG4 built without CRY)
+    void Start(long seed);
+    /// \brief The particles of a new shower, in world coordinates (thread safe). False if maxExposureTime
+    /// was reached
     bool NextShower(std::vector<TRestGeant4ParticleState>& particles);
 
-    /// \brief Showers in the file (the file must be open)
-    int64_t GetShowersInFile() const;
+    /// \brief The configuration string of CRYSetup (lengths in m), of the TRestGeant4CRY
+    inline const std::string& GetCRYSetup() const { return fCRYSetup; }
 
-    /// \brief The corners of the CRY square (subBoxLength of the file) in world coordinates, to check that
-    /// it is inside the world (the file must be open)
+    /// \brief The corners of the CRY square (subBoxLength) in world coordinates, to check that it is inside
+    /// the world
     std::vector<ROOT::Math::XYZVector> GetPlaneCorners() const;
 
-    /// \brief Sets showersUsed and exposureTime from the showers taken (all the copies), also in the YAML
+    /// \brief Sets showersUsed and exposureTime from the showers generated (all the copies), also in the YAML
     void UpdateExposure();
     /// \brief Sets showersUsed and exposureTime, also in the YAML (e.g. a sum of runs)
     void SetExposure(int64_t showers, double exposureTime);
 
    private:
-    struct Reader;
-    std::shared_ptr<Reader> fReader;  //!
+    /// From the TRestGeant4CRY (SetCRY): the CRYSetup string, subBoxLength and maxExposureTime (mm, us)
+    std::string fCRYSetup;        //!
+    double fSubBoxLength = 0;     //!
+    double fMaxExposureTime = 0;  //!
+
+    struct State;
+    std::shared_ptr<State> fState;  //!
 
     /// \brief From CRY coordinates (+Z up) to the world: rotation of +Z to verticalAxis
     ROOT::Math::XYZVector RotateToWorld(const ROOT::Math::XYZVector& v) const;

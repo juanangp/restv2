@@ -129,10 +129,10 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
                     error.what());
     }
 
-    // cry generator: all the showers of the file were simulated
+    // cry generator: its maxExposureTime was reached
     if (particles.empty() && metadata->GetGeant4PrimaryGeneratorInfo().IsCRY()) {
         if (!fSimulationManager->GetAbortFlag()) {
-            G4cout << "Stopping Run! All the showers of the CRY file were simulated" << G4endl;
+            G4cout << "Stopping Run! The maxExposureTime of CRY was reached" << G4endl;
             fSimulationManager->SetGeneratorExhausted();
             fSimulationManager->StopSimulation();
         }

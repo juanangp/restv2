@@ -1,12 +1,11 @@
 # The restG4 package
 
 This package is used to launch Geant4 simulations configured with REST YAML files and to write the
-simulated events as REST run files, analysed with the geant4 library. It also generates cosmic-ray showers
-with CRY.
+simulated events as REST run files, analysed with the geant4 library. Built with CRY, it also simulates
+cosmic-ray showers (the `cry` generator).
 
 `restG4` reads a YAML configuration file and writes a REST run file
-with an event (`TRestGeant4Event`) per simulated event (or sub-event) that is stored. `restCRY` generates
-cosmic-ray showers with CRY for the `cry` generator of restG4.
+with an event (`TRestGeant4Event`) per simulated event (or sub-event) that is stored.
 
 ## Table of Contents
 
@@ -14,15 +13,15 @@ cosmic-ray showers with CRY for the `cry` generator of restG4.
 - Configuration
 - Usage
 - Volume biasing
-- restCRY
+- Cosmic-ray showers with CRY
 - Examples and tests
 - Structure of the output file
 
 ## Build
 
 Optional package, built by default when Geant4 is found (`cmake -DREST_G4=ON|OFF`, `-DGeant4_DIR=...`). It needs
-the geant4 library of REST. `restCRY` is built only if CRY is found (`-DCRY_PATH=<cry>` or the CRY setup script,
-`$CRYHOME`); `-DREST_CRY=OFF` skips it.
+the geant4 library of REST. The `cry` generator needs CRY, linked to `restG4` if it is found (`-DCRY_PATH=<cry>`
+or the CRY setup script, `$CRYHOME`); `-DREST_CRY=OFF` skips it.
 
 ## Configuration
 
@@ -38,6 +37,8 @@ the sections are free, their `class` identifies them):
   Volume biasing)...
 - a `TRestGeant4PhysicsLists`: the Geant4 physics lists (`physicsList`, only the ones supported by restG4, an
   unknown name is an error) and the production cuts.
+- only with the generator `type: "cry"`, a `TRestGeant4CRY`: the options of CRY (see Cosmic-ray showers with
+  CRY).
 
 ```yaml
 parameters:
@@ -72,7 +73,7 @@ g4Manager:
 
 The values can use the `parameters` of the file (`${PARAM:name}`, changed for one execution with `--set`) and
 environment variables (`${ENV:USER}`). The GDML file is resolved relative to the directory of the
-configuration file (then in `geometryPath`), as the files of the generator (histograms, Decay0, cry showers);
+configuration file (then in `geometryPath`), as the files of the generator (histograms, Decay0);
 the output file relative to the launch directory. The entities of the GDML and the parameters used in its
 constants are resolved before Geant4 reads it. A parameter that is used neither by the configuration nor by
 the geometry is an error (a typo). The physical and logical volume names of the geometry must be unique.
@@ -146,8 +147,8 @@ additional conditions to end the simulation early.
   save the results into disk before closing the process.
 
 The same limits can be given in the configuration (`nRequestedEntries`, `simulationMaxTimeSeconds` of the
-`TRestGeant4Metadata`). With the `cry` generator the simulation also ends when all the showers of the file have
-been simulated.
+`TRestGeant4Metadata`). With the `cry` generator and `maxExposureTime` the simulation also ends when CRY has
+simulated that time.
 
 ## Volume biasing
 
@@ -217,15 +218,42 @@ stage, or a stage stores no particle, the simulation ends with a message and the
 The full example is `examples/09.Pb210_Shield/Biasing.yaml` (gammas from a wall towards the lead box, two
 stages of factor 10: weight 1 / 100).
 
-## restCRY
+## Cosmic-ray showers with CRY
 
-`restCRY config.yaml [--set name=value ...]` (the options and the file in any order) generates cosmic-ray
-showers with CRY from the section of class `TRestGeant4CRYShowers` of the configuration (altitude, latitude,
-`subBoxLength`, `nShowers` and/or `exposureTime`) and writes them to its `outputFileName`, relative to the
-configuration as the `filename` of the `cry` generator (both configurations side by side, launched from any
-directory). The `cry` generator of restG4 simulates the showers of that file, one per event, and stores the
-exposure time simulated in the `TRestGeant4Metadata`, to normalize to a rate. See
-`examples/12.Generators/CRYShowers.yaml` and `CRYSimulation.yaml`.
+The generator `type: "cry"` calls CRY during the simulation: each event is a shower, with all its particles. The
+options of CRY are in their own section of the `TRestGeant4Manager`, of class `TRestGeant4CRY` (`subBoxLength`,
+the side of the square where the particles start, `latitude`, `altitude`, `date`, the `particles` returned,
+`maxExposureTime`...), as the physics lists; the generator only places the square: its `position` and its
+`verticalAxis` (the up of CRY) in the geometry. The section is not used with another generator, so a
+configuration can keep it for all its generators. The seed of CRY is the one of the simulation. The simulation
+stops at `nEvents` or, with `maxExposureTime`, when CRY has simulated that time (`nEvents` 0: only then); the
+exposure simulated is stored in the `TRestGeant4Metadata` (`GetCRYExposureTime()`), to normalize to a rate. See
+`examples/12.Generators/CRYSimulation.yaml`.
+
+```yaml
+g4Manager:
+  class: "TRestGeant4Manager"
+  ...
+  geant4Metadata:
+    class: "TRestGeant4Metadata"
+    ...
+    generator:
+      type: "cry"
+      position: [0, 1 m, 0]          # center of the CRY square, above the detector
+      verticalAxis: [0, 1, 0]        # the up of CRY: the showers go down along -Y
+  cry:
+    class: "TRestGeant4CRY"
+    particles: ["muons"]             # all by default
+    subBoxLength: 3 m
+    latitude: 42
+    altitude: 0                      # 0, 2100 m or 11300 m
+    maxExposureTime: 1 day
+```
+
+`particles` lists the particles returned by CRY, of `muons`, `neutrons`, `protons`, `gammas`, `electrons`
+(electrons and positrons), `pions` and `kaons`: e.g. `["muons"]` only the muons, `["neutrons"]` only the
+neutrons, `["gammas", "electrons"]` the electromagnetic component. The showers keep only those particles; the
+exposure is the same, the time simulated by CRY does not depend on the particles kept.
 
 ## Examples and tests
 

@@ -61,7 +61,7 @@ the REST libraries and macros loaded.
 | [libraries/geant4](libraries/geant4/README.md) | Geant4 simulation events and metadata, and their processes. |
 | [libraries/track](libraries/track/README.md) | Track events and their processes. |
 | [libraries/connectors](libraries/connectors/README.md) | Processes converting events between libraries, the DAQ viewer. |
-| [packages/restG4](packages/restG4/README.md) | Geant4 simulation (`restG4`, `restCRY`) and its [examples](packages/restG4/examples/README.md). |
+| [packages/restG4](packages/restG4/README.md) | Geant4 simulation (`restG4`) and its [examples](packages/restG4/examples/README.md). |
 | [packages/restGarfield](packages/restGarfield/README.md) | Garfield++ transport and gain tables of the detector media. |
 | [packages/restDAQ](packages/restDAQ/README.md) | Data taking of AFTER/AGET electronics (`femclient`). |
 | [examples](examples/README.md) | High-level analysis of datasets (log odds, TMVA, signal selection). |
@@ -84,7 +84,7 @@ says so):
 | Software | Version | Enables | CMake option |
 |---|---|---|---|
 | [Geant4](https://geant4.web.cern.ch) | ≥ 11.0 (tested with 11.0.3), with GDML (Xerces-C) and its data | `restG4` (packages/restG4) | `REST_G4` (ON if found, `Geant4_DIR`) |
-| [CRY](https://nuclear.llnl.gov/simulation/main.html) | 1.7 | `restCRY`, cosmic-ray showers for restG4 | `REST_CRY` (ON if found, `CRY_PATH` or `$CRYHOME`) |
+| [CRY](https://nuclear.llnl.gov/simulation/main.html) | 1.7 | `cry` generator of restG4, cosmic-ray showers | `REST_CRY` (ON if found, `CRY_PATH` or `$CRYHOME`) |
 | [Garfield++](https://garfieldpp.web.cern.ch) | ≥ 4.0 | `restGarfield`, transport and gain tables of the media | `REST_GARFIELD` (ON if found, `$GARFIELD_INSTALL`) |
 | readline and [prometheus-cpp](https://github.com/jupp0r/prometheus-cpp) | prometheus-cpp 1.2 (downloaded if not found) | `femclient` (packages/restDAQ) | `REST_DAQ` (OFF by default) |
 | [GoogleTest](https://github.com/google/googletest) | ≥ 1.10 | The tests (`ctest`) | `BUILD_TESTING` (OFF by default) |
@@ -124,7 +124,7 @@ otherwise be found first).
 | `CMAKE_CXX_STANDARD` | 17 | C++ standard (raised automatically if ROOT uses a newer one). |
 | `RestRaw`, `RestDetector`, `RestTrack`, `RestGeant4`, `RestConnectors` | ON | The libraries; the connectors are built only with the libraries they connect. |
 | `REST_G4` | ON | `restG4`; disabled if Geant4 is not found (`Geant4_DIR`). |
-| `REST_CRY` | ON | `restCRY` (packages/restG4, CRY showers for the `cry` generator of restG4); disabled with a warning if CRY is not found (`CRY_PATH` or `$CRYHOME`, set by the CRY setup script). |
+| `REST_CRY` | ON | restG4 with CRY (packages/restG4, the `cry` generator, cosmic-ray showers); disabled with a warning if CRY is not found (`CRY_PATH` or `$CRYHOME`, set by the CRY setup script). |
 | `REST_GARFIELD` | ON | `restGarfield` (transport and gain tables of the media); disabled if Garfield++ is not found (`$GARFIELD_INSTALL` or `Garfield_DIR`). |
 | `REST_DAQ` | OFF | `femclient` (packages/restDAQ); needs readline and prometheus-cpp (found with `find_package`, e.g. `-DCMAKE_PREFIX_PATH=<prometheus-cpp install>`, otherwise downloaded). |
 | `BUILD_TESTING` | OFF | The tests (GoogleTest). |

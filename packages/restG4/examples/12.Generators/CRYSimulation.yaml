@@ -1,12 +1,13 @@
-# restG4 simulation of the showers of CRYShowers.yaml (run restCRY first)
+# restG4 simulation of cosmic-ray showers of CRY (restG4 built with CRY), at sea level, in a 15 cm square
 #
 #    restG4 CRYSimulation.yaml
 #
-# Each event is a shower of the file, in order, with all its particles; the simulation stops when all of
-# them were simulated (nEvents 0: no other limit). The generator section of the stored TRestGeant4Metadata
-# gets showersUsed and exposureTime (TRestGeant4Metadata::GetCRYExposureTime), to normalize to a rate.
-# The geometry is the one of this example (geometry/setup.gdml), a world of 200 mm:
-# the CRY plane (subBoxLength 15 cm) must be inside it.
+# The options of CRY are in the section of class TRestGeant4CRY; the generator only places the CRY square.
+# Each event is a shower of CRY with all its particles. The simulation stops at nEvents or, with
+# maxExposureTime, when CRY has simulated that time (nEvents 0: only then). The generator section of the
+# stored TRestGeant4Metadata gets showersUsed and exposureTime (TRestGeant4Metadata::GetCRYExposureTime), to
+# normalize to a rate. The geometry is the one of this example (geometry/setup.gdml), a world of 200 mm:
+# the CRY square (subBoxLength) must be inside it.
 g4Manager:
   class: "TRestGeant4Manager"
 
@@ -27,7 +28,7 @@ g4Manager:
     gdmlFilename: "geometry/setup.gdml"
     subEventTimeDelay: 100 us
     seed: 137
-    nEvents: 0
+    nEvents: 1000
     saveAllEvents: false
     activeVolumes:
       - name: "gasVolume"
@@ -35,10 +36,20 @@ g4Manager:
         sensitive: true
 
     generator:
-      type: "cry"
-      filename: "cry_showers.root"
-      position: [0, 90, 0 mm]    # center of the CRY plane (its z = 0), above the gas, inside the world
+      type: "cry"                # the options of CRY: the section cry below
+      position: [0, 90, 0 mm]    # center of the CRY square (its z = 0), above the gas, inside the world
       verticalAxis: [0, 1, 0]    # the CRY +Z (up): the showers go down along -Y
+
+  cry:
+    class: "TRestGeant4CRY"
+    subBoxLength: 15 cm          # the square where the particles start, about the size of the geometry
+    latitude: 42                 # geomagnetic latitude, degrees
+    altitude: 0                  # 0, 2100 m or 11300 m
+    date: "7-1-2012"             # month-day-year (solar cycle)
+    # The particles returned (all by default): muons, neutrons, protons, gammas, electrons (and positrons),
+    # pions and kaons, e.g. ["muons"] for only the muons, ["gammas", "electrons"] for the electromagnetic part
+    particles: ["muons", "neutrons", "protons", "gammas", "electrons", "pions", "kaons"]
+    maxExposureTime: 1 day       # optional: also stops when CRY has simulated this time
 
   physicsG4:
     class: "TRestGeant4PhysicsLists"

@@ -41,7 +41,6 @@ analysis trees of many runs are joined in a **dataset** (`TRestDataSet`), proces
 | `restManager` | core ([source/bin](../source/bin/README.md)) | Runs a YAML configuration with a `TRestManager` section: event processing, dataset generation and processing, plots. |
 | `restRoot` | core ([source/bin](../source/bin/README.md)) | ROOT prompt with the REST libraries and macros loaded; opens a REST file given as argument. |
 | `restG4` | [restG4](../packages/restG4/README.md) | Geant4 simulation, writes `TRestGeant4Event`. |
-| `restCRY` | [restG4](../packages/restG4/README.md) | Cosmic-ray showers with CRY, for the `cry` generator of restG4. |
 | `restGarfield` | [restGarfield](../packages/restGarfield/README.md) | Transport and gain tables of a detector medium with Garfield++. |
 | `femclient` | [restDAQ](../packages/restDAQ/README.md) | Data taking with AFTER/AGET electronics, writes REST files. |
 
@@ -149,7 +148,7 @@ expressions of them (`kV/cm`, `mm/us`). A number without units is taken in REST 
 
 ### 2.3 Parameters (`parameters`, `${PARAM:name}`, `--set`)
 
-Any configuration (restManager, restG4, restCRY, restGarfield, femclient) can have a `parameters` section at
+Any configuration (restManager, restG4, restGarfield, femclient) can have a `parameters` section at
 its root: name: value (a number, with units or not, or a text), used anywhere as `${PARAM:name}`:
 
 ```yaml
@@ -920,8 +919,8 @@ The conversions between libraries (Geant4 → hits, hits → tracks, raw ↔ det
   is a REST file with the tree `TRestGeant4Event` (3.7), the metadata and the `Geometry`. The `parameters`
   also replace the GDML `<constant>`s and `<!ENTITY>`s of the same name; `--update-gdml` writes them into the
   GDML files and exits. Normalize with `TRestGeant4Metadata::GetEquivalentNumberOfEvents()`.
-- **restCRY**: `restCRY CRYShowers.yaml` writes cosmic-ray showers (a `TRestGeant4CRYShowers` section),
-  simulated by the restG4 generator `type: "cry"`, which stores the exposure time for rates
+- **CRY**: the restG4 generator `type: "cry"` (restG4 built with CRY) simulates cosmic-ray showers of CRY,
+  one per event, with the options of CRY in a `TRestGeant4CRY` section, and stores the exposure time for rates
   ([12.Generators](../packages/restG4/examples/12.Generators)).
 - **restGarfield** ([README](../packages/restGarfield/README.md)): `restGarfield ArIso.yaml` computes the
   transport and gain tables of a medium with Garfield++ and stores them in its medium file, read by the

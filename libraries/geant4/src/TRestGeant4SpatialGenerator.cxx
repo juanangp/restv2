@@ -1,14 +1,12 @@
 #include "TRestGeant4SpatialGenerator.h"
 
 #include <Math/AxisAngle.h>
-#include <TFile.h>
-#include <TTree.h>
 
 #include <algorithm>
 #include <mutex>
 #include <stdexcept>
 
-#include "TRestGeant4CRYShowers.h"
+#include "TRestGeant4CRY.h"
 #include "TRestGeant4PrimaryGeneratorTypes.h"
 #include "TRestTools.h"
 
@@ -36,7 +34,6 @@ static const bool TRestGeant4SpatialGenerator_FieldsRegistered = []() {
     reg.RegisterField<Cosmic>("radius", &Cosmic::fRadius);
 
     using CRY = TRestGeant4SpatialGeneratorCRY;
-    reg.RegisterField<CRY>("filename", &CRY::fFilename);
     reg.RegisterField<CRY>("position", &CRY::fPosition);
     reg.RegisterField<CRY>("verticalAxis", &CRY::fVerticalAxis);
     reg.RegisterField<CRY>("showersUsed", &CRY::fShowersUsed);
@@ -224,41 +221,18 @@ void TRestGeant4SpatialGeneratorCosmic::SetDefaultRadius(double radius) {
 
 // --- TRestGeant4SpatialGeneratorCRY ---
 
-/// The showers file, shared by the copies of the generator (threads): each shower is given once
-struct TRestGeant4SpatialGeneratorCRY::Reader {
+namespace {
+TRestGeant4SpatialGeneratorCRY::EngineFactory& CRYEngineFactory() {
+    static TRestGeant4SpatialGeneratorCRY::EngineFactory factory;
+    return factory;
+}
+}  // namespace
+
+/// The CRY generator, shared by the copies of the generator (threads): one shower at a time
+struct TRestGeant4SpatialGeneratorCRY::State {
     std::mutex mutex;
-    std::unique_ptr<TFile> file;
-    TTree* tree = nullptr;
-    int64_t entries = 0;
-    int64_t next = 0;
-    double timeSimulated = 0;  // us
-    double subBoxLength = 0;   // mm
-
-    // Branches, allocated by ROOT
-    vector<string>* particle = nullptr;
-    vector<int>* charge = nullptr;
-    vector<double>* energy = nullptr;
-    vector<double>* time = nullptr;
-    vector<double>* positionX = nullptr;
-    vector<double>* positionY = nullptr;
-    vector<double>* positionZ = nullptr;
-    vector<double>* directionX = nullptr;
-    vector<double>* directionY = nullptr;
-    vector<double>* directionZ = nullptr;
-
-    ~Reader() {
-        file.reset();  // and its tree, before the branch objects
-        delete particle;
-        delete charge;
-        delete energy;
-        delete time;
-        delete positionX;
-        delete positionY;
-        delete positionZ;
-        delete directionX;
-        delete directionY;
-        delete directionZ;
-    }
+    std::unique_ptr<TRestGeant4CRYEngine> engine;
+    int64_t showers = 0;
 };
 
 TRestGeant4SpatialGeneratorCRY::TRestGeant4SpatialGeneratorCRY(const string& name, const YAML::Node& node)
@@ -268,7 +242,6 @@ TRestGeant4SpatialGeneratorCRY::TRestGeant4SpatialGeneratorCRY(const string& nam
 
 void TRestGeant4SpatialGeneratorCRY::LoadConfig() {
     UpdateParamsFromYAML<TRestGeant4SpatialGeneratorCRY>(fNode);
-    if (fFilename.empty()) throw runtime_error(GetClassName() + ": 'filename' (restCRY showers) is needed");
     if (ToVector(fVerticalAxis).R() == 0) throw runtime_error(GetClassName() + ": 'verticalAxis' is zero");
     UpdateYAMLFromParams<TRestGeant4SpatialGeneratorCRY>(fNode);
 }
@@ -279,65 +252,43 @@ XYZVector TRestGeant4SpatialGeneratorCRY::Sample(TRandom&) {
 
 XYZVector TRestGeant4SpatialGeneratorCRY::GetCenter() const { return ToVector(fPosition); }
 
-void TRestGeant4SpatialGeneratorCRY::Open() {
-    if (fReader) return;
-    // TFile::Open and the metadata reading change the current directory (e.g. the restG4 output file)
-    TDirectory::TContext context;
-    auto reader = make_shared<Reader>();
-    const string fileName = TRestTools::GetFullPath(fFilename);
-    reader->file.reset(TFile::Open(fileName.c_str(), "READ"));
-    if (!reader->file || reader->file->IsZombie()) {
-        throw runtime_error(GetClassName() + ": cannot open the showers file '" + fFilename + "'");
-    }
-    const auto showers = TRestGeant4CRYShowers::ReadFromFile(reader->file.get());
-    reader->timeSimulated = showers.fTimeSimulated;
-    reader->subBoxLength = showers.fSubBoxLength;
-    reader->file->GetObject(TRestGeant4CRYShowers::kTreeName, reader->tree);
-    if (!reader->tree) {
-        throw runtime_error(GetClassName() + ": no tree '" + TRestGeant4CRYShowers::kTreeName + "' in " +
-                            fFilename);
-    }
-    reader->entries = reader->tree->GetEntries();
-    if (reader->entries == 0) throw runtime_error(GetClassName() + ": no showers in " + fFilename);
+void TRestGeant4SpatialGeneratorCRY::SetEngineFactory(EngineFactory factory) {
+    CRYEngineFactory() = std::move(factory);
+}
 
-    const auto setAddress = [&](const char* branch, auto& address) {
-        if (!reader->tree->GetBranch(branch)) {
-            throw runtime_error(GetClassName() + ": no branch '" + branch + "' in " + fFilename);
-        }
-        reader->tree->SetBranchAddress(branch, &address);
-    };
-    setAddress("particle", reader->particle);
-    setAddress("charge", reader->charge);
-    setAddress("energy", reader->energy);
-    setAddress("time", reader->time);
-    setAddress("positionX", reader->positionX);
-    setAddress("positionY", reader->positionY);
-    setAddress("positionZ", reader->positionZ);
-    setAddress("directionX", reader->directionX);
-    setAddress("directionY", reader->directionY);
-    setAddress("directionZ", reader->directionZ);
-    fReader = reader;
+bool TRestGeant4SpatialGeneratorCRY::HasEngine() { return static_cast<bool>(CRYEngineFactory()); }
+
+void TRestGeant4SpatialGeneratorCRY::SetCRY(const TRestGeant4CRY& cry) {
+    fCRYSetup = cry.GetCRYSetup();
+    fSubBoxLength = cry.fSubBoxLength;
+    fMaxExposureTime = cry.fMaxExposureTime;
+}
+
+void TRestGeant4SpatialGeneratorCRY::Start(long seed) {
+    if (fState) return;
+    if (!HasCRY()) throw runtime_error(GetClassName() + ": no TRestGeant4CRY section (the CRY options)");
+    if (!CRYEngineFactory()) {
+        throw runtime_error(GetClassName() +
+                            ": restG4 was built without CRY (REST_CRY, CRY_PATH or $CRYHOME)");
+    }
+    auto state = make_shared<State>();
+    state->engine = CRYEngineFactory()(fCRYSetup, seed);
+    fState = state;
 }
 
 bool TRestGeant4SpatialGeneratorCRY::NextShower(vector<TRestGeant4ParticleState>& particles) {
-    if (!fReader) throw runtime_error(GetClassName() + ": the showers file is not open");
+    if (!fState) throw runtime_error(GetClassName() + ": CRY is not started");
     particles.clear();
-
+    {
+        lock_guard<mutex> lock(fState->mutex);
+        if (fMaxExposureTime > 0 && fState->engine->GetTimeSimulated() >= fMaxExposureTime) return false;
+        particles = fState->engine->Generate();
+        fState->showers++;
+    }
     const XYZVector center = GetCenter();
-
-    lock_guard<mutex> lock(fReader->mutex);
-    if (fReader->next >= fReader->entries) return false;
-    fReader->tree->GetEntry(fReader->next++);
-    const Reader& r = *fReader;
-    for (size_t i = 0; i < r.particle->size(); i++) {
-        TRestGeant4ParticleState particle;
-        particle.SetParticleName((*r.particle)[i]);
-        particle.SetParticleCharge((*r.charge)[i]);
-        particle.SetEnergy((*r.energy)[i]);
-        particle.SetTime((*r.time)[i]);
-        particle.SetOrigin(RotateToWorld({(*r.positionX)[i], (*r.positionY)[i], (*r.positionZ)[i]}) + center);
-        particle.SetDirection(RotateToWorld({(*r.directionX)[i], (*r.directionY)[i], (*r.directionZ)[i]}));
-        particles.push_back(particle);
+    for (auto& particle : particles) {
+        particle.SetOrigin(RotateToWorld(particle.GetOrigin()) + center);
+        particle.SetDirection(RotateToWorld(particle.GetDirection()));
     }
     return true;
 }
@@ -351,14 +302,8 @@ XYZVector TRestGeant4SpatialGeneratorCRY::RotateToWorld(const XYZVector& v) cons
     return rotation * v;
 }
 
-int64_t TRestGeant4SpatialGeneratorCRY::GetShowersInFile() const {
-    if (!fReader) throw runtime_error(GetClassName() + ": the showers file is not open");
-    return fReader->entries;
-}
-
 vector<XYZVector> TRestGeant4SpatialGeneratorCRY::GetPlaneCorners() const {
-    if (!fReader) throw runtime_error(GetClassName() + ": the showers file is not open");
-    const double half = fReader->subBoxLength / 2;
+    const double half = fSubBoxLength / 2;
     vector<XYZVector> corners;
     for (const double x : {-half, half}) {
         for (const double y : {-half, half}) corners.push_back(RotateToWorld({x, y, 0}) + GetCenter());
@@ -367,13 +312,9 @@ vector<XYZVector> TRestGeant4SpatialGeneratorCRY::GetPlaneCorners() const {
 }
 
 void TRestGeant4SpatialGeneratorCRY::UpdateExposure() {
-    if (!fReader) return;
-    int64_t used = 0;
-    {
-        lock_guard<mutex> lock(fReader->mutex);
-        used = fReader->next;
-    }
-    SetExposure(used, fReader->timeSimulated * used / fReader->entries);
+    if (!fState) return;
+    lock_guard<mutex> lock(fState->mutex);
+    SetExposure(fState->showers, fState->engine->GetTimeSimulated());
 }
 
 void TRestGeant4SpatialGeneratorCRY::SetExposure(int64_t showers, double exposureTime) {

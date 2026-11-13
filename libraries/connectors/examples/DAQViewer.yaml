@@ -21,9 +21,9 @@ parameters:
 readoutManager:
   class: "TRestDetectorReadoutManager"
   readouts:
-    - inputFileName: "/home/juanan/restv2/libraries/detector/examples/iaxo_readout_output.root"
+    - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/IAXO.root"
       instanceName: "IAXO_D1_Readout"
-      decodingName: "nominal_decoding"  # name given to Export (REST_Detector_GenerateMicromegasReadout)
+      decodingName: "nominal_decoding"
     - inputFileName: "/home/juanan/restv2/libraries/detector/examples/veto_readout_output.root"
       instanceName: "Veto_Readout"
       decodingName: "veto_decoding"  # name given to Export (REST_Detector_GenerateGDMLReadout)

@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "TestUtils.h"
 
@@ -42,6 +43,12 @@ TEST(Run, OutputFileName) {
 
     EXPECT_EQ(run.PrefixMainDataPath("/abs/file.root"), "/abs/file.root");
     EXPECT_EQ(run.PrefixMainDataPath("/dev/null"), "/dev/null");
+
+    // Without mainDataPath, the output file name stays relative: to the launch directory, not to the one
+    // where the configuration was read (restG4 reads it from the directory of the configuration file)
+    TRestRun relative("run",
+                      YAML::Load("class: TRestRun\nrunNumber: 7\noutputFileName: \"R[runNumber].root\"\n"));
+    EXPECT_EQ(relative.GetOutputFileName(), "R00007.root");
 }
 
 TEST(Run, NullOutputAndErrors) {
@@ -178,6 +185,40 @@ TEST(Run, ObservablesWhileProcessing) {
     ASSERT_NE(tree, nullptr);
     EXPECT_EQ(tree->GetEntries(), 2);
     EXPECT_NE(tree->GetBranch("proc_label"), nullptr);
+}
+
+TEST(Run, InputObservablesCopied) {
+    const fs::path dir = TestUtils::WorkDir();
+    TestUtils::RunFile description;
+    description.runNumber = 31;
+    const std::string input = TestUtils::WriteRunFile(dir, description);
+
+    // The observables of the input file, read by no process, are copied to the output analysis tree
+    YAML::Node node = YAML::Load("class: TRestRun\ninheritInputRun: true\n");
+    node["inputFileName"] = input;
+    node["outputFileName"] = (dir / "R[runNumber]_Copy.root").string();
+    TRestRun run("run", node);
+    run.OpenOutputFile();
+    std::vector<double> energies;
+    for (long long entry = 0; run.GetEntry(entry); entry++) {
+        energies.push_back(run.GetObservable<double>("ana_energy"));
+        run.Fill();
+    }
+    ASSERT_EQ(energies.size(), 5u);
+    const std::string output = run.GetOutputFileName();
+    run.CloseFiles();
+
+    TFile file(output.c_str(), "READ");
+    auto* tree = file.Get<TTree>("AnalysisTree");
+    ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(tree->GetEntries(), 5);
+    double energy = 0;
+    tree->SetBranchAddress("ana_energy", &energy);
+    for (long long entry = 0; entry < 5; entry++) {
+        tree->GetEntry(entry);
+        EXPECT_DOUBLE_EQ(energy, energies[entry]);
+        EXPECT_NE(energy, 0.);
+    }
 }
 
 TEST(Run, InputRunInherited) {

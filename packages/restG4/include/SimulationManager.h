@@ -9,6 +9,7 @@
 
 #include <G4ThreeVector.hh>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <mutex>
 #include <queue>
@@ -128,6 +129,19 @@ class SimulationManager {
         return 1E-9 * (std::chrono::steady_clock::now().time_since_epoch().count() - fTimeStartUnix);
     }
 
+    /// \brief Records the generation of the primaries of an event now (any thread): the first one is the
+    /// start of the run, the last one its end
+    void SetLastEventGenerated() {
+        const std::chrono::duration<double> now = std::chrono::system_clock::now().time_since_epoch();
+        double none = 0;
+        fFirstEventGeneratedTime.compare_exchange_strong(none, now.count());
+        fLastEventGeneratedTime = now.count();
+    }
+    /// \brief Unix time (s) of the first generation of primaries (0 if none)
+    inline double GetFirstEventGeneratedTime() const { return fFirstEventGeneratedTime; }
+    /// \brief Unix time (s) of the last generation of primaries, stored or not (0 if none)
+    inline double GetLastEventGeneratedTime() const { return fLastEventGeneratedTime; }
+
     /// \brief Adds the events processed by a thread since the last call to the number of processed events
     void SyncStatsFromChild(OutputManager* = fOutputManager);
 
@@ -193,6 +207,8 @@ class SimulationManager {
 
     std::atomic<bool> fAbortFlag{false};
     std::atomic<bool> fGeneratorExhausted{false};
+    std::atomic<double> fFirstEventGeneratedTime{0};
+    std::atomic<double> fLastEventGeneratedTime{0};
 
     std::atomic<int> fBiasingStage{0};
     /// Biasing factor of the previous stage: the replicas of each replayed particle

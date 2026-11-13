@@ -1,6 +1,7 @@
 /// \file restCRY.cxx
 /// \brief restCRY: generates cosmic-ray showers with CRY from the TRestGeant4CRYShowers section of a
-/// configuration and writes them to its outputFileName (overwritten), read by the cry generator of restG4
+/// configuration and writes them to its outputFileName (overwritten; a relative path is relative to the
+/// configuration, as the cry generator of restG4 reads it), read by the cry generator of restG4
 ///
 ///    restCRY config.yaml [--set name=value ...]   (the options and the file in any order)
 ///
@@ -25,6 +26,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -37,6 +39,7 @@
 #include "CRYParticle.h"
 #include "CRYSetup.h"
 #include "TRestGeant4CRYShowers.h"
+#include "TRestTools.h"
 #include "TRestYAMLUtils.h"
 
 namespace {
@@ -116,8 +119,15 @@ int main(int argc, char* argv[]) {
         setup.setRandomFunction(CRYRandom);
         CRYGenerator generator(&setup);
 
-        std::unique_ptr<TFile> file(TFile::Open(showers.fOutputFileName.c_str(), "RECREATE"));
-        if (!file || file->IsZombie()) throw std::runtime_error("cannot create " + showers.fOutputFileName);
+        // Relative to the configuration, where the cry generator of restG4 reads it (relative to its own
+        // configuration): the two configurations side by side, from any launch directory
+        std::filesystem::path outputFile = showers.fOutputFileName;
+        if (outputFile.is_relative() && !TRestTools::IsURL(configFile)) {
+            outputFile = std::filesystem::path(configFile).parent_path() / outputFile;
+        }
+        std::cout << "restCRY: writing " << outputFile.string() << std::endl;
+        std::unique_ptr<TFile> file(TFile::Open(outputFile.c_str(), "RECREATE"));
+        if (!file || file->IsZombie()) throw std::runtime_error("cannot create " + outputFile.string());
         file->cd();
         // Owned by the file
         auto* tree = new TTree(TRestGeant4CRYShowers::kTreeName, "CRY cosmic-ray showers, one per entry");

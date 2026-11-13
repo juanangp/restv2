@@ -31,10 +31,15 @@ cmake -DREST_GARFIELD=ON ..
 ## Usage
 
 ```
-restGarfield <config.yaml> [--set name=value ...]
+restGarfield <config.yaml> [--set name=value ...] [--jobs N]
 ```
 
-`--set` overrides a parameter of the `parameters` section for this execution (repeatable). Example based on
+`--set` overrides a parameter of the `parameters` section for this execution (repeatable). `--jobs N`
+splits the field nodes of each gas transport table in up to N processes, each computing a contiguous part
+of the grid of at least 2 nodes (Magboltz is not thread safe, so processes instead of threads); the table is
+the same. Several media can also run at once as separate `restGarfield` processes, even writing to the same
+medium file (e.g. `Ar99_iC4H10_1`, `Ar98_iC4H10_2`... in `ArIso.root`, each one in `tables/<medium>/`): the
+file is locked while it is read or written. Example based on
 `examples/ArIso.yaml` (installed in `examples/restGarfield`; its `gain` section is commented out there):
 
 ```yaml

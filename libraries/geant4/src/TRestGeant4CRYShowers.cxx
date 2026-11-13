@@ -18,7 +18,8 @@
 /// * nShowers, exposureTime: the simulation stops at the first one reached (0: no limit, at least one is
 ///   needed); exposureTime is the time simulated by CRY.
 /// * seed: of the random generator (0: a random one, written back to the stored metadata).
-/// * outputFileName: the showers file, overwritten if it exists ("cry_showers.root").
+/// * outputFileName: the showers file, overwritten if it exists ("cry_showers.root"); relative to the
+///   configuration (restCRY), as the `filename` of the cry generator of restG4.
 ///
 /// The CRY offsets (xoffset, yoffset, zoffset) are not used: the showers are placed in the geometry by
 /// the `position` and `verticalAxis` of the restG4 generator.

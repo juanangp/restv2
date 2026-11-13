@@ -86,7 +86,8 @@ YAML::Node FindEntry(const YAML::Node& entries, const std::string& key) {
 }
 
 /// Adds or replaces the entry of a table in the metadata of the medium (definition stored if the file has
-/// none) and returns the directory of its graphs, `directory/<key>`, as current directory
+/// none) and returns the directory of its graphs, `directory/<medium>/<key>`, as current directory (a file
+/// can have several media, e.g. the concentrations of a mixture)
 TDirectory* AddEntry(TFile* file, const std::string& medium, const YAML::Node& definition,
                      const std::string& entries, const YAML::Node& entry, const std::string& directory,
                      const std::string& user) {
@@ -104,11 +105,14 @@ TDirectory* AddEntry(TFile* file, const std::string& medium, const YAML::Node& d
     metadata[entries] = tables;
     TRestMetadata::WriteMetadata(file, medium, metadata);
 
-    TDirectory* tablesDir = file->GetDirectory(directory.c_str());
-    if (!tablesDir) tablesDir = file->mkdir(directory.c_str());
-    TDirectory* keyDir = tablesDir ? tablesDir->GetDirectory(key.c_str()) : nullptr;
-    if (tablesDir && !keyDir) keyDir = tablesDir->mkdir(key.c_str());
-    if (!keyDir) throw std::runtime_error(user + ": cannot create " + directory + "/" + key);
+    TDirectory* keyDir = file;
+    for (const std::string& name : {directory, medium, key}) {
+        TDirectory* subdirectory = keyDir->GetDirectory(name.c_str());
+        keyDir = subdirectory ? subdirectory : keyDir->mkdir(name.c_str());
+        if (!keyDir) {
+            throw std::runtime_error(user + ": cannot create " + directory + "/" + medium + "/" + key);
+        }
+    }
     keyDir->cd();
     return keyDir;
 }
@@ -343,8 +347,9 @@ TRestDetectorTransportTable TRestDetectorTransportTable::Read(TFile* file, const
     table.fPressureScaling = TRestYAMLUtils::GetParam<bool>(entry, "pressureScaling", true);
     table.fPenning = TRestYAMLUtils::GetParam<double>(entry, "penningRate", 0);
 
-    auto* directory = file->GetDirectory((kTablesDir + "/" + key).c_str());
-    if (!directory) throw std::runtime_error(error + "no directory " + kTablesDir + "/" + key);
+    const std::string path = kTablesDir + "/" + medium + "/" + key;
+    auto* directory = file->GetDirectory(path.c_str());
+    if (!directory) throw std::runtime_error(error + "no directory " + path);
     if (!entry["carriers"]) throw std::runtime_error(error + "no carriers in its entry");
     for (const auto& carrier : entry["carriers"].as<std::vector<std::string>>()) {
         auto& values = table.fCarriers[carrier];
@@ -518,8 +523,9 @@ TRestDetectorGainTable TRestDetectorGainTable::Read(TFile* file, const std::stri
     table.fTableGap = entry["gap"].as<double>();
     table.fPenning = TRestYAMLUtils::GetParam<double>(entry, "penningRate", 0);
 
-    auto* directory = file->GetDirectory((kTablesDir + "/" + key).c_str());
-    if (!directory) throw std::runtime_error(error + "no directory " + kTablesDir + "/" + key);
+    const std::string path = kTablesDir + "/" + medium + "/" + key;
+    auto* directory = file->GetDirectory(path.c_str());
+    if (!directory) throw std::runtime_error(error + "no directory " + path);
     const std::pair<const char*, std::vector<double>*> quantities[] = {{"gain", &table.fGain},
                                                                        {"theta", &table.fTheta}};
     for (const auto& [quantity, values] : quantities) {

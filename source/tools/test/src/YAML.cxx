@@ -1,8 +1,9 @@
 /// Unit tests of the YAML utilities (TRestYAMLUtils.h): the `include` key of the configuration files
-/// (LoadConfigFile), the references ${ENV:VAR}, ${PARAM:name} and ${a.b} with the `parameters` section and
-/// its overrides (ResolveRefs, OpenConfigFile, --set), the checks of the parameters used, the access to the
-/// nodes (GetParam, GetList, GetNodeAtPath, GetMetadataClass...), editing a file in place (SetValuesInFile)
-/// and the metadata of a REST file (ReadMetadataStore). The files are written in a work directory per test.
+/// (LoadConfigFile) and their checks (indentation, repeated keys), the references ${ENV:VAR}, ${PARAM:name}
+/// and ${a.b} with the `parameters` section and its overrides (ResolveRefs, OpenConfigFile, --set), the
+/// checks of the parameters used, the access to the nodes (GetParam, GetList, GetNodeAtPath,
+/// GetMetadataClass...), editing a file in place (SetValuesInFile) and the metadata of a REST file
+/// (ReadMetadataStore). The files are written in a work directory per test.
 
 #include <TDirectory.h>
 #include <TFile.h>
@@ -105,6 +106,62 @@ TEST(YAML, IncludeErrors) {
     WriteFile(dir / "notmap.yaml", "section:\n  include: \"list.yaml\"\n");
     EXPECT_TRUE(
         ThrowsWith([&] { TRestYAMLUtils::LoadConfigFile((dir / "notmap.yaml").string()); }, "must be a map"));
+}
+
+TEST(YAML, WrongIndentation) {
+    const fs::path dir = WorkDir();
+    auto load = [&](const std::string& name) { TRestYAMLUtils::LoadConfigFile((dir / name).string()); };
+
+    // A tab: the line given
+    WriteFile(dir / "tab.yaml", "run:\n  runTag: \"a\"\n\trunNumber: 1\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("tab.yaml"); }, "tab.yaml, line 3: indented with a tab"));
+
+    // A key deeper than those of its section: the file, the line and its text
+    WriteFile(dir / "deeper.yaml", "run:\n  runTag: \"a\"\n    runNumber: 1\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("deeper.yaml"); }, "deeper.yaml, line 3"));
+    EXPECT_TRUE(ThrowsWith([&] { load("deeper.yaml"); }, "    runNumber: 1"));
+
+    // A key repeated in a section, or back in the section of its parent with the name of one of its keys
+    WriteFile(dir / "repeated.yaml", "run:\n  runTag: \"a\"\n  runTag: \"b\"\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("repeated.yaml"); }, "line 3: the key 'runTag' is repeated"));
+    WriteFile(dir / "parent.yaml", "run:\n  runTag: \"a\"\nrunNumber: 1\nrunNumber: 2\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("parent.yaml"); }, "the key 'runNumber' is repeated"));
+
+    // Also in an included file; a key repeated in different sections is valid
+    WriteFile(dir / "main.yaml", "section:\n  include: \"repeated.yaml\"\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("main.yaml"); }, "repeated.yaml, line 3"));
+    WriteFile(dir / "valid.yaml", "a:\n  x: 1\nb:\n  x: 2\nlist:\n  - {x: 1}\n  - {x: 2}\n");
+    EXPECT_NO_THROW(load("valid.yaml"));
+}
+
+TEST(YAML, IncludeURL) {
+    // URLs already in the cache ($REST_HOME/.rest/download, TRestTools::DownloadFile): no network needed
+    const fs::path dir = WorkDir();
+    const char* previous = std::getenv("REST_HOME");
+    const std::string saved = previous ? previous : "";
+    setenv("REST_HOME", dir.c_str(), 1);
+    const fs::path cache = dir / ".rest" / "download";
+    // The remote file includes another one relative to its URL
+    WriteFile(cache / "example.org_rest-common_v1.0_gases_medium.yaml",
+              "include: \"conditions.yaml\"\n"
+              "mediumFile: \"ArIso.root\"\n");
+    WriteFile(cache / "example.org_rest-common_v1.0_gases_conditions.yaml",
+              "pressure: 1 bar\n"
+              "temperature: 293.15\n");
+    WriteFile(dir / "main.yaml",
+              "medium:\n"
+              "  include: \"https://example.org/rest-common/v1.0/gases/medium.yaml\"\n"
+              "  pressure: 1.4 bar\n");
+
+    const YAML::Node config = TRestYAMLUtils::LoadConfigFile((dir / "main.yaml").string());
+    EXPECT_EQ(config["medium"]["mediumFile"].as<std::string>(), "ArIso.root");
+    EXPECT_EQ(config["medium"]["temperature"].as<double>(), 293.15);       // the relative include of the URL
+    EXPECT_EQ(config["medium"]["pressure"].as<std::string>(), "1.4 bar");  // its own keys override
+    if (previous) {
+        setenv("REST_HOME", saved.c_str(), 1);
+    } else {
+        unsetenv("REST_HOME");
+    }
 }
 
 TEST(YAML, Parameters) {

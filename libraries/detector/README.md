@@ -6,13 +6,13 @@ processes of event reconstruction from real detector data (signal shaping, recov
 to hits) and of emulation of the physical response of the detector (electron drift and diffusion,
 avalanche, smearing, light attenuation, spatial transformations, hits to signals).
 
-The detector library (`RestDetector`) describes the detector of restv2 and the processing of its events in
-physical units: the hits (energy deposits, drifted electrons or reconstructed positions) and the signals
-of the readout channels, the readouts that map positions to channels, the medium with its charge and
-light responses and the transport and gain tables computed by restGarfield, the processes that go from
-hits to signals (simulation) and from signals to hits (reconstruction), and the gain map of datasets. The
-conversions from and to other libraries (Geant4 events, raw signals, tracks) are in the
-[connectors library](../connectors/README.md).
+The detector library (`RestDetector`) describes the detector of rest-for-physics-toolkit and the processing of
+its events in physical units: the hits (energy deposits, drifted electrons or reconstructed positions) and the
+signals of the readout channels, the readouts that map positions to channels, the medium with its charge and
+light responses and the transport and gain tables computed by restGarfield, the processes that go from hits to
+signals (simulation) and from signals to hits (reconstruction), and the gain map of datasets. The conversions
+from and to other libraries (Geant4 events, raw signals, tracks) are in the [connectors
+library](../connectors/README.md).
 
 ## Events
 
@@ -92,25 +92,29 @@ The macros are compiled and available in `restRoot` (called directly, without `.
 
 | Macro | Description |
 | --- | --- |
-| `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. |
-| `REST_Detector_GenerateFibreReadout(yamlFile, outputFile, gdmlFile, decodingName)` | Same for a `TRestFibreReadout` (identity decoding without `decodingFile`); with `gdmlFile`, also writes the placements of the fibres to include in the GDML of the simulation as an external entity. |
-| `REST_Detector_GenerateGDMLReadout(yamlFile, outputFile, decodingName)` | Same for a `TRestGDMLReadout` (decoding `veto_decoding` by default; default files those of `libraries/detector/examples`, from the repository root). |
+| `REST_Detector_GenerateMicromegasReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Builds a `TRestMicromegasReadout` from the `readout` section of a YAML file and exports it (decoding `decodingName`, `nominal_decoding` by default) to a ROOT file. With `checkOverlaps`, nothing is written if the geometry has overlaps. Returns 0, or 1 on any error. |
+| `REST_Detector_GenerateFibreReadout(yamlFile, outputFile, gdmlFile, decodingName, checkOverlaps)` | Same for a `TRestFibreReadout` (identity decoding without `decodingFile`); with `gdmlFile`, also writes the placements of the fibres to include in the GDML of the simulation as an external entity. |
+| `REST_Detector_GenerateGDMLReadout(yamlFile, outputFile, decodingName, checkOverlaps)` | Same for a `TRestGDMLReadout` (decoding `veto_decoding` by default; default files those of `libraries/detector/examples`, from the repository root). |
+| `REST_Detector_GenerateReadouts(yamlFile, outputFile, decodingName, checkOverlaps)` | Builds every readout section of a YAML file (`TRestMicromegasReadout`, `TRestGDMLReadout`, `TRestFibreReadout`, e.g. the planes of a detector) and exports them all to the same ROOT file (a single readout file per project; the manager has one entry per readout with the same `inputFileName`). The fibre placements go to `<readout name>_fibres.xml` next to the output. The `decodings` of a readout (name and decoding file) are stored besides the one of `decodingFile`. Returns 0, or 1 on any error (the output file is then removed). |
+| `REST_Detector_AddDecoding(readoutFile, readoutName, decodingFile, decodingName)` | Adds (or replaces) a decoding of a readout already in a readout file without rewriting its geometry, e.g. to update the decoding of a detector (its physical IDs must be among those of the decodings already stored). The readout manager chooses it with `decodingName`. Returns 0, or 1 on any error. |
 | `REST_Detector_ViewMicromegasReadout(instanceName, decodingName, inputFile)` | Imports a readout from its ROOT file (closed after the import), tests the position lookup and draws it with some channels highlighted. |
 | `REST_Detector_ViewGDMLReadout(instanceName, decodingName, inputFile)` | Same for the veto readout. |
 | `REST_Detector_TimeWalk(fileName, method, selection, nEntries, refFraction, smoothingPoints, outputFileName)` | Time walk diagnostic of the pulses of a `TRestDetectorSignalEvent` file: delay against the relative amplitude, the amplitude and the strip distance (strips of the data readout of the file). |
 
 ## Examples
 
-The files of `examples/` are run from that directory (the readout files are found by relative paths),
-except `GDMLReadout.yaml`, whose decoding and GDML paths are relative to the repository root.
+The files of `examples/` are run from that directory, except `GDMLReadout.yaml`, whose decoding and GDML paths
+are relative to the repository root. The pipelines read the readouts of
+[rest-common-readouts](https://github.com/rest-for-physics-toolkit/rest-common-readouts) by URL (`IAXO.root`
+with `IAXO_D1_Readout`, `AlphaCAMM.root` with `AlphaCAMM_Readout`; downloaded once and cached); the veto one
+is generated here.
 
 | File | Contents |
 | --- | --- |
-| `MicromegasReadout.yaml`, `iaxo_d1_iaxolab.dec` | Micromegas readout of IAXO-D1 (120 strips per axis, rotated 45 degrees) and its decoding. |
-| `AlphaCAMM.yaml`, `AlphaCAMM.dec` | Micromegas readout of AlphaCAMM (256 strips per axis, cathode at 90 mm), used by the simulation chains of the connectors library. |
+| `MicromegasReadout.yaml`, `iaxo_d1_iaxolab.dec` | Micromegas readout of IAXO-D1 (120 strips per axis, rotated 45 degrees) and its decoding: an example of the generation of a readout (the one used by the pipelines is `IAXO.root` of rest-common-readouts). |
 | `GDMLReadout.yaml`, `veto.dec` | Veto readout from the GDML of the IAXO restG4 example, with the light guides as readout volumes. |
-| `ReadoutManager.yaml` | `TRestDetectorReadoutManager` section loading both readouts, the Micromegas one as data readout. |
-| `iaxo_readout_output.root`, `veto_readout_output.root`, `AlphaCAMM_readout.root` | Readout files generated by the macros. |
+| `ReadoutManager.yaml` | `TRestDetectorReadoutManager` section loading both readouts (IAXO-D1 of rest-common-readouts and the veto), the Micromegas one as data readout. |
+| `iaxo_readout_output.root`, `veto_readout_output.root` | Readout files generated by the macros. |
 | `SignalToHits.yaml` | Pipeline `TRestDetectorSignalEvent` → `TRestDetectorHitsEvent` with the IAXO-D1 readout. |
 | `SignalRecovery.yaml` | Recovery of dead channels of the IAXO-D1 readout. |
 | `SignalPeaks.yaml` | Peaks and coincidence windows of the signals. |
@@ -120,9 +124,15 @@ Generate and view the readouts (in restRoot):
 
 ```
 REST_Detector_GenerateMicromegasReadout("MicromegasReadout.yaml", "iaxo_readout_output.root")
-REST_Detector_GenerateMicromegasReadout("AlphaCAMM.yaml", "AlphaCAMM_readout.root")
 REST_Detector_ViewMicromegasReadout("IAXO_D1_Readout", "nominal_decoding", "iaxo_readout_output.root")
 REST_Detector_ViewGDMLReadout("Veto_Readout", "veto_decoding", "veto_readout_output.root")
+```
+
+In a CI, with the overlaps checked and the value of the macro as exit code (`-e` and `gSystem->Exit`:
+`restRoot` does not run a bare function call given as argument):
+
+```
+restRoot -b -q -e 'gSystem->Exit(REST_Detector_GenerateReadouts("TREXDM.yaml", "TREXDM.root", "nominal_decoding", true));'
 ```
 
 The veto readout is generated from the repository root (`GDMLReadout.yaml` reads the GDML of

@@ -71,10 +71,11 @@ g4Manager:
 ```
 
 The values can use the `parameters` of the file (`${PARAM:name}`, changed for one execution with `--set`) and
-environment variables (`${ENV:USER}`). The GDML file is resolved relative to the directory of the configuration
-file (then in `geometryPath`); its entities and the parameters used in its constants are resolved before Geant4
-reads it. A parameter that is used neither by the configuration nor by the geometry is an error (a typo). The
-physical and logical volume names of the geometry must be unique.
+environment variables (`${ENV:USER}`). The GDML file is resolved relative to the directory of the
+configuration file (then in `geometryPath`), as the files of the generator (histograms, Decay0, cry showers);
+the output file relative to the launch directory. The entities of the GDML and the parameters used in its
+constants are resolved before Geant4 reads it. A parameter that is used neither by the configuration nor by
+the geometry is an error (a typo). The physical and logical volume names of the geometry must be unique.
 
 The old `.rml` (XML) configuration files of REST are not supported. The full examples are in `examples/` (see
 below), and the options of each section are documented in the classes of the geant4 library
@@ -218,11 +219,13 @@ stages of factor 10: weight 1 / 100).
 
 ## restCRY
 
-`restCRY config.yaml [--set name=value ...]` (the options and the file in any order) generates cosmic-ray showers with CRY from the section of class
-`TRestGeant4CRYShowers` of the configuration (altitude, latitude, `subBoxLength`, `nShowers` and/or
-`exposureTime`) and writes them to its `outputFileName`. The `cry` generator of restG4 simulates the showers of
-that file, one per event, and stores the exposure time simulated in the `TRestGeant4Metadata`, to normalize to a
-rate. See `examples/12.Generators/CRYShowers.yaml` and `CRYSimulation.yaml`.
+`restCRY config.yaml [--set name=value ...]` (the options and the file in any order) generates cosmic-ray
+showers with CRY from the section of class `TRestGeant4CRYShowers` of the configuration (altitude, latitude,
+`subBoxLength`, `nShowers` and/or `exposureTime`) and writes them to its `outputFileName`, relative to the
+configuration as the `filename` of the `cry` generator (both configurations side by side, launched from any
+directory). The `cry` generator of restG4 simulates the showers of that file, one per event, and stores the
+exposure time simulated in the `TRestGeant4Metadata`, to normalize to a rate. See
+`examples/12.Generators/CRYShowers.yaml` and `CRYSimulation.yaml`.
 
 ## Examples and tests
 

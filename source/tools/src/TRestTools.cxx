@@ -673,6 +673,14 @@ std::string TRestTools::GetRESTUserDirectory() {
     return directory.string();
 }
 
+bool TRestTools::IsURL(const std::string& location) {
+    return location.rfind("http://", 0) == 0 || location.rfind("https://", 0) == 0;
+}
+
+std::string TRestTools::GetLocalFile(const std::string& location) {
+    return IsURL(location) ? DownloadFile(location) : location;
+}
+
 std::string TRestTools::DownloadFile(const std::string& url) {
     // The URL goes into a shell command (between single quotes): only the URL characters (RFC 3986) without
     // ' (nor $, `, \, spaces or control characters) are accepted, with a scheme (http://...) first (not an

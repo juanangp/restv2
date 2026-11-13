@@ -122,7 +122,9 @@ void TRestRun::LoadConfig() {
     // A new run number ($REST_HOME/.rest/runNumber)
     if (autoRunNumber) fRunNumber = GetRunNumberAuto();
 
-    fMainDataPath = GetFullPath(fMainDataPath);
+    // Empty: the output file relative to the launch directory (restG4 reads the configuration from its own
+    // directory, which GetFullPath("") would give)
+    if (!fMainDataPath.empty()) fMainDataPath = GetFullPath(fMainDataPath);
 
     if ((fInputFileName.empty() || fInputFileName == "Null") && !fInputFormat.empty()) {
         fInputFileName = ResolveFilePattern(fInputFormat);
@@ -536,6 +538,13 @@ void TRestRun::SyncAnalysisTreeBranches() {
         }
 
         if (outputBranch->GetAddress() != nullptr) {
+            continue;
+        }
+
+        // A branch of numbers not read by any process has no address: CopyAddresses has bound the leaves of
+        // the output branch to those of the input one, and SetAddress(nullptr) would give them a new buffer
+        // (the observable copied as 0)
+        if (inputBranch->GetAddress() == nullptr) {
             continue;
         }
 

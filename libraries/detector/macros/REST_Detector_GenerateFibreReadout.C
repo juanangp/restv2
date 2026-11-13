@@ -26,14 +26,19 @@ TRestFibreReadout* fibreReadout = nullptr;
 /// \param outputFile ROOT file written (RECREATE).
 /// \param gdmlFile File with the placements of the fibres (empty: not written).
 /// \param decodingName Name of the decoding stored with the readout.
+/// \param checkOverlaps Checks the overlaps of the geometry (TRestDetectorReadout::CheckOverlaps) before
+/// exporting it: nothing is written if there is any.
+/// \return 0 on success, 1 on any error; as exit code (e.g. in a CI):
+///     restRoot -b -q -e 'gSystem->Exit(<macro>(...));'
 ///
 /// Usage in restRoot:
 ///
 ///    restRoot
 ///    [0] REST_Detector_GenerateFibreReadout("LiquidO.yaml", "LiquidO_readout.root", "geometry/fibres.xml")
-void REST_Detector_GenerateFibreReadout(const std::string& yamlFile, const std::string& outputFile,
-                                        const std::string& gdmlFile = "",
-                                        const std::string& decodingName = "nominal_decoding") {
+int REST_Detector_GenerateFibreReadout(const std::string& yamlFile, const std::string& outputFile,
+                                       const std::string& gdmlFile = "",
+                                       const std::string& decodingName = "nominal_decoding",
+                                       bool checkOverlaps = false) {
     delete fibreReadout;
     fibreReadout = new TRestFibreReadout(yamlFile, "readout");
 
@@ -43,16 +48,22 @@ void REST_Detector_GenerateFibreReadout(const std::string& yamlFile, const std::
         std::cerr << "[-] Cannot build the readout: " << e.what() << std::endl;
         delete fibreReadout;
         fibreReadout = nullptr;
-        return;
+        return 1;
+    }
+
+    if (checkOverlaps && fibreReadout->CheckOverlaps() > 0) {
+        std::cerr << "[-] Geometry overlaps in the readout " << fibreReadout->GetName() << std::endl;
+        return 1;
     }
 
     std::unique_ptr<TFile> fOut(TFile::Open(outputFile.c_str(), "RECREATE"));
     if (!fOut || fOut->IsZombie()) {
         std::cerr << "[-] Cannot open the output file " << outputFile << std::endl;
-        return;
+        return 1;
     }
     if (!fibreReadout->Export(fOut.get(), fibreReadout->GetName(), decodingName)) {
         std::cerr << "[-] Cannot export the readout to " << outputFile << std::endl;
+        return 1;
     }
     fOut->Close();
 
@@ -62,6 +73,8 @@ void REST_Detector_GenerateFibreReadout(const std::string& yamlFile, const std::
                       << gdmlFile << std::endl;
         } else {
             std::cerr << "[-] Cannot write the fibre placements to " << gdmlFile << std::endl;
+            return 1;
         }
     }
+    return 0;
 }

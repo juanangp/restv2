@@ -46,7 +46,9 @@ class TRestReadoutInfo : public TRestMetadata {
 /// Parameters:
 /// - readout: instance name of the readout of the data; empty: the only readout loaded.
 /// - readouts: list of readouts to import (TRestReadoutInfo): instanceName, decodingName (the name given
-///   to TRestDetectorReadout::Export) and inputFileName (the ROOT file written by Export, or kSelfFile).
+///   to TRestDetectorReadout::Export) and inputFileName (the ROOT file written by Export, or kSelfFile; it
+///   can be a URL, downloaded and cached with TRestTools::GetLocalFile, e.g. a versioned readout of
+///   rest-common).
 ///
 /// The readouts are imported when the manager gets its run (SetRunInfo) or is read from a file
 /// (LoadFromFile). When the manager is written to an output file (WriteMetadata), the imported readouts

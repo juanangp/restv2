@@ -41,13 +41,14 @@ class TFile;
 ///      nCollisions: 10
 ///      maxElectronEnergy: 400 eV
 ///
-/// Medium file, e.g. `ArIso.root`:
+/// Medium file, e.g. `ArIso.root` (it can have several media, e.g. Ar99_iC4H10_1 and Ar98_iC4H10_2,
+/// concentrations of a mixture):
 /// - `RESTMetadataStore/<medium>`: YAML (TObjString, as the other REST metadata) with the medium (name,
 ///   state, components) and `tables`, the list of its transport tables: key, pressure, temperature,
 ///   fieldRange, pressureScaling, penningRate (0 without Penning), carriers and `generator`, the
 ///   configuration that computed it. Adding a table adds (or replaces) its entry.
-/// - `tables/<key>/`: the TGraphs `<medium>_<key>_<carrier>_<quantity>` versus the field in V/cm, with
-///   self-contained titles, for each carrier (electron, hole, ion): driftVelocity (mm/us),
+/// - `tables/<medium>/<key>/`: the TGraphs `<medium>_<key>_<carrier>_<quantity>` versus the field in V/cm,
+///   with self-contained titles, for each carrier (electron, hole, ion): driftVelocity (mm/us),
 ///   longitudinalDiffusion and transversalDiffusion (sqrt(cm)), townsend (impact ionisation) and
 ///   attachment (attachment or trapping) (1/cm).
 ///
@@ -201,13 +202,14 @@ class TRestDetectorTransportTable : public TRestMetadata {
 ///      penningRate: 0.3
 ///
 /// Medium file: an entry per table in `amplifications` of the metadata of the medium (key, pressure,
-/// temperature, gap, fieldRange, penningRate, avalanches and `generator`) and, in `amplification/<key>/`,
-/// the TGraphs `<medium>_<key>_gain` and `<medium>_<key>_theta` versus the field in V/cm and the TH1D
-/// `<medium>_<key>_size_<i>` of the avalanche sizes at the field node i. The key is the condition, gap and
-/// field range, e.g. `1.4bar_293.15K_gap128um_E25000-35000Vcm_Penning0.3`. The gain does not scale with the
-/// pressure (it depends on E/p and p * gap): a table is only used at its pressure and temperature. The
-/// getters take the field in V/mm; log G and theta are interpolated linearly in the field, and a field out
-/// of the range of the table is an error.
+/// temperature, gap, fieldRange, penningRate, avalanches and `generator`) and, in
+/// `amplification/<medium>/<key>/`, the TGraphs `<medium>_<key>_gain` and `<medium>_<key>_theta` versus
+/// the field in V/cm and the TH1D `<medium>_<key>_size_<i>` of the avalanche sizes at the field node i.
+/// The key is the condition, gap and field range, e.g.
+/// `1.4bar_293.15K_gap128um_E25000-35000Vcm_Penning0.3`. The gain does not scale with the pressure (it
+/// depends on E/p and p * gap): a table is only used at its pressure and temperature. The getters take the
+/// field in V/mm; log G and theta are interpolated linearly in the field, and a field out of the range of
+/// the table is an error.
 class TRestDetectorGainTable : public TRestMetadata {
    public:
     /// Directory of the tables in the medium file

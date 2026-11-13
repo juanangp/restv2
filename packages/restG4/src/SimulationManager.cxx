@@ -381,7 +381,9 @@ void OutputManager::UpdateEvent() {
     }
     fEvent->SetID(event->GetEventID());
     fEvent->SetOK(true);
-    fEvent->SetTime(static_cast<double>(time(nullptr)));
+    // Unix time with nanoseconds: a rate in bins shorter than a second
+    const std::chrono::duration<double> now = std::chrono::system_clock::now().time_since_epoch();
+    fEvent->SetTime(now.count());
 
     if (fSimulationManager->GetRestMetadata() != nullptr) {
         fEvent->SetGeant4Metadata(fSimulationManager->GetRestMetadata());

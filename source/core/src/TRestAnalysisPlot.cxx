@@ -56,9 +56,11 @@
 ///   lineColor, lineWidth, lineStyle, fillColor, fillStyle (numbers or names: colors as red or kRed+2
 ///   or #rrggbb, line styles solid, dashed, dotted, dashDotted, fill styles as legacy);
 /// * variables: one (1D) or two (2D, X and Y) of {name, range: [min, max], nBins (100)}; without range
-///   (or min >= max) the range is automatic. The name is an observable or an expression of them (C++, as
-///   the cuts), e.g. "sqrt(hitsAna_MeanX*hitsAna_MeanX + hitsAna_MeanY*hitsAna_MeanY)". Vector observables
-///   fill one entry per element, and can be selected element by element, e.g.
+///   (or min >= max) the range is automatic (with timeDisplay, the X axis is the run: from its start to its
+///   end time). The name is an observable or an expression of them (C++, as the cuts), e.g.
+///   "sqrt(hitsAna_MeanX*hitsAna_MeanX + hitsAna_MeanY*hitsAna_MeanY)" or, for a time with nanoseconds,
+///   "timeSeconds + 1e-9*timeNanoSecs". Vector observables fill one entry per element, and can be selected
+///   element by element, e.g.
 ///   "rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 25]" (the channels of the signals
 ///   over 25); the cuts select events, e.g. "Sum(rawToSignal_SignalsMaxAmplitude > 25) == 1".
 /// A plot with a single histogram can give its keys directly, without `histos`.
@@ -133,6 +135,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <regex>
@@ -693,7 +696,13 @@ void TRestAnalysisPlot::DrawFrame(ROOT::RDF::RNode frame, const std::map<std::st
                 node = node.Define(defined, name);
                 return defined;
             };
-            const auto& x = histo.variables.front();
+            // A time axis without range: the run (the automatic range of ROOT goes beyond it, the rate of
+            // the bins out of the run would be 0), the last event (at the end time) included
+            auto x = histo.variables.front();
+            if (plot.timeDisplay && x.min >= x.max && duration > 0) {
+                x.min = startTime;
+                x.max = std::nextafter(endTime, std::numeric_limits<double>::infinity());
+            }
             HistoResult result;
             if (histo.variables.size() == 1) {
                 const ROOT::RDF::TH1DModel model(histo.name.c_str(), plot.title.c_str(), x.nBins, x.min,

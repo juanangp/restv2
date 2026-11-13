@@ -20,7 +20,9 @@ namespace TRestYAMLUtils {
 /// \brief A YAML configuration file with its `include` keys expanded, at any depth: a map with
 /// `include: "file.yaml"` takes the content of that file (a map, the keys of the section) and its own keys
 /// override it (the maps are merged recursively, lists and scalars replaced); `include: "file.yaml:key"`
-/// takes the section `key` of a file with several. The path is relative to the file that includes it
+/// takes the section `key` of a file with several. The file can be a URL (downloaded and cached,
+/// TRestTools::GetLocalFile; e.g. a versioned file of rest-common), and so the main file; the relative
+/// includes of a URL are relative to its URL. The path is relative to the file that includes it
 /// (absolute paths and ${ENV:VAR} are accepted; not ${PARAM:...}: the parameters are resolved after, by
 /// ResolveRefs, with the `parameters` of the main file only). Included files can include others; a cycle,
 /// a missing file or key, or a content that is not a map throw. E.g.
@@ -28,6 +30,10 @@ namespace TRestYAMLUtils {
 ///     run:
 ///       include: "common/run.yaml"
 ///       runTag: "calib"            # overrides the one of common/run.yaml
+///
+/// Each file is checked: indented with spaces (no tabs), no syntax error (the message gives the file, the
+/// line and its text) and no key repeated in a section (e.g. a key written with the indentation of the
+/// section above).
 YAML::Node LoadConfigFile(const std::string& fileName);
 /// \brief Configuration file (LoadConfigFile, its includes expanded) with its references resolved
 /// (ResolveRefs), the parameters with `overrides`

@@ -136,6 +136,63 @@ jobs:
       - name: restG4 examples
         run: cd "$BUILD_DIR" && ctest -j "$(nproc)" -L '^restG4$' --output-on-failure
 
+  # Image with restv2 installed (/opt/rest), on the environment image, when the tests pass at each push to
+  # master or run by hand on master (tag latest) and each release (its tag): ghcr.io/<owner>/rest. Its
+  # Dockerfile is rest/Dockerfile of the rest-docker repository (built with this repository as context). The
+  # projects and rest-common-readouts use it to run restv2 without building it
+  image:
+    name: Image
+    needs: [unit-tests, restg4-examples]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # All the history and tags: the version of restv2 (git describe)
+      - uses: actions/checkout@v4
+        with:
+          path: rest-framework
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/rest-docker
+          path: rest-docker
+
+      # The image name must be lowercase
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/rest" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=ref,event=tag
+            type=sha
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: rest-framework
+          file: rest-docker/rest/Dockerfile
+          build-args: |
+            BASE_IMAGE=${{ vars.RESTV2_IMAGE || format('ghcr.io/{0}/rest-env:latest', github.repository_owner) }}
+            JOBS=4
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   # macOS (Apple Clang, ROOT of Homebrew): build, install, restRoot and unit tests. Without Geant4, Garfield++,
   # CRY and restDAQ (the DAQ runs on Linux; restG4, restGarfield and restDAQ are checked on Linux). Not
   # required by the protection of master yet

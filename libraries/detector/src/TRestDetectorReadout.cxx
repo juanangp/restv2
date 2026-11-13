@@ -5,6 +5,7 @@
 #include <TGeoMatrix.h>
 #include <TGeoMedium.h>
 #include <TGeoNode.h>
+#include <TGeoOverlap.h>
 #include <TGeoVolume.h>
 
 #include <algorithm>
@@ -43,6 +44,7 @@ TDirectory* GetOrMakeSubDirectory(TDirectory* parent, const char* name) {
 static const bool TRestDetectorReadout_FieldsRegistered = []() {
     auto& reg = TRestMetadataFieldRegistry::Instance();
     reg.RegisterField<TRestDetectorReadout>("decodingFile", &TRestDetectorReadout::fDecodingFile);
+    reg.RegisterField<TRestDetectorReadout>("decodings", &TRestDetectorReadout::fDecodings);
     reg.RegisterField<TRestDetectorReadout>("volumeToPhysicalIDMap",
                                             &TRestDetectorReadout::fPathToPhysicalIDMap);
     return true;
@@ -133,6 +135,44 @@ static bool ParseDecodingString(const std::string& text, std::map<int, int>& dec
     }
 
     return (linesParsed > 0);
+}
+
+/// \brief Decoding text (`daqChannel physicalID` rows) of a decoding map.
+static std::string DecodingToString(const std::map<int, int>& decodingMap) {
+    std::stringstream ss;
+    ss << "# daqChannel\tphysicalID\n";
+    for (const auto& [physicalID, daqID] : decodingMap) ss << daqID << "\t" << physicalID << "\n";
+    return ss.str();
+}
+
+/// \brief Reads and parses a decoding file; false (with an error) if it cannot be read or parsed.
+static bool ReadDecodingFile(const std::string& fileName, std::map<int, int>& decodingMap) {
+    std::ifstream file(fileName);
+    if (!file.is_open()) {
+        RESTError << "Decoding: cannot open the decoding file " << fileName << RESTendl;
+        return false;
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    if (!ParseDecodingString(buffer.str(), decodingMap)) {
+        RESTError << "Decoding: no valid row in " << fileName << RESTendl;
+        return false;
+    }
+    return true;
+}
+
+/// \brief Writes a decoding text in Readouts/<geometryName>/Decodings/<decodingName> (replacing it).
+static bool WriteDecodingText(TFile* file, const std::string& geometryName, const std::string& decodingName,
+                              const std::string& text) {
+    TDirectory* readoutDir =
+        GetOrMakeSubDirectory(GetOrMakeSubDirectory(file, kReadoutsDir), geometryName.c_str());
+    TDirectory* decodings = GetOrMakeSubDirectory(readoutDir, kDecodingsDir);
+    if (!decodings) return false;
+    decodings->cd();
+    TObjString object(text.c_str());
+    object.Write(decodingName.c_str(), TObject::kOverwrite);
+    file->cd();
+    return true;
 }
 
 void TRestDetectorReadout::ViewReadoutGeometry(const std::string& option) const {
@@ -531,6 +571,20 @@ bool TRestDetectorReadout::Export(TFile* fOut, const std::string& geometryName,
 
     fOut->cd();
 
+    // The additional decodings (`decodings`)
+    for (const auto& [name, fileName] : fDecodings) {
+        std::map<int, int> decodingMap;
+        if (name == decodingName) {
+            RESTError << "TRestDetectorReadout: the decoding '" << name
+                      << "' of `decodings` has the name of the one of decodingFile" << RESTendl;
+            return false;
+        }
+        if (!ReadDecodingFile(fileName, decodingMap) ||
+            !WriteDecodingText(fOut, resolvedGeometryName, name, DecodingToString(decodingMap))) {
+            return false;
+        }
+    }
+
     try {
         WriteMetadata(fOut, resolvedGeometryName, fNode);
     } catch (const std::exception& e) {
@@ -551,4 +605,58 @@ void TRestDetectorReadout::SetGeoManager(TGeoManager* geo) {
     if (geo == fGeoManager) return;
     ReleaseGeometry();
     fGeoManager = geo;
+}
+
+int TRestDetectorReadout::CheckOverlaps(double tolerance) const {
+    if (!fGeoManager) return 0;
+    fGeoManager->ClearOverlaps();
+    fGeoManager->CheckOverlaps(tolerance);
+    return PrintOverlaps(fGeoManager);
+}
+
+int TRestDetectorReadout::PrintOverlaps(TGeoManager* geometry) {
+    TObjArray* overlaps = geometry->GetListOfOverlaps();
+    const int n = overlaps ? overlaps->GetEntriesFast() : 0;
+    for (int i = 0; i < n; i++) static_cast<TGeoOverlap*>(overlaps->At(i))->Print();
+    std::cout << "[" << (n ? "-" : "+") << "] Overlaps found: " << n << std::endl;
+    return n;
+}
+
+bool TRestDetectorReadout::AddDecoding(TFile* file, const std::string& geometryName,
+                                       const std::string& decodingName, const std::string& decodingFile) {
+    // std::cerr: in a static member function RESTError finds the GetLogContext of the object (there is none)
+    const std::string error = "TRestDetectorReadout::AddDecoding: readout '" + geometryName + "': ";
+    if (!file || file->IsZombie() || !file->IsWritable()) {
+        std::cerr << error << "the file is not open for writing (UPDATE)" << std::endl;
+        return false;
+    }
+    // The physical IDs of the readout: those of the decodings already stored
+    std::set<int> physicalIDs;
+    TDirectory* readoutDir = GetSubDirectory(GetSubDirectory(file, kReadoutsDir), geometryName.c_str());
+    TDirectory* decodings = GetSubDirectory(readoutDir, kDecodingsDir);
+    if (!decodings) {
+        std::cerr << error << "not in the file " << file->GetName() << std::endl;
+        return false;
+    }
+    for (const auto& name : GetDecodingNames(file, geometryName)) {
+        auto* stored = dynamic_cast<TObjString*>(decodings->Get(name.c_str()));
+        std::map<int, int> storedMap;
+        if (stored && ParseDecodingString(stored->GetString().Data(), storedMap)) {
+            for (const auto& entry : storedMap) physicalIDs.insert(entry.first);
+        }
+    }
+
+    std::map<int, int> decodingMap;
+    if (!ReadDecodingFile(decodingFile, decodingMap)) return false;
+    for (const auto& entry : decodingMap) {
+        if (!physicalIDs.count(entry.first)) {
+            std::cerr << error << "physical ID " << entry.first << " of " << decodingFile
+                      << " not in its decodings" << std::endl;
+            return false;
+        }
+    }
+    if (!WriteDecodingText(file, geometryName, decodingName, DecodingToString(decodingMap))) return false;
+    std::cout << "[+] Decoding '" << decodingName << "' (" << decodingMap.size() << " channels) added to "
+              << geometryName << " in " << file->GetName() << std::endl;
+    return true;
 }

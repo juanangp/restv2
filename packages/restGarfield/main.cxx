@@ -1,10 +1,11 @@
 /// \file main.cxx
 /// \brief restGarfield: computes with Garfield++ the tables of a TRestDetectorTransportManager configuration
 ///
-///    restGarfield config.yaml [--set name=value ...]
+///    restGarfield config.yaml [--set name=value ...] [--jobs N]
 ///
 /// `--set` sets a parameter of the section `parameters` of the configuration for this execution
-/// (repeatable; the file is not changed). Any other argument is an error.
+/// (repeatable; the file is not changed). `--jobs N` splits the field nodes of each gas transport table in up
+/// to N processes (Magboltz is not thread safe; default 1). Any other argument is an error.
 ///
 ///    transportManager:
 ///      class: "TRestDetectorTransportManager"
@@ -23,6 +24,7 @@
 /// then the gain tables. The classes are in the detector library (they do not depend on Garfield++); this
 /// package only computes the tables.
 
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <map>
@@ -39,19 +41,27 @@
 /// \return 0 on success, 1 on a usage error or an exception (the reason is printed).
 int main(int argc, char* argv[]) {
     if (argc < 2 || std::string(argv[1]).rfind("--", 0) == 0) {
-        std::cerr << "Usage: restGarfield <config.yaml> [--set name=value ...]" << std::endl;
+        std::cerr << "Usage: restGarfield <config.yaml> [--set name=value ...] [--jobs N]" << std::endl;
         return 1;
     }
 
     try {
         // --set: the parameters of the configuration for this execution (the file is not changed)
         std::map<std::string, std::string> parameters;
+        int jobs = 1;
         for (int i = 2; i < argc; i++) {
-            if (std::string(argv[i]) != "--set" || i + 1 >= argc) {
-                throw std::runtime_error("unknown argument '" + std::string(argv[i]) +
-                                         "', usage: restGarfield <config.yaml> [--set name=value ...]");
+            const std::string argument = argv[i];
+            if (argument == "--set" && i + 1 < argc) {
+                TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
+            } else if (argument == "--jobs" && i + 1 < argc) {
+                char* end = nullptr;
+                jobs = std::strtol(argv[++i], &end, 10);
+                if (*end != '\0' || jobs < 1) throw std::runtime_error("--jobs: a number >= 1 expected");
+            } else {
+                throw std::runtime_error("unknown argument '" + argument +
+                                         "', usage: restGarfield <config.yaml> [--set name=value ...] "
+                                         "[--jobs N]");
             }
-            TRestYAMLUtils::AddParameterOverride(parameters, argv[++i]);
         }
         const YAML::Node config = TRestYAMLUtils::OpenConfigFile(argv[1], parameters);
         const auto section = TRestYAMLUtils::GetMetadataClass(config, "TRestDetectorTransportManager");
@@ -69,7 +79,7 @@ int main(int argc, char* argv[]) {
         manager.PrintMetadata();
         const bool verbose = manager.GetVerboseLevel() >= TRestLogManager::REST_Verbose_Level::REST_Info;
         for (const auto& table : manager.fTransport)
-            RunTransportSimulation(*manager.fMedium, *table, verbose);
+            RunTransportSimulation(*manager.fMedium, *table, verbose, jobs);
         for (const auto& table : manager.fGain) RunGainSimulation(*manager.fMedium, *table, verbose);
     } catch (const std::exception& error) {
         std::cerr << "restGarfield: " << error.what() << std::endl;

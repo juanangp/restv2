@@ -6,12 +6,12 @@ includes processes of signal conditioning (channel selection, baseline correctio
 saturation recovery, shaping, noise addition) and pulse-shape analysis, and defines the event and the
 configuration of the data taking of restDAQ.
 
-The raw library (`RestRaw`) holds the raw signal event of restv2, the event of the data acquisition
-(restDAQ) and its configuration, and the processes that read the files of the DAQs, process the raw
-signals and compute pulse-shape observables. A raw signal is a vector of 16-bit ADC samples identified by
-its signal ID (the DAQ channel); the decoding into readout channels and the conversion into detector
-signals are done by the detector and connectors libraries (e.g. `TRestRawToDetectorSignalProcess`, in the
-[connectors library](../connectors/README.md)).
+The raw library (`RestRaw`) holds the raw signal event of rest-for-physics-toolkit, the event of the data
+acquisition (restDAQ) and its configuration, and the processes that read the files of the DAQs, process the
+raw signals and compute pulse-shape observables. A raw signal is a vector of 16-bit ADC samples identified by
+its signal ID (the DAQ channel); the decoding into readout channels and the conversion into detector signals
+are done by the detector and connectors libraries (e.g. `TRestRawToDetectorSignalProcess`, in the [connectors
+library](../connectors/README.md)).
 
 ## Events and metadata
 
@@ -78,7 +78,7 @@ The examples are in `examples/`; the paths are relative to the repository root.
 | File | Description |
 | --- | --- |
 | `MultiFEMINOSToRaw.yaml` | Decodes a `.aqs` file of the Feminos cards into `TRestRawSignalEvent` (`RawSignals.root`). |
-| `FeminosRootToRaw.yaml` | Reads a ROOT file of feminos-daq and runs the chain to tracks: common noise reduction, raw to detector signals, hits and track analysis (processes of the detector, connectors and track libraries). It loads the readout `libraries/detector/examples/iaxo_readout_output.root` and the gas file `testdata/ArIso.root`, relative to the repository root (run it from there). |
+| `FeminosRootToRaw.yaml` | Reads a ROOT file of feminos-daq and runs the chain to tracks: common noise reduction, raw to detector signals, hits and track analysis (processes of the detector, connectors and track libraries). It loads the readout `IAXO.root` and the transport tables `ArIso.root` (medium `Ar99_iC4H10_1`) of [rest-common-readouts](https://github.com/rest-for-physics-toolkit/rest-common-readouts) and [rest-common-transport](https://github.com/rest-for-physics-toolkit/rest-common-transport) by URL. |
 | `RawSignalAnalysis.yaml` | Raw signal analysis (`TRestRawSignalAnalysisProcess`, all its observables) of a file with `TRestRawSignalEvent`, keeping its run. |
 | `VetoAnalysis.yaml` | Veto analysis (legacy `TRestRawVetoAnalysisProcess`) with the existing processes: keeps the veto channels, corrects their baseline and computes their amplitude and peak time; the comments give the legacy observables as expressions. |
 

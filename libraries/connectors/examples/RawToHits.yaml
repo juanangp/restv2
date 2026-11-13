@@ -11,9 +11,9 @@ manager:
   readoutManager:
     class: "TRestDetectorReadoutManager"
     readouts:
-      - inputFileName: "libraries/detector/examples/iaxo_readout_output.root"
+      - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/IAXO.root"
         instanceName: "IAXO_D1_Readout"
-        decodingName: "nominal_decoding"  # name given to Export (REST_Detector_GenerateMicromegasReadout)
+        decodingName: "nominal_decoding"
 
   run:
     class: "TRestRun"

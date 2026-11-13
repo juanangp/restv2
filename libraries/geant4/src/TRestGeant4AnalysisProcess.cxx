@@ -35,8 +35,14 @@
 ///     or where a gamma leaves it), to compare with the reconstructed tracks;
 ///   - <name>_InitialEnergy and _InitialX/Y/Z: kinetic energy and position where it was created.
 ///   If the energy is given only by particles created in the volumes (e.g. a source inside the gas),
-///   <name>_NEntering is 0, the strings are empty and the numbers NaN. Its cost is a walk over the
-///   ancestors of the tracks with energy in the selection.
+///   <name>_NEntering is 0 and these observables are those of the primary created in the volumes with
+///   the lowest ID (the first ancestor of the tracks with energy, e.g. the alpha of the source): the
+///   entry is its first hit, where it starts. A primary at rest (an ion that decays, e.g. Po210) is not
+///   one: its products are; to take only one of them (e.g. the alpha, not the recoil nucleus or the
+///   gammas), a selection with `particles: ["alpha"]`. A track whose parent is not in the event (removed
+///   without hits, `registerEmptyTracks: false`) is also taken as created in the volumes. Without such a
+///   primary, the strings are empty and the numbers NaN. Its cost is a walk over the ancestors of the
+///   tracks with energy in the selection.
 ///
 /// * With `perVolume: true`: <name>_<volume>_Energy, the energy of each volume of the selection (the
 ///   geometry name with the characters not allowed as `_`; an error if two volumes give the same one),
@@ -564,8 +570,9 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
     };
     const auto& indexOfID = event.GetTrackIDToTrackIndex();
 
-    // Indices of the entering tracks, by track ID
+    // Indices of the entering tracks and of the primaries created in the volumes, by track ID
     std::map<int, size_t> enteringTracks;
+    std::map<int, size_t> insidePrimaries;
     for (const size_t t : selection.trackIndices) {
         // The track itself or the first ancestor whose first hit is out of the volumes
         size_t current = t;
@@ -575,15 +582,30 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
                 break;
             }
             const auto parent = indexOfID.find(data.parentIDs[current]);
-            if (data.parentIDs[current] == 0 || parent == indexOfID.end()) break;
+            // The product of a primary at rest (an ion that decays, e.g. the alpha of Po210): as a primary
+            if (parent != indexOfID.end() && data.parentIDs[parent->second] == 0 &&
+                data.trackInitialEnergies[parent->second] == 0) {
+                if (data.trackNHits[current] > 0) insidePrimaries.emplace(data.trackIDs[current], current);
+                break;
+            }
+            if (data.parentIDs[current] == 0 || parent == indexOfID.end()) {
+                // A primary starting in the volumes (e.g. a source in the gas), or a track whose parent is
+                // not in the event (removed without hits, registerEmptyTracks: false): it starts there
+                const bool primary = data.parentIDs[current] == 0 && data.trackInitialEnergies[current] != 0;
+                if ((primary || data.parentIDs[current] != 0) && data.trackNHits[current] > 0) {
+                    insidePrimaries.emplace(data.trackIDs[current], current);
+                }
+                break;
+            }
             current = static_cast<size_t>(parent->second);
         }
     }
 
     entering.nEntering = static_cast<int>(enteringTracks.size());
-    if (enteringTracks.empty()) return;
+    const auto& tracks = enteringTracks.empty() ? insidePrimaries : enteringTracks;
+    if (tracks.empty()) return;
 
-    const size_t t = enteringTracks.begin()->second;
+    const size_t t = tracks.begin()->second;
     entering.particle = event.GetParticleName(data.trackParticleIDs[t]);
     const auto parent = indexOfID.find(data.parentIDs[t]);
     if (data.parentIDs[t] != 0 && parent != indexOfID.end()) {
@@ -595,7 +617,7 @@ void TRestGeant4AnalysisProcess::ProcessEntering(const TRestGeant4Event& event, 
     entering.initialY = data.trackInitialPositionY[t];
     entering.initialZ = data.trackInitialPositionZ[t];
 
-    // First and last hits in the volumes, the track entered them so there is at least one
+    // First and last hits in the volumes, the track entered them or starts in them so there is at least one
     const size_t start = data.trackStartIndices[t];
     bool entered = false;
     for (size_t h = start; h < start + data.trackNHits[t]; h++) {

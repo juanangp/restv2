@@ -31,9 +31,7 @@ const std::regex kConstant(R"re(<(constant|variable)\b[^>]*>)re");
 const std::regex kName(R"re(\bname\s*=\s*"([^"]*)")re");
 const std::regex kValue(R"re(\bvalue\s*=\s*"[^"]*")re");
 
-bool IsURL(const std::string& location) {
-    return location.rfind("http://", 0) == 0 || location.rfind("https://", 0) == 0;
-}
+using TRestTools::IsURL;
 
 std::string ReadText(const std::string& fileName) {
     std::ifstream input(fileName);
@@ -44,9 +42,7 @@ std::string ReadText(const std::string& fileName) {
 }
 
 /// The text of a GDML file or URL
-std::string ReadLocation(const std::string& location) {
-    return ReadText(IsURL(location) ? TRestTools::DownloadFile(location) : location);
-}
+std::string ReadLocation(const std::string& location) { return ReadText(TRestTools::GetLocalFile(location)); }
 
 /// Location of an entity file, relative to the file (or URL) that includes it
 std::string EntityLocation(const std::string& system, const std::string& base) {

@@ -6,7 +6,7 @@
              (% written &#37; in an entity; restG4 option set: gas=XenonNeon2.3%Isobutane1.5bar) -->
         <!ENTITY gas "Xenon30&#37;Neon1.5bar">
         <!ENTITY geometry SYSTEM "geometry.gdml">
-		<!ENTITY materials SYSTEM "materials.xml">
+		<!ENTITY materials SYSTEM "https://github.com/rest-for-physics-toolkit/rest-common-materials/releases/download/v1.0/materials.xml">
         ]>
 
 <gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

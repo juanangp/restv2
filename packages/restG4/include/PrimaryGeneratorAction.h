@@ -36,6 +36,10 @@ class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
     /// records the wall time of the generation in the OutputManager
     void GeneratePrimaries(G4Event*) override;
 
+    /// \brief The Geant4 particle of a name, or an ion by its name (e.g. Pb210) and excitation (keV); nullptr
+    /// if none. After /run/initialize (the ions are created by the physics)
+    static G4ParticleDefinition* FindGeant4Particle(const std::string& name, double excitation);
+
    private:
     SimulationManager* fSimulationManager;
 

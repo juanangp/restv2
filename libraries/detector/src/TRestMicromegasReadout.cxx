@@ -261,15 +261,21 @@ void TRestMicromegasReadout::BuildGeometry() {
     std::cout << "[+] Geometry built: " << nodeCounter << " pixels in a single plane." << std::endl;
 
     if (fReadoutParams.fCheckOverlaps) {
-        // Only the direct daughters of readoutGeom (strips + gas) are checked, which covers X vs Y pixel
-        // overlaps: pixels inside a strip cannot overlap by construction. Sampling ("s<npoints>") since the
-        // full pairwise check is unaffordable
-        std::cout << "[*] Checking geometry overlaps (sampling)..." << std::endl;
-        fGeoManager->ClearOverlaps();
-        readoutGeom->CheckOverlaps(0.001, "s1000");
-        std::cout << "[+] Overlaps found: " << fGeoManager->GetListOfOverlaps()->GetEntriesFast()
-                  << std::endl;
+        const int overlaps = CheckOverlaps();
+        if (overlaps > 0) {
+            throw std::runtime_error("TRestMicromegasReadout::BuildGeometry - " + std::to_string(overlaps) +
+                                     " geometry overlaps in '" + GetName() + "'");
+        }
     }
+}
+
+int TRestMicromegasReadout::CheckOverlaps(double tolerance) const {
+    TGeoVolume* plane = fGeoManager ? fGeoManager->GetVolume("readout_geom_rect") : nullptr;
+    if (!plane) return 0;
+    std::cout << "[*] Checking geometry overlaps (sampling)..." << std::endl;
+    fGeoManager->ClearOverlaps();
+    plane->CheckOverlaps(tolerance, "s1000");
+    return PrintOverlaps(fGeoManager);
 }
 
 std::pair<int, int> TRestMicromegasReadout::GetAdjacentChannels(int daqID) const {

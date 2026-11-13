@@ -76,6 +76,11 @@ void DeleteGeometry(TGeoManager* geometry);
 /// already there; throws if it cannot be downloaded or if the URL has characters that are not safe in a
 /// shell command (', $, `, \, spaces, control characters...: only the RFC 3986 ones) or no scheme (http://)
 std::string DownloadFile(const std::string& url);
+/// \brief Whether a location is a URL (http:// or https://)
+bool IsURL(const std::string& location);
+/// \brief Local file of a location: a URL downloaded (DownloadFile, cached), otherwise the location itself.
+/// For the input files that can be given as URLs (e.g. the versioned files of rest-common).
+std::string GetLocalFile(const std::string& location);
 /// \brief Directory of the files of REST of the user (history, settings, downloads...): $REST_HOME/.rest, or
 /// $HOME/.rest without REST_HOME; created if it does not exist. Throws if neither is defined.
 std::string GetRESTUserDirectory();

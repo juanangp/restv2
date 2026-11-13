@@ -1,6 +1,7 @@
 #ifndef RESTGARFIELD_TRANSPORTSIMULATION_H
 #define RESTGARFIELD_TRANSPORTSIMULATION_H
 
+#include <filesystem>
 #include <memory>
 
 /// \file TransportSimulation.h
@@ -12,6 +13,20 @@ class MediumMagboltz;
 }
 class TRestDetectorMedium;
 class TRestDetectorTransportTable;
+
+/// \brief Exclusive lock (flock) of the directory of a medium file while it is read or written, so several
+/// restGarfield processes can add tables to the same file (e.g. the media Ar99_iC4H10_1, Ar98_iC4H10_2...
+/// of ArIso.root). It waits for the lock of another process and releases it when destroyed.
+class MediumFileLock {
+   public:
+    explicit MediumFileLock(const std::filesystem::path& mediumFile);
+    ~MediumFileLock();
+    MediumFileLock(const MediumFileLock&) = delete;
+    MediumFileLock& operator=(const MediumFileLock&) = delete;
+
+   private:
+    int fDescriptor = -1;
+};
 
 /// \brief Garfield++ gas (MediumMagboltz) of a gas medium at a pressure (bar) and temperature (K), without
 /// gas table. Throws if the medium is not a gas or its components are not valid for Garfield.
@@ -36,9 +51,11 @@ std::unique_ptr<Garfield::MediumMagboltz> CreateGas(const TRestDetectorMedium& m
 /// \param simulation Configuration of the transport tables (the `transport` section of
 /// TRestDetectorTransportManager).
 /// \param verbose Verbose Magboltz gas table generation (GenerateGasTable).
+/// \param jobs Gases: the field nodes are split in up to `jobs` processes (Magboltz is not thread safe),
+/// each one computing a contiguous part of the grid (at least 2 nodes); the table is the same.
 /// \throws std::runtime_error if the medium is not supported, usePenning is set for a non-gas, there is no
 /// electron transport or the medium file cannot be opened.
 void RunTransportSimulation(const TRestDetectorMedium& medium, TRestDetectorTransportTable& simulation,
-                            bool verbose);
+                            bool verbose, int jobs = 1);
 
 #endif

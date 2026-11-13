@@ -70,11 +70,13 @@ void TRestDetectorMedium::LoadConfig() {
     // Medium file: the definition (from the file, or checked against it), given to the responses
     std::unique_ptr<TFile> file;
     if (!fMediumFile.empty()) {
-        const std::string path = GetMediumFile().string();
+        // A URL (e.g. a versioned table of rest-common) is downloaded and kept as the medium file
+        const bool url = TRestTools::IsURL(fMediumFile);
+        const std::string path = url ? TRestTools::DownloadFile(fMediumFile) : GetMediumFile().string();
         if (std::filesystem::is_regular_file(path)) {
             file.reset(TFile::Open(path.c_str(), "READ"));
             if (!file || file->IsZombie()) throw std::runtime_error(prefix + "cannot open " + path);
-            fMediumFile = path;
+            if (!url) fMediumFile = path;
             const YAML::Node metadata = TRestMetadata::ReadMetadata(file.get(), fName);
             if (!metadata || !metadata.IsMap()) {
                 throw std::runtime_error(prefix + "no medium '" + fName + "' in " + path);
@@ -139,6 +141,10 @@ YAML::Node TRestDetectorMedium::GetDefinition() const {
 }
 
 std::filesystem::path TRestDetectorMedium::GetMediumFile() const {
+    if (TRestTools::IsURL(fMediumFile)) {
+        throw std::runtime_error("TRestDetectorMedium '" + fName + "': the medium file " + fMediumFile +
+                                 " is a URL, it cannot be written (a local mediumFile is needed)");
+    }
     return ExpandHome(fMediumFile.empty() ? fName + ".root" : fMediumFile).lexically_normal();
 }
 
@@ -250,6 +256,14 @@ void TRestDetectorChargeResponse::SetMedium(const TRestDetectorMedium& medium, T
     fLoadedTables.clear();
     fRangeWarned->store(false);
     if (file) LoadTables(file);
+    // With transport tables, the stored metadata keeps their values at the drift field (the ones used by
+    // the drift processes); the tables still give them at any field
+    if (HasTransportTables() && fDriftField > 0) {
+        fDriftVelocity = GetDriftVelocity(fDriftField);
+        fLongitudinalDiffusion = GetLongitudinalDiffusion(fDriftField);
+        fTransversalDiffusion = GetTransversalDiffusion(fDriftField);
+        fAttachment = GetAttachment(fDriftField);
+    }
     UpdateYAMLFromParams<TRestDetectorChargeResponse>(fNode);
 }
 

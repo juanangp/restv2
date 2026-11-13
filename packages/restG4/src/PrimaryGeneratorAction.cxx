@@ -57,13 +57,7 @@ PrimaryGeneratorAction::PrimaryGeneratorAction(SimulationManager* simulationMana
 
 PrimaryGeneratorAction::~PrimaryGeneratorAction() = default;
 
-G4ParticleDefinition* PrimaryGeneratorAction::FindParticle(const TRestGeant4ParticleState& particle) {
-    const string name = particle.GetParticleName();
-    const double excitation = particle.GetExcitationLevel();
-    const auto key = make_pair(name, excitation);
-    const auto cached = fParticles.find(key);
-    if (cached != fParticles.end()) return cached->second;
-
+G4ParticleDefinition* PrimaryGeneratorAction::FindGeant4Particle(const string& name, double excitation) {
     G4ParticleDefinition* definition = nullptr;
     if (excitation == 0) definition = G4ParticleTable::GetParticleTable()->FindParticle(name);
     if (!definition) {
@@ -75,6 +69,17 @@ G4ParticleDefinition* PrimaryGeneratorAction::FindParticle(const TRestGeant4Part
             }
         }
     }
+    return definition;
+}
+
+G4ParticleDefinition* PrimaryGeneratorAction::FindParticle(const TRestGeant4ParticleState& particle) {
+    const string name = particle.GetParticleName();
+    const double excitation = particle.GetExcitationLevel();
+    const auto key = make_pair(name, excitation);
+    const auto cached = fParticles.find(key);
+    if (cached != fParticles.end()) return cached->second;
+
+    G4ParticleDefinition* definition = FindGeant4Particle(name, excitation);
     if (!definition) {
         ostringstream message;
         message << "Primary particle '" << name << "' not found";
@@ -107,6 +112,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
         const chrono::duration<double> elapsed = chrono::high_resolution_clock::now() - start;
         outputManager->SetEventTimeWallPrimaryGeneration(elapsed.count());
         outputManager->UpdatePrimaryData(event);
+        fSimulationManager->SetLastEventGenerated();
         return;
     }
 
@@ -161,4 +167,5 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event) {
     const chrono::duration<double> elapsed = chrono::high_resolution_clock::now() - start;
     outputManager->SetEventTimeWallPrimaryGeneration(elapsed.count());
     outputManager->UpdatePrimaryData(event);
+    fSimulationManager->SetLastEventGenerated();
 }

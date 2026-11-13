@@ -4,10 +4,10 @@ This library defines a track event type, groups of hits clustered by a distance 
 processes that reduce, order and analyse the tracks to identify and reconstruct the physical tracks
 (topological observables: track length, blobs at the ends, straight-line fits).
 
-The track library (`RestTrack`) holds the track event of restv2 and the processes that reduce, order and
-analyse its tracks. A track is a group of hits of one type (e.g. XZ and YZ for strip readouts, XYZ for 3D
-readouts); the processes work with any type, and the observables of strip readouts are given by
-`projections` (hit types) instead of fixed X and Y tracks.
+The track library (`RestTrack`) holds the track event of rest-for-physics-toolkit and the processes that
+reduce, order and analyse its tracks. A track is a group of hits of one type (e.g. XZ and YZ for strip
+readouts, XYZ for 3D readouts); the processes work with any type, and the observables of strip readouts are
+given by `projections` (hit types) instead of fixed X and Y tracks.
 
 The tracks are built from a `TRestDetectorHitsEvent` by `TRestDetectorHitsToTrackProcess`, in the
 [connectors library](../connectors/README.md).
@@ -23,9 +23,9 @@ Each process writes its tracks to a new event (the output event holds only the t
 the parent ID of a track is the ID of the track it comes from in the input event.
 
 The getters of `TRestTrackEvent` with a projection option (`GetNumberOfTracks`, `GetEnergy`,
-`GetMaxEnergyTrack`, `GetSecondMaxEnergyTrack`, `GetMaxEnergyTrackVolume`, `GetMaxEnergyTrackLength`)
-select only the XZ tracks with `"X"`, only the YZ tracks with `"Y"` and only the XYZ (3D) tracks with `"XYZ"`.
-The empty option `""` is the XYZ tracks in `GetMaxEnergyTrack` and the methods based on it, and all the tracks in
+`GetMaxEnergyTrack`, `GetSecondMaxEnergyTrack`, `GetMaxEnergyTrackVolume`, `GetMaxEnergyTrackLength`) select
+only the XZ tracks with `"X"`, only the YZ tracks with `"Y"` and only the XYZ (3D) tracks with `"XYZ"`. The
+empty option `""` is the XYZ tracks in `GetMaxEnergyTrack` and the methods based on it, and all the tracks in
 `GetNumberOfTracks` and `GetEnergy` (as without option).
 
 ## Processes

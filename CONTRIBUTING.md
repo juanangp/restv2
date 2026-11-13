@@ -1,4 +1,4 @@
-# Contributing to restv2
+# Contributing to rest-framework
 
 ## Workflow
 
@@ -98,5 +98,5 @@ git push git@github.com:<owner>/restG4.git restg4-split:refs/tags/v3.0.0
 git branch -D restg4-split
 ```
 
-The history of the split starts with the first commit of restv2 (the legacy history of restG4 is in its
-original repository), so pushing to a repository with that legacy history is rejected unless forced.
+The history of the split starts with the first commit of rest-framework (the legacy history of restG4 is in
+its original repository), so pushing to a repository with that legacy history is rejected unless forced.

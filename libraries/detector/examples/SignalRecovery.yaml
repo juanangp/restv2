@@ -1,9 +1,8 @@
 # Dead channel recovery: TRestDetectorSignalEvent (input file) -> TRestDetectorSignalEvent with the signals
 # of the dead channels recovered from their adjacent channels (given by the readout).
 #   restManager --c SignalRecovery.yaml --i <file with TRestDetectorSignalEvent>
-# iaxo_readout_output.root is created by the REST_Detector_GenerateMicromegasReadout macro from
-# MicromegasReadout.yaml. 4490 and 4489 (physical IDs 41 and 42) are consecutive: their charge comes from
-# 4491 and 4487 (physical IDs 40 and 43).
+# The readout is IAXO.root of rest-common-readouts (by URL). 4490 and 4489 (physical IDs 41 and 42) are consecutive:
+# their charge comes from 4491 and 4487 (physical IDs 40 and 43).
 
 manager:
   class: "TRestManager"
@@ -12,7 +11,7 @@ manager:
   readoutManager:
     class: "TRestDetectorReadoutManager"
     readouts:
-      - inputFileName: "iaxo_readout_output.root"
+      - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/IAXO.root"
         instanceName: "IAXO_D1_Readout"
         decodingName: "nominal_decoding"
 

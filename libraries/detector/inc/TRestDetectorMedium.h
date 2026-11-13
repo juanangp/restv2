@@ -33,7 +33,9 @@ class TRestDetectorTransportTable;
 /// - driftField: the drift field of the detector (e.g. 140 V/cm), where the transport tables are evaluated
 ///   for the drift processes; needed with transport tables. Two drift regions are two media.
 /// - driftVelocity, longDiff, transDiff (sqrt(cm)), attachment (1/cm): fixed electron transport, used
-///   when there are no transport tables (e.g. no mediumFile), for any field.
+///   when there are no transport tables (e.g. no mediumFile), for any field. With transport tables they
+///   are written with the values of the tables at driftField (those used by the drift processes, kept
+///   in the stored metadata); the tables still give them at any field.
 /// - transportTable: key of the transport table to use (all the tables at the conditions if empty).
 /// - loadedTables: written with the keys of the tables loaded (not an input).
 ///
@@ -208,7 +210,8 @@ class TRestDetectorLightResponse : public TRestMetadata {
 ///   pressures), e.g. {Ar: 99, iC4H10: 1} or {Si: 100}. Read from the medium file if not given; if given,
 ///   they must agree with it.
 /// - mediumFile: path of the medium file (a leading ~ is $HOME). restGarfield writes to it (by default
-///   `<name>.root`).
+///   `<name>.root`). It can be a URL for reading (downloaded and cached, TRestTools::GetLocalFile; e.g. a
+///   versioned table of rest-common); a URL that cannot be downloaded is an error.
 /// - pressure (gases only, 1 bar), temperature (293.15 K): the conditions of the detector (and the default
 ///   ones of the tables of restGarfield). A pressure other than 1 bar for a liquid or a solid is an error
 ///   (1 bar is accepted, it is written to the metadata for any state).

@@ -441,6 +441,9 @@ Dated sections in chronological order, **oldest first**. Items added later to a 
       symlink to the common one; the own materials.xml of 03, 05, 06 and 12 deleted. The variables of the
       parametrized materials (targetGasDensity, gasPressure...) removed from the GDML. 10.Geometries does not
       include the common file (defines all its materials).
+    - Since 2026-11-12 the common file is the `materials.xml` of rest-common-materials (the same definitions,
+      plus those of LiquidO): each GDML includes it by URL (release v1.0, downloaded once and cached); the local file
+      and its symlinks were deleted.
     - Material changes: Ar_ISO → Argon1%Isobutane1bar (04, 08, 11), PureXenon → XenonGas (09), Xenon_TMA →
       Xenon1%TMA10bar (01, 05), Stainlesssteel → StainlessSteel and PureNitrogen → NitrogenGas (05);
       02.TREXDM gas = Neon1%Isobutane10bar and 14.DetectorResponse gas = Xenon30%Neon1.5bar, without the
@@ -1023,3 +1026,33 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
     std::runtime_error).
   - TRestGeant4QuenchingProcess and TRestGeant4AnalysisProcess only read their metadata from the input file.
   - TRestHitsAnalysis::GetTwist and GetTwistWeighted measure the angle differently (as legacy).
+
+### Shared resources by URL (2026-11-11, implemented, user decisions)
+
+- Organization: one repository per project in rest-for-physics-toolkit (alphacamm, liquido...), grouped by a
+  topic and the profile of the organization, and three repositories for the shared resources (topic
+  `rest-common`), each one with its own versions, since they are generated and change differently:
+  `rest-common-materials` (materials.xml of Geant4; CI with Python only), `rest-common-transport`
+  (restGarfield YAML; its transport tables are computed locally) and `rest-common-readouts` (YAML and
+  decoding per project; CI building the framework). They were a single `rest-common` until 2026-11-12.
+  Only the sources are committed: on a tag, the CI generates the readout files (with the
+  overlaps checked: the generation macros return 1 if TRestDetectorReadout::CheckOverlaps finds any, the
+  exit code of `restRoot -b -q -e 'gSystem->Exit(<macro>(...));'`; a bare call is not run by restRoot)
+  and `materials.xml` (merged from `definitions/`, as rest-for-physics/materials), and attaches them to the
+  release; the transport tables (too slow for a CI runner) are computed locally (`restGarfield --jobs`) and
+  attached by hand. A medium file can hold several
+  media (`tables/<medium>/<key>`), e.g. `ArIso.root` with `Ar99_iC4H10_1`, `Ar98_iC4H10_2`...
+- One readout file per project (e.g. `TREXDM.root` with its two planes): `REST_Detector_GenerateReadouts`
+  builds every readout section of a YAML and exports them all to the same file (`Readouts/<name>/`); the
+  readout manager has one entry per readout with the same `inputFileName`. A readout stores several
+  decodings (`decodings`: name and decoding file, besides `decodingFile`), and a decoding can be added later
+  to a readout file without rewriting its geometry (TRestDetectorReadout::AddDecoding, macro
+  REST_Detector_AddDecoding); the manager chooses one with `decodingName`.
+- The projects read them with versioned URLs (a tag), not GitHub Pages (only the latest version):
+  `https://github.com/rest-for-physics-toolkit/rest-common-materials/releases/download/<tag>/materials.xml`.
+- Read from a URL (TRestTools::GetLocalFile: downloaded once with curl and cached in
+  `$REST_HOME/.rest/download`, so it works without network once cached, e.g. in the nodes of a cluster):
+  the GDML entities (before), the YAML `include` (relative includes of a URL are relative to it) and the
+  main YAML file, `mediumFile` of TRestDetectorMedium (read only: restGarfield needs a local file) and
+  `inputFileName` of the readouts of TRestDetectorReadoutManager. The `gdmlFilename` of restG4 stays local
+  (the projects keep their setup GDML, its entities point to rest-common-*).

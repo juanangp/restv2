@@ -18,14 +18,14 @@ manager:
   readoutManager:
     class: "TRestDetectorReadoutManager"
     readouts:
-      - inputFileName: "libraries/detector/examples/iaxo_readout_output.root"
+      - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/IAXO.root"
         instanceName: "IAXO_D1_Readout"
         decodingName: "nominal_decoding"
 
   medium:
     class: "TRestDetectorMedium"
-    name: "ArIso"
-    mediumFile: "testdata/ArIso.root"
+    name: "Ar99_iC4H10_1"
+    mediumFile: "https://github.com/rest-for-physics-toolkit/rest-common-transport/releases/download/v1.0/ArIso.root"
     pressure: 1 bar
     temperature: 293.15
     charge:

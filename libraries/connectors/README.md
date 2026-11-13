@@ -31,7 +31,7 @@ documentation.
 | --- | --- | --- |
 | `TRestDAQViewer` | raw, detector | GUI event display of the files with a `TRestRawSignalEvent` tree (e.g. written by femclient, package restDAQ): for each readout, the amplitude spectrum, the hit map and the signals of the event, plus the rate. In the live mode it follows the file while it is written and opens the next subrun or run; Reload Run reloads the current run from its first subrun (000), histograms reset. |
 
-It is configured with a restv2 YAML with a `TRestDetectorReadoutManager` (the readouts), a
+It is configured with a rest-for-physics-toolkit YAML with a `TRestDetectorReadoutManager` (the readouts), a
 `TRestRawSignalAnalysisProcess` (the pulse parameters) and the `parameters` of the spectrum binning; the
 YAML of an analysis can be used as it is.
 

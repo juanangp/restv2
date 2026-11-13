@@ -454,6 +454,56 @@ TEST(DetectorReadout, AddDecodingToAFile) {
               200 + kNChannels + 1);
 }
 
+TEST(DetectorReadoutManager, WritesOnlyTheDataReadout) {
+    // Two readouts (the same geometry under two names, as the two planes of TREX-DM)
+    const std::string input = std::string(TESTS_WORK_DIR) + "/detector_test_two_readouts.root";
+    {
+        const auto readout = BuildReadout();
+        std::unique_ptr<TFile> file(TFile::Open(input.c_str(), "RECREATE"));
+        ASSERT_TRUE(readout->Export(file.get(), "plane0", "nominal"));
+        ASSERT_TRUE(readout->Export(file.get(), "plane1", "nominal"));
+    }
+    auto write = [&](const std::string& dataReadout, const std::string& output) {
+        const std::string source = "decodingName: nominal, inputFileName: \"" + input + "\"";
+        const YAML::Node node =
+            YAML::Load("readout: \"" + dataReadout + "\"\nreadouts:\n" + "  - {instanceName: plane0, " +
+                       source + "}\n" + "  - {instanceName: plane1, " + source + "}\n");
+        TRestDetectorReadoutManager manager("readoutManager", node);
+        manager.LoadReadout();
+        EXPECT_TRUE(manager.HasReadout("plane0") && manager.HasReadout("plane1"));
+        std::unique_ptr<TFile> file(TFile::Open(output.c_str(), "RECREATE"));
+        manager.WriteMetadata(file.get());
+    };
+
+    // With a data readout, only that one is stored
+    const std::string onePlane = std::string(TESTS_WORK_DIR) + "/detector_test_data_readout.root";
+    write("plane1", onePlane);
+    {
+        std::unique_ptr<TFile> file(TFile::Open(onePlane.c_str(), "READ"));
+        EXPECT_TRUE(TRestMetadata::ReadMetadata(file.get(), "plane0").IsNull());
+        EXPECT_TRUE(TRestMetadata::ReadMetadata(file.get(), "plane1").IsMap());
+        const YAML::Node stored = TRestMetadata::ReadMetadata(file.get(), "readoutManager");
+        ASSERT_TRUE(stored.IsMap() && stored["readouts"]);
+        ASSERT_EQ(stored["readouts"].size(), 1u);
+        EXPECT_EQ(stored["readouts"][0]["instanceName"].as<std::string>(), "plane1");
+    }
+    {
+        std::unique_ptr<TFile> file(TFile::Open(onePlane.c_str(), "READ"));
+        const YAML::Node stored = TRestMetadata::ReadMetadata(file.get(), "readoutManager");
+        TRestDetectorReadoutManager manager("readoutManager", stored);
+        manager.LoadFromFile(file.get());
+        EXPECT_FALSE(manager.HasReadout("plane0"));
+        EXPECT_TRUE(manager.HasReadout("plane1"));
+    }
+
+    // Without a data readout, all of them
+    const std::string allPlanes = std::string(TESTS_WORK_DIR) + "/detector_test_all_readouts.root";
+    write("", allPlanes);
+    std::unique_ptr<TFile> file(TFile::Open(allPlanes.c_str(), "READ"));
+    EXPECT_TRUE(TRestMetadata::ReadMetadata(file.get(), "plane0").IsMap());
+    EXPECT_TRUE(TRestMetadata::ReadMetadata(file.get(), "plane1").IsMap());
+}
+
 TEST(DetectorMedium, FixedChargeResponse) {
     const YAML::Node node = YAML::Load(
         "name: ArIso\n"
@@ -1156,6 +1206,33 @@ TEST(DataSetTardis, TimeDelaysWithoutReadout) {
     EXPECT_NEAR(delays[3], 2 + 500e-9, 1e-12);
 }
 
+TEST(DataSetTardis, TimeDelaysSinceEventsOverAThreshold) {
+    // Only the entries with canBePrevious (previousObservable over previousThreshold) are previous events
+    auto entry = [](long long seconds, bool canBePrevious, std::vector<int> channels = {}) {
+        auto result = TardisEntry(seconds, 0, std::move(channels));
+        result.canBePrevious = canBePrevious;
+        return result;
+    };
+    const auto delays = TRestDataSetTardis::TimeDelays(
+        {entry(0, true), entry(1, false), entry(2, false), entry(5, true), entry(6, false)});
+    ASSERT_EQ(delays.size(), 5u);
+    EXPECT_TRUE(std::isnan(delays[0]));
+    EXPECT_DOUBLE_EQ(delays[1], 1);
+    EXPECT_DOUBLE_EQ(delays[2], 2);
+    EXPECT_DOUBLE_EQ(delays[3], 5);
+    EXPECT_DOUBLE_EQ(delays[4], 1);
+
+    // With the readout: the previous event in the same place and over the threshold
+    const auto readout = BuildReadout();
+    const auto inPlace = TRestDataSetTardis::TimeDelays(
+        {entry(0, true, {XStripID(0), YStripID(0)}), entry(1, false, {XStripID(0), YStripID(0)}),
+         entry(2, false, {XStripID(1), YStripID(1)}), entry(3, true, {XStripID(0), YStripID(0)})},
+        readout.get(), 1);
+    EXPECT_DOUBLE_EQ(inPlace[1], 1);
+    EXPECT_DOUBLE_EQ(inPlace[2], 2);  // the entry 0, not the entry 1 (under the threshold)
+    EXPECT_DOUBLE_EQ(inPlace[3], 3);
+}
+
 TEST(DataSetTardis, TimeDelaysInTheSameStrips) {
     const auto readout = BuildReadout();
     const std::vector<TRestDataSetTardis::Entry> entries = {
@@ -1253,6 +1330,9 @@ TEST(DataSetTardis, Errors) {
     EXPECT_TRUE(tardis.fReferenceFileName.empty());
     const YAML::Node negative = YAML::Load("{class: TRestDataSetTardis, channelTolerance: -1}");
     EXPECT_THROW(TRestDataSetTardis("tardis", negative), std::runtime_error);
+    const YAML::Node noChannels =
+        YAML::Load("{class: TRestDataSetTardis, channelObservable: rawToSignal_SignalsMaxAmplitude}");
+    EXPECT_THROW(TRestDataSetTardis("tardis", noChannels), std::runtime_error);
 
     // Cuts without a manager
     TRestDataSetTardis withCuts("tardis", YAML::Load("{class: TRestDataSetTardis, cuts: [even]}"));

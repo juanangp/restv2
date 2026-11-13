@@ -8,10 +8,10 @@
 /// With `channels`, the delay is the time since the previous entry in the same place of the readout, e.g.
 /// to find the events correlated in space and time (a decay after an activation, the afterpulses of a
 /// spark). The channels are the physical IDs of the readout (after the decoding, not the DAQ channels) of
-/// each event, a vector column or an expression, e.g. "rawToSignal_SignalsPhysicalID" or
-/// "rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 25]" (see
-/// TRestRawToDetectorSignalProcess). The readout (`readout`) is the one of the TRestDetectorReadoutManager of
-/// the dataset; it gives:
+/// each event, a vector column, e.g. "rawToSignal_SignalsPhysicalID" (see TRestRawToDetectorSignalProcess).
+/// Optionally only the channels over a threshold: `channelObservable`, a vector column with a value per
+/// channel (same size and order as `channels`), and `channelThreshold`. The readout (`readout`) is the one
+/// of the TRestDetectorReadoutManager of the dataset; it gives:
 /// * the neighbours of each channel (TRestDetectorReadout::GetAdjacentChannels: physical ID - 1 and + 1,
 ///   without crossing between the X and Y strips of a Micromegas or between rows of fibres);
 /// * the groups of channels: those measuring the same coordinates (the finite coordinates of
@@ -37,9 +37,17 @@
 /// * readout: instance name of the readout in the TRestDetectorReadoutManager of the dataset; empty: its
 ///   data readout (only with channels).
 /// * channelTolerance: number of neighbours of a channel in the same place (1).
+/// * previousObservable, previousThreshold: only the events whose previousObservable (a value per event, e.g.
+///   trackAnalysis_TotalEnergy) is over previousThreshold can be the previous event: the delay is the time
+///   since the last of them (in the same place with channels), e.g. the time since the last high energy
+///   event. The others get their delay as any event but are never the previous one. Empty
+///   previousObservable (default): any event.
+/// * channelObservable, channelThreshold: the channels whose value of channelObservable is not over
+///   channelThreshold are not used (empty channelObservable: all the channels), e.g. the noise of single
+///   channels.
 /// * cuts: names of the TRestCut of the manager, e.g. to remove the noise. The entries that do not pass them
 ///   are removed from the dataset before the delays are computed: a noise event is never the previous one.
-///   The noise of single channels is removed in `channels` with a mask (e.g. an amplitude threshold).
+///   The noise of single channels is removed with channelObservable and channelThreshold.
 /// * referenceFileName, referenceSelection: not used (a warning). The process has no parameters.
 ///
 /// The delays are those of the entries at this point of the pipeline: later filters (cuts, other processes)
@@ -51,6 +59,10 @@
 ///   cuts: ["noise"]                             # optional: removes the noise events
 ///   channels: "rawToSignal_SignalsPhysicalID"   # optional: the previous event in the same place
 ///   channelTolerance: 1
+///   previousObservable: "trackAnalysis_TotalEnergy"        # optional: the previous event over
+///   previousThreshold: 5000                                # previousThreshold
+///   channelObservable: "rawToSignal_SignalsMaxAmplitude"   # optional: only the channels over
+///   channelThreshold: 25                                   # channelThreshold
 /// \endcode
 ///
 /// \author JuanAn García <juanangp@unizar.es>
@@ -60,6 +72,7 @@
 #include <ROOT/RVec.hxx>
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <map>
 #include <memory>
@@ -79,6 +92,10 @@ static const bool TRestDataSetTardis_FieldsRegistered = []() {
     reg.RegisterField<C>("channels", &C::fChannels);
     reg.RegisterField<C>("readout", &C::fReadout);
     reg.RegisterField<C>("channelTolerance", &C::fChannelTolerance);
+    reg.RegisterField<C>("channelObservable", &C::fChannelObservable);
+    reg.RegisterField<C>("channelThreshold", &C::fChannelThreshold);
+    reg.RegisterField<C>("previousObservable", &C::fPreviousObservable);
+    reg.RegisterField<C>("previousThreshold", &C::fPreviousThreshold);
     return true;
 }();
 
@@ -170,12 +187,16 @@ std::vector<double> TRestDataSetTardis::TimeDelays(const std::vector<Entry>& ent
                                                    int channelTolerance) {
     std::vector<double> delays(entries.size(), kNaN);
     if (!readout) {
-        for (size_t i = 1; i < entries.size(); i++) delays[i] = Delay(entries[i - 1], entries[i]);
+        int last = -1;  // the last entry that can be the previous one
+        for (size_t i = 0; i < entries.size(); i++) {
+            if (last >= 0) delays[i] = Delay(entries[last], entries[i]);
+            if (entries[i].canBePrevious) last = static_cast<int>(i);
+        }
         return delays;
     }
 
     ChannelMap map(*readout, channelTolerance);
-    // Entries (indices, increasing) with each physical channel
+    // Entries (indices, increasing) with each physical channel, only those that can be the previous one
     std::unordered_map<int, std::vector<int>> history;
     // The physical channels of the readout of each entry (sorted) and its groups
     std::vector<std::vector<int>> channels(entries.size());
@@ -239,7 +260,9 @@ std::vector<double> TRestDataSetTardis::TimeDelays(const std::vector<Entry>& ent
                 break;
             }
         }
-        for (const int channel : channels[e]) history[channel].push_back(static_cast<int>(e));
+        if (entries[e].canBePrevious) {
+            for (const int channel : channels[e]) history[channel].push_back(static_cast<int>(e));
+        }
     }
     return delays;
 }
@@ -255,6 +278,9 @@ void TRestDataSetTardis::LoadConfig() {
     UpdateParamsFromYAML<TRestDataSetTardis>(fNode);
     if (fChannelTolerance < 0) {
         throw std::runtime_error(GetClassName() + " '" + fName + "': channelTolerance must not be negative");
+    }
+    if (!fChannelObservable.empty() && fChannels.empty()) {
+        throw std::runtime_error(GetClassName() + " '" + fName + "': channelObservable needs channels");
     }
     if (!fReferenceFileName.empty() || !fReferenceSelection.empty()) {
         RESTWarning << GetClassName() << " '" << fName
@@ -297,10 +323,29 @@ void TRestDataSetTardis::Apply(TRestDataSet& dataSet) const {
     auto subEvents = frame.Take<int>("subEventID");
     auto seconds = frame.Take<long long>("timeSeconds");
     auto nanoseconds = frame.Take<int>("timeNanoSecs");
+    ROOT::RDF::RResultPtr<std::vector<double>> previousValues;
+    if (!fPreviousObservable.empty()) {
+        if (!frame.HasColumn(fPreviousObservable)) {
+            throw std::runtime_error(context + ": the dataset has no column " + fPreviousObservable);
+        }
+        previousValues = frame.Take<double>(AsDouble(frame, fPreviousObservable));
+    }
     ROOT::RDF::RResultPtr<std::vector<ROOT::RVec<int>>> channels;
     if (readout) {
+        for (const auto& column : {fChannels, fChannelObservable}) {
+            if (!column.empty() && !frame.HasColumn(column)) {
+                throw std::runtime_error(context + ": the dataset has no column " + column);
+            }
+        }
+        // The channels, those over the threshold with channelObservable (a mask of the vector)
+        std::string expression = fChannels;
+        if (!fChannelObservable.empty()) {
+            char threshold[64];
+            std::snprintf(threshold, sizeof(threshold), "%.17g", fChannelThreshold);
+            expression += "[" + fChannelObservable + " > " + threshold + "]";
+        }
         const std::string channelsColumn = "__tardisChannels_" + fName;
-        frame = frame.Define(channelsColumn, fChannels);
+        frame = frame.Define(channelsColumn, expression);
         channels = frame.Take<ROOT::RVec<int>>(channelsColumn);
     }
     const size_t nEntries = runs->size();
@@ -324,6 +369,9 @@ void TRestDataSetTardis::Apply(TRestDataSet& dataSet) const {
         entries[i].seconds = (*seconds)[n];
         entries[i].nanoseconds = (*nanoseconds)[n];
         if (readout) entries[i].channels.assign((*channels)[n].begin(), (*channels)[n].end());
+        if (!fPreviousObservable.empty()) {
+            entries[i].canBePrevious = (*previousValues)[n] > fPreviousThreshold;
+        }
     }
     const auto timeDelays = TimeDelays(entries, readout, fChannelTolerance);
 

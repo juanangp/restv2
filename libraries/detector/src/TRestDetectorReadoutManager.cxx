@@ -186,9 +186,14 @@ void TRestDetectorReadoutManager::WriteMetadata(TFile* file) {
     UpdateYAMLFromParams<TRestDetectorReadoutManager>(fNode);
     YAML::Node node = YAML::Clone(fNode);
 
+    // With a data readout (`readout`), only that one is stored: the data of the file are those of a single
+    // readout, the others were loaded for this processing (e.g. to view the whole detector)
     YAML::Node readoutsNode = node["readouts"];
+    YAML::Node stored(YAML::NodeType::Sequence);
     for (size_t i = 0; i < fReadoutInfo.size() && i < readoutsNode.size(); ++i) {
         const auto& readoutInfo = fReadoutInfo[i];
+        if (!fDataReadoutName.empty() && readoutInfo.fInstanceName != fDataReadoutName) continue;
+        stored.push_back(readoutsNode[i]);
         auto* readout = GetReadout(readoutInfo.fInstanceName);
         // Readouts not imported keep pointing to their original file
         if (!readout) continue;
@@ -198,8 +203,9 @@ void TRestDetectorReadoutManager::WriteMetadata(TFile* file) {
                       << file->GetName() << RESTendl;
             continue;
         }
-        readoutsNode[i]["inputFileName"] = kSelfFile;
+        stored[stored.size() - 1]["inputFileName"] = kSelfFile;
     }
+    node["readouts"] = stored;
 
     TRestMetadata::WriteMetadata(file, fName, node);
 }

@@ -84,7 +84,7 @@ documentation.
 
 | Class | Description |
 | --- | --- |
-| `TRestDataSetTardis` | Dataset process (`TRestDataSetProcessManager`): adds `<name>_timeDelay`, the time since the previous event in chronological order across the runs, or with `channels` since the previous event in the same channels of the readout (neighbours within `channelTolerance`, each group of channels: X and Y strips, fibre families); its `cuts` filter the dataset. |
+| `TRestDataSetTardis` | Dataset process (`TRestDataSetProcessManager`): adds `<name>_timeDelay`, the time since the previous event in chronological order across the runs, or with `channels` since the previous event in the same channels of the readout (neighbours within `channelTolerance`, each group of channels: X and Y strips, fibre families), optionally only since the events with `previousObservable` over `previousThreshold` (e.g. high energy events); its `cuts` filter the dataset. |
 | `TRestDataSetGainMap` | Dataset process (`TRestDataSetProcessManager`): divides the extent of the readout in segments, fits the calibration peaks of each segment and adds the columns of the energy calibrated per segment and with the whole readout; refits and drawings in restRoot. |
 
 ## Macros

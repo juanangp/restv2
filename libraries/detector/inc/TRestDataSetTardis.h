@@ -29,15 +29,29 @@ class TRestDataSetTardis : public TRestDataSetProcess {
     /// `channelTolerance`: neighbours (TRestDetectorReadout::GetAdjacentChannels) of a channel that count as
     /// the same place (0: only the same channel)
     int fChannelTolerance = 1;
+    /// `channelObservable`: a vector column with a value per channel of `channels` (same size and order),
+    /// e.g. the amplitude or the integral of each signal; empty: all the channels are used
+    std::string fChannelObservable = "";
+    /// `channelThreshold`: the channels whose channelObservable is not over this value are not used (noise
+    /// of single channels)
+    double fChannelThreshold = 0;
+    /// `previousObservable`: an observable of the event (e.g. its energy); only the events with it over
+    /// previousThreshold can be the previous event. Empty: any event
+    std::string fPreviousObservable = "";
+    /// `previousThreshold`: threshold of previousObservable for the previous event
+    double fPreviousThreshold = 0;
 
-    /// \brief An entry of the dataset for TimeDelays: its timestamp and its physical channels
+    /// \brief An entry of the dataset for TimeDelays: its timestamp, its physical channels and whether it can
+    /// be the previous event of the following ones (previousObservable over previousThreshold)
     struct Entry {
         long long seconds = 0;
         int nanoseconds = 0;
         std::vector<int> channels;
+        bool canBePrevious = true;
     };
 
-    /// \brief Time in seconds since the previous entry (entries in chronological order); NaN for the first.
+    /// \brief Time in seconds since the previous entry (entries in chronological order) that can be the
+    /// previous one (canBePrevious); NaN for the first.
     /// With a readout, the previous entry in the same place: for each group of channels of the readout that
     /// both entries have (a group: the channels measuring the same coordinates, e.g. the X strips and the Y
     /// strips of a Micromegas, the families of fibres), one channel of each within channelTolerance

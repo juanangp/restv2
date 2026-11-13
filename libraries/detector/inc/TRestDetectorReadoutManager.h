@@ -52,7 +52,9 @@ class TRestReadoutInfo : public TRestMetadata {
 ///
 /// The readouts are imported when the manager gets its run (SetRunInfo) or is read from a file
 /// (LoadFromFile). When the manager is written to an output file (WriteMetadata), the imported readouts
-/// are stored in it, so the output file is self-contained.
+/// are stored in it, so the output file is self-contained: only the data readout if `readout` is given (the
+/// others are not stored, nor listed in the stored `readouts`), all of them otherwise. A dataset of the file
+/// keeps that readout only, e.g. one plane of TREX-DM.
 ///
 ///    readouts:
 ///      class: "TRestDetectorReadoutManager"

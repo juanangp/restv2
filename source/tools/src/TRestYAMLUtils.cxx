@@ -226,6 +226,67 @@ std::string IncludeBase(const std::string& location) {
     return std::filesystem::path(location).parent_path().string();
 }
 
+/// \brief Throws if a map of the node has a key twice (yaml-cpp keeps both, and only the first is read): a
+/// key repeated or one written with the indentation of the previous map
+void CheckRepeatedKeys(const YAML::Node& node, const std::string& fileName) {
+    if (node.IsSequence()) {
+        for (const auto& item : node) CheckRepeatedKeys(item, fileName);
+    } else if (node.IsMap()) {
+        std::map<std::string, int> lines;
+        for (const auto& item : node) {
+            if (item.first.IsScalar()) {
+                const int line = item.first.Mark().line + 1;
+                const auto [first, inserted] = lines.emplace(item.first.Scalar(), line);
+                if (!inserted) {
+                    throw std::runtime_error(fileName + ", line " + std::to_string(line) + ": the key '" +
+                                             item.first.Scalar() + "' is repeated in the same section " +
+                                             "(line " + std::to_string(first->second) +
+                                             "), check the indentation");
+                }
+            }
+            CheckRepeatedKeys(item.second, fileName);
+        }
+    }
+}
+
+/// \brief A YAML file (local, or downloaded by TRestTools::GetLocalFile) checked: indented with spaces, no
+/// syntax error (the message gives the file, the line and its text) and no repeated key in a section
+YAML::Node LoadYAMLFile(const std::string& fileName) {
+    std::ifstream stream(TRestTools::GetLocalFile(fileName));
+    if (!stream) throw std::runtime_error("Cannot open the YAML file " + fileName);
+    std::vector<std::string> lines;
+    std::string text;
+    for (std::string line; std::getline(stream, line);) {
+        lines.push_back(line);
+        text += line + "\n";
+    }
+
+    for (size_t i = 0; i < lines.size(); i++) {
+        const auto start = lines[i].find_first_not_of(" \t");
+        if (start == std::string::npos || lines[i][start] == '#') continue;
+        if (lines[i].substr(0, start).find('\t') != std::string::npos) {
+            throw std::runtime_error(fileName + ", line " + std::to_string(i + 1) +
+                                     ": indented with a tab, YAML is indented with spaces\n    " + lines[i]);
+        }
+    }
+
+    YAML::Node node;
+    try {
+        node = YAML::Load(text);
+    } catch (const YAML::ParserException& error) {
+        const int line = error.mark.line;
+        std::string message = fileName + ", line " + std::to_string(line + 1) + ", column " +
+                              std::to_string(error.mark.column + 1) + ": " + error.msg;
+        if (line >= 0 && line < static_cast<int>(lines.size())) message += "\n    " + lines[line];
+        message +=
+            "\n(check the indentation of this line and of the previous ones: the keys of a section are "
+            "aligned, deeper than the key of the section)";
+        throw std::runtime_error(message);
+    }
+    CheckRepeatedKeys(node, fileName);
+    return node;
+}
+
 /// \brief Node with its `include` keys expanded (LoadConfigFile), at any depth. `directory`: the base of the
 /// relative paths, the directory of the file of the node or the URL of its directory (IncludeBase);
 /// `stack`: the files being included, to detect cycles
@@ -290,8 +351,7 @@ YAML::Node ExpandIncludes(const YAML::Node& node, const std::string& directory,
         throw std::runtime_error("include: " + pathString + " includes itself (directly or not)");
 
     stack.push_back(pathString);
-    YAML::Node included =
-        ExpandIncludes(YAML::LoadFile(TRestTools::GetLocalFile(pathString)), IncludeBase(pathString), stack);
+    YAML::Node included = ExpandIncludes(LoadYAMLFile(pathString), IncludeBase(pathString), stack);
     stack.pop_back();
 
     if (!sectionKey.empty()) {
@@ -312,8 +372,7 @@ YAML::Node TRestYAMLUtils::LoadConfigFile(const std::string& fileName) {
     // The file itself can also be a URL
     std::vector<std::string> stack{
         TRestTools::IsURL(fileName) ? fileName : std::filesystem::weakly_canonical(fileName).string()};
-    return ExpandIncludes(YAML::LoadFile(TRestTools::GetLocalFile(fileName)), IncludeBase(stack.front()),
-                          stack);
+    return ExpandIncludes(LoadYAMLFile(fileName), IncludeBase(stack.front()), stack);
 }
 
 YAML::Node TRestYAMLUtils::OpenConfigFile(const std::string& fileName,

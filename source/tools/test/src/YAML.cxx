@@ -1,8 +1,9 @@
 /// Unit tests of the YAML utilities (TRestYAMLUtils.h): the `include` key of the configuration files
-/// (LoadConfigFile), the references ${ENV:VAR}, ${PARAM:name} and ${a.b} with the `parameters` section and
-/// its overrides (ResolveRefs, OpenConfigFile, --set), the checks of the parameters used, the access to the
-/// nodes (GetParam, GetList, GetNodeAtPath, GetMetadataClass...), editing a file in place (SetValuesInFile)
-/// and the metadata of a REST file (ReadMetadataStore). The files are written in a work directory per test.
+/// (LoadConfigFile) and their checks (indentation, repeated keys), the references ${ENV:VAR}, ${PARAM:name}
+/// and ${a.b} with the `parameters` section and its overrides (ResolveRefs, OpenConfigFile, --set), the
+/// checks of the parameters used, the access to the nodes (GetParam, GetList, GetNodeAtPath,
+/// GetMetadataClass...), editing a file in place (SetValuesInFile) and the metadata of a REST file
+/// (ReadMetadataStore). The files are written in a work directory per test.
 
 #include <TDirectory.h>
 #include <TFile.h>
@@ -105,6 +106,32 @@ TEST(YAML, IncludeErrors) {
     WriteFile(dir / "notmap.yaml", "section:\n  include: \"list.yaml\"\n");
     EXPECT_TRUE(
         ThrowsWith([&] { TRestYAMLUtils::LoadConfigFile((dir / "notmap.yaml").string()); }, "must be a map"));
+}
+
+TEST(YAML, WrongIndentation) {
+    const fs::path dir = WorkDir();
+    auto load = [&](const std::string& name) { TRestYAMLUtils::LoadConfigFile((dir / name).string()); };
+
+    // A tab: the line given
+    WriteFile(dir / "tab.yaml", "run:\n  runTag: \"a\"\n\trunNumber: 1\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("tab.yaml"); }, "tab.yaml, line 3: indented with a tab"));
+
+    // A key deeper than those of its section: the file, the line and its text
+    WriteFile(dir / "deeper.yaml", "run:\n  runTag: \"a\"\n    runNumber: 1\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("deeper.yaml"); }, "deeper.yaml, line 3"));
+    EXPECT_TRUE(ThrowsWith([&] { load("deeper.yaml"); }, "    runNumber: 1"));
+
+    // A key repeated in a section, or back in the section of its parent with the name of one of its keys
+    WriteFile(dir / "repeated.yaml", "run:\n  runTag: \"a\"\n  runTag: \"b\"\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("repeated.yaml"); }, "line 3: the key 'runTag' is repeated"));
+    WriteFile(dir / "parent.yaml", "run:\n  runTag: \"a\"\nrunNumber: 1\nrunNumber: 2\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("parent.yaml"); }, "the key 'runNumber' is repeated"));
+
+    // Also in an included file; a key repeated in different sections is valid
+    WriteFile(dir / "main.yaml", "section:\n  include: \"repeated.yaml\"\n");
+    EXPECT_TRUE(ThrowsWith([&] { load("main.yaml"); }, "repeated.yaml, line 3"));
+    WriteFile(dir / "valid.yaml", "a:\n  x: 1\nb:\n  x: 2\nlist:\n  - {x: 1}\n  - {x: 2}\n");
+    EXPECT_NO_THROW(load("valid.yaml"));
 }
 
 TEST(YAML, IncludeURL) {

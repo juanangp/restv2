@@ -30,6 +30,10 @@ namespace TRestYAMLUtils {
 ///     run:
 ///       include: "common/run.yaml"
 ///       runTag: "calib"            # overrides the one of common/run.yaml
+///
+/// Each file is checked: indented with spaces (no tabs), no syntax error (the message gives the file, the
+/// line and its text) and no key repeated in a section (e.g. a key written with the indentation of the
+/// section above).
 YAML::Node LoadConfigFile(const std::string& fileName);
 /// \brief Configuration file (LoadConfigFile, its includes expanded) with its references resolved
 /// (ResolveRefs), the parameters with `overrides`

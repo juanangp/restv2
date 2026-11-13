@@ -287,6 +287,10 @@ class Evaluator {
                                                const auto number = numbers.find(reference);
                                                if (number != numbers.end()) return Number(number->second);
                                                const auto text = Lookup(reference);
+                                               // A metadata reference (instance.key) not found: not
+                                               // evaluated (TFormula would fail with errors of cling)
+                                               if (!text && reference.find('.') != std::string::npos)
+                                                   valid = false;
                                                if (!text) return std::nullopt;
                                                const auto value = REST_Units::ParseValueWithUnits(*text);
                                                if (!value) valid = false;

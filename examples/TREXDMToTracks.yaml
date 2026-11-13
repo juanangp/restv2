@@ -1,0 +1,135 @@
+# Full chain of the TREX-DM data of the FEMDAQ (Run03318_Calibration109Cd_TREXDM_DAQ_001.root) of one
+# Micromegas plane, as examples/FemDAQToTracks.yaml for IAXO D1: raw signals, raw signal analysis, detector
+# signals (with the physical channels of each event, rawToSignal_SignalsPhysicalID, for
+# examples/TREXDMTardis.yaml), hits and track analysis:
+#   restManager --c examples/TREXDMToTracks.yaml --i Run03318_Calibration109Cd_TREXDM_DAQ_001.root \
+#     --set plane=0
+# and the same with --set plane=1 for the other plane.
+# The run parameters come from the input name (inputFormat) and the output keeps it, with the plane instead of
+# DAQ: Run03318_Calibration109Cd_TREXDM_Plane0_001.root. A file per plane: each one keeps the DAQ channels of
+# its plane (plane 0: 2-573, plane 1: 578-1149) and uses its readout (rest-common-readouts TREXDM.root), so a
+# dataset of a plane has a single readout.
+# Gas Ne + 2% isobutane at 2 bar (Ne98_iC4H10_2 of rest-common-transport NeIso.root, computed at 1 bar and
+# scaled with E/p), drift field 150 V/cm/bar. Electronics sampling 40 ns, no common noise reduction.
+# The ranges and thresholds of the signal analysis and the parameters of the tracks are those of IAXO D1
+# (examples/FemDAQToTracks.yaml): adjust them to the runs.
+
+parameters:
+  plane: 0  # Micromegas plane: 0 (z = 160.4 mm) or 1 (z = -160.4 mm)
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  run:
+    class: "TRestRun"
+    name: "restRun"
+    runUser: "${ENV:USER}"
+    inputFileName: ""  # --i
+    # Run03318_Calibration109Cd_TREXDM_DAQ_001.root: runNumber 3318, runTag Calibration109Cd,
+    # experimentName TREXDM, runType DAQ, subRunNumber 1
+    inputFormat: "Run[runNumber]_[runTag]_[experimentName]_[runType]_[subRunNumber].root"
+    runInfo:
+      plane: ${PARAM:plane}  # for the names of the datasets of the file ([runInfo.plane])
+    outputFileName: "Run[runNumber]_[runTag]_[experimentName]_Plane${PARAM:plane}_[subRunNumber].root"
+
+  readoutManager:
+    class: "TRestDetectorReadoutManager"
+    # The readout of the data (SignalsPhysicalID, hits): the only one stored in the file and in its datasets
+    # (TRestDataSetTardis)
+    readout: "TREXDM_Plane${PARAM:plane}_Readout"
+    readouts:
+      - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/TREXDM.root"
+        instanceName: "TREXDM_Plane0_Readout"
+        decodingName: "nominal_decoding"
+      - inputFileName: "https://github.com/rest-for-physics-toolkit/rest-common-readouts/releases/download/v1.0/TREXDM.root"
+        instanceName: "TREXDM_Plane1_Readout"
+        decodingName: "nominal_decoding"
+
+  # The drift velocity of the hits (signalToHits)
+  medium:
+    class: "TRestDetectorMedium"
+    name: "Ne98_iC4H10_2"
+    mediumFile: "https://github.com/rest-for-physics-toolkit/rest-common-transport/releases/download/v1.0/NeIso.root"
+    pressure: 2 bar
+    temperature: 293.15
+    charge:
+      wValue: 36.6 eV  # neon (not used by the data chain)
+      fanoFactor: 0.2
+      driftField: 300 V/cm  # 150 V/cm/bar at 2 bar
+
+  pipeline:
+    class: "TRestEventProcessManager"
+    name: "pipeline"
+    eventsToProcess: 0
+    outputEventStorage: true # only the analysis tree
+
+    femdaqToSignal:
+      class: "TRestRawFemDAQToSignalProcess"
+      useFeminosDaqRunInfo: true
+      setRunStartEndFromEvents: true
+
+    # The DAQ channels of the plane
+    planeChannels:
+      class: "TRestRawSignalChannelSelectionProcess"
+      keepChannelRange:
+        select: "${PARAM:plane}"
+        cases:
+          0: [[2, 573]]
+          1: [[578, 1149]]
+
+    recSat:
+      class: "TRestRawSignalRecoverSaturationProcess"
+      minSaturationValue: 3500
+      baselineRange: [20, 140]
+      pointsOverThreshold: 7
+      observables:
+        - "all"
+
+    # Observables of the noise cut of TREXDMTardis.yaml (NGoodSignals, ThresholdIntegralSum...)
+    rawAna:
+      class: "TRestRawSignalAnalysisProcess"
+      baselineRange: [20, 140]
+      integralRange: [150, 450]
+      pointsThreshold: 3
+      signalThreshold: 7
+      pointsOverThreshold: 7
+      observables:
+        - "all"
+
+    # The physical channels of each event (the readout of the plane) and their amplitudes
+    rawToSignal:
+      class: "TRestRawToDetectorSignalProcess"
+      sampling: 40 ns
+      triggerStarts: 0
+      gain: 1
+      zeroSuppression: true
+      baselineRange: [20, 140]
+      integralRange: [150, 450]
+      pointsThreshold: 3
+      signalThreshold: 7
+      pointsOverThreshold: 7
+      observables:
+        - "SignalsID"
+        - "SignalsPhysicalID"
+        - "SignalsMaxAmplitude"
+
+    # Hits with the drift velocity of the medium at the drift field
+    signalToHits:
+      class: "TRestDetectorSignalToHitsProcess"
+      method: "gaussFit"
+
+    hitsToTrack:
+      class: "TRestDetectorHitsToTrackProcess"
+      clusterDistance: "3mm"
+      attachEnergy: 500
+      attachDistance: [3mm, 3mm, 4mm]
+
+    trackAnalysis:
+      class: "TRestTrackAnalysisProcess"
+      cutsEnabled: true
+      projections: ["XZ", "YZ"]
+      nTracksCut: [1, 10]
+      gaussFit: true
+      observables:
+        - "all"

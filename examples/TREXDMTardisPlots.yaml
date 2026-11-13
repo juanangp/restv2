@@ -1,0 +1,78 @@
+# Plots of a TREX-DM dataset processed by TRestDataSetTardis (examples/TREXDMTardis.yaml): two panels with
+# the entries (all, and the correlated ones with the cut of the panel), the delays (tardis_timeDelay, in
+# two ranges), the energy of the tracks of all the events and of the correlated ones (delay under `delay`
+# s), and the delay against the energy.
+# The input is the dataset file, as a run file:
+#   restManager --c examples/TREXDMTardisPlots.yaml \
+#     --i Dataset_03318_Calibration109Cd_TREXDM_Plane1_Tardis.root
+# The PDF is named with the plane of the runs (TREXDMTardis_Plane1.pdf, runInfo.plane). The cut
+# (correlated) and the ranges are an example: adjust them to the runs.
+parameters:
+  delay: 0.02
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  # Events close in space and time to the previous one
+  correlated:
+    class: "TRestCut"
+    conditions:
+      delay: "tardis_timeDelay < ${PARAM:delay}"
+
+  tardisPlots:
+    class: "TRestAnalysisPlot"
+    inputFileName: "Dataset_03318_Calibration109Cd_TREXDM_Plane0_Tardis.root"  # --i
+    previewPlot: true
+    canvasSize: [1800, 1000]
+    canvasDivisions: [3, 2]
+#    save: "TREXDMTardis_Plane{run.runInfo.plane}.pdf"
+    panels:
+      - textSize: 0.06
+        labels:
+          - {text: "Run {run.runNumber}, {run.runTag}, plane {run.runInfo.plane}", position: [0.1, 0.8]}
+          - {text: "All the events", position: [0.1, 0.6]}
+          - {text: "Entries: {entries}", position: [0.1, 0.45]}
+      - textSize: 0.06
+        cuts: ["correlated"]
+        labels:
+          - {text: "Tardis cut", position: [0.1, 0.8]}
+          - {text: "Delay < ${PARAM:delay} s", position: [0.1, 0.6]}
+          - {text: "Entries: {entries}", position: [0.1, 0.45]}
+    plots:
+      - name: "Delay"
+        xLabel: "Time since the previous event in the same place (s)"
+        yLabel: "Counts"
+        logY: true
+        histos:
+          - name: "delay"
+            variables: [{name: "tardis_timeDelay", range: [0, 120], nBins: 120}]
+      - name: "ShortDelay"
+        xLabel: "Time since the previous event in the same place (s)"
+        yLabel: "Counts"
+        logY: true
+        histos:
+          - name: "shortDelay"
+            variables: [{name: "tardis_timeDelay", range: [0, 0.5], nBins: 250}]
+      - name: "Energy"
+        xLabel: "Energy of the tracks (ADC)"
+        yLabel: "Counts"
+        logY: true
+        legend: true
+        histos:
+          - name: "All"
+            variables: [{name: "trackAnalysis_TotalEnergy", range: [0, 20000], nBins: 100}]
+          - name: "Delay < ${PARAM:delay} s"
+            variables: [{name: "trackAnalysis_TotalEnergy", range: [0, 20000], nBins: 100}]
+            cuts: ["correlated"]
+            lineColor: "kRed+1"
+      - name: "DelayVsEnergy"
+        xLabel: "Energy of the tracks (ADC)"
+        yLabel: "Time since the previous event in the same place (s)"
+        logZ: true
+        histos:
+          - name: "delayVsEnergy"
+            option: "colz"
+            variables:
+              - {name: "trackAnalysis_TotalEnergy", range: [0, 20000], nBins: 100}
+              - {name: "tardis_timeDelay", range: [0, 10], nBins: 100}

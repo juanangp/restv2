@@ -1,0 +1,55 @@
+# Time since the previous event in the same place of a TREX-DM Micromegas plane (TRestDataSetTardis), e.g.
+# to find the events correlated in space and time (a decay after an activation, the afterpulses of a spark).
+# The input are the files of a plane of examples/TREXDMToTracks.yaml
+# (Run03318_Calibration109Cd_TREXDM_Plane0_001.root); the dataset is generated and processed in memory, only
+# the processed one is written, named as its runs:
+#   restManager --c examples/TREXDMTardis.yaml --i "Run*_TREXDM_Plane1_*.root"
+# (Dataset_03318_Calibration109Cd_TREXDM_Plane1_Tardis.root, with the plane of the runs, runInfo.plane of
+# TREXDMToTracks.yaml; several runs: Dataset_03318_03320_...; runs with different tags: Mixed). Without --i,
+# the files of the plane 0. The files of the two planes cannot be mixed (each one stores only the readout of
+# its plane).
+# The dataset keeps the readout of the plane (its TRestDetectorReadoutManager), which gives Tardis the
+# neighbours of each strip (the strip - 1 and + 1, not between the X and the Y strips) and the two groups of
+# channels (the X strips and the Y strips). Two events are in the same place if they have X strips within one
+# strip of each other and Y strips within one strip of each other (only X, or only Y, if one of them has a
+# single axis). tardis_timeDelay is NaN for the first event of each place.
+# The plots of the output dataset: examples/TREXDMTardisPlots.yaml.
+# The noise cut is an example: adjust it to the runs.
+
+manager:
+  class: "TRestManager"
+  name: "manager"
+
+  # The noise events, removed before the delays are computed: a noise event is never the previous one
+  noise:
+    class: "TRestCut"
+    conditions:
+      nTracks: "trackAnalysis_NTracks_XZ > 0 && trackAnalysis_NTracks_YZ > 0"
+      integral: "rawAna_ThresholdIntegralSum > 100"
+
+
+  dataSet:
+    class: "TRestDataSet"
+    filePattern: "Run*_TREXDM_Plane0_*.root"  # --i
+    # The noise cut, the channels of Tardis and the tracks (TREXDMTardisPlots.yaml)
+    observables: ["rawAna_NGoodSignals", "rawAna_ThresholdIntegralSum", "rawToSignal_*", "trackAnalysis_*"]
+
+  dataSetProcessing:
+    class: "TRestDataSetProcessManager"
+    outputFileName: "Dataset_[runRange]_[runTag|Mixed]_TREXDM_Plane[runInfo.plane]_Tardis.root"  # --o
+
+    # tardis_timeDelay: seconds since the previous event with strips within channelTolerance strips of the
+    # strips of the event (the strips of the signals of rawToSignal, over its thresholds)
+    tardis:
+      class: "TRestDataSetTardis"
+      cuts: ["noise"]
+      channels: "rawToSignal_SignalsPhysicalID"
+      # Optional: only the channels whose value of channelObservable (a value per channel, same order as
+      # channels) is over channelThreshold
+      channelObservable: "rawToSignal_SignalsMaxAmplitude"
+      channelThreshold: 100
+      channelTolerance: 10
+      # The previous event must have tracks over 5000 ADC (e.g. the time since the last high energy event)
+      previousObservable: "trackAnalysis_TotalEnergy"
+      previousThreshold: 3000
+      readout: ""  # the readout of the dataset: the only one, that of the plane (TREXDMToTracks.yaml)

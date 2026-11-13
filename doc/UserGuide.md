@@ -864,13 +864,19 @@ previous one. Entries with the same timestamp are ordered by run, event and sube
 delay from the previous timestamp, the others 0. The delay is computed on the entries present at that point
 of the pipeline and is not recomputed after later filters. A reference is not used.
 
-With `channels` (a column or expression of the physical channels of each event, e.g.
-`rawToSignal_SignalsPhysicalID`, or with a mask:
-`rawToSignal_SignalsPhysicalID[rawToSignal_SignalsMaxAmplitude > 25]`), the delay is the time since the previous event in the same place of the readout (`readout` of the
-TRestDetectorReadoutManager of the dataset; empty: its data readout): in each group of channels that both
-events have (the X and the Y strips of a Micromegas, the families of fibres; a single group for pixels),
-channels within `channelTolerance` neighbours of the readout (1 by default, 0: the same channel). Events
-without channels of the readout get NaN.
+With `channels` (a vector column with the physical channels of each event, e.g.
+`rawToSignal_SignalsPhysicalID`), the delay is the time since the previous event in the same place of the
+readout (`readout` of the TRestDetectorReadoutManager of the dataset; empty: its data readout): in each
+group of channels that both events have (the X and the Y strips of a Micromegas, the families of fibres; a
+single group for pixels), channels within `channelTolerance` neighbours of the readout (1 by default, 0: the
+same channel). Events without channels of the readout get NaN. Optionally, only the channels over a
+threshold are used: `channelObservable` is a vector column with a value per channel (same size and order as
+`channels`, e.g. the amplitude or the integral of each signal) and `channelThreshold` the threshold.
+
+With `previousObservable` (a value per event, e.g. `trackAnalysis_TotalEnergy`) and `previousThreshold`, only
+the events over the threshold can be the previous event: the delay is the time since the last of them (in the
+same place with `channels`), e.g. since the last high energy event. The events under the threshold get their
+delay too, but are never the previous one.
 
 ```yaml
 tardis:
@@ -878,13 +884,18 @@ tardis:
   cuts: ["noise"]                             # optional: removes the noise events
   channels: "rawToSignal_SignalsPhysicalID"   # optional: the previous event in the same place
   channelTolerance: 1
+  # previousObservable: "trackAnalysis_TotalEnergy"        # optional: the previous event over
+  # previousThreshold: 5000                                # previousThreshold
+  # channelObservable: "rawToSignal_SignalsMaxAmplitude"   # optional: only the channels over
+  # channelThreshold: 25                                   # channelThreshold
 ```
 
 Examples (each file documents how to run it):
 [DataSetCalibration.yaml](../libraries/detector/examples/DataSetCalibration.yaml),
 [DataSetLogOdds.yaml](../examples/DataSetLogOdds.yaml), [DataSetTMVA.yaml](../examples/DataSetTMVA.yaml),
 [DataSetSignalSelection.yaml](../examples/DataSetSignalSelection.yaml),
-[DataSetTardis.yaml](../examples/DataSetTardis.yaml) (see
+[DataSetTardis.yaml](../examples/DataSetTardis.yaml),
+[TREXDMTardis.yaml](../examples/TREXDMTardis.yaml) (see
 [examples/README.md](../examples/README.md)).
 The macro `REST_ViewTMVA(dataset, name[, pdf])` draws the results of a `TRestDataSetTMVA`, and
 `TRestDataSetGainMap::ReadFromFile`, `DrawSpectrum`, `DrawGainMap` and `Refit` inspect a gain map in restRoot.

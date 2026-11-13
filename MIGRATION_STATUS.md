@@ -1108,6 +1108,9 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
 - Dataset generation keeps `timeNanoSecs` when present, regardless of `observables`. The process requires
   both timestamp components; datasets that omitted nanoseconds must be regenerated. Later filters do not
   recompute the delays.
+- Options added later (user, 2026-11-13): `channelObservable`/`channelThreshold` (only the channels over a
+  threshold, a value per channel; replaces a mask written in `channels`) and `previousObservable`/
+  `previousThreshold` (only the events over a threshold, e.g. the energy, can be the previous event).
 - Option `channels` (user, 2026-11-13): the previous event in the same place. The physical channels of each
   event (a vector column, e.g. rawToSignal_SignalsPhysicalID; not the hits, not the DAQ channels) and the
   readout of the dataset, which gives the neighbours (GetAdjacentChannels, `channelTolerance` 1) and the
@@ -1115,3 +1118,21 @@ FEMDAQ (`/home/juanan/FEMDAQ`, formerly femclient) moves to `packages/restDAQ`, 
   axis. Same place: a group in common and near channels in every group both events have. The class moved
   to libraries/detector (it needs the readout, as TRestDataSetGainMap); GetDAQID moved from
   TRestFibreReadout to TRestDetectorReadout.
+
+### Gaussian and landau fits of the pulse maximum (2026-11-13, user)
+
+- `gaussFit` and `landauFit` (TRestPulseShapeAnalysis::GetMaxGauss, GetMaxLandau; signalToHits, raw analysis)
+  failed on TREX-DM data (Minuit2 "Initial matrix not pos.def.", fits escaping the pulse): the legacy window
+  [0.9, 1.2] times the time of the maximum depends on where the pulse is, and the initial values were the
+  automatic ones of ROOT. Now the fit covers the top of the pulse (the points over half the maximum and one
+  more on each side), starts from the maximum and the width at half maximum, and the position is limited to
+  the window. A failed fit (or less than 4 points) gives the maximum point instead of (-1, -1), so the charge
+  of the signal is not lost.
+
+### Readouts stored in a file (2026-11-13, user)
+
+- With a data readout (`readout` of TRestDetectorReadoutManager), only that readout is written to the output
+  file (and listed in the stored `readouts`); the others were loaded for the processing only. A dataset of
+  the file keeps that readout, e.g. one plane of TREX-DM (examples/TREXDMToTracks.yaml loads both planes,
+  `readout` selects one). Without `readout`, all the readouts are stored, as before. The analyses use that
+  readout, not a parameter; the plane is also in runInfo (`plane`), only for the names of the datasets.

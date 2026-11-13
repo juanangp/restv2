@@ -28,6 +28,7 @@
 #include "DetectorConstruction.h"
 #include "G4Version.hh"
 #include "PhysicsList.h"
+#include "PrimaryGeneratorAction.h"
 #include "SteppingVerbose.h"
 
 #ifdef G4VIS_USE
@@ -307,6 +308,26 @@ Options ProcessCommandLineOptions(int argc, char* const argv[]) {
 
 constexpr const char* geometryName = "Geometry";
 
+namespace {
+
+/// The particles of the sources exist in Geant4 (after /run/initialize): an error before the simulation, not
+/// a G4Exception at the first event. The particles of the Decay0 files are not checked
+void CheckSourceParticles(const TRestGeant4Metadata& metadata) {
+    for (const auto& source : metadata.GetGeant4PrimaryGeneratorInfo().fSources) {
+        if (source.IsDecay0()) continue;
+        const double excitation = source.fExcitedLevel;
+        if (PrimaryGeneratorAction::FindGeant4Particle(source.fParticleName, excitation) == nullptr) {
+            cerr << "Source particle '" << source.fParticleName
+                 << "' not found in Geant4: a particle (e.g. alpha, e-, gamma) or an ion by its element and "
+                    "mass number (e.g. Po210, Rn222, not 210Po)"
+                 << endl;
+            exit(1);
+        }
+    }
+}
+
+}  // namespace
+
 void Application::Run(const CommandLineOptions::Options& options) {
     const auto originalDirectory = filesystem::current_path();
 
@@ -549,6 +570,7 @@ void Application::Run(const CommandLineOptions::Options& options) {
     {
         UI->ApplyCommand("/tracking/verbose 0");
         UI->ApplyCommand("/run/initialize");
+        CheckSourceParticles(*metadata);
         if (metadata->GetNumberOfBiasingVolumes() == 0) {
             UI->ApplyCommand("/run/beamOn " + to_string(nEvents));
         } else {

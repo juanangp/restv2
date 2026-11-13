@@ -20,25 +20,43 @@ constexpr double kAgetPeakValue = 0.0440895;  // value of the shape at that poin
 
 using TF1Maker = std::function<std::unique_ptr<TF1>(double lower, double upper)>;
 
-/// Fits the function (parameter 0 = amplitude, parameter 1 = position) in a window around the maximum
-/// of the graph. Returns {position, amplitude}, or {-1, -1} if the fit fails.
-std::pair<double, double> FitAroundMaximum(TGraph& signal, const char* label, double lowFrac, double highFrac,
+/// Fits the function (parameter 0 = amplitude, 1 = position, 2 = width) to the top of the pulse: the points
+/// over half the maximum around it and one more on each side. The initial values come from the pulse (the
+/// amplitude is the maximum value times amplitudeScale, the position the time of the maximum, the width from
+/// the width at half maximum) and the position is limited to the window, so the fit does not depend on where
+/// the pulse is in the time window. Returns {position, amplitude}; the maximum point if the top has less
+/// than 4 points or the fit fails (with a warning); {-1, -1} for an empty graph.
+std::pair<double, double> FitAroundMaximum(TGraph& signal, const char* label, double amplitudeScale,
                                            const TF1Maker& make) {
-    constexpr double kFailed = -1;
-    if (signal.GetN() == 0) return {kFailed, kFailed};
+    const int n = signal.GetN();
+    if (n == 0) return {-1, -1};
 
-    const int maxBin = TMath::LocMax(signal.GetN(), signal.GetY());
+    const int maxBin = TMath::LocMax(n, signal.GetY());
     const double maxTime = signal.GetPointX(maxBin);
+    const double maxValue = signal.GetPointY(maxBin);
 
-    std::unique_ptr<TF1> f = make(maxTime - maxTime * lowFrac, maxTime + maxTime * highFrac);
-    TFitResultPtr fitResult = signal.Fit(f.get(), "QNRS");
+    int left = maxBin, right = maxBin;
+    while (left > 0 && signal.GetPointY(left - 1) >= maxValue / 2) left--;
+    while (right < n - 1 && signal.GetPointY(right + 1) >= maxValue / 2) right++;
+    left = std::max(0, left - 1);
+    right = std::min(n - 1, right + 1);
+    const double lower = signal.GetPointX(left), upper = signal.GetPointX(right);
+    if (right - left + 1 < 4 || !(upper > lower)) return {maxTime, maxValue};
+
+    const double width = (upper - lower) / 2.355;  // FWHM (plus a point on each side) to sigma
+    std::unique_ptr<TF1> f = make(lower, upper);
+    f->SetParameters(maxValue * amplitudeScale, maxTime, width);
+    f->SetParLimits(1, lower, upper);
+    f->SetParLimits(2, width / 20, width * 20);
+    // B: the initial values and limits are used also with the predefined functions (gaus, landau)
+    TFitResultPtr fitResult = signal.Fit(f.get(), "QNRSB");
 
     if (!fitResult.Get() || !fitResult->IsValid()) {
         std::cout << "WARNING: bad " << label << " fit with maximum at time = " << maxTime
                   << ". Failed parameters:";
         for (int i = 0; i < f->GetNpar(); i++) std::cout << " " << f->GetParameter(i);
-        std::cout << ". Assigned fit parameters: " << kFailed << std::endl;
-        return {kFailed, kFailed};
+        std::cout << ". The maximum point is used" << std::endl;
+        return {maxTime, maxValue};
     }
     return {f->GetParameter(1), f->GetParameter(0)};
 }
@@ -599,27 +617,29 @@ std::vector<std::pair<double, double>> TRestPulseShapeAnalysis::GetPeaks(
 }
 
 ///////////////////////////////////////////////
-/// \brief It performs a gaussian fit to the signal
-/// which is stored inside a TGraph, in a window around its
-/// maximum. It returns (mean, amplitude) of the gaussian
-/// fit, or (-1, -1) for an empty graph or if the fit fails
-/// (not valid): the callers take a negative time as no maximum.
+/// \brief It performs a gaussian fit to the top of the signal
+/// which is stored inside a TGraph (the points over half its
+/// maximum and one more on each side). It returns (mean, amplitude)
+/// of the gaussian fit; the maximum point if the top has less
+/// than 4 points or the fit fails; (-1, -1) for an empty graph.
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxGauss(TGraph& signal) {
-    return FitAroundMaximum(signal, "gaussian", 0.1, 0.2, [](double lo, double hi) {
+    return FitAroundMaximum(signal, "gaussian", 1.0, [](double lo, double hi) {
         return std::make_unique<TF1>("gaus", "gaus", lo, hi);
     });
 }
 
 ///////////////////////////////////////////////
-/// \brief It performs a landau fit to the signal
-/// which is stored inside a TGraph, in a window around its
-/// maximum. It returns (mean, amplitude) of the landau
-/// fit, or (-1, -1) for an empty graph or if the fit fails
-/// (not valid): the callers take a negative time as no maximum.
+/// \brief It performs a landau fit to the top of the signal
+/// which is stored inside a TGraph (the points over half its
+/// maximum and one more on each side). It returns (most probable
+/// value, constant) of the landau fit (the constant is ~5.5 times the
+/// maximum); the maximum point if the top has less than 4 points or
+/// the fit fails; (-1, -1) for an empty graph.
 ///
 std::pair<double, double> TRestPulseShapeAnalysis::GetMaxLandau(TGraph& signal) {
-    return FitAroundMaximum(signal, "landau", 0.1, 0.2, [](double lo, double hi) {
+    // landau(mpv, sigma) has its maximum ~0.18 times the constant
+    return FitAroundMaximum(signal, "landau", 1 / 0.1806, [](double lo, double hi) {
         return std::make_unique<TF1>("landau", "landau", lo, hi);
     });
 }
@@ -748,7 +768,7 @@ std::pair<double, double> TRestPulseShapeAnalysis::GetMin(TGraph& signal) {
 }
 
 /// \brief (time, amplitude) of the maximum with an option of kMaxOptions (default onlyMax); (-1, -1) for an
-/// empty graph or a failed fit (gaussFit, landauFit, agetFit)
+/// empty graph or a failed agetFit (a failed gaussFit or landauFit gives the maximum point)
 std::pair<double, double> TRestPulseShapeAnalysis::GetMax(TGraph& signal, std::string option) {
     if (option == "onlyMax") return GetMaxAmplitude(signal);
     if (option == "tripleMax") return GetTripleMaxIntegral(signal);

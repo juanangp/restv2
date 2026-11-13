@@ -240,6 +240,22 @@ TEST(PulseShapeAnalysis, GaussianFitOfTheMaximum) {
     const auto [time, amplitude] = PSA::GetMaxGauss(graph);
     EXPECT_NEAR(time, 100, 0.1);
     EXPECT_NEAR(amplitude, 100, 0.5);
+
+    // Late in the time window (the legacy window was proportional to the time of the maximum), sampled
+    // every 0.04 (40 ns in us), with only the points over a threshold (zero suppression)
+    std::vector<std::pair<double, double>> late;
+    for (int i = 0; i < 512; i++) {
+        const double t = 0.04 * i, value = 600 * std::exp(-(t - 15.) * (t - 15.) / (2 * 0.5 * 0.5));
+        if (value > 20) late.emplace_back(t, value);
+    }
+    TGraph lateGraph = MakeGraph(late);
+    const auto [lateTime, lateAmplitude] = PSA::GetMaxGauss(lateGraph);
+    EXPECT_NEAR(lateTime, 15, 0.01);
+    EXPECT_NEAR(lateAmplitude, 600, 3);
+
+    // Too few points for a fit: the maximum point
+    TGraph few = MakeGraph({{1, 5}, {2, 10}, {3, 4}});
+    EXPECT_EQ(PSA::GetMaxGauss(few), std::make_pair(2., 10.));
 }
 
 TEST(PulseShapeAnalysis, AgetFit) {

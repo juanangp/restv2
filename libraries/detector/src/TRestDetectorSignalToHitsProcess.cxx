@@ -265,8 +265,8 @@ bool TRestDetectorSignalToHitsProcess::ProcessEvent(const TRestEvent& input, TRe
                 for (int j = 0; j < graph.GetN(); j++) graph.SetPointY(j, smoothed[j]);
             }
             const auto hit = GetMax(graph, fMethod);
-            // Failures (empty signal, failed fit) return (-1, -1), rejected by the amplitude: negative times
-            // are valid
+            // Failures (empty signal, failed agetFit) return (-1, -1), rejected by the amplitude: negative
+            // times are valid. A failed gaussFit or landauFit gives the maximum point
             if (std::isfinite(hit.first) && hit.second > 0) hits.push_back(hit);
         }
 

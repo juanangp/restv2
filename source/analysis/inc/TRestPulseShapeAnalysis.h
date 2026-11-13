@@ -221,7 +221,7 @@ std::pair<double, double> GetMin(TGraph& signal);
 /// \brief (time, amplitude) of the maximum with an option of kMaxOptions: onlyMax (GetMaxAmplitude,
 /// also for an unknown option), tripleMax (GetTripleMaxIntegral), tripleMaxAverage (GetTripleMaxAverage),
 /// gaussFit (GetMaxGauss), landauFit (GetMaxLandau) or agetFit (GetMaxAget); (-1, -1) for an empty graph or
-/// a failed fit
+/// a failed agetFit
 std::pair<double, double> GetMax(TGraph& signal, std::string option);
 /// \brief (time, value) of the maximum point; (-1, -1) for an empty graph
 std::pair<double, double> GetMaxAmplitude(TGraph& signal);
@@ -231,11 +231,12 @@ std::pair<double, double> GetTripleMaxAverage(TGraph& signal);
 /// \brief Triple max (GetTripleMax): (value weighted mean time, sum of the values) of the three points;
 /// (0, 0) if their values add up to 0, (-1, -1) for an empty graph
 std::pair<double, double> GetTripleMaxIntegral(TGraph& signal);
-/// \brief Gaussian fit in [0.9, 1.2] times the time of the maximum point: (mean, amplitude); (-1, -1) for
-/// an empty graph or a failed fit
+/// \brief Gaussian fit of the top of the pulse (the points over half the maximum around it and one more on
+/// each side), with initial values from the pulse: (mean, amplitude); the maximum point if the top has less
+/// than 4 points or the fit fails, (-1, -1) for an empty graph
 std::pair<double, double> GetMaxGauss(TGraph& signal);
-/// \brief Landau fit in [0.9, 1.2] times the time of the maximum point: (most probable value, amplitude);
-/// (-1, -1) for an empty graph or a failed fit
+/// \brief Landau fit of the top of the pulse (as GetMaxGauss): (most probable value, constant); the maximum
+/// point if the top has less than 4 points or the fit fails, (-1, -1) for an empty graph
 std::pair<double, double> GetMaxLandau(TGraph& signal);
 /// \brief AGET response fit (FitAget, with sine, baseline fixed to 0) to the points in [0.75, 1.35] times
 /// the time of the maximum point: (time of the maximum, amplitude); (-1, -1) for an empty graph or a failed
